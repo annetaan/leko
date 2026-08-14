@@ -1,0 +1,46 @@
+{
+  "name": "@annetaan/leko",
+  "version": "0.0.0",
+  "description": "The spotlight you can click through. Product tours that cut a real hole in the overlay, so the user interacts with your actual UI.",
+  "keywords": [
+    "onboarding",
+    "product-tour",
+    "spotlight",
+    "tour",
+    "tutorial",
+    "walkthrough"
+  ],
+  "homepage": "https://github.com/annetaan/leko",
+  "bugs": "https://github.com/annetaan/leko/issues",
+  "license": "MIT",
+  "author": "Annetaan Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annetaan/leko.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./leko.css": "./dist/leko.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc && cp src/leko.css dist/leko.css",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  }
+}

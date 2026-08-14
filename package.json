@@ -1,0 +1,36 @@
+{
+  "name": "leko-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The spotlight you can click through.",
+  "license": "MIT",
+  "author": "Annetaan Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annetaan/leko.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @leko-examples/sandbox dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@vitest/browser": "^4.1.10",
+    "@vitest/browser-playwright": "^4.1.10",
+    "oxfmt": "^0.62.0",
+    "oxlint": "^1.77.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

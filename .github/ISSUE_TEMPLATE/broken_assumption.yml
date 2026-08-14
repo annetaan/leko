@@ -1,0 +1,52 @@
+name: A broken assumption
+description: A rule in DESIGN.md that a browser no longer justifies, or never did.
+labels: [assumption]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Several rules in
+        [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md) exist only because
+        an engine did not do what the specification suggests it might. Each one
+        cites a page under `spike/` you can open and watch. When a browser
+        changes, the rule should go — and this is how we find out.
+
+        This is as welcome as a pull request. Please do not just open a PR that
+        deletes the rule; open this first, so the evidence gets replaced rather
+        than dropped.
+
+  - type: input
+    id: rule
+    attributes:
+      label: Which rule
+      description: Quote it, or link the heading in DESIGN.md.
+    validations:
+      required: true
+
+  - type: input
+    id: spike
+    attributes:
+      label: Which spike page settled it
+      placeholder: spike/waapi-clip-path/
+    validations:
+      required: true
+
+  - type: textarea
+    id: now
+    attributes:
+      label: What the page does now
+      description: >
+        What you saw when you opened it, and on what. `cutout-techniques` and
+        `wheel-through-a-hole` both have a `run.mjs`; paste its output if you
+        used it. `waapi-clip-path` has to be judged by eye, on a 2x display,
+        while the animation is running.
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Browser, exact version, OS, devicePixelRatio
+      placeholder: Chrome 151.0.7922.76, macOS 26.3.1, dPR 2
+    validations:
+      required: true

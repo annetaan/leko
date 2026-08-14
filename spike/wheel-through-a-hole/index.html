@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Does a wheel reach through a clip-path hole?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 20px 24px 40px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; font-family: ui-monospace, monospace; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+
+  .scroller {
+    position: relative;
+    height: 190px;
+    overflow: auto;
+    border: 1px solid #8886;
+    border-radius: 8px;
+  }
+  .rows { margin: 0; padding: 0; list-style: none; }
+  .rows li { padding: 9px 12px; border-bottom: 1px solid #8883; }
+
+  /* Both overlays are built the way a tour builds one: absolutely positioned,
+     sized to the scrollable area, dimmed, with an even-odd hole cut in it. */
+  .cover { position: absolute; left: 0; top: 0; background: rgb(0 0 0 / 0.55); z-index: 9999; }
+
+  .readout {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    background: #8881; padding: 8px 10px; border-radius: 6px; margin-top: 8px;
+    /* Two lines whatever it says. The verdict is longer than the prompt it
+       replaces, and a readout that changes height as you scroll would change
+       the height of the panel the overlay was measured against. */
+    min-height: 38px;
+  }
+  .verdict { font-weight: 700; }
+  .good { color: #0a7d32; }
+  .bad { color: #c62828; }
+  .warn { background: #c6282822; color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) {
+    .good { color: #6ee79b; }
+    .bad, .warn { color: #ff8a80; }
+  }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>Does a wheel reach through a <code>clip-path</code> hole?</h1>
+<p>
+  A hole cut with an even-odd <code>clip-path</code> is genuinely absent: clicks,
+  focus and hit-testing all reach what is underneath, and
+  <code>document.elementFromPoint</code> agrees. <strong>Scrolling is the
+  exception.</strong> Deciding what a wheel should scroll is a separate search,
+  and in some engines the clipped overlay answers it — so the wheel goes to
+  whatever <em>the overlay</em> sits in, not to what is under the pointer.
+</p>
+<p>
+  Put the pointer over each panel and scroll. The readout shows what actually
+  moved. Nothing here uses a library; the overlays are plain
+  <code>&lt;div&gt;</code>s.
+</p>
+
+<p><button id="reset">Reset all</button> <span id="env" class="readout"></span></p>
+<p id="warn" class="readout warn" hidden></p>
+
+<div class="cases" id="cases"></div>
+
+<script>
+const cases = [
+  {
+    id: 'inside',
+    title: 'Overlay inside the scroller',
+    note: 'Where a tour puts the overlay so that it scrolls with its target. The overlay answers for the wheel here too, but its own scroll container *is* this panel, so the right thing happens either way.',
+    build: (scroller) => addCover(scroller, scroller),
+  },
+  {
+    id: 'outside',
+    title: 'Overlay outside, hole over the scroller',
+    note: 'A page-level overlay with a hole cut where the panel is. The hole is open to clicks. Whether the wheel reaches the panel is the engine-dependent part.',
+    build: (scroller, host) => addCover(host, scroller),
+  },
+  {
+    id: 'none',
+    title: 'No overlay (control)',
+    note: 'What the browser does when nothing is in the way.',
+    build: () => {},
+  },
+]
+
+function roundedRect(x, y, w, h, r) {
+  return `M${x + r} ${y} H${x + w - r} A${r} ${r} 0 0 1 ${x + w} ${y + r}`
+    + ` V${y + h - r} A${r} ${r} 0 0 1 ${x + w - r} ${y + h}`
+    + ` H${x + r} A${r} ${r} 0 0 1 ${x} ${y + h - r}`
+    + ` V${y + r} A${r} ${r} 0 0 1 ${x + r} ${y} Z`
+}
+
+// `mount` is where the overlay is appended; `hole` is the element it is cut
+// around. When they are the same element the hole is a row inside it.
+//
+// Every number here comes from layout, which is why the geometry is a function
+// of its own: it is worked out when a cover is built, and worked out again to
+// check that the cover still describes the page it is sitting on.
+function coverGeometry(mount, hole) {
+  const inner = mount === hole
+  const w = inner ? mount.scrollWidth : mount.offsetWidth
+  const h = inner ? mount.scrollHeight : mount.offsetHeight
+  const box = inner
+    ? { x: 8, y: 240, w: w - 16, h: 40 }
+    : (() => {
+        const a = hole.getBoundingClientRect()
+        const b = mount.getBoundingClientRect()
+        return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }
+      })()
+  return { w, h, box }
+}
+
+const covers = []
+
+function addCover(mount, hole) {
+  const { w, h, box } = coverGeometry(mount, hole)
+  const cover = document.createElement('div')
+  cover.className = 'cover'
+  cover.style.width = `${w}px`
+  cover.style.height = `${h}px`
+  cover.style.clipPath =
+    `path(evenodd, "M0 0 H${w} V${h} H0 Z ${roundedRect(box.x, box.y, box.w, box.h, 8)}")`
+  mount.append(cover)
+  covers.push({ cover, mount, hole })
+}
+
+const host = document.querySelector('#cases')
+const panels = cases.map((c, i) => {
+  const wrap = document.createElement('div')
+  wrap.style.position = 'relative'
+  // Named so run.mjs can aim the wheel at a particular panel rather than
+  // counting them. Nothing on the page reads it.
+  wrap.dataset.case = c.id
+  // Numbered so that a result can be reported as "1, 2, 3" by somebody who has
+  // the page open and no reason to learn what the panels are called. run.mjs
+  // prints the same numbers.
+  wrap.innerHTML =
+    `<h2>${i + 1}. ${c.title}</h2><p>${c.note}</p>`
+    + `<div class="scroller"><ul class="rows">${
+        Array.from({ length: 30 }, (_, i) => `<li>Row ${i + 1}</li>`).join('')
+      }</ul></div>`
+    + `<div class="readout" data-out>panel 0px &middot; page 0px</div>`
+  host.append(wrap)
+
+  return {
+    ...c,
+    wrap,
+    scroller: wrap.querySelector('.scroller'),
+    out: wrap.querySelector('[data-out]'),
+  }
+})
+
+// The page is deliberately tall enough to scroll: an engine that sends the wheel
+// to the overlay's own container has somewhere to send it, which is what makes
+// the difference visible rather than merely silent.
+document.body.style.minHeight = '260vh'
+
+// Covers go on only now, with every panel in the grid and the page at its final
+// height. Built one at a time as the panels were appended, they measured a grid
+// that was still filling up: `auto-fit` collapses its empty tracks, so a lone
+// panel gets the whole row and a pair of them get half each. The middle cover
+// came out 516px wide in a column that ended up 337px, and hung over the
+// control panel next to it — the one arrangement this page must keep clean.
+function buildCovers() {
+  for (const { cover } of covers.splice(0)) cover.remove()
+  for (const p of panels) p.build(p.scroller, p.wrap)
+  checkCovers()
+}
+
+// So judge that much automatically. A cover whose size no longer matches what
+// its mount would ask for is describing layout that has moved on, and every
+// verdict underneath it is then about an arrangement nobody meant to test.
+//
+// Measured when asked rather than remembered: a check that ran once at startup
+// would agree with itself and miss anything that shifted afterwards.
+function checkCovers() {
+  const stale = covers.filter(({ cover, mount, hole }) => {
+    const { w, h } = coverGeometry(mount, hole)
+    return Math.abs(cover.offsetWidth - w) > 1 || Math.abs(cover.offsetHeight - h) > 1
+  })
+  const warn = document.querySelector('#warn')
+  warn.hidden = stale.length === 0
+  warn.textContent = stale.length === 0
+    ? ''
+    : `${stale.length} overlay(s) no longer match the layout they were measured from`
+    + ' — the verdicts below are not about the arrangement described above.'
+  return stale.length
+}
+
+// run.mjs asks for this after it has finished scrolling, not before.
+window.spikeWheel = { check: checkCovers }
+
+function report() {
+  for (const p of panels) {
+    const panel = Math.round(p.scroller.scrollTop)
+    const page = Math.round(document.scrollingElement.scrollTop)
+    const verdict = panel > 0
+      ? '<span class="verdict good">the panel scrolled</span>'
+      : page > 0
+        ? '<span class="verdict bad">the page scrolled instead</span>'
+        : 'scroll over this panel'
+    p.out.innerHTML = `panel ${panel}px &middot; page ${page}px &mdash; ${verdict}`
+  }
+}
+
+// Everything that can change the size of anything happens before the covers are
+// measured. The readouts are the ones that matter — they sit inside the box each
+// cover is cut to — but the ordering is easier to keep right than to reason
+// about case by case.
+document.querySelector('#env').textContent =
+  `${navigator.userAgent.slice(0, 96)} — devicePixelRatio ${devicePixelRatio}`
+report()
+buildCovers()
+
+// Sizes come from layout, so they have to be taken again when layout changes.
+// Drag the window narrower without this and every hole stays where it used to
+// be, which is a different page answering a question nobody asked.
+addEventListener('resize', buildCovers)
+
+addEventListener('scroll', report, true)
+document.querySelector('#reset').addEventListener('click', () => {
+  for (const p of panels) p.scroller.scrollTop = 0
+  document.scrollingElement.scrollTop = 0
+  report()
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leko spike — how to cut a hole in an overlay</title>
+<style>
+  @property --mix { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+  :root { color-scheme: light dark; }
+  body {
+    font: 14px/1.6 system-ui, sans-serif;
+    margin: 0; padding: 24px; max-width: 1100px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 32px 0 4px; }
+  .q { color: #666; margin: 0 0 12px; }
+  @media (prefers-color-scheme: dark) { .q { color: #aaa; } }
+
+  table.results { border-collapse: collapse; width: 100%; margin: 16px 0 32px; }
+  table.results th, table.results td {
+    border: 1px solid #8884; padding: 6px 10px; text-align: left; vertical-align: top;
+  }
+  table.results th { background: #8882; font-weight: 600; }
+  .pass { color: #0a7d32; font-weight: 700; }
+  .fail { color: #c62828; font-weight: 700; }
+  .eye  { color: #b26a00; font-weight: 700; }
+  .limit { color: #6a4bbc; font-weight: 700; }
+  @media (prefers-color-scheme: dark) {
+    .pass { color: #6ee79b; } .fail { color: #ff8a80; } .eye { color: #ffc46b; } .limit { color: #c0a9ff; }
+  }
+
+  /* --- test stages --- */
+  .stage {
+    position: relative;
+    height: 200px;
+    background: #dfe6ef;
+    border: 1px solid #8884;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .target {
+    position: absolute;
+    background: #4a7fb5;
+    border-radius: 8px;
+    color: #fff;
+    display: grid; place-items: center;
+    font-size: 12px;
+  }
+  .shaper {
+    position: absolute;
+    outline: 2px solid #e0004d;
+    outline-offset: 0;
+    background: #e0004d22;
+    pointer-events: none;
+  }
+  button.target { border: none; cursor: pointer; font: inherit; font-size: 12px; }
+
+  code { font-family: ui-monospace, monospace; font-size: 12px; background: #8882; padding: 1px 4px; border-radius: 3px; }
+  pre  { font-family: ui-monospace, monospace; font-size: 12px; background: #8881; padding: 10px; border-radius: 6px; overflow-x: auto; }
+  .env { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; background: #8881; padding: 10px; border-radius: 6px; }
+
+  /* ===== T0 / T1 : anchor() basics and union ===== */
+  #t0a { anchor-name: --t0a; left: 40px;  top: 40px;  width: 120px; height: 60px; }
+  #t0shaper { top: anchor(--t0a top); left: anchor(--t0a left); right: anchor(--t0a right); bottom: anchor(--t0a bottom); }
+
+  #t1a { anchor-name: --t1a; left: 40px;  top: 40px;  width: 120px; height: 60px; }
+  #t1b { anchor-name: --t1b; left: 200px; top: 90px;  width: 140px; height: 70px; }
+  #t1shaper {
+    top:    min(anchor(--t1a top),    anchor(--t1b top));
+    left:   min(anchor(--t1a left),   anchor(--t1b left));
+    right:  min(anchor(--t1a right),  anchor(--t1b right));
+    bottom: min(anchor(--t1a bottom), anchor(--t1b bottom));
+  }
+
+  /* ===== T2 : scalar morphing between two anchors ===== */
+  #t2a { anchor-name: --t2a; left: 40px;  top: 30px;  width: 120px; height: 60px; }
+  #t2b { anchor-name: --t2b; left: 320px; top: 110px; width: 180px; height: 70px; }
+  #t2shaper {
+    top:    calc(anchor(--t2a top)    * (1 - var(--mix)) + anchor(--t2b top)    * var(--mix));
+    left:   calc(anchor(--t2a left)   * (1 - var(--mix)) + anchor(--t2b left)   * var(--mix));
+    right:  calc(anchor(--t2a right)  * (1 - var(--mix)) + anchor(--t2b right)  * var(--mix));
+    bottom: calc(anchor(--t2a bottom) * (1 - var(--mix)) + anchor(--t2b bottom) * var(--mix));
+  }
+
+  /* ===== T3 : can anchor() travel through a custom property? ===== */
+  #t3a { anchor-name: --t3a; left: 120px; top: 40px; width: 100px; height: 60px; }
+  #t3inset {
+    --x: anchor(--t3a left);
+    left: var(--x); top: 120px; width: 40px; height: 40px;
+  }
+  #t3mask {
+    --x: anchor(--t3a left);
+    left: 0; top: 0; width: 60px; height: 60px;
+    background: #4a7fb5;
+    mask-image: linear-gradient(#000, #000);
+    mask-repeat: no-repeat;
+    mask-size: 30px 30px;
+    mask-position: var(--x) 0px;
+  }
+
+  /* ===== T4 : candidate A (box-shadow spread) with 1 hole vs 2 holes ===== */
+  .bs-hole {
+    position: absolute;
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+  }
+  #t4a { anchor-name: --t4a; left: 60px;  top: 60px; width: 140px; height: 80px; }
+  #t4b { anchor-name: --t4b; left: 300px; top: 60px; width: 140px; height: 80px; }
+  #t4hole1 { top: anchor(--t4a top); left: anchor(--t4a left); right: anchor(--t4a right); bottom: anchor(--t4a bottom); }
+  #t4hole2 { top: anchor(--t4b top); left: anchor(--t4b left); right: anchor(--t4b right); bottom: anchor(--t4b bottom); }
+
+  /* ===== T5 : N holes via clip-path path(evenodd) ===== */
+  .scrim {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+  }
+  #t5a { left: 60px;  top: 50px; width: 150px; height: 60px; }
+  #t5b { left: 320px; top: 110px; width: 150px; height: 60px; }
+
+  /* ===== T6 : scroll tracking without per-frame JS ===== */
+  .scroller { height: 200px; overflow: auto; position: relative; border: 1px solid #8884; border-radius: 6px; background: #dfe6ef; }
+  .content  { position: relative; height: 1200px; }
+  .scroller-wrap { position: relative; }
+</style>
+</head>
+<body>
+
+<h1>Leko spike — how to cut a hole in an overlay</h1>
+<p class="q">
+  Every test judges itself, so opening this file is enough — <strong>read the
+  verdicts straight off the table.</strong> Only the rows marked
+  <span class="eye">by eye</span> need you to look at the stage below.
+</p>
+
+<div class="env" id="env">…</div>
+
+<table class="results">
+  <thead><tr><th style="width:64px">ID</th><th style="width:90px">Verdict</th><th>What it checks</th><th>Detail</th></tr></thead>
+  <tbody id="results"></tbody>
+</table>
+
+<h2>T0 — does <code>anchor()</code> work at all (sanity)</h2>
+<p class="q">Every verdict below is meaningless if this one fails. The red outline should sit exactly on the blue box.</p>
+<div class="stage">
+  <div class="target" id="t0a">anchor A</div>
+  <div class="shaper" id="t0shaper"></div>
+</div>
+
+<h2>T1 — can a union be written as <code>min(anchor(), anchor())</code></h2>
+<p class="q">PASS if the red outline becomes the bounding box of both blue rectangles — a union of two targets with no per-frame JS.</p>
+<div class="stage">
+  <div class="target" id="t1a">A</div>
+  <div class="target" id="t1b">B</div>
+  <div class="shaper" id="t1shaper"></div>
+</div>
+
+<h2>T2 — can a single <code>--mix</code> scalar interpolate between two anchors</h2>
+<p class="q">
+  <code>calc(anchor(--a top) * (1 - var(--mix)) + anchor(--b top) * var(--mix))</code>。
+  Checked both as a static value and as a Web Animations API animation. If this
+  holds, a morph needs one animated number and no animation library.
+</p>
+<div class="stage">
+  <div class="target" id="t2a">A</div>
+  <div class="target" id="t2b">B</div>
+  <div class="shaper" id="t2shaper"></div>
+</div>
+<p><label>--mix: <input type="range" id="t2slider" min="0" max="1" step="0.01" value="0"></label>
+   <button id="t2play">Animate 0 &rarr; 1</button></p>
+
+<h2>T3 — can <code>anchor()</code> be carried through a custom property</h2>
+<p class="q">
+  Whether it reaches somewhere that is not an inset property
+  (<code>mask-position</code>) through <code>var()</code>. <strong>This is the
+  question the whole design turns on</strong>: if it does not, then a mask or
+  clip-path has to be given the target's rectangle by JS.
+</p>
+<div class="stage">
+  <div class="target" id="t3a">anchor A</div>
+  <div class="shaper" id="t3inset"></div>
+  <div id="t3mask" style="position:absolute"></div>
+</div>
+
+<h2>T4 — does option A (<code>box-shadow</code> spread) survive a second hole</h2>
+<p class="q">
+  One hole on the left, two on the right. <strong>Option A survives if both
+  holes on the right are as bright as the one on the left; if either is darker
+  it is out for more than one hole</strong> — shaper A's shadow is painting over
+  hole B.
+</p>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+  <div>
+    <div class="stage" style="height:200px">
+      <div class="target" id="t4a">A</div>
+      <div class="bs-hole" id="t4hole1"></div>
+    </div>
+    <p class="q">One hole — the brightness to compare against</p>
+  </div>
+  <div>
+    <div class="stage" id="t4stage2" style="height:200px">
+      <div class="target" style="left:60px;  top:60px; width:140px; height:80px">A</div>
+      <div class="target" id="t4b">B</div>
+      <div class="bs-hole" style="left:60px; top:60px; width:140px; height:80px"></div>
+      <div class="bs-hole" id="t4hole2"></div>
+    </div>
+    <p class="q">Two holes</p>
+  </div>
+</div>
+
+<h2>T5 — <code>clip-path: path(evenodd)</code>: N holes, rounded, and clickable through</h2>
+<p class="q">
+  One overlay, with two rounded-rectangle subpaths added to its path. PASS if
+  both buttons take a click directly and the overlay still blocks between them.
+</p>
+<div class="stage" id="t5stage">
+  <button class="target" id="t5a">Click me A</button>
+  <button class="target" id="t5b">Click me B</button>
+  <div class="scrim" id="t5scrim"></div>
+</div>
+
+<h2>T7 / T8 — does CSS interpolate <code>clip-path: path()</code> on its own</h2>
+<p class="q">
+  If it does, JS only has to <strong>write two path strings at a step
+  boundary</strong> and CSS can carry the morph between them. Above: one hole to
+  one hole, same structure. Below: two holes to one, a structure that changes.
+</p>
+<div class="stage" id="t7stage"><div class="scrim"></div></div>
+<div class="stage" id="t8stage" style="margin-top:12px"><div class="scrim"></div></div>
+
+<h2>T6 — can an overlay follow a scroll without per-frame JS</h2>
+<p class="q">
+  Left: the overlay goes <strong>inside the scrolling content</strong>, in
+  content coordinates. Right: the overlay goes <strong>outside the
+  scroller</strong>, in viewport coordinates. Both write their path once at the
+  start and run no JS at all while scrolling.
+</p>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+  <div>
+    <div class="scroller" id="t6ascroller">
+      <div class="content" id="t6acontent">
+        <button class="target" id="t6a" style="left:60px; top:900px; width:150px; height:60px">Click me</button>
+        <div class="scrim" id="t6ascrim" style="height:1200px"></div>
+      </div>
+    </div>
+    <p class="q">A: overlay inside the content</p>
+  </div>
+  <div>
+    <div class="scroller-wrap">
+      <div class="scroller" id="t6bscroller">
+        <div class="content">
+          <button class="target" id="t6b" style="left:60px; top:900px; width:150px; height:60px">Click me</button>
+        </div>
+      </div>
+      <div class="scrim" id="t6bscrim"></div>
+    </div>
+    <p class="q">B: overlay outside the scroller</p>
+  </div>
+</div>
+
+<script>
+const results = [];
+const TOL = 1.5;
+
+function record(id, title, status, detail) {
+  results.push({ id, title, status, detail });
+}
+const near = (a, b) => Math.abs(a - b) <= TOL;
+function rectsMatch(r, e) {
+  return near(r.left, e.left) && near(r.top, e.top) && near(r.right, e.right) && near(r.bottom, e.bottom);
+}
+const fmt = r => `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.right - r.left)}×${Math.round(r.bottom - r.top)}`;
+const rel = (el, base) => {
+  const a = el.getBoundingClientRect(), b = base.getBoundingClientRect();
+  return { left: a.left - b.left, top: a.top - b.top, right: a.right - b.left, bottom: a.bottom - b.top };
+};
+const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+// elementFromPoint() only answers for points inside the viewport, so bring the
+// stage into view before probing hit-testing.
+const show = async (el) => { el.scrollIntoView({ block: 'center' }); await frame(); };
+
+function roundedRect(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  return `M${x + r} ${y} H${x + w - r} A${r} ${r} 0 0 1 ${x + w} ${y + r}`
+       + ` V${y + h - r} A${r} ${r} 0 0 1 ${x + w - r} ${y + h}`
+       + ` H${x + r} A${r} ${r} 0 0 1 ${x} ${y + h - r}`
+       + ` V${y + r} A${r} ${r} 0 0 1 ${x + r} ${y} Z`;
+}
+// Outer rect + N rounded holes, combined with the even-odd fill rule.
+// Winding direction is irrelevant under evenodd — only nonzero would need reversed subpaths.
+function punchedPath(w, h, holes) {
+  return `M0 0 H${w} V${h} H0 Z ` + holes.map(o => roundedRect(o.x, o.y, o.w, o.h, o.r)).join(' ');
+}
+
+/* ---------- environment ---------- */
+(function () {
+  const s = [
+    ['anchor-name', CSS.supports('anchor-name: --a')],
+    ['top: anchor()', CSS.supports('top: anchor(--a top)')],
+    ['position-anchor', CSS.supports('position-anchor: --a')],
+    ['@position-try', CSS.supports('position-try-fallbacks: flip-block')],
+    ['clip-path: path(evenodd)', CSS.supports('clip-path: path(evenodd, "M0 0 H10 V10 Z")')],
+    ['mask-composite: subtract', CSS.supports('mask-composite: subtract')],
+    ['registerProperty', typeof CSS !== 'undefined' && typeof CSS.registerProperty === 'function'],
+  ];
+  document.getElementById('env').textContent =
+    navigator.userAgent + '\n' + s.map(([k, v]) => `${v ? '✓' : '✗'} ${k}`).join('   ');
+})();
+
+/* ---------- T0 ---------- */
+function t0() {
+  const stage = document.querySelector('#t0a').parentElement;
+  const got = rel(document.getElementById('t0shaper'), stage);
+  const exp = rel(document.getElementById('t0a'), stage);
+  const ok = rectsMatch(got, exp);
+  record('T0', 'anchor() works on its own', ok ? 'pass' : 'fail',
+    ok ? `shaper = ${fmt(got)}` : `expected ${fmt(exp)} / got ${fmt(got)} — CSS Anchor Positioning may be unsupported here`);
+  return ok;
+}
+
+/* ---------- T1 : union ---------- */
+function t1() {
+  const stage = document.getElementById('t1a').parentElement;
+  const a = rel(document.getElementById('t1a'), stage);
+  const b = rel(document.getElementById('t1b'), stage);
+  const exp = { left: Math.min(a.left, b.left), top: Math.min(a.top, b.top),
+                right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) };
+  const got = rel(document.getElementById('t1shaper'), stage);
+  const ok = rectsMatch(got, exp);
+  record('T1', 'a union can be written as min(anchor(), anchor())', ok ? 'pass' : 'fail',
+    ok ? `bounding box ${fmt(got)}, from CSS alone — all JS did was hand out anchor names`
+       : `expected ${fmt(exp)} / got ${fmt(got)} — anchor() is not resolving inside min()`);
+}
+
+/* ---------- T2 : scalar morphing ---------- */
+async function t2() {
+  const stage = document.getElementById('t2a').parentElement;
+  const shaper = document.getElementById('t2shaper');
+  const a = rel(document.getElementById('t2a'), stage);
+  const b = rel(document.getElementById('t2b'), stage);
+  const lerp = t => ({ left: a.left + (b.left - a.left) * t, top: a.top + (b.top - a.top) * t,
+                       right: a.right + (b.right - a.right) * t, bottom: a.bottom + (b.bottom - a.bottom) * t });
+
+  const seen = [];
+  for (const t of [0, 0.5, 1]) {
+    document.documentElement.style.setProperty('--mix', String(t));
+    await frame();
+    seen.push({ t, got: rel(shaper, stage), exp: lerp(t) });
+  }
+  document.documentElement.style.setProperty('--mix', '0');
+  const staticOk = seen.every(s => rectsMatch(s.got, s.exp));
+  record('T2a', 'a static --mix interpolates between two anchors', staticOk ? 'pass' : 'fail',
+    seen.map(s => `mix=${s.t}: ${fmt(s.got)}${rectsMatch(s.got, s.exp) ? '' : ` (expected ${fmt(s.exp)})`}`).join(' / '));
+
+  // WAAPI: pause at the midpoint so the sample is deterministic.
+  let waapiOk = false, detail = '';
+  try {
+    const anim = shaper.animate([{ '--mix': 0 }, { '--mix': 1 }], { duration: 400, fill: 'forwards' });
+    anim.pause();
+    anim.currentTime = 200;
+    await frame();
+    const got = rel(shaper, stage);
+    waapiOk = rectsMatch(got, lerp(0.5));
+    detail = waapiOk ? `${fmt(got)} at currentTime=200/400, which is the midpoint`
+                     : `${fmt(got)} at currentTime=200/400 / expected ${fmt(lerp(0.5))} — a registered custom property is not being animated`;
+    anim.cancel();
+    await frame();
+  } catch (e) {
+    detail = 'the animation threw: ' + e.message;
+  }
+  record('T2b', '--mix can be animated by the Web Animations API', waapiOk ? 'pass' : 'fail', detail);
+
+  document.getElementById('t2slider').addEventListener('input', e =>
+    document.documentElement.style.setProperty('--mix', e.target.value));
+  document.getElementById('t2play').addEventListener('click', () => {
+    document.documentElement.style.setProperty('--mix', '0');
+    shaper.animate([{ '--mix': 0 }, { '--mix': 1 }], { duration: 800, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' });
+  });
+}
+
+/* ---------- T3 : does anchor() survive a custom property? ---------- */
+function t3() {
+  const stage = document.getElementById('t3a').parentElement;
+  const expLeft = rel(document.getElementById('t3a'), stage).left;
+  const gotLeft = rel(document.getElementById('t3inset'), stage).left;
+  const insetOk = near(gotLeft, expLeft);
+  record('T3a', 'it reaches an inset property through var()', insetOk ? 'pass' : 'fail',
+    insetOk ? `--x: anchor(--t3a left) was usable as left: var(--x) (left=${Math.round(gotLeft)}px)`
+            : `left=${Math.round(gotLeft)}px / expected ${Math.round(expLeft)}px`);
+
+  const mp = getComputedStyle(document.getElementById('t3mask')).maskPosition;
+  const px = parseFloat(mp);
+  const maskOk = Number.isFinite(px) && Math.abs(px - expLeft) <= TOL;
+  record('T3b', 'it reaches mask-position through var()', maskOk ? 'pass' : 'limit',
+    `mask-position = "${mp}"` + (maskOk ? '' :
+      ` — anchor() resolves in inset properties and nowhere else. There is no CSS-only route from an element's box to a mask or a clip-path.`));
+}
+
+/* ---------- T4 : candidate A ----------
+   A box-shadow spread covers the whole stage *except* the shaper's own box, so
+   with N shapers every hole is darkened by the other N-1 shadows and the scrim
+   opacity compounds. That is pure geometry, so it can be asserted rather than
+   eyeballed — the screenshot beside it just makes the result visible. */
+function t4() {
+  const shapers = [...document.querySelectorAll('#t4stage2 .bs-hole')].map(e => e.getBoundingClientRect());
+  const covers = (shadowOf, pt) =>
+    !(pt.x >= shadowOf.left && pt.x <= shadowOf.right && pt.y >= shadowOf.top && pt.y <= shadowOf.bottom);
+  const worst = shapers.map((own, i) => {
+    const c = { x: (own.left + own.right) / 2, y: (own.top + own.bottom) / 2 };
+    return shapers.filter((o, j) => j !== i && covers(o, c)).length;
+  });
+  const overlaps = Math.max(...worst);
+  const ok = overlaps === 0;
+  record('T4', 'option A (box-shadow spread) survives a second hole', ok ? 'pass' : 'limit',
+    ok ? 'the holes are not covering one another'
+       : `each hole is covered by ${overlaps} other shaper's shadow. The dimming stacks with it`
+         + ` (0.7 twice over reads as 0.91). <strong>Option A is out for more than one hole.</strong> The same thing`
+         + ` is visible by eye: compare the blue of the one-hole stage with the blue of the two-hole stage`);
+}
+
+/* ---------- T5 : N holes via clip-path ---------- */
+async function t5() {
+  const stage = document.getElementById('t5stage');
+  const scrim = document.getElementById('t5scrim');
+  await show(stage);
+  const sb = stage.getBoundingClientRect();
+  const holes = ['t5a', 't5b'].map(id => {
+    const r = document.getElementById(id).getBoundingClientRect();
+    return { x: r.left - sb.left - 8, y: r.top - sb.top - 8, w: r.width + 16, h: r.height + 16, r: 12 };
+  });
+  scrim.style.clipPath = `path(evenodd, "${punchedPath(sb.width, sb.height, holes)}")`;
+
+  const hitAt = (x, y) => document.elementFromPoint(sb.left + x, sb.top + y);
+  const ca = document.getElementById('t5a').getBoundingClientRect();
+  const cb = document.getElementById('t5b').getBoundingClientRect();
+  const hitA = document.elementFromPoint(ca.left + ca.width / 2, ca.top + ca.height / 2);
+  const hitB = document.elementFromPoint(cb.left + cb.width / 2, cb.top + cb.height / 2);
+  const between = hitAt(sb.width / 2, 10);
+
+  const aOk = hitA && hitA.id === 't5a';
+  const bOk = hitB && hitB.id === 't5b';
+  const blockOk = between === scrim;
+  const ok = aOk && bOk && blockOk;
+  record('T5', 'clip-path: path(evenodd) gives two rounded holes that hit-test through', ok ? 'pass' : 'fail',
+    `hole A hits: ${hitA ? hitA.id || hitA.tagName : 'nothing'} / hole B: ${hitB ? hitB.id || hitB.tagName : 'nothing'}`
+    + ` / between them: ${blockOk ? 'the overlay blocks, as it should' : 'not blocked'}`
+    + (ok ? ' — one overlay, N holes, and the holes are out of hit-testing rather than merely transparent' : ''));
+}
+
+/* ---------- T6 : scroll tracking ---------- */
+async function t6() {
+  // A: scrim lives inside the scrolled content, coordinates are content-relative.
+  const contentA = document.getElementById('t6acontent');
+  const scrimA = document.getElementById('t6ascrim');
+  const btnA = document.getElementById('t6a');
+  const cb = contentA.getBoundingClientRect();
+  const rb = btnA.getBoundingClientRect();
+  scrimA.style.clipPath = `path(evenodd, "${punchedPath(cb.width, 1200,
+    [{ x: rb.left - cb.left - 8, y: rb.top - cb.top - 8, w: rb.width + 16, h: rb.height + 16, r: 12 }])}")`;
+
+  // B: scrim sits outside the scroller, coordinates are viewport-relative at write time.
+  const wrapB = document.getElementById('t6bscroller');
+  const scrimB = document.getElementById('t6bscrim');
+  const btnB = document.getElementById('t6b');
+  const wb = wrapB.getBoundingClientRect();
+  const rbb = btnB.getBoundingClientRect();
+  scrimB.style.clipPath = `path(evenodd, "${punchedPath(wb.width, wb.height,
+    [{ x: rbb.left - wb.left - 8, y: rbb.top - wb.top - 8, w: rbb.width + 16, h: rbb.height + 16, r: 12 }])}")`;
+
+  // Now scroll both, writing nothing further.
+  await show(document.getElementById('t6ascroller'));
+  document.getElementById('t6ascroller').scrollTop = 800;
+  document.getElementById('t6bscroller').scrollTop = 800;
+  await frame();
+
+  const probe = (btn) => {
+    const r = btn.getBoundingClientRect();
+    if (r.width === 0) return null;
+    return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  };
+  const hA = probe(btnA), hB = probe(btnB);
+  const aOk = hA && hA.id === 't6a';
+  const bOk = hB && hB.id === 't6b';
+
+  record('T6a', 'an overlay inside the content follows the scroll', aOk ? 'pass' : 'fail',
+    `at scrollTop=800 the hole hits: ${hA ? hA.id || hA.tagName : 'nothing'}`
+    + (aOk ? ' — the coordinates are the content\'s own, so scrolling moves both together. No per-frame JS'
+           : ' — it did not keep up'));
+  record('T6b', 'an overlay outside the scroller', bOk ? 'limit-unexpected' : 'limit',
+    `at scrollTop=800 the hole hits: ${hB ? hB.id || hB.tagName : 'nothing'}`
+    + (bOk ? '' : ' — it drifts off, as expected. Each scrolling container needs an overlay of its own, inside it'));
+}
+
+/* ---------- T7 / T8 : is clip-path: path() interpolable? ----------
+   If the browser interpolates between two path() values, JS can write one string
+   per step boundary and let CSS animate the rest — no per-frame JS at all. CSS
+   only interpolates paths whose segment lists match in count and type, which is
+   exactly the N -> N case; N -> M should fall back to a discrete swap. */
+const numsOf = s => (s.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+
+async function pathMorph(stageId, holesFrom, holesTo) {
+  const stage = document.getElementById(stageId);
+  await show(stage);
+  const b = stage.getBoundingClientRect();
+  const scrim = stage.querySelector('.scrim');
+  const mk = hs => `path(evenodd, "${punchedPath(b.width, b.height, hs)}")`;
+  const from = mk(holesFrom), to = mk(holesTo);
+  scrim.style.clipPath = from;
+  await frame();
+  const anim = scrim.animate([{ clipPath: from }, { clipPath: to }], { duration: 400, fill: 'forwards' });
+  anim.pause();
+  anim.currentTime = 200;
+  await frame();
+  const mid = getComputedStyle(scrim).clipPath;
+  anim.cancel();
+  await frame();
+  return { from, to, mid };
+}
+
+async function t7() {
+  const A = [{ x: 40,  y: 40, w: 150, h: 60, r: 12 }];
+  const B = [{ x: 300, y: 90, w: 200, h: 70, r: 24 }];
+  const { from, to, mid } = await pathMorph('t7stage', A, B);
+  const [na, nb, nm] = [numsOf(from), numsOf(to), numsOf(mid)];
+  const structureOk = na.length === nb.length && nb.length === nm.length;
+  const expected = structureOk ? na.map((v, i) => (v + nb[i]) / 2) : [];
+  const interpolated = structureOk && expected.every((v, i) => Math.abs(v - nm[i]) <= 1);
+  const snapped = !interpolated && (nm.join() === na.join() || nm.join() === nb.join());
+  record('T7', 'clip-path: path() interpolates between two paths of the same structure', interpolated ? 'pass' : 'limit',
+    interpolated
+      ? 'every number at the halfway point is the midpoint of the two ends. <strong>Write two path strings at a step '
+        + 'boundary and CSS carries the morph — no per-frame JS.</strong> The corner radius came along too, 12 to 24'
+      : snapped ? 'it snapped to one end instead of interpolating. A morph would have to write the path every frame from JS'
+                : `no verdict (number counts: start ${na.length} / end ${nb.length} / middle ${nm.length})`);
+}
+
+async function t8() {
+  const A = [{ x: 40, y: 40, w: 150, h: 60, r: 12 }, { x: 300, y: 100, w: 150, h: 60, r: 12 }];
+  const B = [{ x: 120, y: 60, w: 200, h: 70, r: 20 }];
+  const { from, to, mid } = await pathMorph('t8stage', A, B);
+  const [na, nb, nm] = [numsOf(from), numsOf(to), numsOf(mid)];
+  const snapped = nm.join() === na.join() || nm.join() === nb.join();
+  record('T8', 'morphing two holes to one, where the structure changes', snapped ? 'limit' : 'pass',
+    snapped
+      ? 'the segment count changes, so it switched over discretely instead of interpolating. <strong>This is the only place a pairing rule is needed</strong>'
+        + ' — collapse the departing hole to zero area instead of dropping it, and the T7 route works again'
+      : 'it interpolated even though the structure changed');
+}
+
+/* ---------- run ---------- */
+(async function run() {
+  await frame();
+  const sane = t0();
+  t1();
+  await t2();
+  t3();
+  t4();
+  await t5();
+  await t6();
+  await t7();
+  await t8();
+
+  const tbody = document.getElementById('results');
+  tbody.innerHTML = results.map(r =>
+    `<tr><td><code>${r.id}</code></td>`
+    + `<td class="${r.status}">${ {pass:'PASS', fail:'FAIL', limit:'LIMIT', eye:'BY EYE'}[r.status] }</td>`
+    + `<td>${r.title}</td><td>${r.detail}</td></tr>`).join('');
+
+  window.spikeResults = { ua: navigator.userAgent, sane, results, ready: true };
+  document.title = 'Cutout techniques — ' + results.filter(r => r.status === 'pass').length + '/'
+    + results.length + ' PASS, ' + results.filter(r => r.status === 'limit').length + ' limits confirmed';
+})();
+</script>
+</body>
+</html>

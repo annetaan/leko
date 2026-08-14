@@ -1,0 +1,28 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store
+
+# editor
+.idea/
+.vscode/
+*.swp
+
+# test runners
+test-results/
+playwright-report/
+
+# test runner artefacts
+.vitest-attachments/
+**/__screenshots__/
+
+# spike output — regenerate with run.mjs rather than committing it
+spike/**/shots-*/

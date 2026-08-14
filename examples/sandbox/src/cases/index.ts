@@ -1,0 +1,24 @@
+import type { Case } from '../case.js'
+import { adjacentColumns } from './adjacent-columns.js'
+import { asyncCompletion } from './async-completion.js'
+import { formValidation } from './form-validation.js'
+import { linkedRegions } from './linked-regions.js'
+import { nestedScroller } from './nested-scroller.js'
+import { scrollableTarget } from './scrollable-target.js'
+import { stepping } from './stepping.js'
+import { targetDisappears } from './target-disappears.js'
+
+// The plain one first, because it is the one to open while working on the
+// rendering — nothing to type before a step will move. After it, the order the
+// design was argued in: what a tour is for, then the shapes a cutout has to
+// take, then the situations that break naive implementations.
+export const cases: Case[] = [
+  stepping,
+  formValidation,
+  asyncCompletion,
+  adjacentColumns,
+  linkedRegions,
+  nestedScroller,
+  scrollableTarget,
+  targetDisappears,
+]

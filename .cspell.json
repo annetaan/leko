@@ -1,0 +1,4 @@
+{
+  "ignorePaths": ["node_modules", "dist", "build", "generated", "coverage"],
+  "words": ["Leko"]
+}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>clip-path animation — WAAPI vs requestAnimationFrame</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 20px 24px 28px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  p  { margin: 0 0 14px; max-width: 74ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel { min-width: 0; }
+  .panel h2 { font-size: 13px; margin: 0 0 6px; font-family: ui-monospace, monospace; }
+
+  /* The stage stands in for a page: patterned, so it is obvious wherever the
+     dimming does and does not reach. */
+  .stage {
+    position: relative;
+    height: 420px;
+    overflow: hidden;
+    border: 1px solid #8886;
+    border-radius: 8px;
+    background:
+      repeating-linear-gradient(45deg, #cfd6e4 0 14px, #dde3ee 14px 28px);
+  }
+  .target {
+    position: absolute;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: #2f6fed; color: #fff;
+    font-size: 12px;
+  }
+  .scrim {
+    position: absolute; inset: 0;
+    background: rgb(0 0 0 / 0.72);
+  }
+
+  .controls { display: flex; align-items: center; gap: 10px; margin: 16px 0 6px; flex-wrap: wrap; }
+  button {
+    padding: 8px 14px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  label { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+  .env { font-family: ui-monospace, monospace; font-size: 12px; background: #8881; padding: 8px 10px; border-radius: 6px; }
+  .verdict { margin-top: 14px; padding: 10px 14px; border-left: 3px solid #2f6fed; background: #2f6fed14; max-width: 74ch; }
+</style>
+</head>
+<body>
+
+<h1>clip-path animation — WAAPI vs requestAnimationFrame</h1>
+<p>
+  Both panels animate the same <code>clip-path</code> geometry over the same duration.
+  The left one is driven by <code>element.animate()</code>; the right one writes the same
+  interpolation frame by frame from <code>requestAnimationFrame</code>. No libraries.
+  <strong>Press Run and compare the two <em>while they are animating</em></strong> — not after
+  they stop. On a 2x display the left panel's dark area covers only part of its stage.
+</p>
+
+<div class="controls">
+  <button id="run" type="button">Run</button>
+  <label><input id="slow" type="checkbox" checked> slow (3s)</label>
+  <label><input id="loop" type="checkbox"> repeat</label>
+</div>
+
+<div class="env" id="env">…</div>
+
+<div class="pair" style="margin-top:14px">
+  <div class="panel">
+    <h2>element.animate()</h2>
+    <div class="stage" id="stage-waapi">
+      <div class="target" style="left:60px;  top:60px;  width:170px; height:70px">A</div>
+      <div class="target" style="left:250px; top:250px; width:110px; height:110px">B</div>
+      <div class="scrim"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>requestAnimationFrame</h2>
+    <div class="stage" id="stage-raf">
+      <div class="target" style="left:60px;  top:60px;  width:170px; height:70px">A</div>
+      <div class="target" style="left:250px; top:250px; width:110px; height:110px">B</div>
+      <div class="scrim"></div>
+    </div>
+  </div>
+</div>
+
+<div class="verdict">
+  <strong>Correct</strong>: the dark scrim covers the whole stage for the duration of the
+  animation, with one rounded rectangle cut out of it.<br>
+  <strong>Wrong</strong>: while the animation runs, the dark scrim covers only about a quarter
+  of the stage — half in each axis — and snaps to the correct geometry when it ends.
+</div>
+
+<script>
+const round = (n) => Math.round(n * 100) / 100
+
+// One rounded rectangle punched out of the stage, drawn exactly as Leko draws it:
+// the outer rectangle first, then the hole, filled with the even-odd rule.
+function punched(w, h, hole) {
+  const { x, y, width, height } = hole
+  const r = round(Math.max(0, Math.min(hole.radius, width / 2, height / 2)))
+  const [x0, y0, x1, y1] = [round(x), round(y), round(x + width), round(y + height)]
+  const outer = `M0 0 L${round(w)} 0 L${round(w)} ${round(h)} L0 ${round(h)} Z`
+  const inner =
+    `M${x0 + r} ${y0} L${x1 - r} ${y0} A${r} ${r} 0 0 1 ${x1} ${y0 + r}` +
+    ` L${x1} ${y1 - r} A${r} ${r} 0 0 1 ${x1 - r} ${y1}` +
+    ` L${x0 + r} ${y1} A${r} ${r} 0 0 1 ${x0} ${y1 - r}` +
+    ` L${x0} ${y0 + r} A${r} ${r} 0 0 1 ${x0 + r} ${y0} Z`
+  return `path(evenodd, "${outer} ${inner}")`
+}
+
+// Blend two paths by walking their numbers in step. Sound because both are built
+// from the same template, so the nth number means the same thing in each.
+function lerpPath(from, to, t) {
+  const ends = (to.match(/-?[\d.]+/g) ?? []).map(Number)
+  let i = 0
+  return from.replace(/-?[\d.]+/g, (m) => {
+    const a = Number(m)
+    const b = ends[i++] ?? a
+    return String(round(a + (b - a) * t))
+  })
+}
+
+const A = { x: 52, y: 52, width: 186, height: 86, radius: 10 }
+const B = { x: 242, y: 242, width: 126, height: 126, radius: 10 }
+
+const stages = {
+  waapi: document.getElementById('stage-waapi'),
+  raf: document.getElementById('stage-raf'),
+}
+const scrimOf = (stage) => stage.querySelector('.scrim')
+const sizeOf = (stage) => [stage.clientWidth, stage.clientHeight]
+
+let raf
+function play(reverse) {
+  const duration = document.getElementById('slow').checked ? 3000 : 320
+  const [from, to] = reverse ? [B, A] : [A, B]
+
+  for (const stage of Object.values(stages)) {
+    const [w, h] = sizeOf(stage)
+    scrimOf(stage).dataset.from = punched(w, h, from)
+    scrimOf(stage).dataset.to = punched(w, h, to)
+  }
+
+  // 1. The Web Animations API, which is what Leko used to do.
+  const waapi = scrimOf(stages.waapi)
+  waapi.getAnimations().forEach((a) => a.cancel())
+  waapi.style.clipPath = waapi.dataset.to
+  waapi.animate(
+    [{ clipPath: waapi.dataset.from }, { clipPath: waapi.dataset.to }],
+    { duration, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' },
+  )
+
+  // 2. The same interpolation, written a frame at a time from the main thread.
+  const el = scrimOf(stages.raf)
+  cancelAnimationFrame(raf)
+  const began = performance.now()
+  const ease = (t) => 1 - (1 - t) ** 3
+  const tick = (now) => {
+    const t = Math.min(1, Math.max(0, (now - began) / duration))
+    el.style.clipPath = t >= 1 ? el.dataset.to : lerpPath(el.dataset.from, el.dataset.to, ease(t))
+    if (t < 1) raf = requestAnimationFrame(tick)
+    else if (document.getElementById('loop').checked) setTimeout(() => play(!reverse), 250)
+  }
+  raf = requestAnimationFrame(tick)
+}
+
+let flipped = false
+document.getElementById('run').addEventListener('click', () => {
+  play((flipped = !flipped))
+})
+
+for (const stage of Object.values(stages)) {
+  const [w, h] = sizeOf(stage)
+  scrimOf(stage).style.clipPath = punched(w, h, A)
+}
+
+document.getElementById('env').textContent =
+  `devicePixelRatio ${devicePixelRatio}   ·   stage ${sizeOf(stages.waapi).join('×')}   ·   ` +
+  `prefers-reduced-motion ${matchMedia('(prefers-reduced-motion: reduce)').matches}\n` +
+  navigator.userAgent
+</script>
+</body>
+</html>

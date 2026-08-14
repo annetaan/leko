@@ -1,0 +1,82 @@
+name: Bug report
+description: Something Leko does that it should not, or does not do that it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Almost everything Leko does is layout and hit-testing, and engines
+        disagree about both. The version fields below are not boilerplate —
+        without them a report usually cannot be acted on.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: And what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: >
+        A page we can open beats a description. A case added to
+        `examples/sandbox/src/cases/` is the most useful form of all — that is
+        where every situation a tour has to survive is kept.
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and exact version
+      placeholder: Chrome 151.0.7922.76 / Safari 26.3.1 / Firefox 153.0
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 26.3.1 / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dpr
+    attributes:
+      label: Display scale
+      description: >
+        `devicePixelRatio` in the console. At least one known rendering bug only
+        appears above 1, so this matters more than it looks.
+      options:
+        - '1 (no scaling)'
+        - '2 or more (HiDPI / Retina)'
+        - 'Not sure'
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: shape
+    attributes:
+      label: Anything here apply?
+      description: The awkward cases, ticked off in advance.
+      options:
+        - label: The target is inside a scrolling container
+        - label: The target itself scrolls
+        - label: The step has several targets, or uses `related`
+        - label: It goes wrong during the transition between steps, not after it
+        - label: It goes wrong only after a resize
+
+  - type: textarea
+    id: anything
+    attributes:
+      label: Anything else
+      description: >
+        Console output, a screen recording, or a page under `spike/` that
+        disagrees with what you are seeing.
