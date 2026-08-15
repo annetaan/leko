@@ -3,8 +3,13 @@
 <p align="center"><strong>The spotlight you can click through.</strong></p>
 
 <p align="center">
-  Product tours that cut a real hole in the overlay —<br>
-  no layer in your way, no scroll jitter, no framework required.
+  Let's build a tutorial your users actually work through.<br>
+  With Leko, a step ends when something really happened in your app.<br>
+  No layer in your way. No scroll jitter. And no dependencies.
+</p>
+
+<p align="center">
+  <strong>English</strong> | <a href="README.ja.md">日本語</a>
 </p>
 
 ---
@@ -15,18 +20,18 @@
 
 ## Why another tour library?
 
-Every tour library puts a transparent layer over the thing it is highlighting.
-That layer eats your clicks and your keystrokes, so the best they can do is
-*point at* a button and say "click here." The user watches. Nothing sticks.
+Every tour library puts a transparent layer over the element it highlights.
+That layer blocks clicks and keystrokes. So the best they can do is point at a
+button and say "click here". The user only watches. Nothing sticks.
 
-Leko cuts a hole instead.
+Leko's spotlight stays out of the user's way. That is because Leko cuts a hole
+in the overlay.
 
-The overlay is a scrim with an even-odd `clip-path`, so the highlighted element
-is genuinely uncovered — the user clicks the real button, types in the real
-input, and the tour advances only when your application says the step actually
-succeeded.
+The overlay never covers the highlighted element, so the user clicks the real
+button and types in the real input. And the tour moves on only when your
+application says the step actually succeeded.
 
-```
+```text
 Other libraries          Leko
 ─────────────────        ─────────────────
 Show  → user watches     Do  → user performs
@@ -35,114 +40,130 @@ Show  → user watches     Do  → user performs
 ## What it looks like
 
 Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev` — [`examples/sandbox/`](examples/sandbox/) is eight situations a tour
-has to survive, and you drive each one yourself. This is the API:
+`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds eight situations a
+tour has to survive, and you drive each one yourself.
+
+Here is a tour of an order form.
 
 ```ts
 import { createLeko } from '@annetaan/leko'
-import '@annetaan/leko/leko.css' // optional — just the --leko-* defaults
+import '@annetaan/leko/leko.css' // optional, just the --leko-* defaults
 
-const tour = createLeko({
+export const leko = createLeko({
   steps: [
     {
-      id: 'email',
-      target: 'input[name="email"]',
-      message: 'Enter the address you want to sign in with.',
+      id: 'intro',
+      target: '#order-form',
+      message: "Let's order this item.",
+    },
+    {
+      id: 'enter-quantity',
+      target: 'input[name="quantity"]',
+      message: 'Enter 3 as the quantity.',
       // Your rule, your verdict. Typing something is not success.
-      validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
+      validate: (el) => (el as HTMLInputElement).value.trim() === '3',
       onValidationError: (_el, utils) => {
         utils.shake()
-        utils.setMessage('That does not look like an email address yet.')
+        utils.setError('The quantity is not 3 yet. Check the field.')
       },
     },
     {
-      id: 'create',
+      id: 'save',
       target: 'button[type="submit"]',
-      message: 'Now create the account.',
+      related: ['#tax', '#total'], // further cutouts, shown because they explain the target
+      message: 'Place the order.',
+      awaits: 'order-saved',
+    },
+    {
+      id: 'success',
+      target: '#snack-bar',
+      message: 'Your order is in. Nice work 🎉',
     },
   ],
 })
 
-tour.start()
+leko.start()
 ```
 
-Nothing advances until you say so, and you say so where the truth is — after the
-work actually succeeded, not in a click handler:
+The `save` step is waiting for `order-saved`. What your code reports is that the
+thing happened. Not that the tour should move on.
 
 ```ts
-async function onSubmit() {
-  await api.createAccount(form)
-  tour.nextStep() // a no-op if no tour is running, so it needs no guard
+async function onOrderSubmit() {
+  await api.createOrder(form)
+  leko.reached('order-saved') // tell Leko the purchase went through
 }
 ```
 
 A step can highlight several adjacent elements as one hole (`target: [a, b]`),
-or bring along further holes that explain it (`related: [...]`). The full set of
-options is in
-[`packages/core/src/types.ts`](packages/core/src/types.ts) — every field is
-documented next to itself.
+or bring along further holes that explain it (`related: [...]`). Every option is
+documented next to itself in
+[`packages/core/src/types.ts`](packages/core/src/types.ts).
 
 ## What makes it different
 
-**Direct interaction.** Nothing of Leko's is ever placed over the target, not
-even a transparent element. Under the even-odd fill rule a cutout is an absence
-of geometry rather than a transparent layer, so clicks, focus, keys and the
-wheel all reach the element underneath untouched. The rest of the page is
-blocked with plain rectangles in the gaps between the cutouts, which makes
-"nothing over the target" true by construction rather than by trusting a clip.
+**The user really uses your app.** Leko never puts anything over the element it
+highlights. Not even a transparent layer. The real button takes the click and
+the real input takes the typing, and focus, the keyboard and the wheel keep
+working because nothing is intercepting them. Your tour can ask the user to do
+the thing instead of watching a pointer being waved at it.
 
-**No per-frame position math.** The scrim lives inside the content it covers, so
-scrolling moves both together and there is nothing to recompute — scrolling a
-tour runs no JavaScript at all. Moving between steps is a bounded morph between
-two `clip-path` values, and even that reads no layout: the numbers are worked
-out at the step boundary and written out over the next few hundred milliseconds.
+**Scrolling stays free.** A tour costs nothing while the user scrolls, so you
+never have to freeze the page or fight jitter to keep the highlight where it
+belongs. Long forms and nested panels behave the way they already do.
 
-**Your app owns the state machine.** Steps advance when you call `nextStep()` —
-after your API call resolved, after your validation passed. Not when a DOM event
-fired and hoped for the best. Calling it while no tour is running is a no-op, so
-you can wire it in without guarding every call site.
+**You decide when a step is finished.** `leko.reached('step-name')` is the
+strong one. After your API call resolved. After your validation passed. A step
+moves on at a moment you are sure about, and never because a DOM event fired and
+hoped for the best. Calling it while no tour is running does nothing, so nobody
+has to write "are we in a tour right now?" around the call.
 
-**No framework, no runtime dependency.** The core is plain TypeScript. Framework
-wrappers are additive, never required.
+**Nothing else arrives with it.** The core is plain TypeScript with no runtime
+dependencies. Framework wrappers will be additive, never required.
 
 ## Status
 
 | Milestone | State |
 | --- | --- |
-| Core rendering (`clip-path` cutout, several cutouts per step) | ✅ Working |
+| Cutout rendering, several cutouts per step | ✅ Working |
 | Animation (converge-in, step-to-step morphing) | ✅ Working |
-| State manager (`steps`, validation, transitions) | ✅ Working |
+| Step state (`steps`, `validate`, transitions) | ✅ Working |
 | Placing the step message beside its cutout | ✅ Working |
+| A next control on the message | 📋 Planned |
+| Advancing on a named signal instead of on position | 📋 Planned |
+| Advancing on a URL change, and surviving the navigation | 📋 Planned |
+| Chapters, to skip over and to resume into | 📋 Planned |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |
 
 ## Browser support
 
 The cutout needs `clip-path: path()` and interpolation between two path values.
 The floor that implies has not been measured yet, so no version table is
-published here — one will land with the first release rather than before it.
+published here. One will land with the first release.
 
 [CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
-(Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside its
-cutout and nothing else, so it degrades rather than fails.
+(Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside
+its cutout and does nothing else. Where it is missing the message docks to the
+bottom of the viewport, so it degrades rather than fails.
 
 ## Looking further
 
-- **[DESIGN.md](DESIGN.md)** — why the code is shaped the way it is. Every rule
-  about the scrim sits next to the browser behaviour that forced it.
-- **[`spike/`](spike/)** — the evidence. Three standalone pages, no build step
+- **[DESIGN.md](DESIGN.md)** is why the code is shaped the way it is. Each rule
+  sits next to the browser behaviour that forced it.
+- **[`spike/`](spike/)** is the evidence. Three standalone pages, no build step
   and no Leko, each answering one question about what a browser actually does.
   Open one and watch the answer.
-- **[`examples/sandbox/`](examples/sandbox/)** — the situations a tour has to
+- **[`examples/sandbox/`](examples/sandbox/)** is the situations a tour has to
   survive, one per case, each stating what it proves.
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — setup, commands, and the handful of
-  changes that look like improvements and are not.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** is the setup, the commands, and the
+  handful of changes that look like improvements and are not.
 
 ## About the name
 
-A **Leko** is a stage light — an ellipsoidal reflector spotlight, named after
-Century Lighting's founders Joseph **Le**vy and Edward **Ko**ok, who built the
-first one in 1933. Its defining trait is that you can cut its beam into any
-shape you want and it holds a crisp edge around whatever it lights.
+A **Leko** is a stage light. It is an ellipsoidal reflector spotlight, named
+after Century Lighting's founders Joseph **Le**vy and Edward **Ko**ok, who built
+the first one in 1933. What makes it a Leko is that you can cut its beam into
+any shape you want, and it holds a crisp edge around whatever it lights.
 
 This one does the same thing to your UI. And it lets you reach right through the
 hole.
