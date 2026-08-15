@@ -16,8 +16,11 @@ page before overruling a rule; do not restate a rule here that belongs there.
 Everything else is negotiable; these are not. Both are explained in DESIGN.md.
 
 1. **Never place an element over the target** — not even a transparent one.
-2. **Steps advance on application state, never on DOM events.** Never add a
-   click or input listener that advances a step.
+   Only one story is ever visible, and this is why.
+2. **Steps advance on application state, never on DOM events.** A call site
+   names what happened (`leko.reached('order-saved')`) and a step names what it
+   waits for (`awaits`). Never add a click or input listener that advances a
+   step.
 
 ## What looks like an improvement and is not
 
@@ -35,6 +38,10 @@ DESIGN.md. Do not do any of them without reading that page first.
   and must stay that way. A bounded morph writing precomputed strings is not
   the same thing and is fine.
 - **Adding a runtime dependency to `packages/core`.** It has none, deliberately.
+- **Doing something helpful with a signal nobody is waiting for** — warning
+  about it, saving it up for a step that awaits it later, or letting a story
+  that is not running follow along. Each defeats the second constraint in a
+  different way, and DESIGN.md argues all three.
 
 ## Writing code here
 

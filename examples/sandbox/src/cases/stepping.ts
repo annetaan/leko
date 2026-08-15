@@ -37,19 +37,24 @@ export const stepping: Case = {
     return () => panel.remove()
   },
 
-  steps: (root) => {
+  stories: (root) => {
     const at = (name: string): HTMLElement =>
       root.querySelector<HTMLElement>(`[data-step="${name}"]`)!
     return [
-      { id: 'title', target: at('title'), message: 'A short, wide target.' },
-      { id: 'wide', target: at('wide'), message: 'A tall card, off to the left.' },
       {
-        id: 'small',
-        target: at('small'),
-        message: 'Something small, so the corners have to hold up.',
+        id: 'stepping',
+        steps: [
+          { id: 'title', target: at('title'), message: 'A short, wide target.' },
+          { id: 'wide', target: at('wide'), message: 'A tall card, off to the left.' },
+          {
+            id: 'small',
+            target: at('small'),
+            message: 'Something small, so the corners have to hold up.',
+          },
+          { id: 'row', target: at('row'), message: 'A full-width row, back down the page.' },
+          { id: 'button', target: at('button'), message: 'And the button at the end.' },
+        ],
       },
-      { id: 'row', target: at('row'), message: 'A full-width row, back down the page.' },
-      { id: 'button', target: at('button'), message: 'And the button at the end.' },
     ]
   },
 }

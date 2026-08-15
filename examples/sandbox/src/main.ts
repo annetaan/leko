@@ -11,7 +11,7 @@ app.append(
       <aside class="rail">
         <h1>Leko sandbox</h1>
         <p class="rail-note">
-          Eight situations a tour has to survive. Start a tour and then use the
+          Nine situations a tour has to survive. Start a story and then use the
           page — the cutout is a hole, so everything inside it still works.
           The step's message sits beside its cutout and follows it as you
           scroll; the bar below repeats it, along with the state.
@@ -26,7 +26,7 @@ app.append(
         <div class="stage-body" data-root></div>
       </main>
       <footer class="controls">
-        <button type="button" data-action="start">start()</button>
+        <span class="starts" data-starts></span>
         <button type="button" data-action="next">nextStep()</button>
         <button type="button" data-action="prev">prevStep()</button>
         <button type="button" data-action="stop">stop()</button>
@@ -43,39 +43,53 @@ const nav = pick('[data-nav]')
 const title = pick('[data-title]')
 const proves = pick('[data-proves]')
 const stageRoot = pick('[data-root]')
+const starts = pick('[data-starts]')
 const stateOut = pick('[data-state]')
 const noteOut = pick('[data-note]')
 
 let teardown: (() => void) | undefined
-let current: Case | undefined
 let tour: Leko | undefined
 let lost: string | undefined
+
+let shown = ''
 
 function report(): void {
   const state = tour?.state ?? 'idle'
   stateOut.textContent = state
   stateOut.dataset['state'] = state
 
-  if (lost) {
-    noteOut.textContent = lost
-    return
-  }
   const step = tour?.step
-  noteOut.textContent = step ? `“${step.id}” — ${step.message ?? 'no message'}` : 'No tour running.'
+  const text = lost
+    ? lost
+    : step
+      ? `${tour?.story} / “${step.id}” — ${step.message ?? 'no message'}`
+      : 'No story running.'
+  // Only when the words changed, because this runs every frame while a story is
+  // on screen and the footer is a readout, not an animation.
+  if (text !== shown) {
+    noteOut.textContent = text
+    shown = text
+  }
 }
 
-// The state settles when a morph finishes, so keep reading it until it does.
+// The footer is not the only thing that moves a story — the page does it too,
+// by reporting a signal — and Leko emits no events to listen for, so the
+// readout keeps looking until the story ends. One loop at a time.
+let watching = false
 function watch(): void {
-  report()
-  if (tour?.state === 'transitioning') requestAnimationFrame(watch)
+  if (watching) return
+  const tick = (): void => {
+    report()
+    watching = tour !== undefined && tour.state !== 'idle'
+    if (watching) requestAnimationFrame(tick)
+  }
+  tick()
 }
 
 function show(next: Case): void {
   tour?.stop()
-  tour = undefined
   lost = undefined
   teardown?.()
-  current = next
 
   title.textContent = next.title
   proves.textContent = next.proves
@@ -83,8 +97,27 @@ function show(next: Case): void {
     link.classList.toggle('is-current', link.dataset['case'] === next.id)
   }
 
+  // One instance per case, made before the page is mounted so the page can be
+  // given it — an application exports its instance and reports to that, rather
+  // than being handed a tour once one starts.
+  tour = createLeko({
+    onTargetLost: (step, story) => {
+      lost = `Target for “${story} / ${step.id}” is gone. The tour stopped rather than point at nothing.`
+      tour?.stop()
+      report()
+    },
+  })
+
   stageRoot.replaceChildren()
-  teardown = next.mount(stageRoot)
+  teardown = next.mount(stageRoot, tour)
+
+  starts.replaceChildren()
+  for (const story of next.stories(stageRoot)) {
+    tour.setStory(story)
+    starts.append(
+      html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),
+    )
+  }
   report()
 }
 
@@ -99,29 +132,22 @@ for (const item of cases) {
 }
 
 const actions: Record<string, () => void> = {
-  start: () => {
-    if (!current) return
-    tour?.stop()
-    lost = undefined
-    tour = createLeko({
-      steps: current.steps(stageRoot),
-      onTargetLost: (step) => {
-        lost = `Target for “${step.id}” is gone. The tour stopped rather than point at nothing.`
-        tour?.stop()
-        report()
-      },
-    })
-    tour.start()
-  },
   next: () => tour?.nextStep(),
   prev: () => tour?.prevStep(),
   stop: () => tour?.stop(),
 }
 
 pick('.controls').addEventListener('click', (event) => {
-  const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')
-  if (!action) return
-  actions[action.dataset['action'] ?? '']?.()
+  const el = event.target as HTMLElement
+  const story = el.closest<HTMLElement>('[data-start]')?.dataset['start']
+  if (story) {
+    lost = undefined
+    tour?.start(story)
+  } else {
+    const action = el.closest<HTMLElement>('[data-action]')
+    if (!action) return
+    actions[action.dataset['action'] ?? '']?.()
+  }
   watch()
 })
 

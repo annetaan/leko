@@ -29,11 +29,16 @@ export const asyncCompletion: Case = {
     return () => panel.remove()
   },
 
-  steps: (root) => [
+  stories: (root) => [
     {
-      id: 'save',
-      target: root.querySelector<HTMLElement>('[data-save]')!,
-      message: 'Save your changes. The tour waits for the request, not the click.',
+      id: 'async-completion',
+      steps: [
+        {
+          id: 'save',
+          target: root.querySelector<HTMLElement>('[data-save]')!,
+          message: 'Save your changes. The tour waits for the request, not the click.',
+        },
+      ],
     },
   ],
 }

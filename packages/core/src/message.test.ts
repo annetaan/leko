@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest'
 
 import { createLeko } from './leko.js'
-import type { LekoOptions } from './types.js'
+import type { LekoOptions, LekoStep } from './types.js'
 
 // Duration 0 everywhere: these tests are about where the message ends up, not
 // about how long the cutout took to get there.
@@ -13,10 +13,11 @@ afterEach(() => {
   for (const el of mounted.splice(0)) el.remove()
 })
 
-function start(options: LekoOptions) {
+function start(steps: LekoStep[], options: LekoOptions = {}) {
   const tour = createLeko({ duration: 0, ...options })
   tours.push(tour)
-  tour.start()
+  tour.setStory({ id: 'story', steps })
+  tour.start('story')
   return tour
 }
 
@@ -51,7 +52,7 @@ const anchors = CSS.supports('anchor-name: --a') && CSS.supports('position-area:
 
 test('the step message is on screen, and above the scrim', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start({ steps: [{ id: 'one', target: 'button', message: 'Press it.' }] })
+  start([{ id: 'one', target: 'button', message: 'Press it.' }])
 
   const el = message()
   expect(el?.textContent).toBe('Press it.')
@@ -64,14 +65,14 @@ test('the step message is on screen, and above the scrim', () => {
 
 test('a step without a message shows nothing', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start({ steps: [{ id: 'one', target: 'button' }] })
+  start([{ id: 'one', target: 'button' }])
 
   expect(visible()).toBe(false)
 })
 
 test.runIf(anchors)('the message clears the cutout rather than covering it', () => {
   const target = box('target', { left: '200px', top: '200px', width: '160px', height: '48px' })
-  start({ steps: [{ id: 'one', target, message: 'Press it.', padding: 12 }] })
+  start([{ id: 'one', target, message: 'Press it.', padding: 12 }])
 
   const hole = rect(target)
   const note = rect(message()!)
@@ -84,7 +85,7 @@ test.runIf(anchors)('the message clears the cutout rather than covering it', () 
 test.runIf(anchors)('the message clears every cutout, not just the one it is anchored to', () => {
   const target = box('target', { left: '200px', top: '200px', width: '160px', height: '40px' })
   const related = box('related', { left: '200px', top: '260px', width: '160px', height: '40px' })
-  start({ steps: [{ id: 'one', target, related: [related], message: 'Both of these.' }] })
+  start([{ id: 'one', target, related: [related], message: 'Both of these.' }])
 
   const note = rect(message()!)
   // The anchor is the target, but the shape to stay clear of is every hole in
@@ -110,7 +111,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   document.body.append(scroller)
   mounted.push(scroller)
 
-  start({ steps: [{ id: 'one', target, message: 'Scroll the list.' }] })
+  start([{ id: 'one', target, message: 'Scroll the list.' }])
   scroller.scrollTop = 400
   await frame()
 
@@ -127,18 +128,16 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
 
 test('setMessage replaces the words in place', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const tour = start({
-    steps: [
-      {
-        id: 'one',
-        target,
-        message: 'Type your name.',
-        validate: () => false,
-        onValidationError: (_el, utils) => utils.setMessage('A name, not a number.'),
-      },
-      { id: 'two', target },
-    ],
-  })
+  const tour = start([
+    {
+      id: 'one',
+      target,
+      message: 'Type your name.',
+      validate: () => false,
+      onValidationError: (_el, utils) => utils.setMessage('A name, not a number.'),
+    },
+    { id: 'two', target },
+  ])
 
   const before = rect(message()!)
   tour.nextStep()
@@ -151,16 +150,14 @@ test('setMessage replaces the words in place', () => {
 
 test('a step that had no message can still be given one', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const tour = start({
-    steps: [
-      {
-        id: 'one',
-        target,
-        validate: () => false,
-        onValidationError: (_el, utils) => utils.setMessage('Not yet.'),
-      },
-    ],
-  })
+  const tour = start([
+    {
+      id: 'one',
+      target,
+      validate: () => false,
+      onValidationError: (_el, utils) => utils.setMessage('Not yet.'),
+    },
+  ])
 
   expect(visible()).toBe(false)
   tour.nextStep()
@@ -175,7 +172,7 @@ test('stopping takes the message with it, and gives the target its anchor name b
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--theirs')
 
-  const tour = start({ steps: [{ id: 'one', target, message: 'Press it.' }] })
+  const tour = start([{ id: 'one', target, message: 'Press it.' }])
   tour.stop()
 
   expect(message()).toBeNull()
@@ -187,8 +184,7 @@ test('stopping takes the message with it, and gives the target its anchor name b
 test('the message goes when the target does', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   let lost = false
-  start({
-    steps: [{ id: 'one', target, message: 'Press it.' }],
+  start([{ id: 'one', target, message: 'Press it.' }], {
     // Kept running deliberately: without a handler the tour stops and the
     // message would go with it, which would prove nothing.
     onTargetLost: () => {

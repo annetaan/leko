@@ -7,6 +7,7 @@ import { nestedScroller } from './nested-scroller.js'
 import { scrollableTarget } from './scrollable-target.js'
 import { stepping } from './stepping.js'
 import { targetDisappears } from './target-disappears.js'
+import { twoStories } from './two-stories.js'
 
 // The plain one first, because it is the one to open while working on the
 // rendering — nothing to type before a step will move. After it, the order the
@@ -16,6 +17,7 @@ export const cases: Case[] = [
   stepping,
   formValidation,
   asyncCompletion,
+  twoStories,
   adjacentColumns,
   linkedRegions,
   nestedScroller,

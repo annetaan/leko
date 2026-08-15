@@ -40,16 +40,19 @@ Show  → user watches     Do  → user performs
 ## What it looks like
 
 Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds eight situations a
+`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds nine situations a
 tour has to survive, and you drive each one yourself.
 
-Here is a tour of an order form.
+Here is a story about ordering something.
 
 ```ts
 import { createLeko } from '@annetaan/leko'
 import '@annetaan/leko/leko.css' // optional, just the --leko-* defaults
 
-export const leko = createLeko({
+export const leko = createLeko()
+
+leko.setStory({
+  id: 'first-order',
   steps: [
     {
       id: 'intro',
@@ -82,7 +85,7 @@ export const leko = createLeko({
   ],
 })
 
-leko.start()
+leko.start('first-order')
 ```
 
 The `save` step is waiting for `order-saved`. What your code reports is that the
@@ -94,6 +97,11 @@ async function onOrderSubmit() {
   leko.reached('order-saved') // tell Leko the purchase went through
 }
 ```
+
+Write that line wherever something worth treating as evidence happens, and stop
+thinking about it. Register as many stories as you have — `leko.setStory(...)`
+again, with another id — and the signal moves the one that is running, if its
+current step declared that name, and nothing otherwise.
 
 A step can highlight several adjacent elements as one hole (`target: [a, b]`),
 or bring along further holes that explain it (`related: [...]`). Every option is
@@ -112,11 +120,13 @@ the thing instead of watching a pointer being waved at it.
 never have to freeze the page or fight jitter to keep the highlight where it
 belongs. Long forms and nested panels behave the way they already do.
 
-**You decide when a step is finished.** `leko.reached('step-name')` is the
+**You decide when a step is finished.** `leko.reached('order-saved')` is the
 strong one. After your API call resolved. After your validation passed. A step
 moves on at a moment you are sure about, and never because a DOM event fired and
-hoped for the best. Calling it while no tour is running does nothing, so nobody
-has to write "are we in a tour right now?" around the call.
+hoped for the best. A call nobody is waiting for does nothing at all — no error,
+no warning, no "are we in a tour right now?" around the call — so the line is
+free to stay in the source forever, including in the builds where no tour ever
+runs.
 
 **Nothing else arrives with it.** The core is plain TypeScript with no runtime
 dependencies. Framework wrappers will be additive, never required.
@@ -129,8 +139,9 @@ dependencies. Framework wrappers will be additive, never required.
 | Animation (converge-in, step-to-step morphing) | ✅ Working |
 | Step state (`steps`, `validate`, transitions) | ✅ Working |
 | Placing the step message beside its cutout | ✅ Working |
+| Advancing on a named signal instead of on position | ✅ Working |
+| Several stories on one instance, one of them running | ✅ Working |
 | A next control on the message | 📋 Planned |
-| Advancing on a named signal instead of on position | 📋 Planned |
 | Advancing on a URL change, and surviving the navigation | 📋 Planned |
 | Chapters, to skip over and to resume into | 📋 Planned |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |

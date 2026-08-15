@@ -1,7 +1,14 @@
 import { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
 import { Message } from './message.js'
 import { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'
-import type { ErrorUtils, LekoOptions, LekoState, LekoStep, LekoTarget } from './types.js'
+import type {
+  ErrorUtils,
+  LekoOptions,
+  LekoState,
+  LekoStep,
+  LekoStory,
+  LekoTarget,
+} from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
 
@@ -16,6 +23,13 @@ interface Resolved {
 
 export class Leko {
   private readonly options: LekoOptions
+  /**
+   * Every story the application has registered, of which at most one is ever
+   * running. Held here so that a call site reports a signal once, to the
+   * instance, and never has to know how many stories might care.
+   */
+  private readonly stories = new Map<string, LekoStory>()
+  private currentStory: LekoStory | undefined
   /**
    * One scrim per scrolling ancestor, innermost first, always ending with the
    * document. Only the innermost carries the step's cutouts; each outer one is
@@ -34,7 +48,7 @@ export class Leko {
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
 
-  constructor(options: LekoOptions) {
+  constructor(options: LekoOptions = {}) {
     this.options = options
   }
 
@@ -42,30 +56,84 @@ export class Leko {
     return this.currentState
   }
 
-  /** The step being shown, or `undefined` while idle. */
-  get step(): LekoStep | undefined {
-    return this.currentState === 'idle' ? undefined : this.options.steps[this.index]
+  /** The story being shown, or `undefined` while idle. */
+  get story(): string | undefined {
+    return this.currentState === 'idle' ? undefined : this.currentStory?.id
   }
 
-  start(at: string | number = 0): void {
-    const index = typeof at === 'string' ? this.options.steps.findIndex((s) => s.id === at) : at
-    if (index < 0 || index >= this.options.steps.length) return
+  /** The step being shown, or `undefined` while idle. */
+  get step(): LekoStep | undefined {
+    return this.currentState === 'idle' ? undefined : this.currentStory?.steps[this.index]
+  }
+
+  /**
+   * Register a story, replacing any story already registered under that id.
+   *
+   * Replacing rather than adding, so that a component re-registering on every
+   * render does not accumulate copies of itself. Doing it to the story that is
+   * running swaps what the current step is read from and redraws nothing: a
+   * re-render must not restart a tour someone is in the middle of.
+   */
+  setStory(story: LekoStory): void {
+    this.stories.set(story.id, story)
+    if (this.currentStory?.id === story.id) this.currentStory = story
+  }
+
+  /**
+   * Show `storyId`, from its first step or from `at` — a step id or an index.
+   *
+   * Whatever was running stops. One story at a time is the whole design: two
+   * scrims would each block with rectangles built from their own cutouts, so
+   * each would cover the other's target.
+   */
+  start(storyId: string, at: string | number = 0): void {
+    const story = this.stories.get(storyId)
+    if (!story) return
+    const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
+    if (index < 0 || index >= story.steps.length) return
+    this.currentStory = story
     this.index = index
     this.currentState = 'running'
     this.show(false)
   }
 
   /**
-   * Advance, if the step says the user actually succeeded.
+   * Report that something happened in the application.
    *
-   * A no-op while idle, so callers never have to guard. It is *not* a no-op mid
-   * morph: silently dropping a call would be Leko deciding the application did
-   * not mean it, which is the guessing this library exists to avoid.
+   * Advances the step that is waiting for this name, after `validate`, and does
+   * nothing whatsoever otherwise — no error, and no warning on every unrelated
+   * call. Instrumentation is meant to stay in the source permanently, including
+   * in builds where no tour ever runs, so an unmatched call has to be free and
+   * silent.
+   */
+  reached(name: string): void {
+    const step = this.step
+    if (step?.awaits === name) this.advance(step)
+  }
+
+  /**
+   * Advance whatever step is showing, without naming it.
+   *
+   * This is for a control the host puts on screen — a next button, the sandbox's
+   * footer. Instrumentation spread through application code wants
+   * {@link reached} instead: a bare "advance" has to know the shape of the tour
+   * to be written in the right place.
+   *
+   * A no-op while idle, so callers never have to guard.
    */
   nextStep(): void {
-    if (this.currentState === 'idle') return
-    const step = this.options.steps[this.index]
-    if (!step) return
+    const step = this.step
+    if (step) this.advance(step)
+  }
+
+  /**
+   * It is *not* a no-op mid morph: silently dropping a call would be Leko
+   * deciding the application did not mean it, which is the guessing this library
+   * exists to avoid.
+   */
+  private advance(step: LekoStep): void {
+    const steps = this.currentStory?.steps
+    if (!steps) return
 
     if (step.validate) {
       const action = resolveTarget(asArray(step.target)[0]!)
@@ -76,7 +144,7 @@ export class Leko {
       }
     }
 
-    if (this.index >= this.options.steps.length - 1) {
+    if (this.index >= steps.length - 1) {
       this.stop()
       return
     }
@@ -93,17 +161,23 @@ export class Leko {
 
   stop(): void {
     this.currentState = 'idle'
+    this.currentStory = undefined
     this.index = 0
     this.teardown()
     this.message?.destroy()
     this.message = undefined
   }
 
+  /** Step, then story, then instance: the nearest one that says anything wins. */
+  private setting(step: LekoStep, key: 'padding' | 'radius'): number {
+    return step[key] ?? this.currentStory?.[key] ?? this.options[key] ?? DEFAULTS[key]
+  }
+
   private errorUtils(action: HTMLElement): ErrorUtils {
     return {
       shake: () => this.layers[0]?.shake(),
       setMessage: (message) => {
-        const step = this.options.steps[this.index]
+        const step = this.currentStory?.steps[this.index]
         if (!step) return
         step.message = message
         // Nothing has moved, so a visible message only changes its words.
@@ -128,8 +202,8 @@ export class Leko {
     const action = targets[0]
     if (!action) return null
 
-    const padding = step.padding ?? this.options.padding ?? DEFAULTS.padding
-    const radius = step.radius ?? this.options.radius ?? DEFAULTS.radius
+    const padding = this.setting(step, 'padding')
+    const radius = this.setting(step, 'radius')
 
     // The action target is one cutout — the union of however many elements were
     // named. Everything in `related` stays separate, because the union of two
@@ -158,7 +232,7 @@ export class Leko {
     }
     this.message ??= new Message()
     const onScreen = this.resolve(step, (el) => el.getBoundingClientRect())
-    const gap = step.padding ?? this.options.padding ?? DEFAULTS.padding
+    const gap = this.setting(step, 'padding')
     this.message.show(step.message, action, onScreen?.cutouts ?? [], gap)
   }
 
@@ -180,7 +254,7 @@ export class Leko {
    * would be dimmed.
    */
   private place(): void {
-    const step = this.options.steps[this.index]
+    const step = this.currentStory?.steps[this.index]
     if (this.currentState === 'idle' || !step) return
     const inner = this.layers[0]
     if (!inner) return
@@ -206,7 +280,7 @@ export class Leko {
   }
 
   private show(animate: boolean): void {
-    const step = this.options.steps[this.index]
+    const step = this.currentStory?.steps[this.index]
     if (!step) return this.stop()
 
     const action = resolveTarget(asArray(step.target)[0]!)
@@ -250,7 +324,8 @@ export class Leko {
     // the side with room is a fact about where the cutout ends up.
     this.message?.hide()
 
-    const morphing = inner.morph(resolved.cutouts, this.options.duration ?? DEFAULTS.duration)
+    const duration = this.currentStory?.duration ?? this.options.duration ?? DEFAULTS.duration
+    const morphing = inner.morph(resolved.cutouts, duration)
     if (!morphing) {
       this.currentState = 'running'
       this.say(step, action)
@@ -295,12 +370,13 @@ export class Leko {
   }
 
   private lose(step: LekoStep): void {
+    const story = this.currentStory
     // Whatever the host decides to do about it, the message goes now: its anchor
     // has left the page, and an anchored element whose anchor is gone falls back
     // to wherever normal positioning puts it.
     this.message?.hide()
-    if (this.options.onTargetLost) {
-      this.options.onTargetLost(step)
+    if (story && this.options.onTargetLost) {
+      this.options.onTargetLost(step, story.id)
       return
     }
     this.stop()
@@ -318,6 +394,6 @@ export class Leko {
   }
 }
 
-export function createLeko(options: LekoOptions): Leko {
+export function createLeko(options: LekoOptions = {}): Leko {
   return new Leko(options)
 }

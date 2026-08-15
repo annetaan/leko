@@ -246,6 +246,18 @@ button:disabled {
   font-size: 12.5px;
 }
 
+/* One start button per story the case registers, so a case with two of them
+   says so in the footer rather than hiding one behind a picker. */
+.starts {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.starts button {
+  white-space: nowrap;
+}
+
 .state {
   margin-left: 6px;
   padding: 2px 10px;

@@ -71,9 +71,10 @@ They are the reasons the library exists, and both are explained in
 [DESIGN.md](DESIGN.md#two-constraints-that-must-not-be-broken):
 
 1. **Nothing is ever layered over the target.** A cutout is a hole, not a
-   transparent element.
+   transparent element. One story is visible at a time because of it.
 2. **Steps advance when the host application says so**, never on a DOM event
-   Leko observed.
+   Leko observed. It reports what happened — `leko.reached('order-saved')` —
+   and the step that declared that name is the one that moves.
 
 ## What looks like an improvement and is not
 
@@ -97,6 +98,11 @@ page, not just the rule.
 - **Adding a runtime dependency to `packages/core`.** It has none on purpose:
   a dependency there is a licensing and bundle-size liability for every
   consumer.
+- **Making an unmatched signal do something.** Warning about it, holding it
+  until a step that awaits it appears, or letting a story that is not running
+  keep up with it. Instrumentation has to be free to leave in the source, and a
+  step advanced by something that happened while it was not on screen has
+  established nothing.
 
 ## Adding a spike
 

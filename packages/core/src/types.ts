@@ -55,6 +55,18 @@ export interface LekoStep {
   radius?: number
 
   /**
+   * The name of the thing this step is waiting for the application to report.
+   *
+   * `reached(name)` advances the step only if the step declares that same name,
+   * and does nothing at all otherwise. So a call site names what happened in the
+   * application and never which step should move — insert or reorder steps and
+   * the call still fires at the moment it always meant.
+   *
+   * A step that declares nothing here is never advanced by a signal.
+   */
+  awaits?: string
+
+  /**
    * Called before advancing. Returning `false` blocks the transition and
    * triggers {@link onValidationError}.
    *
@@ -71,13 +83,41 @@ export interface LekoStep {
   onValidationError?: (targetEl: HTMLElement, utils: ErrorUtils) => void
 }
 
-export interface LekoOptions {
+/**
+ * One route through the application, start to finish.
+ *
+ * Register as many as the application has; **only ever one of them runs**. That
+ * is not a simplification: the scrim blocks with plain rectangles built from the
+ * complement of its own cutouts, so a second story's rectangles would sit over
+ * the first story's target. Two visible stories break the first constraint by
+ * construction.
+ */
+export interface LekoStory {
+  /** Stable identifier. What `start()` is given. */
+  id: string
+
   steps: LekoStep[]
 
-  /** Default padding for steps that do not set their own. Defaults to `8`. */
+  /** Default padding for steps of this story that do not set their own. */
   padding?: number
 
-  /** Default corner radius for steps that do not set their own. Defaults to `8`. */
+  /** Default corner radius for steps of this story that do not set their own. */
+  radius?: number
+
+  /** How long a step-to-step morph runs in this story, in ms. */
+  duration?: number
+}
+
+/**
+ * Defaults for every story on the instance. A story may override `padding`,
+ * `radius` and `duration`, and a step may override the first two again: the
+ * nearest one that says anything wins.
+ */
+export interface LekoOptions {
+  /** Space between a target's border box and the cutout edge. Defaults to `8`. */
+  padding?: number
+
+  /** Corner radius of a cutout, in px. Defaults to `8`. */
   radius?: number
 
   /**
@@ -90,11 +130,11 @@ export interface LekoOptions {
    * Called when a step's target cannot be resolved. Without a handler the tour
    * stops: pointing a spotlight at nothing is worse than not running at all.
    */
-  onTargetLost?: (step: LekoStep) => void
+  onTargetLost?: (step: LekoStep, storyId: string) => void
 }
 
 /**
- * `idle` — no tour running. `nextStep()` is a no-op in this state.
+ * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.
  * `running` — a step is currently displayed.
  * `transitioning` — morphing between two steps.
  */

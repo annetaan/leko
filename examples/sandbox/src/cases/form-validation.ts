@@ -29,27 +29,32 @@ export const formValidation: Case = {
     return () => form.remove()
   },
 
-  steps: (root) => [
+  stories: (root) => [
     {
-      id: 'email',
-      target: root.querySelector<HTMLElement>('input[name="email"]')!,
-      message: 'Enter the address you want to sign in with.',
-      validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
-      onValidationError: (_el, utils) => {
-        utils.shake()
-        utils.setMessage('That does not look like an email address yet.')
-      },
-    },
-    {
-      id: 'password',
-      target: root.querySelector<HTMLElement>('input[name="password"]')!,
-      message: 'Pick a password of at least eight characters.',
-      validate: (el) => (el as HTMLInputElement).value.length >= 8,
-    },
-    {
-      id: 'submit',
-      target: root.querySelector<HTMLElement>('button[type="submit"]')!,
-      message: 'Now create the account.',
+      id: 'form-validation',
+      steps: [
+        {
+          id: 'email',
+          target: root.querySelector<HTMLElement>('input[name="email"]')!,
+          message: 'Enter the address you want to sign in with.',
+          validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
+          onValidationError: (_el, utils) => {
+            utils.shake()
+            utils.setMessage('That does not look like an email address yet.')
+          },
+        },
+        {
+          id: 'password',
+          target: root.querySelector<HTMLElement>('input[name="password"]')!,
+          message: 'Pick a password of at least eight characters.',
+          validate: (el) => (el as HTMLInputElement).value.length >= 8,
+        },
+        {
+          id: 'submit',
+          target: root.querySelector<HTMLElement>('button[type="submit"]')!,
+          message: 'Now create the account.',
+        },
+      ],
     },
   ],
 }

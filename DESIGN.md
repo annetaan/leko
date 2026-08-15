@@ -22,12 +22,40 @@ the element underneath and the library loses its purpose.
 
 **2. Steps advance on application state, never on DOM events.**
 
-The host application calls `nextStep()` when *it* knows the step succeeded — after
-its API call resolved, after its own validation passed. Leko must not watch for
-clicks or input events and guess. Guessing is what every other tour library does,
-and it is why they can only *show* a flow instead of making the user *perform* it.
+The host application reports what happened — `leko.reached('order-saved')` —
+when *it* knows it happened: after its API call resolved, after its own
+validation passed. Leko must not watch for clicks or input events and guess.
+Guessing is what every other tour library does, and it is why they can only
+*show* a flow instead of making the user *perform* it.
 
-`nextStep()` is a no-op while no tour is running, so callers never need to guard.
+A call site names the event, never a step. `nextStep()` would mean "advance
+whatever is showing", which forces the call site to know where in the tour it
+sits: insert or reorder a step and an existing call fires at the wrong moment.
+So the step declares what it is waiting for, and the two are matched.
+
+```ts
+{ id: 'save', target: 'button[type=submit]', awaits: 'order-saved' }
+```
+
+Three properties follow, and all three are the point rather than side effects:
+
+- **A signal nobody is waiting for does nothing.** No error, and no warning on
+  every unrelated call. Instrumentation is meant to stay in the source
+  permanently, including in the builds where no tour ever runs, and something
+  that must be free to leave in cannot complain about being left in.
+- **A signal is not buffered.** Reporting `order-saved` before the story reaches
+  the step that awaits it does nothing, and arriving there later does not
+  consume the earlier report. A step advanced by something that happened before
+  it was on screen has established nothing about the user, which is what this
+  constraint is for.
+- **It is a no-op while nothing is running**, so callers never need to guard.
+
+`nextStep()` survives, for a control the host puts on screen — a next button, or
+the sandbox footer. It is not the way an application reports its own state.
+
+The instance holds every story and matches the signal against the one that is
+running, so a call site reports once no matter how many stories pass through
+that screen. `examples/sandbox/src/cases/two-stories.ts` is that case.
 
 ## What Leko does not do
 
@@ -46,8 +74,16 @@ Nothing here stands in the way of any of them. Because Leko never places an
 element over the target, the application is free to drive the real elements
 while a step is showing — which is the same property the user relies on.
 
+A story that is not running observes nothing, either. It would be easy to let
+every registered story follow along in the background so that starting one
+resumes where the user happened to have got to, and it would be wrong: progress
+recorded while nobody was shown a step is not evidence that the user followed
+it. Resuming is `start(storyId, stepId)`, which the application asks for on
+purpose. A signal cannot start a story for the same reason — instrumentation
+reports what happened, and does not decide that a tutorial begins.
+
 Leko also does not advance a step because time passed. A caller that wants that
-can call `nextStep()` from a timer, but a step that ends after five seconds has
+can report a signal from a timer, but a step that ends after five seconds has
 established nothing about whether the user did anything, and establishing that
 is what the second constraint is for.
 
@@ -109,6 +145,13 @@ to run position math every frame are avoidable:
   built from the complement of the cutouts, so nothing of Leko's can be over a
   target even in principle. `examples/sandbox/src/cases/scrollable-target.ts` is
   the case that would catch a regression by hand.
+
+  It is also why **only one story is ever visible**. An instance registers as
+  many as the application has and shows one, and that is structural rather than
+  a simplification: a second story's rectangles are the complement of a
+  *different* set of holes, so they land squarely on the first story's target.
+  Two tours on screen together break constraint 1 whatever the API allows, which
+  is why the API does not allow it.
 - **Morphing** — every path emitted here has the same segments in the same
   order, so two of them blend by walking their numbers in step, corner radius
   included. Changing the number of cutouts breaks that correspondence: collapse
@@ -162,7 +205,7 @@ would be a licensing and bundle-size liability for every consumer.
 
 ```
 packages/core/       the `@annetaan/leko` package
-  src/types.ts       public types (LekoStep, LekoOptions, LekoState, ErrorUtils)
+  src/types.ts       public types (LekoStep, LekoStory, LekoOptions, LekoState)
   src/geometry.ts    target resolution, unions, and the path the scrim is clipped to
   src/scrim.ts       the scrim element: where it mounts, how it morphs
   src/message.ts     the step message: where it mounts, how it keeps up

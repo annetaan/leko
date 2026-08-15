@@ -31,11 +31,16 @@ export const targetDisappears: Case = {
     return () => panel.remove()
   },
 
-  steps: (root) => [
+  stories: (root) => [
     {
-      id: 'notice',
-      target: root.querySelector<HTMLElement>('[data-notice]')!,
-      message: 'Here is your export. Now dismiss it and watch what the tour does.',
+      id: 'target-disappears',
+      steps: [
+        {
+          id: 'notice',
+          target: root.querySelector<HTMLElement>('[data-notice]')!,
+          message: 'Here is your export. Now dismiss it and watch what the tour does.',
+        },
+      ],
     },
   ],
 }

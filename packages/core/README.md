@@ -22,7 +22,10 @@ actually succeeded.
 import { createLeko } from '@annetaan/leko'
 import '@annetaan/leko/leko.css' // optional — just the --leko-* defaults
 
-const tour = createLeko({
+export const leko = createLeko()
+
+leko.setStory({
+  id: 'sign-up',
   steps: [
     {
       id: 'email',
@@ -35,15 +38,19 @@ const tour = createLeko({
       id: 'create',
       target: 'button[type="submit"]',
       message: 'Now create the account.',
+      awaits: 'account-created',
     },
   ],
 })
 
-tour.start()
+leko.start('sign-up')
 
 async function onSubmit() {
   await api.createAccount(form)
-  tour.nextStep() // a no-op if no tour is running, so it needs no guard
+  // Says what happened, not which step should move. A signal nobody is waiting
+  // for does nothing at all, so this line needs no guard and can stay in the
+  // source forever.
+  leko.reached('account-created')
 }
 ```
 
@@ -51,6 +58,8 @@ async function onSubmit() {
 - Nothing of Leko's is ever placed over the target, not even a transparent
   element.
 - Scrolling a tour runs no JavaScript at all.
+- One instance holds every story and shows one of them, so a call site reports
+  what happened once and never learns how many stories exist.
 
 ## Browser support
 

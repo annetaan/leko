@@ -54,18 +54,23 @@ export const scrollableTarget: Case = {
     return () => panel.remove()
   },
 
-  steps: (root) => [
+  stories: (root) => [
     {
-      id: 'read-the-terms',
-      target: root.querySelector<HTMLElement>('[data-terms]')!,
-      message: 'Read to the end of the box. Scroll it however you like.',
-      // The application's own verdict again: not "did they scroll" but "are they
-      // at the bottom", which is what was actually asked of them.
-      validate: (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2,
-      onValidationError: (_el, utils) => {
-        utils.shake()
-        utils.setMessage('Not at the bottom yet.')
-      },
+      id: 'scrollable-target',
+      steps: [
+        {
+          id: 'read-the-terms',
+          target: root.querySelector<HTMLElement>('[data-terms]')!,
+          message: 'Read to the end of the box. Scroll it however you like.',
+          // The application's own verdict again: not "did they scroll" but "are they
+          // at the bottom", which is what was actually asked of them.
+          validate: (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2,
+          onValidationError: (_el, utils) => {
+            utils.shake()
+            utils.setMessage('Not at the bottom yet.')
+          },
+        },
+      ],
     },
   ],
 }
