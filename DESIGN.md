@@ -29,6 +29,28 @@ and it is why they can only *show* a flow instead of making the user *perform* i
 
 `nextStep()` is a no-op while no tour is running, so callers never need to guard.
 
+## What Leko does not do
+
+Leko manages the sequence of steps and draws them. The state the application is
+in, and the way a tutorial is dressed, stay with the application.
+
+That boundary is not modesty. Typing into an input on the user's behalf,
+intercepting keystrokes so that only one value can be entered, winding a clock
+forward, moving a cursor across the screen, revealing a message one character at
+a time — each of these has to reach into the host's reactivity model or impose a
+visual language on it. A tutorial written without Leko needed all of them, and
+each was a few dozen lines of ordinary application code. None of them is
+geometry, and geometry is what this library is for.
+
+Nothing here stands in the way of any of them. Because Leko never places an
+element over the target, the application is free to drive the real elements
+while a step is showing — which is the same property the user relies on.
+
+Leko also does not advance a step because time passed. A caller that wants that
+can call `nextStep()` from a timer, but a step that ends after five seconds has
+established nothing about whether the user did anything, and establishing that
+is what the second constraint is for.
+
 ## Design
 
 A cutout is a `clip-path`, never a stack of elements. `.leko-scrim` is a
