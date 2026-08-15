@@ -57,6 +57,12 @@ browser does wants a page in `spike/`.
 - Package name is `@annetaan/leko`; the project is called Leko. The scope exists
   only because npm rejects the unscoped name, and is not part of the brand.
 - License is MIT. Keep it that way.
+- Everything here is written in English. `README.ja.md` is the one exception,
+  and it translates the opening of `README.md` and stops there. English is where
+  fixes land. A full translation would go out of date without anyone noticing,
+  and a translation that is out of date misleads, so the Japanese covers only
+  the part a reader uses to decide whether to keep going. Do not delete it, do
+  not extend it, and do not add Japanese anywhere else.
 
 ## Status
 
