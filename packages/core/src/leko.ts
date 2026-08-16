@@ -56,9 +56,16 @@ export class Leko {
     return this.currentState
   }
 
-  /** The story being shown, or `undefined` while idle. */
-  get story(): string | undefined {
-    return this.currentState === 'idle' ? undefined : this.currentStory?.id
+  /**
+   * The story being shown, or `undefined` while idle.
+   *
+   * This is the object the application registered, not a copy. Reading it is
+   * the point: `story.steps.length` is how a host counts its own progress.
+   * Adding to or reordering `steps` while it runs moves the ground under the
+   * current index.
+   */
+  get story(): LekoStory | undefined {
+    return this.currentState === 'idle' ? undefined : this.currentStory
   }
 
   /** The step being shown, or `undefined` while idle. */
@@ -82,19 +89,50 @@ export class Leko {
   /**
    * Show `storyId`, from its first step or from `at` — a step id or an index.
    *
-   * Whatever was running stops. One story at a time is the whole design: two
-   * scrims would each block with rectangles built from their own cutouts, so
-   * each would cover the other's target.
+   * Whatever was running stops, and reports its own ending first. One story at
+   * a time is the whole design: two scrims would each block with rectangles
+   * built from their own cutouts, so each would cover the other's target.
+   *
+   * Moving a user from one story into another is an ordinary thing to do, and
+   * `at` composes them: run a shared story, branch into one of several, then
+   * start the shared one again at the step the branch rejoins. The switch cuts
+   * rather than morphs, the same as any other start, because two unrelated
+   * stories interpolating into each other would be a strange thing to watch.
+   *
+   * Nothing is torn down until the arguments are known to be good, so a typo
+   * cannot end a tour someone is in the middle of. An `at` that is not a whole
+   * number in range is such a typo: `steps[1.5]` is nowhere.
    */
   start(storyId: string, at: string | number = 0): void {
     const story = this.stories.get(storyId)
     if (!story) return
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
-    if (index < 0 || index >= story.steps.length) return
+    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return
+    this.stop()
     this.currentStory = story
     this.index = index
     this.currentState = 'running'
     this.show(false)
+    if (this.currentStory === story) this.report(story, story.steps[index], undefined)
+  }
+
+  /**
+   * Story first, then instance: the same near-to-far order the settings read
+   * in. Both fire, because a readout belonging to one story and a counter that
+   * spans all of them are different jobs and neither replaces the other.
+   *
+   * Callers report a move only once it has survived being drawn, which is why
+   * each of them asks whether the story is still the one running. `show` ends a
+   * run whose target has gone, `stop` reports that ending, and a move announced
+   * after it would put a readout back on a story that is over.
+   */
+  private report(
+    story: LekoStory,
+    step: LekoStep | undefined,
+    previous: LekoStep | undefined,
+  ): void {
+    story.onStep?.(step, previous)
+    this.options.onStep?.(step, previous, story)
   }
 
   /**
@@ -132,8 +170,9 @@ export class Leko {
    * exists to avoid.
    */
   private advance(step: LekoStep): void {
-    const steps = this.currentStory?.steps
-    if (!steps) return
+    const story = this.currentStory
+    if (!story) return
+    const steps = story.steps
 
     if (step.validate) {
       const action = resolveTarget(asArray(step.target)[0]!)
@@ -149,23 +188,45 @@ export class Leko {
       return
     }
     this.index += 1
+    const next = steps[this.index]
     this.show(true)
+    if (this.currentStory === story) this.report(story, next, step)
   }
 
-  /** Step back. Never validates: going back is not a claim of success. */
+  /**
+   * Step back. Never validates: going back is not a claim of success.
+   *
+   * It reports through {@link LekoStory.onStep} like anything else. The hook
+   * says where the story is, and not why it went there.
+   */
   prevStep(): void {
-    if (this.currentState === 'idle' || this.index === 0) return
+    const story = this.currentStory
+    if (this.currentState === 'idle' || this.index === 0 || !story) return
+    const previous = story.steps[this.index]
     this.index -= 1
+    const next = story.steps[this.index]
     this.show(true)
+    if (this.currentStory === story) this.report(story, next, previous)
   }
 
+  /**
+   * Reports the ending through {@link LekoStory.onStep} before returning, with
+   * `step` as `undefined`. The host that called this knows already, and
+   * whatever draws the progress is written somewhere else and does not.
+   *
+   * A no-op while idle, so it reports once however many times it is called.
+   */
   stop(): void {
+    if (this.currentState === 'idle') return
+    const story = this.currentStory
+    const previous = story?.steps[this.index]
     this.currentState = 'idle'
     this.currentStory = undefined
     this.index = 0
     this.teardown()
     this.message?.destroy()
     this.message = undefined
+    if (story) this.report(story, undefined, previous)
   }
 
   /** Step, then story, then instance: the nearest one that says anything wins. */

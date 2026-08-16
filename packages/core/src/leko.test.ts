@@ -316,7 +316,7 @@ test('starting a story puts away whatever was running', () => {
   tour.start('onboarding')
   tour.start('returning')
 
-  expect(tour.story).toBe('returning')
+  expect(tour.story?.id).toBe('returning')
   expect(tour.step?.id).toBe('b')
   // One scrim, because two would each block with rectangles cut from their own
   // holes, and so would cover each other's target.
@@ -573,4 +573,264 @@ test('interrupting a morph does not mark the next step as already settled', asyn
   // The interrupted morph resolves too, and used to hand 'running' to a step
   // that had not moved yet.
   expect(tour.state).toBe('transitioning')
+})
+
+// --- onStep ---------------------------------------------------------------
+
+/** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
+function watched(story: Omit<LekoStory, 'onStep'>, options: LekoOptions = {}) {
+  const seen: [string | undefined, string | undefined][] = []
+  const tour = register(
+    { ...story, onStep: (step, previous) => seen.push([step?.id, previous?.id]) },
+    options,
+  )
+  return { tour, seen }
+}
+
+function pair(): [HTMLElement, HTMLElement] {
+  return [
+    box('first', { left: '100px', top: '100px', width: '120px', height: '40px' }),
+    box('second', { left: '100px', top: '300px', width: '120px', height: '40px' }),
+  ]
+}
+
+test('a story reports where it went, and what it came from', () => {
+  const [first, second] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, awaits: 'saved' },
+    ],
+  })
+
+  tour.start('story')
+  tour.nextStep()
+  tour.reached('saved')
+
+  expect(seen).toEqual([
+    ['a', undefined], // nothing came before the first step of a run
+    ['b', 'a'],
+    [undefined, 'b'], // past the last step there is nowhere to be
+  ])
+})
+
+test('the instance has finished moving by the time it says so', () => {
+  const [first, second] = pair()
+  const seen: (string | undefined)[] = []
+  const story: LekoStory = {
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+    // Reading the instance from inside the hook is how a host writes a progress
+    // readout. Firing before the move landed would report the step just left.
+    onStep: () => seen.push(tour.step?.id),
+  }
+  const tour = register(story)
+
+  tour.start('story')
+  tour.nextStep()
+
+  expect(seen).toEqual(['a', 'b'])
+})
+
+test('going back reports too, because the hook says where the story is', () => {
+  const [first, second] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+  })
+
+  tour.start('story')
+  tour.nextStep()
+  seen.length = 0
+  tour.prevStep()
+
+  expect(seen).toEqual([['a', 'b']])
+})
+
+test('stopping reports the ending once, however many times it is called', () => {
+  const [first] = pair()
+  const { tour, seen } = watched({ id: 'story', steps: [{ id: 'a', target: first }] })
+
+  tour.start('story')
+  seen.length = 0
+  tour.stop()
+  tour.stop()
+
+  expect(seen).toEqual([[undefined, 'a']])
+})
+
+test('a step that fails validation reports nothing, because nothing moved', () => {
+  const [first, second] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first, validate: () => false },
+      { id: 'b', target: second },
+    ],
+  })
+
+  tour.start('story')
+  seen.length = 0
+  tour.nextStep()
+
+  expect(seen).toEqual([])
+})
+
+test('a story whose target is already gone reports its ending, and no start', () => {
+  const { tour, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] })
+
+  tour.start('story')
+
+  // `show` found nothing and stopped the run, which reported the ending. A
+  // start announced after that would leave a readout pointing at a story that
+  // is not running — the frozen footer again, one call later.
+  expect(seen).toEqual([[undefined, 'ghost']])
+  expect(tour.step).toBeUndefined()
+})
+
+test('losing a target on the way to a step reports the ending and nothing after it', () => {
+  const [first] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'gone', target: '#not-here' },
+      { id: 'c', target: first },
+    ],
+  })
+
+  tour.start('story')
+  seen.length = 0
+  tour.nextStep()
+
+  // Reading the index back after `show` would say the story moved to `a`,
+  // because stopping is what put it there.
+  expect(seen).toEqual([[undefined, 'gone']])
+})
+
+test('going back to a target that has gone reports the ending and nothing after it', () => {
+  const [first, second] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+  })
+
+  tour.start('story')
+  tour.nextStep()
+  first.remove()
+  seen.length = 0
+  tour.prevStep()
+
+  expect(seen).toEqual([[undefined, 'a']])
+})
+
+test('switching stories ends one and starts the other, and each hears only itself', () => {
+  const [first, second] = pair()
+  const from: [string | undefined, string | undefined][] = []
+  const into: [string | undefined, string | undefined][] = []
+
+  const tour = register({
+    id: 'from',
+    steps: [{ id: 'a', target: first }],
+    onStep: (step, previous) => from.push([step?.id, previous?.id]),
+  })
+  tour.setStory({
+    id: 'into',
+    steps: [{ id: 'b', target: second }],
+    onStep: (step, previous) => into.push([step?.id, previous?.id]),
+  })
+
+  tour.start('from')
+  tour.start('into')
+
+  expect(from).toEqual([
+    ['a', undefined],
+    [undefined, 'a'], // told that it ended, rather than left half-finished
+  ])
+  // `previous` does not chain across: within the new story nothing came first.
+  expect(into).toEqual([['b', undefined]])
+})
+
+test('a typo cannot end the story someone is in the middle of', () => {
+  const [first, second] = pair()
+  const { tour, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+  })
+
+  tour.start('story')
+  seen.length = 0
+  tour.start('nowhere')
+  tour.start('story', 'no-such-step')
+  // In range and still not a step, because `steps[0.5]` is nowhere.
+  tour.start('story', 0.5)
+
+  expect(seen).toEqual([])
+  expect(tour.story?.id).toBe('story')
+  expect(tour.step?.id).toBe('a')
+})
+
+test('the story hook and the instance hook both fire, story first', () => {
+  const [first, second] = pair()
+  const order: string[] = []
+  const told: (string | undefined)[] = []
+
+  const tour = register(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', target: first },
+        { id: 'b', target: second },
+      ],
+      onStep: () => order.push('story'),
+    },
+    {
+      onStep: (_step, _previous, story) => {
+        order.push('instance')
+        // Told which story, because this one hears all of them.
+        told.push(story.id)
+      },
+    },
+  )
+
+  tour.start('story')
+  tour.nextStep()
+
+  expect(order).toEqual(['story', 'instance', 'story', 'instance'])
+  expect(told).toEqual(['story', 'story'])
+})
+
+test('the instance hook hears every story, and each story hears only itself', () => {
+  const [first, second] = pair()
+  const heard: string[] = []
+
+  const tour = register(
+    { id: 'from', steps: [{ id: 'a', target: first }], onStep: () => heard.push('from-hook') },
+    { onStep: (_step, _previous, story) => heard.push(`instance:${story.id}`) },
+  )
+  tour.setStory({ id: 'into', steps: [{ id: 'b', target: second }] })
+
+  tour.start('from')
+  tour.start('into')
+
+  expect(heard).toEqual([
+    'from-hook',
+    'instance:from', // started
+    'from-hook',
+    'instance:from', // ended, because starting another stops this one
+    'instance:into', // the new story registered no hook of its own
+  ])
 })

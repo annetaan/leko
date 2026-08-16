@@ -57,6 +57,31 @@ The instance holds every story and matches the signal against the one that is
 running, so a call site reports once no matter how many stories pass through
 that screen. `examples/sandbox/src/cases/two-stories.ts` is that case.
 
+### Telling the host where the story got to is the other direction
+
+`LekoStory.onStep` does not reopen any of this. The constraint is about Leko
+**listening**: a click or input listener that decides a step succeeded is
+guessing. A hook that reports where the story is decides nothing, and it is the
+only way anything can draw its own progress, because a story moves when the page
+reports a signal from somewhere else entirely.
+
+The line to hold is that nothing handed back may come back in. The return value
+is never read. Something that could block or redirect a transition would be
+`validate` again, in a place where the application has claimed nothing.
+
+A story carries one and so does the instance, and both fire, story first. They
+are not two ways to do one thing. A readout belonging to one story should not
+have to sort out which story moved on every call, which is the burden
+`reached()` exists to keep out of a call site, and registering on the story
+makes the answer be where the handler is. Something that spans stories cannot
+work that way, so the instance hook hears all of them and is told which. The
+sandbox footer is the second kind: one readout, and as many stories as a case
+happens to register.
+
+`stop()` reports the ending with no step, and so does running past the last one.
+A hook that could not say "nowhere" would leave a progress readout showing the
+final step for ever.
+
 ## What Leko does not do
 
 Leko manages the sequence of steps and draws them. The state the application is

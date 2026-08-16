@@ -106,6 +106,29 @@ export interface LekoStory {
 
   /** How long a step-to-step morph runs in this story, in ms. */
   duration?: number
+
+  /**
+   * Called when this story moves, including when it ends.
+   *
+   * `step` is where the story is now, and is `undefined` once there is nowhere
+   * to be: past the last step, or after `stop()`. `previous` is where it came
+   * from, and is `undefined` on the first step of a run. Both being `undefined`
+   * never happens, because nothing moved.
+   *
+   * Which story moved is answered by where the handler is registered, so a
+   * readout belonging to one story never has to sort out which one this was.
+   * {@link LekoOptions.onStep} hears every story instead, and is told.
+   *
+   * Anything that draws its own progress needs one of the two. Reading
+   * {@link Leko.step} tells a caller where the tour is only if it thinks to
+   * look again, and a story advances when the page reports a signal from
+   * somewhere else entirely.
+   *
+   * The return value is never read. Something that could block or redirect a
+   * transition would be {@link LekoStep.validate} again, in a place where the
+   * application has claimed nothing.
+   */
+  onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined) => void
 }
 
 /**
@@ -131,6 +154,17 @@ export interface LekoOptions {
    * stops: pointing a spotlight at nothing is worse than not running at all.
    */
   onTargetLost?: (step: LekoStep, storyId: string) => void
+
+  /**
+   * Called when any story moves, after that story's own
+   * {@link LekoStory.onStep}. Both fire, and neither replaces the other.
+   *
+   * This one is told which `story`, because it hears all of them. A handler
+   * belonging to a single story is not, since where it is registered already
+   * says. Register here for something that spans stories, such as one readout
+   * for a tour that branches, or a call to whatever counts things.
+   */
+  onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
 }
 
 /**

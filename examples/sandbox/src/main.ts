@@ -51,39 +51,34 @@ let teardown: (() => void) | undefined
 let tour: Leko | undefined
 let lost: string | undefined
 
-let shown = ''
-
+// Called by every story's onStep, so the readout is told rather than looking.
+// Reading the instance from in here is the point of the test: if the hook fired
+// before Leko had finished moving, this would print the step it just left.
+let following = false
 function report(): void {
   const state = tour?.state ?? 'idle'
   stateOut.textContent = state
   stateOut.dataset['state'] = state
 
+  const story = tour?.story
   const step = tour?.step
-  const text = lost
+  noteOut.textContent = lost
     ? lost
-    : step
-      ? `${tour?.story} / “${step.id}” — ${step.message ?? 'no message'}`
+    : story && step
+      ? `${story.id} ${story.steps.indexOf(step) + 1}/${story.steps.length} · “${step.id}” — ${step.message ?? 'no message'}`
       : 'No story running.'
-  // Only when the words changed, because this runs every frame while a story is
-  // on screen and the footer is a readout, not an animation.
-  if (text !== shown) {
-    noteOut.textContent = text
-    shown = text
-  }
-}
 
-// The footer is not the only thing that moves a story — the page does it too,
-// by reporting a signal — and Leko emits no events to listen for, so the
-// readout keeps looking until the story ends. One loop at a time.
-let watching = false
-function watch(): void {
-  if (watching) return
+  // `state` has no hook of its own, on purpose: it changes when a morph starts
+  // and again when it lands, while the step does not move either time. So the
+  // chip follows it for the length of one morph and stops.
+  if (state !== 'transitioning' || following) return
+  following = true
   const tick = (): void => {
+    following = (tour?.state ?? 'idle') === 'transitioning'
     report()
-    watching = tour !== undefined && tour.state !== 'idle'
-    if (watching) requestAnimationFrame(tick)
+    if (following) requestAnimationFrame(tick)
   }
-  tick()
+  requestAnimationFrame(tick)
 }
 
 function show(next: Case): void {
@@ -106,6 +101,9 @@ function show(next: Case): void {
       tour?.stop()
       report()
     },
+    // One footer for however many stories a case registers, so it goes on the
+    // instance. A readout belonging to a single story goes on that story.
+    onStep: report,
   })
 
   stageRoot.replaceChildren()
@@ -148,7 +146,6 @@ pick('.controls').addEventListener('click', (event) => {
     if (!action) return
     actions[action.dataset['action'] ?? '']?.()
   }
-  watch()
 })
 
 function route(): void {
