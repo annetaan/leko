@@ -43,7 +43,8 @@ export class Leko {
    * mounted in any of them, so it has nothing to rebuild.
    */
   private message: Message | undefined
-  private index = 0
+  /** Where in `currentStory.steps` the tour is. Exposed by {@link index}. */
+  private at = 0
   private currentState: LekoState = 'idle'
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
@@ -60,9 +61,9 @@ export class Leko {
    * The story being shown, or `undefined` while idle.
    *
    * This is the object the application registered, not a copy. Reading it is
-   * the point: `story.steps.length` is how a host counts its own progress.
-   * Adding to or reordering `steps` while it runs moves the ground under the
-   * current index.
+   * the point: `story.steps.length` is the total a progress readout counts
+   * against, and {@link index} is the position within it. Adding to or
+   * reordering `steps` while it runs moves the ground under that position.
    */
   get story(): LekoStory | undefined {
     return this.currentState === 'idle' ? undefined : this.currentStory
@@ -70,7 +71,19 @@ export class Leko {
 
   /** The step being shown, or `undefined` while idle. */
   get step(): LekoStep | undefined {
-    return this.currentState === 'idle' ? undefined : this.currentStory?.steps[this.index]
+    return this.currentState === 'idle' ? undefined : this.currentStory?.steps[this.at]
+  }
+
+  /**
+   * How far into the story the current step sits, or `undefined` while idle.
+   *
+   * Read this rather than searching `story.steps` for {@link step}. A step is a
+   * plain object with no identity of its own, and a story may hold the same one
+   * twice, so `indexOf` returns the first of them and a counter built on it
+   * walks backwards. Leko is holding the position anyway.
+   */
+  get index(): number | undefined {
+    return this.currentState === 'idle' ? undefined : this.at
   }
 
   /**
@@ -110,7 +123,7 @@ export class Leko {
     if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return
     this.stop()
     this.currentStory = story
-    this.index = index
+    this.at = index
     this.currentState = 'running'
     this.show(false)
     if (this.currentStory === story) this.report(story, story.steps[index], undefined)
@@ -183,12 +196,12 @@ export class Leko {
       }
     }
 
-    if (this.index >= steps.length - 1) {
+    if (this.at >= steps.length - 1) {
       this.stop()
       return
     }
-    this.index += 1
-    const next = steps[this.index]
+    this.at += 1
+    const next = steps[this.at]
     this.show(true)
     if (this.currentStory === story) this.report(story, next, step)
   }
@@ -201,10 +214,10 @@ export class Leko {
    */
   prevStep(): void {
     const story = this.currentStory
-    if (this.currentState === 'idle' || this.index === 0 || !story) return
-    const previous = story.steps[this.index]
-    this.index -= 1
-    const next = story.steps[this.index]
+    if (this.currentState === 'idle' || this.at === 0 || !story) return
+    const previous = story.steps[this.at]
+    this.at -= 1
+    const next = story.steps[this.at]
     this.show(true)
     if (this.currentStory === story) this.report(story, next, previous)
   }
@@ -219,10 +232,10 @@ export class Leko {
   stop(): void {
     if (this.currentState === 'idle') return
     const story = this.currentStory
-    const previous = story?.steps[this.index]
+    const previous = story?.steps[this.at]
     this.currentState = 'idle'
     this.currentStory = undefined
-    this.index = 0
+    this.at = 0
     this.teardown()
     this.message?.destroy()
     this.message = undefined
@@ -238,7 +251,7 @@ export class Leko {
     return {
       shake: () => this.layers[0]?.shake(),
       setMessage: (message) => {
-        const step = this.currentStory?.steps[this.index]
+        const step = this.currentStory?.steps[this.at]
         if (!step) return
         step.message = message
         // Nothing has moved, so a visible message only changes its words.
@@ -315,7 +328,7 @@ export class Leko {
    * would be dimmed.
    */
   private place(): void {
-    const step = this.currentStory?.steps[this.index]
+    const step = this.currentStory?.steps[this.at]
     if (this.currentState === 'idle' || !step) return
     const inner = this.layers[0]
     if (!inner) return
@@ -341,7 +354,7 @@ export class Leko {
   }
 
   private show(animate: boolean): void {
-    const step = this.currentStory?.steps[this.index]
+    const step = this.currentStory?.steps[this.at]
     if (!step) return this.stop()
 
     const action = resolveTarget(asArray(step.target)[0]!)

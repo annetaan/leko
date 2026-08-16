@@ -82,6 +82,17 @@ happens to register.
 A hook that could not say "nowhere" would leave a progress readout showing the
 final step for ever.
 
+`leko.index` is there for the same reason. "Step 3 of 7" is the most common thing
+a tour draws, and `leko.story` and `leko.step` between them do not answer where
+in the story the step sits. A host can search `story.steps` for the step it just
+read, and that search goes wrong the moment a story holds one step object twice.
+`indexOf` returns the first match, so `[intro, review, edit, review, submit]`
+reports 2 of 5 while the user is standing on step 4. Steps are plain objects with
+no identity of their own, and a host building them from data shares them without
+meaning to. The counter walks backwards and nothing throws. Leko is holding the
+position anyway, so it hands it over, and `story.steps.length` stays where the
+total comes from.
+
 ## What Leko does not do
 
 Leko manages the sequence of steps and draws them. The state the application is

@@ -834,3 +834,44 @@ test('the instance hook hears every story, and each story hears only itself', ()
     'instance:into', // the new story registered no hook of its own
   ])
 })
+
+test('the index says how far into the story the step sits, and is empty while idle', () => {
+  const [first, second] = pair()
+  const tour = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+  })
+
+  expect(tour.index).toBeUndefined()
+  tour.start('story')
+  expect(tour.index).toBe(0)
+  tour.nextStep()
+  expect(tour.index).toBe(1)
+  tour.prevStep()
+  expect(tour.index).toBe(0)
+  tour.stop()
+  expect(tour.index).toBeUndefined()
+})
+
+test('a story that shows the same step object twice still counts forwards', () => {
+  const [first, second] = pair()
+  // One object in two places, which is what a host generating steps from data
+  // gets without thinking about it. `steps.indexOf(step)` answers 1 at both.
+  const review: LekoStep = { id: 'review', target: second }
+  const tour = start([
+    { id: 'intro', target: first },
+    review,
+    { id: 'edit', target: first },
+    review,
+  ])
+
+  tour.nextStep()
+  expect(tour.index).toBe(1)
+  tour.nextStep()
+  tour.nextStep()
+  expect(tour.step).toBe(review)
+  expect(tour.index).toBe(3)
+})

@@ -62,10 +62,13 @@ function report(): void {
 
   const story = tour?.story
   const step = tour?.step
+  // The position comes from the instance. Searching `steps` for `step` would
+  // count the wrong one in a story that shows the same step object twice.
+  const index = tour?.index
   noteOut.textContent = lost
     ? lost
-    : story && step
-      ? `${story.id} ${story.steps.indexOf(step) + 1}/${story.steps.length} · “${step.id}” — ${step.message ?? 'no message'}`
+    : story && step && index !== undefined
+      ? `${story.id} ${index + 1}/${story.steps.length} · “${step.id}” — ${step.message ?? 'no message'}`
       : 'No story running.'
 
   // `state` has no hook of its own, on purpose: it changes when a morph starts
