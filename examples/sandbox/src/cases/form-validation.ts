@@ -40,7 +40,9 @@ export const formValidation: Case = {
           validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
           onValidationError: (_el, utils) => {
             utils.shake()
-            utils.setMessage('That does not look like an email address yet.')
+            // Under the instruction rather than over it. Pressing Next with an
+            // empty field used to leave the step asking for nothing.
+            utils.setError('That does not look like an email address yet.')
           },
         },
         {

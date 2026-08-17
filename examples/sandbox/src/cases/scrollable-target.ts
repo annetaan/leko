@@ -67,7 +67,7 @@ export const scrollableTarget: Case = {
           validate: (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2,
           onValidationError: (_el, utils) => {
             utils.shake()
-            utils.setMessage('Not at the bottom yet.')
+            utils.setError('Not at the bottom yet.')
           },
         },
       ],
