@@ -41,6 +41,6 @@
   },
   "scripts": {
     "build": "tsc && cp src/leko.css dist/leko.css",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p type-tests/bare.tsconfig.json && tsc --noEmit -p type-tests/loose.tsconfig.json && tsc --noEmit -p type-tests/strict.tsconfig.json"
   }
 }

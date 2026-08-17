@@ -93,6 +93,105 @@ meaning to. The counter walks backwards and nothing throws. Leko is holding the
 position anyway, so it hands it over, and `story.steps.length` stays where the
 total comes from.
 
+### Getting the names back, without maintaining a list
+
+A signal name is a string on both sides. The call site writes
+`leko.reached('order-saved')` and the step writes `awaits: 'order-saved'`, and
+somebody writing that step a month later has to spell it the same way. A typo
+does not fail. The step waits, nothing advances, and the console says nothing,
+because a signal nobody is waiting for is silent by the rule above. That rule is
+right for instrumentation. It is no help at all to a person guessing at a
+string.
+
+What an engineer should get is this. Write the `reached()` call where the thing
+happens. Write the story afterwards, and have the editor offer the name.
+
+I wanted the compiler to do it on its own. TypeScript 5.9.3 cannot. It reads a
+declaration and flows it out to the uses, and it never runs backwards from call
+sites to a type. There is no way to ask it for every argument of every call to a
+method, because nothing collects those anywhere. Every library that looks like
+it does this has one declared value at the root. Zod has the schema, tRPC has
+`typeof appRouter`, TanStack Router has the route tree and an `interface
+Register`.
+
+So something outside the type system has to gather them, and
+`packages/codegen/` is that thing. It walks the project, collects the names, and
+writes a declaration file that augments an interface the core exports empty:
+
+```ts
+export interface LekoSignals {}
+export interface LekoStrict {}
+```
+
+The generated file is what fills them in, and a project that never runs the
+generator has both empty, `awaits` as `string`, and nothing to import or
+configure. **A project that wants none of this cannot tell it shipped.** The
+interfaces hold no values, so nothing reaches a bundle either.
+
+It asks the compiler rather than the text, which is the reason it is worth
+writing at all. A name kept in a constant resolves the same as one written at
+the call site, so `reached(ORDER_SAVED)` contributes `order-saved` from a file
+away. A value narrowed to two names contributes both. A `reached` belonging to
+some other class called `Leko` contributes nothing, because the package is
+resolved from the file doing the calling and the method's own declaration is
+compared against the one it exports.
+
+A name built at runtime is the case with no honest answer. `` reached(`step-${i}`) ``
+reports something the scan cannot see, and a vocabulary missing it is
+incomplete. The generator prints every call like that rather than passing over
+it, and a project with any of them wants `--loose`.
+
+#### Strict on `awaits`, never on `reached()`
+
+The vocabulary came from the call sites. That makes the two sides different, and
+the types are different to match.
+
+A name in `awaits` that is missing from the vocabulary is a step waiting for a
+report nothing in the project makes. It advances for nobody. So the generated
+file also declares `LekoStrict`, and that name fails to compile. This is the
+whole point of gathering rather than declaring: a list maintained by hand is
+only as complete as somebody remembered to make it, and no compiler should fail
+a build over one of those. A list gathered from the code is a fact about the
+code.
+
+`reached()` keeps every string, always. A call there is instrumentation meant to
+stay in the source permanently, including in builds where no tour ever runs, and
+a type error would talk people into deleting the call. The calls are also where
+the vocabulary comes from, so an error there would only ever fire in the moment
+between typing a new name and the generator running. `--loose` drops the promise
+for a project that needs it and keeps the completion.
+
+#### What this deliberately does not do
+
+- **It does not check that a declared name is awaited by some story.** The other
+  direction is answered, and this one is not. Reporting a name no story waits
+  for is normal and permanent, which is the point of the rule above it.
+- **It does not cover story ids.** `start('first-order')` deserves the same
+  treatment through a third interface beside these two. It was left out to keep
+  the first one small.
+- **It does not put the generator inside the core.** `packages/core` has no
+  dependencies and this needs the TypeScript compiler API, so it is a package of
+  its own that a consumer installs only if they want it.
+
+#### The one trap
+
+**The augmenting file has to be a module.** Drop that block into a `.ts` file
+with no `import` and no `export` of its own and `declare module` declares an
+ambient module rather than augmenting this one. No completion appears, and no
+error anywhere explains why. The generated file ends in `export {}` for exactly
+this reason.
+
+The same shape of failure catches the output itself. A declaration file outside
+the `include` of the tsconfig is compiled by nobody, so the augmentation never
+applies and again nothing reports a problem. The generator checks its own output
+against the project after writing it and says so, because nothing else will.
+
+`packages/core/type-tests/` holds the three states, one `tsconfig` each: no
+vocabulary, a vocabulary, and a vocabulary with the promise. An augmentation
+applies to a whole compilation, so they cannot be three files in one program.
+The strict one asserts a `@ts-expect-error`, which is the only way to assert that
+something does not compile.
+
 ## What Leko does not do
 
 Leko manages the sequence of steps and draws them. The state the application is
@@ -249,6 +348,14 @@ packages/core/       the `@annetaan/leko` package
   src/index.ts       public entry point
   src/*.test.ts      browser tests; excluded from the published build
   src/leko.css       optional; the --leko-* defaults, written out to be findable
+  type-tests/        one tsconfig per vocabulary state; run by `pnpm typecheck`
+packages/codegen/    the `@annetaan/leko-codegen` package
+  src/scan.ts        the walk: every name a reached() call reports
+  src/emit.ts        the declaration file that comes out, as a string
+  src/generate.ts    tsconfig, disk and the watch
+  src/cli.ts         leko-signals
+  src/vite.ts        the same thing, run by a dev server nobody has to remember
+  fixtures/app/      a project to scan, including a Leko that is not one
 examples/sandbox/    the situations a tour has to survive, one per case
   src/cases/         each states what it proves, and its steps
 spike/               standalone pages, one browser question each
@@ -304,6 +411,12 @@ first, so a browser that degrades reports that rather than a failure.
 `Version/` token all the same, and that token is not a Safari release anyone can
 install — passing here is not evidence about any particular Safari, and the
 floor below still has to be checked on the real thing.
+
+`packages/codegen` runs in Node instead, as its own Vitest project. It reads
+TypeScript source and writes a file. There is no layout in any of that and no
+DOM to be wrong about, and running it three times in three browsers would prove
+nothing and cost three times as much. The rule is about what a test needs to see,
+and these two need different things.
 
 ## Browser support
 

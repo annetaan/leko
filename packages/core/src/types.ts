@@ -6,6 +6,94 @@
 export type LekoTarget = string | HTMLElement
 
 /**
+ * The signal names this project reports. **Empty on purpose.**
+ *
+ * `@annetaan/leko-codegen` walks the `reached()` calls in a project and writes
+ * this interface out, so the names arrive from the call sites and nobody
+ * maintains a list. Augmenting it by hand does the same job and is the way to
+ * name a signal no call site in this project reports.
+ *
+ * ```ts
+ * declare module '@annetaan/leko' {
+ *   interface LekoSignals {
+ *     'order-saved': true
+ *   }
+ * }
+ * ```
+ *
+ * Declarations merge, so a generated file and a hand-written one both apply.
+ * **The file doing it has to be a module** — one with an `import` or an `export`
+ * of its own. In a file with neither, `declare module` declares an ambient
+ * module instead of augmenting this one, no completion appears, and nothing
+ * anywhere reports a problem.
+ *
+ * The value side is unused; `true` is the shortest thing to write.
+ *
+ * @see {@link LekoKnownSignal}
+ */
+export interface LekoSignals {}
+
+/**
+ * Augment this and an unknown name in {@link LekoStep.awaits} stops compiling.
+ * **Empty on purpose**, so nothing tightens by surprise.
+ *
+ * ```ts
+ * declare module '@annetaan/leko' {
+ *   interface LekoStrict {
+ *     strict: true
+ *   }
+ * }
+ * ```
+ *
+ * `@annetaan/leko-codegen` writes this alongside {@link LekoSignals} unless it
+ * is run with `--loose`. The two belong together: a vocabulary gathered from the
+ * call sites is the set of names something actually reports, so a name in
+ * `awaits` that is missing from it is a step waiting for a report that never
+ * comes. A vocabulary maintained by hand is only as complete as somebody
+ * remembered to make it, and turning this on with one of those is a promise
+ * about a list rather than about the code.
+ *
+ * `reached()` is never tightened by this. See {@link LekoSignal}.
+ */
+export interface LekoStrict {}
+
+type Known = keyof LekoSignals
+type Strict = [keyof LekoStrict] extends [never] ? false : true
+
+/**
+ * A name {@link LekoStep.awaits} may wait for.
+ *
+ * `string` until {@link LekoSignals} says otherwise, so a project that generates
+ * nothing and declares nothing is typed exactly as it was before any of this
+ * existed. With a vocabulary and {@link LekoStrict}, this is that vocabulary and
+ * nothing else, and a typo here fails to compile. With a vocabulary alone, the
+ * names are offered and any other string still passes.
+ */
+// `keyof` an empty interface is `never`, so each guard is a test for `never`.
+// The tuples are the form that stays right if these ever become type
+// parameters, where a bare `extends never` would distribute and answer `never`;
+// an alias does not distribute, so today they cost nothing and claim nothing.
+export type LekoKnownSignal = [Known] extends [never]
+  ? string
+  : Strict extends true
+    ? Known
+    : Known | (string & {})
+
+/**
+ * A name `reached()` may report. Every string, always, plus completion on the
+ * ones {@link LekoSignals} knows.
+ *
+ * {@link LekoStrict} deliberately does not reach this far. A `reached()` call is
+ * instrumentation meant to stay in the source permanently, including in builds
+ * where no tour ever runs, and a type error on it would talk people into
+ * deleting the call rather than keeping it. The generated vocabulary is built
+ * out of these calls in the first place, which leaves nothing for an error here
+ * to catch beyond the moment between typing a new name and the generator
+ * running.
+ */
+export type LekoSignal = [Known] extends [never] ? string : Known | (string & {})
+
+/**
  * Utilities handed to {@link LekoStep.onValidationError} so a step can react to
  * a failed attempt without reaching into Leko's internals.
  */
@@ -63,8 +151,11 @@ export interface LekoStep {
    * the call still fires at the moment it always meant.
    *
    * A step that declares nothing here is never advanced by a signal.
+   *
+   * Any string, until the project has a vocabulary. See
+   * {@link LekoKnownSignal}.
    */
-  awaits?: string
+  awaits?: LekoKnownSignal
 
   /**
    * Called before advancing. Returning `false` blocks the transition and

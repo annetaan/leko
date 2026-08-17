@@ -54,6 +54,33 @@ async function onSubmit() {
 }
 ```
 
+## Your signal names, handed back to you
+
+Optional, and one package away.
+[`@annetaan/leko-codegen`](https://www.npmjs.com/package/@annetaan/leko-codegen)
+reads your project, collects every name a `reached()` call reports, and writes
+them out as types.
+
+```ts
+import { lekoSignals } from '@annetaan/leko-codegen/vite'
+
+export default defineConfig({
+  plugins: [lekoSignals({ out: 'src/leko-signals.d.ts' })],
+})
+```
+
+After that `awaits` offers `'account-created'` because `reached()` reports it
+somewhere, and a name nothing reports stops compiling. Nothing to declare and no
+list to keep in step.
+
+`reached()` itself is never tightened. It is meant to stay in your source
+forever, including in builds where no tour runs.
+
+Install none of it and `awaits` is `string`, the same as it was before any of
+this existed.
+
+## What you get
+
 - No runtime dependencies, no framework required.
 - Nothing of Leko's is ever placed over the target, not even a transparent
   element.

@@ -103,6 +103,44 @@ thinking about it. Register as many stories as you have — `leko.setStory(...)`
 again, with another id — and the signal moves the one that is running, if its
 current step declared that name, and nothing otherwise.
 
+### Write the call, get the name back
+
+Both sides of a signal are a string, and a string is easy to mistype. Nothing
+fails when you do. The step just waits.
+
+So write the `reached()` call where the thing happens, and let
+[`@annetaan/leko-codegen`](packages/codegen/) hand the name back to you.
+
+```ts
+import { lekoSignals } from '@annetaan/leko-codegen/vite'
+
+export default defineConfig({
+  plugins: [lekoSignals({ out: 'src/leko-signals.d.ts' })],
+})
+```
+
+It reads your project, collects every name a `reached()` call reports, and
+writes them out as types. Nothing to declare and nothing to keep in step. Add a
+signal by writing the call.
+
+```ts
+leko.reached('order-saved')            // you write this
+
+awaits: 'order-saved'                  // the editor offers this
+awaits: 'order-svaed'                  // and this no longer compiles
+```
+
+It asks the compiler rather than the text, so a name kept in a constant counts
+too. A name built at runtime cannot be gathered, and the generator tells you
+which calls those are.
+
+`awaits` is the strict side and `reached()` never is. A `reached()` call is
+meant to stay in your source forever, including in builds where no tour runs,
+so a type error there would only talk you into deleting it.
+
+Skip all of it and nothing changes for you. `awaits` stays `string`, there is
+nothing to import, and nothing lands in your bundle.
+
 A step can highlight several adjacent elements as one hole (`target: [a, b]`),
 or bring along further holes that explain it (`related: [...]`). Every option is
 documented next to itself in
@@ -141,6 +179,7 @@ dependencies. Framework wrappers will be additive, never required.
 | Placing the step message beside its cutout | ✅ Working |
 | Advancing on a named signal instead of on position | ✅ Working |
 | Several stories on one instance, one of them running | ✅ Working |
+| Signal names gathered from the call sites, offered on `awaits` | ✅ Working |
 | A next control on the message | 📋 Planned |
 | Advancing on a URL change, and surviving the navigation | 📋 Planned |
 | Chapters, to skip over and to resume into | 📋 Planned |
@@ -166,6 +205,8 @@ bottom of the viewport, so it degrades rather than fails.
   Open one and watch the answer.
 - **[`examples/sandbox/`](examples/sandbox/)** is the situations a tour has to
   survive, one per case, each stating what it proves.
+- **[`packages/codegen/`](packages/codegen/)** is the generator that hands your
+  signal names back to you.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** is the setup, the commands, and the
   handful of changes that look like improvements and are not.
 

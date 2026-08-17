@@ -30,6 +30,12 @@ That serves [`examples/sandbox/`](examples/sandbox/), which resolves the core
 from source rather than from a build, so there is no watch process to keep alive
 and no way to end up debugging a stale `dist/`.
 
+`packages/codegen` is built first, because a Vite config is loaded by Node and
+Node does not read the `development` export condition. The sandbox runs the
+generator as a Vite plugin, so `src/leko-signals.d.ts` is rewritten from the
+`reached()` calls while the server runs. That file is committed, and CI builds
+and then runs `git diff --exit-code` to catch one that has fallen behind.
+
 The sandbox is not a showcase. Every case is something a user *does* — typing,
 waiting for a request, scrolling a panel — because a demo where the user only
 watches proves nothing about a library whose whole claim is that they do not.
@@ -40,11 +46,11 @@ sentence what it proves.
 
 ```bash
 pnpm dev            # the sandbox, resolving the core from source
-pnpm typecheck      # tsc --noEmit across workspace packages
+pnpm typecheck      # tsc --noEmit across workspace packages, and the type tests
 pnpm lint           # oxlint
 pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
-pnpm test           # vitest, in Chromium, Firefox and WebKit
+pnpm test           # vitest: core in three browsers, codegen in Node
 ```
 
 Markdown is deliberately out of the formatter's reach — prose wrapping is a
@@ -98,6 +104,11 @@ page, not just the rule.
 - **Adding a runtime dependency to `packages/core`.** It has none on purpose:
   a dependency there is a licensing and bundle-size liability for every
   consumer.
+- **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
+  design. The vocabulary is gathered *from* those calls, so an error there fires
+  only between typing a new name and the generator running, and a `reached()`
+  call has to be free to stay in the source in builds where no tour runs.
+  [DESIGN.md](DESIGN.md#strict-on-awaits-never-on-reached) argues it.
 - **Making an unmatched signal do something.** Warning about it, holding it
   until a step that awaits it appears, or letting a story that is not running
   keep up with it. Instrumentation has to be free to leave in the source, and a

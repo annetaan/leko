@@ -16,6 +16,11 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Building the sandbox rewrites its generated vocabulary from the
+      # reached() calls in it. Anything left over is a committed file that has
+      # fallen behind the source it was gathered from.
+      - run: pnpm build
+      - run: git diff --exit-code
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check

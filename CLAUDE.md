@@ -38,6 +38,9 @@ DESIGN.md. Do not do any of them without reading that page first.
   and must stay that way. A bounded morph writing precomputed strings is not
   the same thing and is fine.
 - **Adding a runtime dependency to `packages/core`.** It has none, deliberately.
+- **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
+  design: the vocabulary is gathered from those calls, and a `reached()` call
+  has to stay compilable in builds where no tour runs. DESIGN.md argues it.
 - **Doing something helpful with a signal nobody is waiting for** — warning
   about it, saving it up for a step that awaits it later, or letting a story
   that is not running follow along. Each defeats the second constraint in a
@@ -53,6 +56,12 @@ New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a
 browser does wants a page in `spike/`.
 
+`packages/codegen` is the same split: `scan.ts` and `emit.ts` are functions a
+test drives, and `generate.ts` is the part that touches tsconfig and disk. It
+runs in Node as its own Vitest project. Behaviour of the public types wants a
+program under `packages/core/type-tests/`, one per vocabulary state, because an
+augmentation applies to a whole compilation.
+
 ## Working in this repository
 
 - Commits use the GitHub noreply address, set locally. Do not change
@@ -61,8 +70,9 @@ browser does wants a page in `spike/`.
   `spike/`: `waapi-clip-path/index.html` is attached to
   [crbug.com/542859657](https://issues.chromium.org/issues/542859657) as it
   stands, and a formatter should not be rewriting evidence.
-- Package name is `@annetaan/leko`; the project is called Leko. The scope exists
-  only because npm rejects the unscoped name, and is not part of the brand.
+- Package names are `@annetaan/leko` and `@annetaan/leko-codegen`; the project is
+  called Leko. The scope exists only because npm rejects the unscoped name, and
+  is not part of the brand.
 - License is MIT. Keep it that way.
 - Everything here is written in English. `README.ja.md` is the one exception,
   and it translates the opening of `README.md` and stops there. English is where

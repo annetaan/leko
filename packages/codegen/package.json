@@ -1,0 +1,65 @@
+{
+  "name": "@annetaan/leko-codegen",
+  "version": "0.0.0",
+  "description": "Gathers the signal names a project reports through leko.reached() and writes them out as types.",
+  "keywords": [
+    "codegen",
+    "leko",
+    "product-tour",
+    "typescript"
+  ],
+  "homepage": "https://github.com/annetaan/leko",
+  "bugs": "https://github.com/annetaan/leko/issues",
+  "license": "MIT",
+  "author": "Annetaan Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annetaan/leko.git",
+    "directory": "packages/codegen"
+  },
+  "bin": {
+    "leko-signals": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "development": "./src/vite.ts",
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "devDependencies": {
+    "@annetaan/leko": "workspace:*",
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.2",
+    "vite": "^8.2.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.5.0",
+    "vite": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  }
+}

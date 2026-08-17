@@ -4,6 +4,7 @@ import { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scri
 import type {
   ErrorUtils,
   LekoOptions,
+  LekoSignal,
   LekoState,
   LekoStep,
   LekoStory,
@@ -156,8 +157,12 @@ export class Leko {
    * call. Instrumentation is meant to stay in the source permanently, including
    * in builds where no tour ever runs, so an unmatched call has to be free and
    * silent.
+   *
+   * `name` is any string, always. The project's vocabulary is offered as
+   * completion and never enforced here, which is the same reason this method
+   * stays silent about a name nothing awaits.
    */
-  reached(name: string): void {
+  reached(name: LekoSignal): void {
     const step = this.step
     if (step?.awaits === name) this.advance(step)
   }
