@@ -4,6 +4,7 @@ import { asyncCompletion } from './async-completion.js'
 import { formValidation } from './form-validation.js'
 import { linkedRegions } from './linked-regions.js'
 import { nestedScroller } from './nested-scroller.js'
+import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
 import { stepping } from './stepping.js'
 import { targetDisappears } from './target-disappears.js'
@@ -16,6 +17,7 @@ import { twoStories } from './two-stories.js'
 export const cases: Case[] = [
   stepping,
   formValidation,
+  nextControl,
   asyncCompletion,
   twoStories,
   adjacentColumns,

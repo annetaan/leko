@@ -17,6 +17,19 @@
   --leko-message-radius: 8px;
   --leko-message-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
   --leko-message-max-width: min(320px, calc(100vw - 32px));
+
+  /* The reason a failed attempt was rejected, under the step's message. */
+  --leko-message-error-color: #b3261e;
+  --leko-message-error-font: 500 13px/1.5 system-ui, sans-serif;
+  --leko-message-error-gap: 8px;
+
+  /* The next control, on the message of a step that declares no signal. */
+  --leko-message-next-bg: #16181d;
+  --leko-message-next-color: #fff;
+  --leko-message-next-font: 600 13px/1.5 system-ui, sans-serif;
+  --leko-message-next-padding: 6px 14px;
+  --leko-message-next-radius: 6px;
+  --leko-message-next-gap: 12px;
   /*
    * Stacking order of the message, consulted only where the top layer is
    * unavailable — it is a popover, and the top layer has no z-index.

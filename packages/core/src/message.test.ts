@@ -31,6 +31,15 @@ function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElement {
 }
 
 const message = () => document.querySelector<HTMLElement>('.leko-message')
+const words = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent
+const error = () => document.querySelector<HTMLElement>('.leko-message-error')
+const control = () => document.querySelector<HTMLButtonElement>('.leko-message-next')
+/**
+ * On screen at all, rather than in the DOM: an empty part is `hidden`, and the
+ * whole box is transparent while it is away, which the parts inherit.
+ */
+const on = (el: HTMLElement | null | undefined) =>
+  el?.checkVisibility({ visibilityProperty: true, opacityProperty: true }) === true
 // Both options are off by default: `checkVisibility()` on its own only reports
 // `display: none`, and would call a hidden, fully transparent box visible.
 const visible = () =>
@@ -55,17 +64,18 @@ test('the step message is on screen, and above the scrim', () => {
   start([{ id: 'one', target: 'button', message: 'Press it.' }])
 
   const el = message()
-  expect(el?.textContent).toBe('Press it.')
+  expect(words()).toBe('Press it.')
 
   // The scrim blocks the page on purpose, so the tour's own chrome has to be
   // above it — otherwise the message is dimmed along with what it explains.
   const r = rect(el!)
-  expect(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)).toBe(el)
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+  expect(hit?.closest('.leko-message')).toBe(el)
 })
 
-test('a step without a message shows nothing', () => {
+test('a step with nothing to say and a signal to wait for shows nothing', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start([{ id: 'one', target: 'button' }])
+  start([{ id: 'one', target: 'button', awaits: 'order-saved' }])
 
   expect(visible()).toBe(false)
 })
@@ -142,7 +152,7 @@ test('setMessage replaces the words in place', () => {
   const before = rect(message()!)
   leko.nextStep()
 
-  expect(message()?.textContent).toBe('A name, not a number.')
+  expect(words()).toBe('A name, not a number.')
   // Failing validation does not move the step, so it must not move the message
   // out from under someone reading it.
   expect(rect(message()!).top).toBeCloseTo(before.top, 0)
@@ -154,18 +164,182 @@ test('a step that had no message can still be given one', async () => {
     {
       id: 'one',
       target,
+      // A signal, so there is no control either and the box starts away.
+      awaits: 'order-saved',
       validate: () => false,
       onValidationError: (_el, utils) => utils.setMessage('Not yet.'),
     },
   ])
 
   expect(visible()).toBe(false)
-  leko.nextStep()
+  leko.reached('order-saved')
   // It arrives with a fade, so it is exactly transparent for the first frame.
   await frame()
 
   expect(visible()).toBe(true)
-  expect(message()?.textContent).toBe('Not yet.')
+  expect(words()).toBe('Not yet.')
+})
+
+// --- the next control -----------------------------------------------------
+
+test('a step that declares no signal is given a way out of it', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    { id: 'one', target, message: 'Type your name.' },
+    { id: 'two', target, message: 'Now save.' },
+  ])
+
+  expect(control()?.textContent).toBe('Next')
+  control()?.click()
+
+  expect(leko.step?.id).toBe('two')
+})
+
+test('a step waiting for a signal has no control to get past it with', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  start([
+    { id: 'one', target, message: 'Save the order.', awaits: 'order-saved' },
+    { id: 'two', target, message: 'Done.' },
+  ])
+  // The box has to be up before this proves anything: everything in it is
+  // transparent for the first frame, control included.
+  await frame()
+
+  expect(visible()).toBe(true)
+  // The step exists to make someone do the thing the application will report.
+  // A button beside the instruction is a way past it without doing that.
+  expect(on(control())).toBe(false)
+})
+
+test('a step with no message still gets the control, and nothing else', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    { id: 'one', target },
+    { id: 'two', target },
+  ])
+  // It arrives with a fade, so it is exactly transparent for the first frame.
+  await frame()
+
+  expect(visible()).toBe(true)
+  expect(on(control())).toBe(true)
+  // Nothing was said, so nothing is read out: an empty line would be measured
+  // along with the rest and push the box off the side that had room for it.
+  expect(on(document.querySelector<HTMLElement>('.leko-message-text'))).toBe(false)
+
+  control()?.click()
+  expect(leko.step?.id).toBe('two')
+})
+
+test('the words on the control are the instance’s to choose', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  start([{ id: 'one', target, message: 'Type your name.' }], { nextLabel: '次へ' })
+
+  expect(control()?.textContent).toBe('次へ')
+})
+
+test('one press advances one step, however many events it arrives as', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    { id: 'one', target },
+    { id: 'two', target },
+    { id: 'three', target },
+  ])
+
+  const button = control()!
+  button.click()
+  button.click()
+
+  // Two events a frame apart are one press — a touch emulating a click after
+  // its own, an ancestor handler firing too. Taking both would walk the user
+  // past a step they never saw.
+  expect(leko.step?.id).toBe('two')
+})
+
+test('a press after the frame is over is a second press', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    { id: 'one', target },
+    { id: 'two', target },
+    { id: 'three', target },
+  ])
+
+  control()?.click()
+  await frame()
+  control()?.click()
+
+  expect(leko.step?.id).toBe('three')
+})
+
+test('the control goes through validate, and a failed press stays where it is', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  let typed = false
+  const leko = start([
+    {
+      id: 'one',
+      target,
+      message: 'Type 3.',
+      validate: () => typed,
+      onValidationError: (_el, utils) => utils.setError('That is not 3 yet.'),
+    },
+    { id: 'two', target, message: 'Now place the order.' },
+  ])
+
+  control()?.click()
+  expect(leko.step?.id).toBe('one')
+  // The instruction survives the complaint: a second failed attempt must not
+  // leave the user with an error and nothing to act on.
+  expect(words()).toBe('Type 3.')
+  expect(error()?.textContent).toBe('That is not 3 yet.')
+
+  typed = true
+  await frame()
+  control()?.click()
+
+  expect(leko.step?.id).toBe('two')
+  expect(words()).toBe('Now place the order.')
+  // Nothing had to clear it. It stopped being true when the attempt succeeded.
+  expect(on(error())).toBe(false)
+})
+
+test('an error is about the attempt, so going back leaves it behind', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    { id: 'one', target, message: 'First.' },
+    {
+      id: 'two',
+      target,
+      message: 'Second.',
+      validate: () => false,
+      onValidationError: (_el, utils) => utils.setError('Not yet.'),
+    },
+  ])
+
+  leko.nextStep()
+  control()?.click()
+  expect(error()?.textContent).toBe('Not yet.')
+
+  leko.prevStep()
+  expect(on(error())).toBe(false)
+})
+
+test('a step with only an error to show gets a box for it', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start([
+    {
+      id: 'one',
+      target,
+      awaits: 'order-saved',
+      validate: () => false,
+      onValidationError: (_el, utils) => utils.setError('The total is still zero.'),
+    },
+  ])
+
+  expect(visible()).toBe(false)
+  leko.reached('order-saved')
+  await frame()
+
+  expect(visible()).toBe(true)
+  expect(error()?.textContent).toBe('The total is still zero.')
 })
 
 test('stopping takes the message with it, and gives the target its anchor name back', () => {

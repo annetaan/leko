@@ -1,5 +1,5 @@
 import { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
-import { Message } from './message.js'
+import { Message, type MessageContent } from './message.js'
 import { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'
 import type {
   ErrorUtils,
@@ -12,6 +12,9 @@ import type {
 } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
+
+/** What the next control reads until an instance says otherwise. */
+const NEXT_LABEL = 'Next'
 
 const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
   Array.isArray(value) ? value : [value]
@@ -44,6 +47,13 @@ export class Leko {
    * mounted in any of them, so it has nothing to rebuild.
    */
   private message: Message | undefined
+  /**
+   * What the last attempt at the current step was told was wrong with it, set
+   * through {@link ErrorUtils.setError}. Held here rather than on the step: it
+   * is about one attempt, not about the tour, and the step object belongs to
+   * the application.
+   */
+  private error: string | undefined
   /** Where in `currentStory.steps` the tour is. Exposed by {@link index}. */
   private at = 0
   private currentState: LekoState = 'idle'
@@ -170,8 +180,9 @@ export class Leko {
   /**
    * Advance whatever step is showing, without naming it.
    *
-   * This is for a control the host puts on screen — a next button, the sandbox's
-   * footer. Instrumentation spread through application code wants
+   * This is for a control on screen: the one Leko puts on the message of a step
+   * that declares no signal, or one the host puts in its own chrome — the
+   * sandbox's footer. Instrumentation spread through application code wants
    * {@link reached} instead: a bare "advance" has to know the shape of the tour
    * to be written in the right place.
    *
@@ -241,6 +252,7 @@ export class Leko {
     this.currentState = 'idle'
     this.currentStory = undefined
     this.at = 0
+    this.error = undefined
     this.teardown()
     this.message?.destroy()
     this.message = undefined
@@ -264,6 +276,13 @@ export class Leko {
         // of reading why they were stopped. A step that had no message until now
         // has nowhere to jump from, so that one is placed properly.
         if (this.message?.visible) this.message.setText(message)
+        else this.say(step, action)
+      },
+      setError: (message) => {
+        const step = this.currentStory?.steps[this.at]
+        if (!step) return
+        this.error = message
+        if (this.message?.visible) this.message.setError(message)
         else this.say(step, action)
       },
     }
@@ -305,14 +324,38 @@ export class Leko {
    * through every scroll that follows.
    */
   private say(step: LekoStep, action: HTMLElement): void {
-    if (!step.message) {
+    const content: MessageContent = {
+      text: step.message,
+      error: this.error,
+      next: this.nextLabel(step),
+    }
+    if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       return
     }
-    this.message ??= new Message()
+    this.message ??= new Message(() => this.nextStep())
     const onScreen = this.resolve(step, (el) => el.getBoundingClientRect())
     const gap = this.setting(step, 'padding')
-    this.message.show(step.message, action, onScreen?.cutouts ?? [], gap)
+    this.message.show(content, action, onScreen?.cutouts ?? [], gap)
+  }
+
+  /**
+   * The words on this step's next control, or `undefined` where it has none.
+   *
+   * A step that declares a signal never gets one, and that is the whole rule.
+   * The step is waiting for the user to do something the application will
+   * report, and a button next to the instruction is a way past it without
+   * doing that. So this is derived from `awaits` rather than configured per
+   * step: nothing a story can write turns the control back on where the second
+   * constraint took it away.
+   *
+   * A step declaring no signal has no other way to end. The control appears
+   * even where the step has no message, because a box with a button in it is
+   * the difference between a step the user can leave and one they cannot.
+   */
+  private nextLabel(step: LekoStep): string | undefined {
+    if (step.awaits !== undefined) return undefined
+    return this.options.nextLabel ?? NEXT_LABEL
   }
 
   /**
@@ -359,6 +402,11 @@ export class Leko {
   }
 
   private show(animate: boolean): void {
+    // Every arrival at a step, forwards or back, and the only place a step
+    // starts. Whatever was wrong with an attempt at the step being left is not
+    // an attempt at this one, which is why `setError` has no counterpart to
+    // call.
+    this.error = undefined
     const step = this.currentStory?.steps[this.at]
     if (!step) return this.stop()
 

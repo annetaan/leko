@@ -57,6 +57,42 @@ The instance holds every story and matches the signal against the one that is
 running, so a call site reports once no matter how many stories pass through
 that screen. `examples/sandbox/src/cases/two-stories.ts` is that case.
 
+### The step nothing can report, and the control it gets
+
+A step's message is text and nothing else. The only thing that ends a step is
+the application calling in. A step that asks the user to type something has no
+such moment. The field reads `3` and no code ran anywhere to say so.
+
+Without a control, two actions have to share one step. "Type 3, then place the
+order." The interface got coarser because the application had nothing to report,
+and that is the wrong thing to give up.
+
+So a step that declares no `awaits` gets a next control on its message. A step
+that declares one never does. Put a button beside the instruction on a step
+waiting for `order-saved` and the user can press past the work that step exists
+to make them do. That is the second constraint, defeated by a button. Which
+steps have a control is derived from `awaits`, and a story cannot configure it.
+`LekoOptions.nextLabel` only says what the control reads.
+
+Pressing it claims the moment has come, the way `reached()` does. Both routes
+run the same `validate`, and the step still decides. Failing is where the useful
+flow lives: ask for input, let the user press Next, look at the field, shake and
+say what was wrong.
+
+One press has to stay one press. A touch that emulates a click after its own, or
+a host that has put a handler above the box, delivers two events for one press,
+and two of those would walk the user past a step they never read. Everything
+that reaches the control inside one frame is the same press. A second real press
+is further away than that and still counts.
+
+`setMessage()` replaces the instruction, which makes it the wrong tool for
+saying an attempt failed. A second failed attempt leaves the user with a
+complaint and nothing to act on. `setError()` puts the reason under the message
+instead, and there is nothing to call to take it away. It goes when the next
+attempt succeeds or the step changes, because those are the two moments it
+stopped being true. A `clearError()` would only invent a way to leave a stale
+complaint on screen.
+
 ### Telling the host where the story got to is the other direction
 
 `LekoStory.onStep` does not reopen any of this. The constraint is about Leko

@@ -41,6 +41,10 @@ DESIGN.md. Do not do any of them without reading that page first.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design: the vocabulary is gathered from those calls, and a `reached()` call
   has to stay compilable in builds where no tour runs. DESIGN.md argues it.
+- **Showing the next control on every step.** A step that declares `awaits` must
+  never have one. The control would be a way past the work that step exists to
+  make someone do, so which steps have one is derived from `awaits` and is not
+  configurable. DESIGN.md argues it.
 - **Doing something helpful with a signal nobody is waiting for** — warning
   about it, saving it up for a step that awaits it later, or letting a story
   that is not running follow along. Each defeats the second constraint in a

@@ -40,6 +40,16 @@ const MARGIN = {
 
 const MARGINS = ['marginTop', 'marginBottom', 'marginLeft', 'marginRight'] as const
 
+/** Everything the box can be asked to show at once. */
+export interface MessageContent {
+  /** The step's instruction, where it has one. */
+  text: string | undefined
+  /** What went wrong on the last attempt, where something did. */
+  error: string | undefined
+  /** The words on the next control, or `undefined` on a step that has none. */
+  next: string | undefined
+}
+
 /**
  * Anchor positioning is what makes the message follow its target for free. Where
  * it is missing the message still has to appear — see {@link Message.dock}.
@@ -89,18 +99,24 @@ function chooseSide(box: Rect, width: number, height: number, gap: number): Side
  */
 export class Message {
   readonly element: HTMLElement
+  private readonly text = document.createElement('div')
+  private readonly error = document.createElement('div')
+  private readonly control = document.createElement('button')
   private readonly anchored = canAnchor()
   private anchor: HTMLElement | undefined
   private restore: string | undefined
   private open = false
   private shown = false
+  private pressed = false
 
-  constructor() {
+  /**
+   * `next` is called when the control is pressed. The box knows nothing about
+   * steps or validation: it reports a press, and what that means is decided
+   * where the tour is.
+   */
+  constructor(private readonly next: () => void) {
     const el = document.createElement('div')
     el.className = 'leko-message'
-    // Announced when it changes, without stealing focus from the target: the
-    // user is meant to be acting on the page, not on this.
-    el.setAttribute('role', 'status')
     Object.assign(el.style, {
       position: 'fixed',
       margin: '0',
@@ -122,7 +138,64 @@ export class Message {
       pointerEvents: 'none',
     })
     el.popover = 'manual'
+
+    // Announced when it changes, without stealing focus from the target: the
+    // user is meant to be acting on the page, not on this. The role is on the
+    // instruction rather than on the box, so that pressing the control does not
+    // read the whole thing back.
+    this.text.className = 'leko-message-text'
+    this.text.setAttribute('role', 'status')
+
+    this.error.className = 'leko-message-error'
+    // Assertive, unlike the instruction: it is the answer to something the user
+    // just tried, and arrives while their attention is on the attempt.
+    this.error.setAttribute('role', 'alert')
+    Object.assign(this.error.style, {
+      marginTop: 'var(--leko-message-error-gap, 8px)',
+      color: 'var(--leko-message-error-color, #b3261e)',
+      font: 'var(--leko-message-error-font, 500 13px/1.5 system-ui, sans-serif)',
+    })
+
+    this.control.className = 'leko-message-next'
+    // Never `submit`: the box is in the top layer and not in anyone's form, but
+    // a default that depends on where an element is mounted is worth not having.
+    this.control.type = 'button'
+    Object.assign(this.control.style, {
+      // Pushed to the end of the box, where a control that ends a step belongs,
+      // and away from the instruction it is not part of.
+      marginTop: 'var(--leko-message-next-gap, 12px)',
+      marginInlineStart: 'auto',
+      border: '0',
+      cursor: 'pointer',
+      padding: 'var(--leko-message-next-padding, 6px 14px)',
+      borderRadius: 'var(--leko-message-next-radius, 6px)',
+      background: 'var(--leko-message-next-bg, #16181d)',
+      color: 'var(--leko-message-next-color, #fff)',
+      font: 'var(--leko-message-next-font, 600 13px/1.5 system-ui, sans-serif)',
+    })
+    this.control.addEventListener('click', this.press)
+
+    el.append(this.text, this.error, this.control)
     this.element = el
+  }
+
+  /**
+   * One press advances one step.
+   *
+   * A press arrives more than once often enough to plan for — a touch that
+   * emulates a click after its own, a host that has put the box inside
+   * something with a handler of its own — and two of them a frame apart would
+   * take the user past a step they never saw. Everything that reaches the
+   * control within the same frame is the same press; a second real one is
+   * further away than that, and still counts.
+   */
+  private readonly press = (): void => {
+    if (this.pressed) return
+    this.pressed = true
+    requestAnimationFrame(() => {
+      this.pressed = false
+    })
+    this.next()
   }
 
   /** Whether there is currently something on screen to read. */
@@ -140,8 +213,8 @@ export class Message {
    * for as long as the two move together — which they do, being cut from the
    * same scrim.
    */
-  show(text: string, anchor: HTMLElement, cutouts: Rect[], gap: number): void {
-    this.element.textContent = text
+  show(content: MessageContent, anchor: HTMLElement, cutouts: Rect[], gap: number): void {
+    this.fill(content)
     if (!this.element.isConnected) document.body.append(this.element)
     if (!this.open) {
       // Absent where the top layer is not supported; the z-index above carries
@@ -160,9 +233,42 @@ export class Message {
     this.shown = true
   }
 
-  /** Replace the text without moving anything. */
+  /**
+   * Put the parts in, leaving out whichever the step has nothing for. An empty
+   * part is taken out of the layout rather than left as an empty line: the box
+   * is measured to choose the side it goes on, so a part with nothing in it
+   * would push the message off a target it would otherwise have fitted beside.
+   */
+  private fill(content: MessageContent): void {
+    this.setText(content.text ?? '')
+    this.setError(content.error ?? '')
+    this.control.textContent = content.next ?? ''
+    // On the label being there rather than on it saying anything: a host that
+    // passes an empty `nextLabel` gets a blank button, and not a step with no
+    // way out of it.
+    Message.toggle(this.control, content.next !== undefined, 'block')
+  }
+
+  /**
+   * `hidden` is a rule in the user-agent stylesheet, and everything this class
+   * sets is an inline style, which beats it. So a part is put away with both at
+   * once. The attribute alone leaves a button that is still on screen.
+   */
+  private static toggle(el: HTMLElement, on: boolean, display: string): void {
+    el.hidden = !on
+    el.style.display = on ? display : 'none'
+  }
+
+  /** Replace the instruction without moving anything. */
   setText(text: string): void {
-    this.element.textContent = text
+    this.text.textContent = text
+    Message.toggle(this.text, text !== '', 'block')
+  }
+
+  /** Replace the reason the last attempt failed, without moving anything. */
+  setError(error: string): void {
+    this.error.textContent = error
+    Message.toggle(this.error, error !== '', 'block')
   }
 
   /**

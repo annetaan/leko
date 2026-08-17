@@ -7,6 +7,8 @@ declare module '@annetaan/leko' {
   interface LekoSignals {
     /** src/cases/two-stories.ts:40 */
     'order-placed': true
+    /** src/cases/next-control.ts:36 */
+    'project-renamed': true
   }
 
   // The vocabulary above came from the call sites, so a name missing from it

@@ -180,7 +180,7 @@ dependencies. Framework wrappers will be additive, never required.
 | Advancing on a named signal instead of on position | ✅ Working |
 | Several stories on one instance, one of them running | ✅ Working |
 | Signal names gathered from the call sites, offered on `awaits` | ✅ Working |
-| A next control on the message | 📋 Planned |
+| A next control on the message, on steps that await nothing | ✅ Working |
 | Advancing on a URL change, and surviving the navigation | 📋 Planned |
 | Chapters, to skip over and to resume into | 📋 Planned |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |

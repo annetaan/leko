@@ -100,8 +100,22 @@ export type LekoSignal = [Known] extends [never] ? string : Known | (string & {}
 export interface ErrorUtils {
   /** Play the built-in shake animation on the cutout. */
   shake(): void
-  /** Replace the message shown for the current step. */
+  /**
+   * Replace the message shown for the current step, instruction and all. Use
+   * {@link setError} for a reason the attempt failed: this one throws away what
+   * the step was asking for, so a second failed attempt would leave the user
+   * with a complaint and nothing to act on.
+   */
   setMessage(message: string): void
+  /**
+   * Say what went wrong, under the step's message rather than instead of it.
+   *
+   * There is nothing to call to take it away again. It goes when the next
+   * attempt succeeds or the step changes, because those are the two moments it
+   * has stopped being true. A `clearError()` would only invent a way to leave a
+   * stale complaint on screen.
+   */
+  setError(message: string): void
 }
 
 export interface LekoStep {
@@ -150,7 +164,9 @@ export interface LekoStep {
    * application and never which step should move — insert or reorder steps and
    * the call still fires at the moment it always meant.
    *
-   * A step that declares nothing here is never advanced by a signal.
+   * A step that declares nothing here is never advanced by a signal, and gets
+   * the next control on its message instead — see {@link LekoOptions.nextLabel}.
+   * That is the only thing deciding whether the control appears.
    *
    * Any string, until the project has a vocabulary. See
    * {@link LekoKnownSignal}.
@@ -239,6 +255,22 @@ export interface LekoOptions {
    * ignored when the visitor has asked for reduced motion.
    */
   duration?: number
+
+  /**
+   * The words on the next control. Defaults to `Next`.
+   *
+   * The control appears on the message of every step that declares no
+   * {@link LekoStep.awaits}, and on no other step. A step waiting for a signal
+   * is waiting for the user to do something, and a button beside the
+   * instruction is a way past it without doing that — the second constraint,
+   * defeated by a button. So which steps have one is derived rather than
+   * configured, and this option only says what it reads.
+   *
+   * Both routes go through {@link LekoStep.validate}. Pressing the control
+   * claims the moment has come, exactly as a signal does, and the step still
+   * decides whether the state is right.
+   */
+  nextLabel?: string
 
   /**
    * Called when a step's target cannot be resolved. Without a handler the tour
