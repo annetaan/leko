@@ -5,20 +5,20 @@ import type { LekoOptions, LekoStep } from './types.js'
 
 // Duration 0 everywhere: these tests are about where the message ends up, not
 // about how long the cutout took to get there.
-const tours: ReturnType<typeof createLeko>[] = []
+const instances: ReturnType<typeof createLeko>[] = []
 const mounted: HTMLElement[] = []
 
 afterEach(() => {
-  for (const tour of tours.splice(0)) tour.stop()
+  for (const leko of instances.splice(0)) leko.stop()
   for (const el of mounted.splice(0)) el.remove()
 })
 
 function start(steps: LekoStep[], options: LekoOptions = {}) {
-  const tour = createLeko({ duration: 0, ...options })
-  tours.push(tour)
-  tour.setStory({ id: 'story', steps })
-  tour.start('story')
-  return tour
+  const leko = createLeko({ duration: 0, ...options })
+  instances.push(leko)
+  leko.setStory({ id: 'story', steps })
+  leko.start('story')
+  return leko
 }
 
 function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElement {
@@ -128,7 +128,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
 
 test('setMessage replaces the words in place', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const tour = start([
+  const leko = start([
     {
       id: 'one',
       target,
@@ -140,7 +140,7 @@ test('setMessage replaces the words in place', () => {
   ])
 
   const before = rect(message()!)
-  tour.nextStep()
+  leko.nextStep()
 
   expect(message()?.textContent).toBe('A name, not a number.')
   // Failing validation does not move the step, so it must not move the message
@@ -150,7 +150,7 @@ test('setMessage replaces the words in place', () => {
 
 test('a step that had no message can still be given one', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const tour = start([
+  const leko = start([
     {
       id: 'one',
       target,
@@ -160,7 +160,7 @@ test('a step that had no message can still be given one', async () => {
   ])
 
   expect(visible()).toBe(false)
-  tour.nextStep()
+  leko.nextStep()
   // It arrives with a fade, so it is exactly transparent for the first frame.
   await frame()
 
@@ -172,8 +172,8 @@ test('stopping takes the message with it, and gives the target its anchor name b
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--theirs')
 
-  const tour = start([{ id: 'one', target, message: 'Press it.' }])
-  tour.stop()
+  const leko = start([{ id: 'one', target, message: 'Press it.' }])
+  leko.stop()
 
   expect(message()).toBeNull()
   // The target belongs to the consumer. Leko borrows a name on it and hands it

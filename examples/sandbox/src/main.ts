@@ -48,7 +48,7 @@ const stateOut = pick('[data-state]')
 const noteOut = pick('[data-note]')
 
 let teardown: (() => void) | undefined
-let tour: Leko | undefined
+let leko: Leko | undefined
 let lost: string | undefined
 
 // Called by every story's onStep, so the readout is told rather than looking.
@@ -56,15 +56,15 @@ let lost: string | undefined
 // before Leko had finished moving, this would print the step it just left.
 let following = false
 function report(): void {
-  const state = tour?.state ?? 'idle'
+  const state = leko?.state ?? 'idle'
   stateOut.textContent = state
   stateOut.dataset['state'] = state
 
-  const story = tour?.story
-  const step = tour?.step
+  const story = leko?.story
+  const step = leko?.step
   // The position comes from the instance. Searching `steps` for `step` would
   // count the wrong one in a story that shows the same step object twice.
-  const index = tour?.index
+  const index = leko?.index
   noteOut.textContent = lost
     ? lost
     : story && step && index !== undefined
@@ -77,7 +77,7 @@ function report(): void {
   if (state !== 'transitioning' || following) return
   following = true
   const tick = (): void => {
-    following = (tour?.state ?? 'idle') === 'transitioning'
+    following = (leko?.state ?? 'idle') === 'transitioning'
     report()
     if (following) requestAnimationFrame(tick)
   }
@@ -85,7 +85,7 @@ function report(): void {
 }
 
 function show(next: Case): void {
-  tour?.stop()
+  leko?.stop()
   lost = undefined
   teardown?.()
 
@@ -98,10 +98,10 @@ function show(next: Case): void {
   // One instance per case, made before the page is mounted so the page can be
   // given it — an application exports its instance and reports to that, rather
   // than being handed a tour once one starts.
-  tour = createLeko({
+  leko = createLeko({
     onTargetLost: (step, story) => {
       lost = `Target for “${story} / ${step.id}” is gone. The tour stopped rather than point at nothing.`
-      tour?.stop()
+      leko?.stop()
       report()
     },
     // One footer for however many stories a case registers, so it goes on the
@@ -110,11 +110,11 @@ function show(next: Case): void {
   })
 
   stageRoot.replaceChildren()
-  teardown = next.mount(stageRoot, tour)
+  teardown = next.mount(stageRoot, leko)
 
   starts.replaceChildren()
   for (const story of next.stories(stageRoot)) {
-    tour.setStory(story)
+    leko.setStory(story)
     starts.append(
       html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),
     )
@@ -133,9 +133,9 @@ for (const item of cases) {
 }
 
 const actions: Record<string, () => void> = {
-  next: () => tour?.nextStep(),
-  prev: () => tour?.prevStep(),
-  stop: () => tour?.stop(),
+  next: () => leko?.nextStep(),
+  prev: () => leko?.prevStep(),
+  stop: () => leko?.stop(),
 }
 
 pick('.controls').addEventListener('click', (event) => {
@@ -143,7 +143,7 @@ pick('.controls').addEventListener('click', (event) => {
   const story = el.closest<HTMLElement>('[data-start]')?.dataset['start']
   if (story) {
     lost = undefined
-    tour?.start(story)
+    leko?.start(story)
   } else {
     const action = el.closest<HTMLElement>('[data-action]')
     if (!action) return

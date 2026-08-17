@@ -5,27 +5,27 @@ import type { LekoOptions, LekoStep, LekoStory } from './types.js'
 
 // Duration 0 everywhere: these tests are about what ends up on screen, not about
 // how long it took to get there.
-const tours: ReturnType<typeof createLeko>[] = []
+const instances: ReturnType<typeof createLeko>[] = []
 const mounted: HTMLElement[] = []
 
 afterEach(() => {
-  for (const tour of tours.splice(0)) tour.stop()
+  for (const leko of instances.splice(0)) leko.stop()
   for (const el of mounted.splice(0)) el.remove()
   vi.restoreAllMocks()
 })
 
 /** One story, registered and started, which is what most of these want. */
 function start(steps: LekoStep[], options: LekoOptions = {}) {
-  const tour = register({ id: 'story', steps }, options)
-  tour.start('story')
-  return tour
+  const leko = register({ id: 'story', steps }, options)
+  leko.start('story')
+  return leko
 }
 
 function register(story: LekoStory, options: LekoOptions = {}) {
-  const tour = createLeko({ duration: 0, ...options })
-  tours.push(tour)
-  tour.setStory(story)
-  return tour
+  const leko = createLeko({ duration: 0, ...options })
+  instances.push(leko)
+  leko.setStory(story)
+  return leko
 }
 
 function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElement {
@@ -65,13 +65,13 @@ test('the target is reachable through the cutout, and the rest of the page is no
 
 test('stopping puts the page back', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const tour = start([{ id: 'one', target }])
+  const leko = start([{ id: 'one', target }])
 
   expect(scrim()).not.toBeNull()
-  tour.stop()
+  leko.stop()
 
   expect(scrim()).toBeNull()
-  expect(tour.state).toBe('idle')
+  expect(leko.state).toBe('idle')
   expect(centre(target)).toBe(target)
 })
 
@@ -115,10 +115,10 @@ test('a selector matching several elements takes the first', () => {
 
 test('nextStep does nothing while idle, so callers need no guard', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const tour = register({ id: 'story', steps: [{ id: 'one', target }] })
+  const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
 
-  expect(() => tour.nextStep()).not.toThrow()
-  expect(tour.state).toBe('idle')
+  expect(() => leko.nextStep()).not.toThrow()
+  expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
 })
 
@@ -128,19 +128,19 @@ test('a step does not advance until the application says it succeeded', () => {
   let ready = false
   const onValidationError = vi.fn()
 
-  const tour = start([
+  const leko = start([
     { id: 'first', target: first, validate: () => ready, onValidationError },
     { id: 'second', target: second },
   ])
 
-  tour.nextStep()
-  expect(tour.step?.id).toBe('first')
+  leko.nextStep()
+  expect(leko.step?.id).toBe('first')
   expect(onValidationError).toHaveBeenCalledOnce()
   expect(onValidationError.mock.calls[0]?.[0]).toBe(first)
 
   ready = true
-  tour.nextStep()
-  expect(tour.step?.id).toBe('second')
+  leko.nextStep()
+  expect(leko.step?.id).toBe('second')
   expect(centre(second)).toBe(second)
 })
 
@@ -148,14 +148,14 @@ test('a step advances on the signal it declares', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const tour = start([
+  const leko = start([
     { id: 'first', target: first, awaits: 'order-saved' },
     { id: 'second', target: second },
   ])
 
-  tour.reached('order-saved')
+  leko.reached('order-saved')
 
-  expect(tour.step?.id).toBe('second')
+  expect(leko.step?.id).toBe('second')
 })
 
 test('a signal no step is waiting for costs nothing and says nothing', () => {
@@ -163,39 +163,39 @@ test('a signal no step is waiting for costs nothing and says nothing', () => {
   const validate = vi.fn(() => true)
   const warn = vi.spyOn(console, 'warn')
 
-  const tour = start([
+  const leko = start([
     { id: 'first', target, awaits: 'order-saved', validate },
     { id: 'second', target },
   ])
 
-  tour.reached('something-else')
+  leko.reached('something-else')
 
   // Instrumentation stays in the source permanently, in applications where this
   // tour never runs. An unmatched call is not a mistake, so it is not reported
   // and does not even ask the step whether it would have been satisfied.
-  expect(tour.step?.id).toBe('first')
+  expect(leko.step?.id).toBe('first')
   expect(validate).not.toHaveBeenCalled()
   expect(warn).not.toHaveBeenCalled()
 })
 
 test('a step declaring no signal is not advanced by one', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const tour = start([
+  const leko = start([
     { id: 'first', target },
     { id: 'second', target },
   ])
 
-  tour.reached('order-saved')
+  leko.reached('order-saved')
 
-  expect(tour.step?.id).toBe('first')
+  expect(leko.step?.id).toBe('first')
 })
 
 test('reached does nothing while idle, so it needs no guard either', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const tour = register({ id: 'story', steps: [{ id: 'one', target, awaits: 'ready' }] })
+  const leko = register({ id: 'story', steps: [{ id: 'one', target, awaits: 'ready' }] })
 
-  expect(() => tour.reached('ready')).not.toThrow()
-  expect(tour.state).toBe('idle')
+  expect(() => leko.reached('ready')).not.toThrow()
+  expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
 })
 
@@ -205,7 +205,7 @@ test('a signal still has to get past validate', () => {
   let ready = false
   const onValidationError = vi.fn()
 
-  const tour = start([
+  const leko = start([
     {
       id: 'first',
       target: first,
@@ -216,31 +216,31 @@ test('a signal still has to get past validate', () => {
     { id: 'second', target: second },
   ])
 
-  tour.reached('order-saved')
-  expect(tour.step?.id).toBe('first')
+  leko.reached('order-saved')
+  expect(leko.step?.id).toBe('first')
   expect(onValidationError).toHaveBeenCalledOnce()
 
   ready = true
-  tour.reached('order-saved')
-  expect(tour.step?.id).toBe('second')
+  leko.reached('order-saved')
+  expect(leko.step?.id).toBe('second')
 })
 
 test('a signal reported before its step is showing is not saved up', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const tour = start([
+  const leko = start([
     { id: 'first', target: first },
     { id: 'second', target: second, awaits: 'order-saved' },
   ])
 
   // The user did the thing early, before the tour asked for it.
-  tour.reached('order-saved')
-  tour.nextStep()
+  leko.reached('order-saved')
+  leko.nextStep()
 
   // Arriving at the step does not consume that: a buffered signal would advance
   // a step nobody performed while it was showing.
-  expect(tour.step?.id).toBe('second')
+  expect(leko.step?.id).toBe('second')
 })
 
 test('validate is handed the action target, never a related one', () => {
@@ -248,22 +248,22 @@ test('validate is handed the action target, never a related one', () => {
   const related = box('related', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const validate = vi.fn(() => true)
 
-  const tour = start([
+  const leko = start([
     { id: 'a', target: [target], related: [related], validate },
     { id: 'b', target },
   ])
-  tour.nextStep()
+  leko.nextStep()
 
   expect(validate).toHaveBeenCalledWith(target)
 })
 
 test('the last step ends the tour', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const tour = start([{ id: 'only', target }])
+  const leko = start([{ id: 'only', target }])
 
-  tour.nextStep()
+  leko.nextStep()
 
-  expect(tour.state).toBe('idle')
+  expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
 })
 
@@ -281,14 +281,14 @@ test('a signal reaches the story that is running, and no other', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const tour = register({
+  const leko = register({
     id: 'onboarding',
     steps: [
       { id: 'save', target: first, awaits: 'order-saved' },
       { id: 'done', target: second },
     ],
   })
-  tour.setStory({
+  leko.setStory({
     id: 'returning',
     steps: [
       { id: 'save-again', target: first, awaits: 'order-saved' },
@@ -296,28 +296,28 @@ test('a signal reaches the story that is running, and no other', () => {
     ],
   })
 
-  tour.start('onboarding')
-  tour.reached('order-saved')
-  expect(tour.step?.id).toBe('done')
+  leko.start('onboarding')
+  leko.reached('order-saved')
+  expect(leko.step?.id).toBe('done')
 
   // The other story was waiting for the same name and did not move: progress
   // recorded while nobody was being shown a step is not evidence of anything.
-  tour.start('returning')
-  expect(tour.step?.id).toBe('save-again')
+  leko.start('returning')
+  expect(leko.step?.id).toBe('save-again')
 })
 
 test('starting a story puts away whatever was running', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: first }] })
-  tour.setStory({ id: 'returning', steps: [{ id: 'b', target: second }] })
+  const leko = register({ id: 'onboarding', steps: [{ id: 'a', target: first }] })
+  leko.setStory({ id: 'returning', steps: [{ id: 'b', target: second }] })
 
-  tour.start('onboarding')
-  tour.start('returning')
+  leko.start('onboarding')
+  leko.start('returning')
 
-  expect(tour.story?.id).toBe('returning')
-  expect(tour.step?.id).toBe('b')
+  expect(leko.story?.id).toBe('returning')
+  expect(leko.step?.id).toBe('b')
   // One scrim, because two would each block with rectangles cut from their own
   // holes, and so would cover each other's target.
   expect(document.querySelectorAll('.leko-scrim').length).toBe(1)
@@ -329,26 +329,26 @@ test('a story can be started part-way through', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const tour = register({
+  const leko = register({
     id: 'onboarding',
     steps: [
       { id: 'a', target: first },
       { id: 'b', target: second },
     ],
   })
-  tour.start('onboarding', 'b')
+  leko.start('onboarding', 'b')
 
-  expect(tour.step?.id).toBe('b')
+  expect(leko.step?.id).toBe('b')
 })
 
 test('an unknown story id shows nothing', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const tour = register({ id: 'onboarding', steps: [{ id: 'a', target }] })
+  const leko = register({ id: 'onboarding', steps: [{ id: 'a', target }] })
 
-  tour.start('nowhere')
+  leko.start('nowhere')
 
-  expect(tour.state).toBe('idle')
-  expect(tour.story).toBeUndefined()
+  expect(leko.state).toBe('idle')
+  expect(leko.story).toBeUndefined()
   expect(scrim()).toBeNull()
 })
 
@@ -360,24 +360,24 @@ test('re-registering the story that is running does not restart it', () => {
     { id: 'b', target: second, message },
   ]
 
-  const tour = register({ id: 'onboarding', steps: steps('before') })
-  tour.start('onboarding')
-  tour.nextStep()
+  const leko = register({ id: 'onboarding', steps: steps('before') })
+  leko.start('onboarding')
+  leko.nextStep()
 
   // A component that registers on every render hands the same story back with
   // fresh objects in it, and must not throw the user back to the first step.
-  tour.setStory({ id: 'onboarding', steps: steps('after') })
+  leko.setStory({ id: 'onboarding', steps: steps('after') })
 
-  expect(tour.step?.id).toBe('b')
-  expect(tour.step?.message).toBe('after')
+  expect(leko.step?.id).toBe('b')
+  expect(leko.step?.message).toBe('after')
 })
 
 test('a story overrides the padding the instance was given', () => {
   const target = box('target', { left: '100px', top: '200px', width: '120px', height: '40px' })
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
-  const tour = register({ id: 'roomy', steps: [{ id: 'a', target }], padding: 40 }, { padding: 4 })
-  tour.start('roomy')
+  const leko = register({ id: 'roomy', steps: [{ id: 'a', target }], padding: 40 }, { padding: 4 })
+  leko.start('roomy')
 
   // 20px above the target: outside the instance's padding, well inside the
   // story's, so the story is what decided the size of the hole.
@@ -516,7 +516,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   let utils: import('./types.js').ErrorUtils | undefined
-  const tour = start([
+  const leko = start([
     {
       id: 'one',
       target,
@@ -527,7 +527,7 @@ test('shaking moves the cutouts, not the scrim', () => {
     },
   ])
 
-  tour.nextStep()
+  leko.nextStep()
   utils?.shake()
 
   // Translating the scrim would slide the dimming off the edge of the page.
@@ -540,8 +540,8 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })
   // A real duration, because the bug this pins down was only visible while an
   // animation was running.
-  const tour = register({ id: 'story', steps: [{ id: 'one', target }] }, { duration: 200 })
-  tour.start('story')
+  const leko = register({ id: 'story', steps: [{ id: 'one', target }] }, { duration: 200 })
+  leko.start('story')
   await new Promise((r) => setTimeout(r, 300))
 
   window.dispatchEvent(new Event('resize'))
@@ -555,7 +555,7 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
 test('interrupting a morph does not mark the next step as already settled', async () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
-  const tour = register(
+  const leko = register(
     {
       id: 'story',
       steps: [
@@ -566,13 +566,13 @@ test('interrupting a morph does not mark the next step as already settled', asyn
     { duration: 200 },
   )
 
-  tour.start('story')
-  tour.nextStep() // while the opening morph is still running
+  leko.start('story')
+  leko.nextStep() // while the opening morph is still running
   await Promise.resolve()
 
   // The interrupted morph resolves too, and used to hand 'running' to a step
   // that had not moved yet.
-  expect(tour.state).toBe('transitioning')
+  expect(leko.state).toBe('transitioning')
 })
 
 // --- onStep ---------------------------------------------------------------
@@ -580,11 +580,11 @@ test('interrupting a morph does not mark the next step as already settled', asyn
 /** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
 function watched(story: Omit<LekoStory, 'onStep'>, options: LekoOptions = {}) {
   const seen: [string | undefined, string | undefined][] = []
-  const tour = register(
+  const leko = register(
     { ...story, onStep: (step, previous) => seen.push([step?.id, previous?.id]) },
     options,
   )
-  return { tour, seen }
+  return { leko, seen }
 }
 
 function pair(): [HTMLElement, HTMLElement] {
@@ -596,7 +596,7 @@ function pair(): [HTMLElement, HTMLElement] {
 
 test('a story reports where it went, and what it came from', () => {
   const [first, second] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -604,9 +604,9 @@ test('a story reports where it went, and what it came from', () => {
     ],
   })
 
-  tour.start('story')
-  tour.nextStep()
-  tour.reached('saved')
+  leko.start('story')
+  leko.nextStep()
+  leko.reached('saved')
 
   expect(seen).toEqual([
     ['a', undefined], // nothing came before the first step of a run
@@ -626,19 +626,19 @@ test('the instance has finished moving by the time it says so', () => {
     ],
     // Reading the instance from inside the hook is how a host writes a progress
     // readout. Firing before the move landed would report the step just left.
-    onStep: () => seen.push(tour.step?.id),
+    onStep: () => seen.push(leko.step?.id),
   }
-  const tour = register(story)
+  const leko = register(story)
 
-  tour.start('story')
-  tour.nextStep()
+  leko.start('story')
+  leko.nextStep()
 
   expect(seen).toEqual(['a', 'b'])
 })
 
 test('going back reports too, because the hook says where the story is', () => {
   const [first, second] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -646,29 +646,29 @@ test('going back reports too, because the hook says where the story is', () => {
     ],
   })
 
-  tour.start('story')
-  tour.nextStep()
+  leko.start('story')
+  leko.nextStep()
   seen.length = 0
-  tour.prevStep()
+  leko.prevStep()
 
   expect(seen).toEqual([['a', 'b']])
 })
 
 test('stopping reports the ending once, however many times it is called', () => {
   const [first] = pair()
-  const { tour, seen } = watched({ id: 'story', steps: [{ id: 'a', target: first }] })
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'a', target: first }] })
 
-  tour.start('story')
+  leko.start('story')
   seen.length = 0
-  tour.stop()
-  tour.stop()
+  leko.stop()
+  leko.stop()
 
   expect(seen).toEqual([[undefined, 'a']])
 })
 
 test('a step that fails validation reports nothing, because nothing moved', () => {
   const [first, second] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first, validate: () => false },
@@ -676,28 +676,28 @@ test('a step that fails validation reports nothing, because nothing moved', () =
     ],
   })
 
-  tour.start('story')
+  leko.start('story')
   seen.length = 0
-  tour.nextStep()
+  leko.nextStep()
 
   expect(seen).toEqual([])
 })
 
 test('a story whose target is already gone reports its ending, and no start', () => {
-  const { tour, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] })
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] })
 
-  tour.start('story')
+  leko.start('story')
 
   // `show` found nothing and stopped the run, which reported the ending. A
   // start announced after that would leave a readout pointing at a story that
   // is not running — the frozen footer again, one call later.
   expect(seen).toEqual([[undefined, 'ghost']])
-  expect(tour.step).toBeUndefined()
+  expect(leko.step).toBeUndefined()
 })
 
 test('losing a target on the way to a step reports the ending and nothing after it', () => {
   const [first] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -706,9 +706,9 @@ test('losing a target on the way to a step reports the ending and nothing after 
     ],
   })
 
-  tour.start('story')
+  leko.start('story')
   seen.length = 0
-  tour.nextStep()
+  leko.nextStep()
 
   // Reading the index back after `show` would say the story moved to `a`,
   // because stopping is what put it there.
@@ -717,7 +717,7 @@ test('losing a target on the way to a step reports the ending and nothing after 
 
 test('going back to a target that has gone reports the ending and nothing after it', () => {
   const [first, second] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -725,11 +725,11 @@ test('going back to a target that has gone reports the ending and nothing after 
     ],
   })
 
-  tour.start('story')
-  tour.nextStep()
+  leko.start('story')
+  leko.nextStep()
   first.remove()
   seen.length = 0
-  tour.prevStep()
+  leko.prevStep()
 
   expect(seen).toEqual([[undefined, 'a']])
 })
@@ -739,19 +739,19 @@ test('switching stories ends one and starts the other, and each hears only itsel
   const from: [string | undefined, string | undefined][] = []
   const into: [string | undefined, string | undefined][] = []
 
-  const tour = register({
+  const leko = register({
     id: 'from',
     steps: [{ id: 'a', target: first }],
     onStep: (step, previous) => from.push([step?.id, previous?.id]),
   })
-  tour.setStory({
+  leko.setStory({
     id: 'into',
     steps: [{ id: 'b', target: second }],
     onStep: (step, previous) => into.push([step?.id, previous?.id]),
   })
 
-  tour.start('from')
-  tour.start('into')
+  leko.start('from')
+  leko.start('into')
 
   expect(from).toEqual([
     ['a', undefined],
@@ -763,7 +763,7 @@ test('switching stories ends one and starts the other, and each hears only itsel
 
 test('a typo cannot end the story someone is in the middle of', () => {
   const [first, second] = pair()
-  const { tour, seen } = watched({
+  const { leko, seen } = watched({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -771,16 +771,16 @@ test('a typo cannot end the story someone is in the middle of', () => {
     ],
   })
 
-  tour.start('story')
+  leko.start('story')
   seen.length = 0
-  tour.start('nowhere')
-  tour.start('story', 'no-such-step')
+  leko.start('nowhere')
+  leko.start('story', 'no-such-step')
   // In range and still not a step, because `steps[0.5]` is nowhere.
-  tour.start('story', 0.5)
+  leko.start('story', 0.5)
 
   expect(seen).toEqual([])
-  expect(tour.story?.id).toBe('story')
-  expect(tour.step?.id).toBe('a')
+  expect(leko.story?.id).toBe('story')
+  expect(leko.step?.id).toBe('a')
 })
 
 test('the story hook and the instance hook both fire, story first', () => {
@@ -788,7 +788,7 @@ test('the story hook and the instance hook both fire, story first', () => {
   const order: string[] = []
   const told: (string | undefined)[] = []
 
-  const tour = register(
+  const leko = register(
     {
       id: 'story',
       steps: [
@@ -806,8 +806,8 @@ test('the story hook and the instance hook both fire, story first', () => {
     },
   )
 
-  tour.start('story')
-  tour.nextStep()
+  leko.start('story')
+  leko.nextStep()
 
   expect(order).toEqual(['story', 'instance', 'story', 'instance'])
   expect(told).toEqual(['story', 'story'])
@@ -817,14 +817,14 @@ test('the instance hook hears every story, and each story hears only itself', ()
   const [first, second] = pair()
   const heard: string[] = []
 
-  const tour = register(
+  const leko = register(
     { id: 'from', steps: [{ id: 'a', target: first }], onStep: () => heard.push('from-hook') },
     { onStep: (_step, _previous, story) => heard.push(`instance:${story.id}`) },
   )
-  tour.setStory({ id: 'into', steps: [{ id: 'b', target: second }] })
+  leko.setStory({ id: 'into', steps: [{ id: 'b', target: second }] })
 
-  tour.start('from')
-  tour.start('into')
+  leko.start('from')
+  leko.start('into')
 
   expect(heard).toEqual([
     'from-hook',
@@ -837,7 +837,7 @@ test('the instance hook hears every story, and each story hears only itself', ()
 
 test('the index says how far into the story the step sits, and is empty while idle', () => {
   const [first, second] = pair()
-  const tour = register({
+  const leko = register({
     id: 'story',
     steps: [
       { id: 'a', target: first },
@@ -845,15 +845,15 @@ test('the index says how far into the story the step sits, and is empty while id
     ],
   })
 
-  expect(tour.index).toBeUndefined()
-  tour.start('story')
-  expect(tour.index).toBe(0)
-  tour.nextStep()
-  expect(tour.index).toBe(1)
-  tour.prevStep()
-  expect(tour.index).toBe(0)
-  tour.stop()
-  expect(tour.index).toBeUndefined()
+  expect(leko.index).toBeUndefined()
+  leko.start('story')
+  expect(leko.index).toBe(0)
+  leko.nextStep()
+  expect(leko.index).toBe(1)
+  leko.prevStep()
+  expect(leko.index).toBe(0)
+  leko.stop()
+  expect(leko.index).toBeUndefined()
 })
 
 test('a story that shows the same step object twice still counts forwards', () => {
@@ -861,17 +861,17 @@ test('a story that shows the same step object twice still counts forwards', () =
   // One object in two places, which is what a host generating steps from data
   // gets without thinking about it. `steps.indexOf(step)` answers 1 at both.
   const review: LekoStep = { id: 'review', target: second }
-  const tour = start([
+  const leko = start([
     { id: 'intro', target: first },
     review,
     { id: 'edit', target: first },
     review,
   ])
 
-  tour.nextStep()
-  expect(tour.index).toBe(1)
-  tour.nextStep()
-  tour.nextStep()
-  expect(tour.step).toBe(review)
-  expect(tour.index).toBe(3)
+  leko.nextStep()
+  expect(leko.index).toBe(1)
+  leko.nextStep()
+  leko.nextStep()
+  expect(leko.step).toBe(review)
+  expect(leko.index).toBe(3)
 })
