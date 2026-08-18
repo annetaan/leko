@@ -129,6 +129,68 @@ meaning to. The counter walks backwards and nothing throws. Leko is holding the
 position anyway, so it hands it over, and `story.steps.length` stays where the
 total comes from.
 
+### What a step assumes, and who builds it
+
+A step usually assumes something. A record exists, a panel is open, a phase has
+started. There was nowhere to put that, so it had to be arranged before
+`start()` or wedged into the caller's own flow. `LekoStep.onEnter` is where the
+application arranges it.
+
+**`onEnter` runs first, and the target is resolved after it settles.** That
+order is the whole reason the hook is worth having. Resolve first and the
+selector reads a page the step has not set up yet. Either the element is missing
+and the step is lost before the application got a chance to build it, or the
+element is there and about to move. Scrolling a target into view needs the same
+order.
+
+One arrival at a step is therefore: leave the step before it, run `onEnter`,
+resolve the target, draw, report the move through `onStep`. The report goes last
+because a progress readout that hears about a step while its `onEnter` is still
+running is naming something the user cannot see yet.
+
+Waiting costs a turn only where there is something to wait for. A handler that
+hands back nothing is called and the step is drawn in the same turn, so a step
+without one is no slower than it was before any of this existed.
+
+`onLeave` exists because `onEnter` can register things. Setup that adds a
+listener has to remove it, and a hook with no matching half leaks one per
+arrival. It is given the step the tour is going to, because cleanup often
+depends on the destination. A panel that two steps use in turn is worth leaving
+open. It is given nothing when the tour is ending, and starting another story
+counts as ending, since the step the tour lands on belongs to a story this one
+knows nothing about.
+
+**A rejection stops the tour.** The state the step assumes was never built, and
+drawing it would point the user at something that is not ready. That is the
+judgement `onTargetLost` already makes about a target that is not there. The
+reason is thrown again rather than swallowed, because a library that quietly
+eats an application's exception is why the bug takes a day to find. `onLeave`
+still runs, since a handler that failed halfway may already have registered
+something.
+
+There is no hook for that failure, and I do not think there should be one.
+`onTargetLost` exists because Leko went looking and came back empty, so the
+application has to be told. A rejection came from the application's own code,
+and the place with the context to do something about it is the handler that
+threw. Catch it there, report it wherever the application reports things, and
+either return normally so the step is drawn or let the reason go so the tour
+stops. Leko acts on what the handler settles on and asks nothing about why.
+
+The awkward case is a step abandoned while its `onEnter` is still in flight. The
+sandbox case waits 700ms, and a signal can arrive inside that window. Leko
+honours it, the same way it honours one arriving mid-morph, because dropping the
+call would be Leko deciding the application did not mean it. So the abandoned
+step gets its `onLeave`, and the handler settling afterwards finds the tour has
+moved on and draws nothing. What it checks is a counter, bumped on every arrival
+and every stop. The morph answers the same question by reading `state`, and that
+will not work here: two entries in a row leave the state saying `transitioning`
+both times.
+
+Neither hook is for analytics. `onStep` already reports that a step started, and
+it reports it for every step, whether or not anything had to be built for it.
+
+`examples/sandbox/src/cases/step-setup.ts` is the case.
+
 ### Getting the names back, without maintaining a list
 
 A signal name is a string on both sides. The call site writes

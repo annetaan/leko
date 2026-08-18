@@ -174,6 +174,64 @@ export interface LekoStep {
   awaits?: LekoKnownSignal
 
   /**
+   * Build the state this step assumes, before anything about it is measured.
+   *
+   * A step usually takes something for granted: a record exists, a panel is
+   * open, a phase has begun. Without somewhere to put that, it has to be
+   * arranged before `start()` or wedged into the caller's own flow. This is
+   * where the application arranges it.
+   *
+   * It is not where the step is decorated. Nothing has been drawn yet, and the
+   * scrim still holds the shape of the step being left while this runs.
+   *
+   * **A promise is waited for, and the target is resolved only once it
+   * settles.** Resolving first reads a target that does not exist yet, or one
+   * that is about to move, so this is also where a target is scrolled into
+   * view. A handler that returns nothing costs nothing: the step is drawn in
+   * the same turn, exactly as a step with no handler at all.
+   *
+   * **A rejection stops the tour**, and the reason is thrown again rather than
+   * swallowed. The state the step assumes was never built, so drawing it would
+   * point the user at something that is not ready — the judgement
+   * {@link LekoOptions.onTargetLost} makes about a target that is not there.
+   * {@link onLeave} still runs, because a handler that failed halfway may
+   * already have registered something.
+   *
+   * There is nowhere to register a handler for that failure, and the place to
+   * deal with it is inside this one. Catch what the setup threw, report it
+   * wherever the application reports things, and then decide: return normally
+   * and the step is drawn, or let the reason go and the tour stops. Leko is
+   * given whatever this handler settles on, and it knows nothing about why.
+   *
+   * This is not an analytics hook. Something that reports "a step started" for
+   * a caller's own metrics is {@link LekoStory.onStep}.
+   */
+  onEnter?: (step: LekoStep) => void | Promise<void>
+
+  /**
+   * Undo what {@link onEnter} set up. Called once for every arrival at this
+   * step, at the moment it stops being the current one.
+   *
+   * Setup that adds a listener has to remove it, and this is the matching half.
+   * Without one, every `onEnter` that registers something leaks it. It runs
+   * even where `onEnter` never settled — a rejection, or a signal that moved
+   * the tour on while it was still in flight — because the cleanup is owed
+   * either way. A step with no `onEnter` at all is left the same way, for
+   * cleanup the application set up somewhere else.
+   *
+   * `next` is where the tour is going, and is `undefined` when it is ending:
+   * past the last step, after `stop()`, and when another story is started,
+   * since the step the tour lands on then belongs to a story this one knows
+   * nothing about. Cleanup often depends on the destination — a panel that two
+   * steps use in turn is worth leaving open — which is why it is given one.
+   *
+   * A promise is not waited for here. The step is over, and a tour holding
+   * still while the state behind it is dismantled shows the user nothing for a
+   * reason that is none of their business.
+   */
+  onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
+
+  /**
    * Called before advancing. Returning `false` blocks the transition and
    * triggers {@link onValidationError}.
    *
@@ -293,6 +351,7 @@ export interface LekoOptions {
 /**
  * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.
  * `running` — a step is currently displayed.
- * `transitioning` — morphing between two steps.
+ * `transitioning` — between two steps, with nothing settled yet: a
+ * {@link LekoStep.onEnter} that has not resolved, or a morph still running.
  */
 export type LekoState = 'idle' | 'running' | 'transitioning'

@@ -7,6 +7,7 @@ import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
 import { stepping } from './stepping.js'
+import { stepSetup } from './step-setup.js'
 import { targetDisappears } from './target-disappears.js'
 import { twoStories } from './two-stories.js'
 
@@ -19,6 +20,7 @@ export const cases: Case[] = [
   formValidation,
   nextControl,
   asyncCompletion,
+  stepSetup,
   twoStories,
   adjacentColumns,
   linkedRegions,

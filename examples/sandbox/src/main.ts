@@ -11,7 +11,7 @@ app.append(
       <aside class="rail">
         <h1>Leko sandbox</h1>
         <p class="rail-note">
-          Ten situations a tour has to survive. Start a story and then use the
+          Eleven situations a tour has to survive. Start a story and then use the
           page — the cutout is a hole, so everything inside it still works.
           The step's message sits beside its cutout and follows it as you
           scroll; the bar below repeats it, along with the state.
@@ -149,6 +149,10 @@ pick('.controls').addEventListener('click', (event) => {
     if (!action) return
     actions[action.dataset['action'] ?? '']?.()
   }
+  // A step whose onEnter waits for something reports nothing until it lands, so
+  // the chip would sit on the last state it was told about for as long as the
+  // handler runs. Asking once here is what starts it following.
+  report()
 })
 
 function route(): void {
