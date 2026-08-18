@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
 import { createLeko } from './leko.js'
 import type { LekoOptions, LekoStep } from './types.js'
@@ -51,6 +51,19 @@ const overlaps = (a: DOMRect, b: DOMRect): boolean =>
 
 const frame = (): Promise<void> =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+
+/**
+ * Wait for the box to actually be on screen.
+ *
+ * `show()` fades opacity over 120ms, so the box is exactly transparent at the
+ * moment the transition starts, and `opacityProperty: true` reports that as
+ * invisible. Counting frames does not settle it: a transition begins at the
+ * first style recalculation after the change, and on a busy machine the frames
+ * run out before that happens. Measured at exactly 0 on a cold browser and
+ * between 0.16 and 0.32 on eight warm runs after it, which is a race rather
+ * than a number to raise.
+ */
+const appears = () => vi.waitUntil(visible)
 
 /**
  * Anchor positioning is allowed to be missing — the message docks to the foot of
@@ -173,10 +186,8 @@ test('a step that had no message can still be given one', async () => {
 
   expect(visible()).toBe(false)
   leko.reached('order-saved')
-  // It arrives with a fade, so it is exactly transparent for the first frame.
-  await frame()
+  await appears()
 
-  expect(visible()).toBe(true)
   expect(words()).toBe('Not yet.')
 })
 
@@ -202,10 +213,9 @@ test('a step waiting for a signal has no control to get past it with', async () 
     { id: 'two', target, message: 'Done.' },
   ])
   // The box has to be up before this proves anything: everything in it is
-  // transparent for the first frame, control included.
-  await frame()
+  // transparent while it fades, control included.
+  await appears()
 
-  expect(visible()).toBe(true)
   // The step exists to make someone do the thing the application will report.
   // A button beside the instruction is a way past it without doing that.
   expect(on(control())).toBe(false)
@@ -217,10 +227,8 @@ test('a step with no message still gets the control, and nothing else', async ()
     { id: 'one', target },
     { id: 'two', target },
   ])
-  // It arrives with a fade, so it is exactly transparent for the first frame.
-  await frame()
+  await appears()
 
-  expect(visible()).toBe(true)
   expect(on(control())).toBe(true)
   // Nothing was said, so nothing is read out: an empty line would be measured
   // along with the rest and push the box off the side that had room for it.
@@ -336,9 +344,8 @@ test('a step with only an error to show gets a box for it', async () => {
 
   expect(visible()).toBe(false)
   leko.reached('order-saved')
-  await frame()
+  await appears()
 
-  expect(visible()).toBe(true)
   expect(error()?.textContent).toBe('The total is still zero.')
 })
 
