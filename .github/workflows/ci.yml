@@ -8,6 +8,10 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The whole run is under two minutes when it is working. Without a limit of
+    # its own a job gets GitHub's default of six hours, which is what a hung
+    # browser cost here before anyone noticed it was not the tests being slow.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
