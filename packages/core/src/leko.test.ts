@@ -1063,6 +1063,92 @@ test('a step abandoned while its onEnter is in flight is still left properly', a
   expect(leko.state).toBe('running')
 })
 
+test('a handler that only logs a lost target is left holding a tour that never stopped', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const { leko, seen } = watched(
+    { id: 'story', steps: [{ id: 'ghost', target }] },
+    {
+      onTargetLost: () => {},
+    },
+  )
+
+  leko.start('story')
+  target.remove()
+  await Promise.resolve()
+
+  // Registering a handler is taking the tour over. Leko goes on holding it
+  // where it was, which is what a handler that logs and returns is signing up
+  // for without meaning to.
+  expect(leko.state).toBe('running')
+  expect(leko.step?.id).toBe('ghost')
+  expect(seen).toEqual([['ghost', undefined]])
+})
+
+test('previous can name a step nobody saw', () => {
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '.missing' }] })
+
+  leko.start('story')
+
+  // Nothing was ever drawn, and the ending still says where it came from.
+  expect(seen).toEqual([[undefined, 'ghost']])
+})
+
+test('a story started from inside an ending report is not overwritten by the start that caused it', () => {
+  const [first, second] = pair()
+  const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
+  const heard: string[] = []
+  const leko = register(
+    {
+      id: 'from',
+      steps: [{ id: 'a', target: first }],
+      // Reacting to the ending by sending the user somewhere else, which is an
+      // ordinary thing for a host to do.
+      onStep: (step) => {
+        if (step === undefined) leko.start('rescue')
+      },
+    },
+    { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`) },
+  )
+  leko.setStory({ id: 'rescue', steps: [{ id: 'b', target: second }] })
+  leko.setStory({ id: 'into', steps: [{ id: 'c', target: third }] })
+
+  leko.start('from')
+  heard.length = 0
+  leko.start('into')
+
+  // `into` gives way. Carrying on would have overwritten `rescue`, and that
+  // story would have ended without ever saying so.
+  expect(leko.story?.id).toBe('rescue')
+  expect(leko.step?.id).toBe('b')
+  expect(heard).toEqual(['rescue:b', 'from:undefined'])
+})
+
+test('a story started from inside onLeave is not overwritten by the step that was arriving', () => {
+  const [first, second] = pair()
+  const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
+  const leko = register({
+    id: 'story',
+    steps: [
+      {
+        id: 'a',
+        target: first,
+        onLeave: () => leko.start('elsewhere'),
+      },
+      { id: 'b', target: second },
+    ],
+  })
+  leko.setStory({ id: 'elsewhere', steps: [{ id: 'c', target: third }] })
+
+  leko.start('story')
+  leko.nextStep()
+
+  // Leaving is a call into the application, and the step that was arriving does
+  // not get drawn over the top of what the application did with it.
+  expect(leko.story?.id).toBe('elsewhere')
+  expect(leko.step?.id).toBe('c')
+  expect(centre(third)).toBe(third)
+})
+
 test('a story that shows the same step object twice still counts forwards', () => {
   const [first, second] = pair()
   // One object in two places, which is what a host generating steps from data

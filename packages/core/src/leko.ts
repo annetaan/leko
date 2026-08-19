@@ -163,6 +163,12 @@ export class Leko {
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
     if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return
     this.stop()
+    // The ending `stop` just reported is somewhere a host can react to by
+    // starting a story of its own, and that story is running by the time this
+    // returns. Carrying on would overwrite it, and it would never report an
+    // ending of its own. So the most recent `start` wins, which is the one made
+    // with the most information.
+    if (this.currentState !== 'idle') return
     this.currentStory = story
     this.at = index
     this.currentState = 'running'
@@ -454,9 +460,12 @@ export class Leko {
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived.
     this.message?.hide()
-    this.leave(step)
-
     const run = ++this.generation
+    this.leave(step)
+    // Leaving is a call into the application, and an application is free to
+    // start or stop a story from inside one. Anything it did bumped the counter
+    // past `run`, and carrying on would draw this step over the top of it.
+    if (this.generation !== run) return
     this.entered = step
     let entering: unknown
     try {
@@ -500,6 +509,9 @@ export class Leko {
     previous: LekoStep | undefined,
     run: number,
   ): void {
+    // `onEnter` is the other call into the application that can take the tour
+    // somewhere else before anything of this step has been drawn.
+    if (this.generation !== run) return
     this.draw(step, animate)
     if (this.generation === run) this.report(story, step, previous)
   }

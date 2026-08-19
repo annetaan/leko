@@ -118,6 +118,29 @@ happens to register.
 A hook that could not say "nowhere" would leave a progress readout showing the
 final step for ever.
 
+A hook is a call into the application, and an application is free to start or
+stop a story from inside one. `start()` reports the ending of whatever was
+running before it sets up what comes next, so a handler on that ending can start
+a story of its own, and it is running by the time `start()` gets control back.
+Carrying on there would overwrite it, and that story would end without ever
+saying so. So `start()` gives way once it finds the instance is no longer idle.
+The most recent call wins rather than the outermost, because it was made with
+more information than the one that triggered it. `onLeave` is the same kind of
+call and gets the same treatment: a step that was arriving is not drawn over the
+top of what the application did while it was being left.
+
+`previous` says where the story came from, and not that the user saw it. A story
+that starts on a missing target and stops reports `[undefined, first]`, naming a
+step that was never drawn. Tracking the last step actually shown would be a
+field and a rule for something harmless.
+
+`onTargetLost` is where this matters most. Without a handler the tour stops.
+**With one, nothing stops.** Registering a handler is taking the tour over, and
+Leko goes on holding it where it was: `state` reads `running`, `step` names the
+step whose target has gone, and the scrim keeps its last shape. The easy mistake
+is to log the problem and return, which leaves the user under a dimmed page with
+a hole over nothing.
+
 `leko.index` is there for the same reason. "Step 3 of 7" is the most common thing
 a tour draws, and `leko.story` and `leko.step` between them do not answer where
 in the story the step sits. A host can search `story.steps` for the step it just

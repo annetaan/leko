@@ -292,6 +292,15 @@ export interface LekoStory {
    * The return value is never read. Something that could block or redirect a
    * transition would be {@link LekoStep.validate} again, in a place where the
    * application has claimed nothing.
+   *
+   * `previous` says where the story came from, which is not the same as saying
+   * the user saw it. A story that starts on a missing target and stops reports
+   * `[undefined, first]`, naming a step that was never drawn. Tracking the last
+   * step actually shown would be a field and a rule for something harmless.
+   *
+   * Starting or stopping a story from inside a handler is allowed. `start()`
+   * gives way to whatever a handler started while it was stopping the story
+   * before it, so the most recent call wins rather than the outermost.
    */
   onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined) => void
 }
@@ -333,6 +342,17 @@ export interface LekoOptions {
   /**
    * Called when a step's target cannot be resolved. Without a handler the tour
    * stops: pointing a spotlight at nothing is worse than not running at all.
+   *
+   * **With a handler, nothing stops.** Registering one is taking the tour over,
+   * and Leko goes on holding it exactly where it was. {@link Leko.state} still
+   * reads `running`, {@link Leko.step} still names the step whose target has
+   * gone, and the scrim keeps whatever shape it last had. The move is reported
+   * through {@link LekoStory.onStep} like any other, so a progress readout
+   * shows a step that is not on screen.
+   *
+   * The easy mistake is to log the problem and return, which leaves the user
+   * under a dimmed page with a hole over nothing. A handler that has no
+   * recovery in mind wants `stop()`, or `start()` at a step that does exist.
    */
   onTargetLost?: (step: LekoStep, storyId: string) => void
 
