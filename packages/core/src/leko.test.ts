@@ -912,6 +912,38 @@ test('a promise from onEnter is waited for, and nothing is drawn until it settle
   expect(centre(target)).toBe(target)
 })
 
+test('a step waiting on its onEnter is not advanced past, and the call is not saved', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, onEnter: () => promise },
+      { id: 'c', target: first },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+  expect(leko.state).toBe('transitioning')
+
+  // `b` has built nothing and has never been on screen, so there is nothing
+  // here to advance away from.
+  leko.nextStep()
+  leko.nextStep()
+
+  settle()
+  await promise
+
+  // Dropped rather than queued: settling lands on `b`, and `c` is still ahead.
+  expect(leko.step?.id).toBe('b')
+  expect(seen).toEqual([
+    ['a', undefined],
+    ['b', 'a'],
+  ])
+})
+
 test('the move is reported once the step has arrived, not when the position changed', async () => {
   const [first, second] = pair()
   const { promise, settle } = held()
@@ -1052,15 +1084,15 @@ test('a step abandoned while its onEnter is in flight is still left properly', a
   ])
 
   leko.nextStep()
-  leko.reached('moved-on') // the application moves on while `b` is still entering
+  leko.stop() // the tour is dropped while `b` is still entering
   settle()
   await promise
   await Promise.resolve()
 
-  expect(left).toEqual([['b', 'c']])
+  expect(left).toEqual([['b', undefined]])
   // The handler settling afterwards does not draw a step the tour has left.
-  expect(leko.step?.id).toBe('c')
-  expect(leko.state).toBe('running')
+  expect(leko.step).toBeUndefined()
+  expect(leko.state).toBe('idle')
 })
 
 test('a handler that only logs a lost target is left holding a tour that never stopped', async () => {
@@ -1123,6 +1155,66 @@ test('a story started from inside an ending report is not overwritten by the sta
   expect(heard).toEqual(['rescue:b', 'from:undefined'])
 })
 
+test('a story started from inside a step onLeave still leaves the story that was ending', () => {
+  const [first, second] = pair()
+  const left: string[] = []
+  const leko = register({
+    id: 'from',
+    onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
+    steps: [{ id: 'a', target: first, onLeave: () => leko.start('rescue') }],
+  })
+  leko.setStory({
+    id: 'rescue',
+    onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
+    steps: [{ id: 'b', target: second }],
+  })
+
+  leko.start('from')
+  leko.stop()
+
+  // `rescue` is on screen and owes an `onLeave` later. Firing it here would
+  // tell a story that just began that its tour is over, and would leave `from`
+  // without the one it is owed.
+  expect(left).toEqual(['from->end'])
+  expect(leko.story?.id).toBe('rescue')
+
+  leko.stop()
+
+  expect(left).toEqual(['from->end', 'rescue->end'])
+})
+
+test('a story whose onEnter starts another story synchronously does not enter over it', () => {
+  const [first, second] = pair()
+  const log: string[] = []
+  const leko = register({
+    id: 'gate',
+    // A check that sends the user somewhere else, answered in the same turn
+    // because the answer was known already.
+    onEnter: () => {
+      leko.start('elsewhere')
+    },
+    steps: [{ id: 'a', target: first }],
+  })
+  leko.setStory({
+    id: 'elsewhere',
+    steps: [
+      {
+        id: 'b',
+        target: second,
+        onEnter: () => void log.push('enter b'),
+        onLeave: () => void log.push('leave b'),
+      },
+    ],
+  })
+
+  leko.start('gate')
+
+  expect(leko.story?.id).toBe('elsewhere')
+  expect(leko.step?.id).toBe('b')
+  // `gate` carrying on would leave and re-enter a step nobody moved off.
+  expect(log).toEqual(['enter b'])
+})
+
 test('a story started from inside onLeave is not overwritten by the step that was arriving', () => {
   const [first, second] = pair()
   const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
@@ -1167,4 +1259,213 @@ test('a story that shows the same step object twice still counts forwards', () =
   leko.nextStep()
   expect(leko.step).toBe(review)
   expect(leko.index).toBe(3)
+})
+
+test('a story builds what it assumes before its first step builds what it assumes', () => {
+  const [first] = pair()
+  const order: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => void order.push('story'),
+    steps: [{ id: 'a', target: first, onEnter: () => void order.push('step') }],
+  })
+
+  leko.start('story')
+
+  // Outermost first. A story's setup that ran after the step's would be setting
+  // up a world the step has already been built against.
+  expect(order).toEqual(['story', 'step'])
+  expect(leko.state).toBe('running')
+})
+
+test('a promise from a story onEnter holds back the first step entirely', async () => {
+  const { promise, settle } = held()
+  const entered: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => promise,
+    steps: [{ id: 'late', target: '.late', onEnter: () => void entered.push('step') }],
+  })
+
+  leko.start('story')
+
+  // Not just undrawn: the step's own handler has not run either.
+  expect(leko.state).toBe('transitioning')
+  expect(entered).toEqual([])
+  expect(scrim()).toBeNull()
+
+  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.className = 'late'
+  settle()
+  await promise
+
+  expect(entered).toEqual(['step'])
+  expect(leko.state).toBe('running')
+  expect(centre(target)).toBe(target)
+})
+
+test('a story waiting on its onEnter does not let a step advance underneath it', async () => {
+  const { promise, settle } = held()
+  const entered: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => promise,
+    steps: [
+      { id: 'a', target: '.late', awaits: 'saved', onEnter: () => void entered.push('a') },
+      { id: 'b', target: '.late', onEnter: () => void entered.push('b') },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+  leko.reached('saved')
+
+  expect(leko.state).toBe('transitioning')
+  expect(entered).toEqual([])
+
+  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.className = 'late'
+  settle()
+  await promise
+
+  // What the story assumes was built first, and the tour is on the step that
+  // was waiting for it rather than one past it.
+  expect(entered).toEqual(['a'])
+  expect(leko.step?.id).toBe('a')
+  expect(leko.state).toBe('running')
+})
+
+test('a story is left after its step is, and told nothing where the tour is over', () => {
+  const [first, second] = pair()
+  const order: string[] = []
+  const leaving: (string | undefined)[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => {},
+    onLeave: (_story, next) => {
+      order.push('story')
+      leaving.push(next?.id)
+    },
+    steps: [
+      { id: 'a', target: first, onLeave: () => void order.push('step') },
+      { id: 'b', target: second },
+    ],
+  })
+
+  leko.start('story')
+  leko.stop()
+
+  // Innermost first, the mirror of the order they were entered in.
+  expect(order).toEqual(['step', 'story'])
+  expect(leaving).toEqual([undefined])
+})
+
+test('running past the last step leaves the story too', () => {
+  const [first] = pair()
+  const leaving: (string | undefined)[] = []
+  const leko = register({
+    id: 'story',
+    onLeave: (_story, next) => void leaving.push(next?.id),
+    steps: [{ id: 'only', target: first }],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  expect(leaving).toEqual([undefined])
+  expect(leko.state).toBe('idle')
+})
+
+test('a story displaced by another is told which one is starting', () => {
+  const [first, second] = pair()
+  const leaving: (string | undefined)[] = []
+  const leko = createLeko({ duration: 0 })
+  instances.push(leko)
+  leko.setStory({
+    id: 'shared',
+    onLeave: (_story, next) => void leaving.push(next?.id),
+    steps: [{ id: 'a', target: first }],
+  })
+  leko.setStory({ id: 'branch', steps: [{ id: 'b', target: second }] })
+
+  leko.start('shared')
+  leko.start('branch')
+
+  // The teardown a branch and the story it rejoins both need is teardown this
+  // argument lets a handler skip.
+  expect(leaving).toEqual(['branch'])
+  expect(leko.story?.id).toBe('branch')
+})
+
+test('a story onEnter that fails stops the tour, and is still left properly', async () => {
+  const [first] = pair()
+  const boom = new Error('the fixtures would not load')
+  const escaped: (() => void)[] = []
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((fn) => void escaped.push(fn))
+
+  const left: (string | undefined)[] = []
+  const entered: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => Promise.reject(boom),
+    onLeave: (_story, next) => void left.push(next?.id),
+    steps: [{ id: 'a', target: first, onEnter: () => void entered.push('step') }],
+  })
+
+  leko.start('story')
+  await Promise.resolve()
+  await Promise.resolve()
+
+  expect(leko.state).toBe('idle')
+  // The step was never entered, so nothing of it needs undoing; the story's own
+  // half-built state does.
+  expect(entered).toEqual([])
+  expect(left).toEqual([undefined])
+  expect(escaped).toHaveLength(1)
+  expect(() => escaped[0]!()).toThrow(boom)
+})
+
+test('a story stopped while its onEnter is in flight is still left properly', async () => {
+  const { promise, settle } = held()
+  const left: (string | undefined)[] = []
+  const entered: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => promise,
+    onLeave: (_story, next) => void left.push(next?.id),
+    steps: [{ id: 'a', target: '.never', onEnter: () => void entered.push('step') }],
+  })
+
+  leko.start('story')
+  leko.stop()
+  settle()
+  await promise
+  await Promise.resolve()
+
+  expect(left).toEqual([undefined])
+  // The handler settling afterwards does not enter a story the tour has left.
+  expect(entered).toEqual([])
+  expect(leko.state).toBe('idle')
+})
+
+test('meta is carried and never read', () => {
+  const [first, second] = pair()
+  const { leko } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first, meta: { chapter: 'setup' } },
+      { id: 'b', target: second, meta: { chapter: 'ordering' } },
+    ],
+  })
+
+  leko.start('story')
+  expect(leko.step?.meta).toEqual({ chapter: 'setup' })
+
+  leko.nextStep()
+
+  // A step carrying it behaves exactly as one without: nothing here branches on
+  // it, which is the whole promise.
+  expect(leko.step?.meta).toEqual({ chapter: 'ordering' })
+  expect(leko.state).toBe('running')
+  expect(centre(second)).toBe(second)
 })

@@ -123,6 +123,25 @@ export interface LekoStep {
   id: string
 
   /**
+   * Anything the application wants to hang on this step. Carried, never read.
+   *
+   * Leko has no opinion about what goes here and never branches on it. That is
+   * the point: a tour that wants to group its steps into chapters, name the
+   * screen a step belongs to, or mark the ones worth counting, can do all of it
+   * without Leko growing a concept for each one. The
+   * application reads it back off {@link Leko.step}, or off the step handed to
+   * {@link LekoStory.onStep}.
+   *
+   * A chapter is the case this exists for. Grouping steps, jumping between the
+   * groups and recording which are done is a real thing to want and a large
+   * thing to build — a group with setup of its own is an object rather than a
+   * label, which moves where {@link Leko.index} counts from and needs a rule
+   * for resuming into the middle of one. None of that is settled, and a tag
+   * here plus a menu the application draws is what covers it in the meantime.
+   */
+  meta?: Record<string, unknown>
+
+  /**
    * What the user acts on.
    *
    * An array is **unioned into a single cutout**: its bounding box, including
@@ -271,6 +290,45 @@ export interface LekoStory {
 
   /** How long a step-to-step morph runs in this story, in ms. */
   duration?: number
+
+  /**
+   * Build the state this whole story assumes, before its first step is entered.
+   *
+   * {@link LekoStep.onEnter} is the same job one step down, and the reason for
+   * both is the same: a tour usually takes something for granted. What belongs
+   * here is what the story takes for granted throughout — a screen to be on, a
+   * record to run against, fixtures to stand in for data the user has not got
+   * yet. Putting it on the first step says it belongs to that step, and it
+   * stops being true the moment `start(id, 2)` skips past.
+   *
+   * **A promise is waited for, and nothing about the first step happens until
+   * it settles** — not its own `onEnter`, and not resolving its target. Entry
+   * runs outermost first: this, then the step's, then the page is measured.
+   *
+   * **A rejection stops the tour** and the reason is thrown again, exactly as a
+   * step's does. {@link onLeave} still runs, because a handler that failed
+   * halfway may already have registered something.
+   */
+  onEnter?: (story: LekoStory) => void | Promise<void>
+
+  /**
+   * Undo what {@link onEnter} set up. Called once for every call to it, at the
+   * moment this story stops being the one that is running: past the last step,
+   * after `stop()`, and when another story is started.
+   *
+   * It runs after the current step's {@link LekoStep.onLeave} — cleanup goes
+   * innermost first, the mirror of entry — and before the ending is reported
+   * through {@link onStep}.
+   *
+   * `next` is the story about to start, and `undefined` when the tour is simply
+   * over. A shared story that branches and is started again afterwards is the
+   * case: teardown worth skipping when the destination needs the same state is
+   * teardown this argument can skip.
+   *
+   * A promise is not waited for. The story is over, and a tour holding still
+   * while the state behind it is dismantled shows the user nothing.
+   */
+  onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
 
   /**
    * Called when this story moves, including when it ends.

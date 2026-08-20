@@ -199,20 +199,73 @@ threw. Catch it there, report it wherever the application reports things, and
 either return normally so the step is drawn or let the reason go so the tour
 stops. Leko acts on what the handler settles on and asks nothing about why.
 
-The awkward case is a step abandoned while its `onEnter` is still in flight. The
-sandbox case waits 700ms, and a signal can arrive inside that window. Leko
-honours it, the same way it honours one arriving mid-morph, because dropping the
-call would be Leko deciding the application did not mean it. So the abandoned
-step gets its `onLeave`, and the handler settling afterwards finds the tour has
-moved on and draws nothing. What it checks is a counter, bumped on every arrival
-and every stop. The morph answers the same question by reading `state`, and that
-will not work here: two entries in a row leave the state saying `transitioning`
-both times.
+The awkward case is a step whose `onEnter` is still in flight when a signal
+arrives. The sandbox case waits 700ms, and `reached()` can land inside that
+window. Leko drops the call.
+
+That is the opposite of what happens mid-morph, and the two cases look alike
+enough that I want to say why they are different. A morphing step has been
+through the whole arrival already. Its `onEnter` settled, its target was
+measured, it was drawn, and `onStep` reported it. The user is looking at it, so
+advancing is a move away from a step that exists.
+
+A step waiting on its `onEnter` has none of that. The state it assumes is half
+built, because the handler is still building it. The target has not been looked
+for. The step has never been on screen. `validate` would read a page the handler
+is in the middle of writing, and whatever it concluded would be about the page as
+it stood 300ms in. There is no step here to advance away from.
+
+The call is dropped where it stands rather than held until the handler settles.
+That is what happens to every signal nobody is waiting for, and for the same
+reason. A step that advances on something that happened before it began has
+advanced on the wrong thing.
+
+`stop()` and `start()` still overtake an `onEnter`, because those are the host
+saying the tour goes somewhere else. The abandoned step gets its `onLeave`, and
+the handler settling afterwards finds the tour has moved on and draws nothing.
+What it checks is a counter, bumped on every arrival and every stop. The morph
+answers the same question by reading `state`, and that will not work here. Two
+entries in a row leave the state saying `transitioning` both times.
 
 Neither hook is for analytics. `onStep` already reports that a step started, and
 it reports it for every step, whether or not anything had to be built for it.
 
 `examples/sandbox/src/cases/step-setup.ts` is the case.
+
+#### What the whole story assumes, and why the first step cannot own it
+
+A step assumes something, and so does the story around it. The screen the tour
+runs on. The record every step works against. The sandbox case loads a draft
+order and writes all three of its steps against it.
+
+Put that on the first step's `onEnter` and you have said it belongs to that
+step. `start(id, 2)` skips the first step, and the claim stops holding. So
+`LekoStory` has an `onEnter` and an `onLeave` of its own.
+
+**A tour goes in outermost first and comes out innermost first.** One start runs
+the story's `onEnter`, then the step's `onEnter`, then resolves the target, then
+draws, then reports through `onStep`. The ending mirrors it. The step's
+`onLeave`, the story's `onLeave`, and `onStep` saying nowhere. I kept the names
+the step already uses. `onStart` would give two layers doing one job two
+different names, and then there are two rules to remember instead of one.
+
+The contract matches the step's as well. A promise handed back is waited for,
+and the first step's own `onEnter` does not run until it settles. A rejection
+stops the tour, and the reason is thrown again. An `onEnter` that failed halfway
+still gets its `onLeave`, because a handler that registered something before it
+fell over is owed one. The same holds when another `start()` or a `stop()`
+overtakes it. A handler settling late finds the tour somewhere else and draws
+nothing.
+
+`next` on `onLeave` is **the story about to start**. It is filled in only when
+`start()` displaced this one, and it is `undefined` when the tour is simply
+over. Run a shared story, branch out of it, then start the shared one again
+where the branch rejoins. A handler can skip the teardown both of them need on
+that round trip. The step's `onLeave` takes its destination for the same reason.
+
+`examples/sandbox/src/cases/story-setup.ts` is the case. It holds the first step
+for 600ms while the draft loads, and it reads `meta` back as a chapter label
+while it is there.
 
 ### Getting the names back, without maintaining a list
 
@@ -294,6 +347,30 @@ for a project that needs it and keeps the completion.
   dependencies and this needs the TypeScript compiler API, so it is a package of
   its own that a consumer installs only if they want it.
 
+#### Targets have the same hole, with an easier answer
+
+`target` has the same hole in it. A step holds a CSS selector as a plain string,
+which is as loose as leaving `awaits` at `string`. A typo does not fail. The
+selector matches nothing, and `onTargetLost` fires only once somebody has walked
+the tour as far as that step.
+
+Here I can do better than a scan. Signal names had to be gathered from the call
+sites, because nowhere else knows them. Element names can be declared. Let the
+application keep one table of name to selector, and `keyof` gives the union of
+names a step may point at. The tutorial Leko came out of kept 39 of them in one
+object and typed its steps against it. The usual weakness of a hand-maintained
+list does not bite here. A name missing from the table means the element cannot
+be targeted, and that is all it means.
+
+Adopting it means answering one more question at the same time. What happens
+when a name matches several elements. A responsive application keeps a mobile
+layout and a desktop layout in the DOM together, so picking the visible one is a
+real answer and erroring on multiple matches is a real answer, and one of them
+has to be written down.
+
+Story ids are still outside the vocabulary. This would be the second thing on
+that list.
+
 #### The one trap
 
 **The augmenting file has to be a module.** Drop that block into a `.ts` file
@@ -342,6 +419,19 @@ Leko also does not advance a step because time passed. A caller that wants that
 can report a signal from a timer, but a step that ends after five seconds has
 established nothing about whether the user did anything, and establishing that
 is what the second constraint is for.
+
+Leko has no chapters either. Group the steps. Jump between the groups. Record
+how far somebody got. The tutorial Leko came out of had six chapters in each of
+its two stories, and all of it earned its place. Give a chapter setup of its own
+and the chapter stops being a label and becomes an object, `leko.index` starts
+counting something else, and resuming into the middle of one needs a rule. That
+is more interface than I want right now.
+
+`LekoStep.meta` is there instead. Leko carries it and never reads it. Group
+steps into chapters, name the screen a step belongs to, mark the ones worth
+counting. The application does all of that, and Leko grows no concept for any of
+it. This is the answer until somebody wants to write the rules for jumping and
+resuming.
 
 ## Design
 

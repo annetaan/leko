@@ -73,14 +73,22 @@ export class Leko {
    */
   private entered: LekoStep | undefined
   /**
+   * The story whose {@link LekoStory.onEnter} has been called and whose
+   * `onLeave` has not, held for the reason {@link entered} is: a story
+   * abandoned while its setup is still in flight is owed its cleanup all the
+   * same.
+   */
+  private enteredStory: LekoStory | undefined
+  /**
    * True from the call to `onEnter` until it settles. Nothing may be drawn in
    * that window. The target is resolved after `onEnter`, so a resize arriving
    * mid-flight would measure a step the tour has not entered yet.
    */
   private preparing = false
   /**
-   * Bumped on every arrival at a step and every stop, so an `onEnter` settling
-   * late can tell that it is talking about a step nobody is on any more. The
+   * Bumped on every start, every arrival at a step and every stop, so an
+   * `onEnter` settling late can tell that it is talking about a step nobody is
+   * on any more. The
    * morph asks the same question by reading the state, which will not work
    * here: two entries in a row leave the state saying `transitioning` both
    * times.
@@ -162,17 +170,64 @@ export class Leko {
     if (!story) return
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
     if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return
-    this.stop()
-    // The ending `stop` just reported is somewhere a host can react to by
-    // starting a story of its own, and that story is running by the time this
-    // returns. Carrying on would overwrite it, and it would never report an
-    // ending of its own. So the most recent `start` wins, which is the one made
-    // with the most information.
+    // What is ending is told what is starting, so teardown a branch and the
+    // story it rejoins both need can be skipped.
+    this.end(story)
+    // That ending is somewhere a host can react to by starting a story of its
+    // own, and that story is running by the time `end` returns. Carrying on
+    // would overwrite it, and it would never report an ending of its own. So
+    // the most recent `start` wins, which is the one made with the most
+    // information.
     if (this.currentState !== 'idle') return
     this.currentStory = story
     this.at = index
     this.currentState = 'running'
-    this.enter(false, undefined)
+    this.enterStory(story)
+  }
+
+  /**
+   * Outermost first: whatever the whole story assumes is built before anything
+   * about its first step is, including that step's own `onEnter`.
+   *
+   * A handler that hands back nothing costs nothing, exactly as a step's does —
+   * the first step is entered in the same turn `start()` was called in.
+   */
+  private enterStory(story: LekoStory): void {
+    const run = ++this.generation
+    this.enteredStory = story
+    let entering: unknown
+    try {
+      entering = story.onEnter?.(story)
+    } catch (reason) {
+      return this.failed(reason)
+    }
+    // `onEnter` is a call into the application, and an application is free to
+    // start or stop a story from inside one. A handler that answered
+    // synchronously has already run, so anything it did bumped the counter past
+    // `run`, and entering the first step here would draw it over the top of
+    // whatever is running now. The thenable path below asks the same question
+    // when it settles.
+    if (!isThenable(entering)) {
+      if (this.generation !== run) return
+      return this.enter(false, undefined)
+    }
+
+    // Nothing is settled and nothing is drawn, which is what `transitioning`
+    // says about the gap between two steps and says as well about this one.
+    this.currentState = 'transitioning'
+    this.preparing = true
+    void entering.then(
+      () => {
+        if (this.generation !== run) return
+        this.preparing = false
+        this.enter(false, undefined)
+      },
+      (reason: unknown) => {
+        if (this.generation !== run) return
+        this.preparing = false
+        this.failed(reason)
+      },
+    )
   }
 
   /**
@@ -231,9 +286,18 @@ export class Leko {
   /**
    * It is *not* a no-op mid morph: silently dropping a call would be Leko
    * deciding the application did not mean it, which is the guessing this library
-   * exists to avoid.
+   * exists to avoid. A morph is a step that arrived and is still moving, and a
+   * call during one means what it says.
+   *
+   * An `onEnter` in flight is the other thing. Nothing that step assumes has
+   * been built, its target has not been looked for, and it has never been on
+   * screen, so there is no step here to advance away from and nothing for
+   * `validate` to read. The call is dropped where it stands rather than held
+   * until the handler settles: a signal saved over is a step advancing on
+   * something that happened before it began.
    */
   private advance(step: LekoStep): void {
+    if (this.preparing) return
     const story = this.currentStory
     if (!story) return
     const steps = story.steps
@@ -277,6 +341,15 @@ export class Leko {
    * A no-op while idle, so it reports once however many times it is called.
    */
   stop(): void {
+    this.end(undefined)
+  }
+
+  /**
+   * Ending a run, told where the tour is going next so that
+   * {@link LekoStory.onLeave} can be. `next` is a story only when `start()` is
+   * displacing this one; every other ending has nowhere to name.
+   */
+  private end(next: LekoStory | undefined): void {
     if (this.currentState === 'idle') return
     const story = this.currentStory
     const previous = story?.steps[this.at]
@@ -289,9 +362,18 @@ export class Leko {
     this.teardown()
     this.message?.destroy()
     this.message = undefined
-    // The step's own cleanup, then the story's readout: the same near-to-far
-    // order everything else here reads in.
+    // Taken before `leave` runs, because `leave` hands control to the
+    // application and a step's `onLeave` is allowed to start a story of its
+    // own. That story is entered by the time control comes back, so reading
+    // `enteredStory` afterwards would skip this story's `onLeave` and fire the
+    // new story's instead, telling a story that just began that its tour is
+    // over.
+    const entered = this.enteredStory
+    this.enteredStory = undefined
+    // The step's own cleanup, then the story's, then the readout: innermost
+    // first, the mirror of the order they were entered in.
     this.leave(undefined)
+    this.leaveStory(entered, next)
     if (story) this.report(story, undefined, previous)
   }
 
@@ -525,6 +607,16 @@ export class Leko {
     const step = this.entered
     this.entered = undefined
     step?.onLeave?.(step, next)
+  }
+
+  /**
+   * Pairs with {@link LekoStory.onEnter}, once for every call to it. The story
+   * is handed in rather than read from `enteredStory` here, because `end` has
+   * to take it before the step's `onLeave` runs. {@link leave} clears first for
+   * the same reason, and can do it in one place because nothing runs between.
+   */
+  private leaveStory(story: LekoStory | undefined, next: LekoStory | undefined): void {
+    story?.onLeave?.(story, next)
   }
 
   /**
