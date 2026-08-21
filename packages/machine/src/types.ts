@@ -8,11 +8,11 @@
 export interface StepBase<A, S> {
   id: string
   /**
-   * Writable, because {@link ErrorUtils.setMessage} sets it. The machine keeps
-   * no copy: the step object belongs to the application, and a copy would go
-   * stale the moment the application edited its own.
+   * Read every time the machine draws, and never written. The step object
+   * belongs to the application, so an application that edits its own message
+   * sees the edit and the machine never holds a copy that can go stale.
    */
-  message?: string
+  readonly message?: string
   /** The signal this step waits for, or nothing where it advances on a control. */
   awaits?: string
   meta?: Record<string, unknown>
@@ -45,7 +45,6 @@ export interface StoryBase<A, S extends StepBase<A, S>, St> {
  */
 export interface ErrorUtils {
   shake(): void
-  setMessage(message: string): void
   setError(message: string): void
 }
 

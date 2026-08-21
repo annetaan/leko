@@ -3,6 +3,7 @@ import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
 import { formValidation } from './form-validation.js'
+import { lateReason } from './late-reason.js'
 import { linkedRegions } from './linked-regions.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
@@ -20,6 +21,7 @@ import { twoStories } from './two-stories.js'
 export const cases: Case[] = [
   stepping,
   formValidation,
+  lateReason,
   nextControl,
   asyncCompletion,
   stepSetup,

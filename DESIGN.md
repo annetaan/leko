@@ -93,6 +93,47 @@ attempt succeeds or the step changes, because those are the two moments it
 stopped being true. A `clearError()` would only invent a way to leave a stale
 complaint on screen.
 
+`setMessage()` is gone. It assigned to `step.message`, which looked like the
+honest thing to do: the step object belongs to the application, and a copy Leko
+kept would go stale the moment the application edited its own.
+
+The copy was the wrong thing to worry about. Assigning was worse. The
+instruction the story was written with went, and nothing gave it back. Stop the
+tour, start the same story again, and the first thing the user reads is what
+went wrong for somebody else.
+
+I could have held the replacement beside the step instead of writing into it,
+and I wrote that version first. Then I went looking for a caller. There were
+none. Not one of the 13 sandbox cases used it, nothing in `packages/leko` used
+it, and this file had never said what it was for beyond being the wrong tool for
+a failed attempt. So the answer to "what is `setMessage` for" is that nobody had
+one, and a method that is only ever the wrong tool is a method to delete. Leko
+is pre-release and it costs nothing to take it out now.
+
+`step.message` is read every time Leko draws, and `StepBase.message` is
+`readonly` to say so.
+
+`onValidationError` returns `void`. A handler is free to look something up and
+call back once the tour is two steps further on. Held that long, `setError()`
+used to put the last step's complaint under the current step's instruction,
+anchored to an element the current step never named. So the utils carry the same
+counter every other callback into the application carries, and a late one does
+nothing. `shake()` had no guard at all, and would shake a scrim that had already
+been torn down.
+
+`packages/machine` had no test for any of this. `shake`, `setMessage` and
+`setError` are handed to a failed attempt, and the only tests that reached them
+were in `packages/leko/src/message.test.ts`, which asks where the box rendered
+rather than what the machine did.
+
+`examples/sandbox/src/cases/late-reason.ts` is the case. All three sandbox
+handlers were synchronous before it, so nothing showed the pattern the window
+comes from: `validate` is synchronous and gives the verdict, and the reason is a
+question for a server. Enter a coupon the step turns down, and while it says
+"Checking…" replace it with one it accepts and press Next. The verdict on the
+first code arrives 1200ms later, by which time it has nothing to say about the
+step on screen.
+
 ### Telling the host where the story got to is the other direction
 
 `LekoStory.onStep` does not reopen any of this. The constraint is about Leko
@@ -557,6 +598,16 @@ to run position math every frame are avoidable:
   `element.animate()` without checking that on a 2x display first
   ([`spike/waapi-clip-path/`](spike/waapi-clip-path/), and
   [crbug.com/542859657](https://issues.chromium.org/issues/542859657)).
+
+  One consequence to know before it wastes your afternoon. The morph is driven
+  entirely by `requestAnimationFrame`, and a browser fires none of those in a
+  tab nobody is looking at. Background the tab part way through a step change
+  and everything stops where it was: `state` reads `transitioning`, the message
+  stays away, and the cutout sits between two shapes. I measured 0 rAF ticks in
+  500ms on a hidden tab while chasing what looked like a stuck tour. It resumes
+  and finishes the moment the tab is looked at again, so nothing is broken, and
+  a signal arriving in that window still advances the step because `advance()`
+  reads the in-flight flag rather than `state`.
 
 Any change that reintroduces per-frame JS **position math** is a regression.
 That rule is about reading layout while the user scrolls, which is where jank

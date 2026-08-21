@@ -101,19 +101,21 @@ export interface ErrorUtils {
   /** Play the built-in shake animation on the cutout. */
   shake(): void
   /**
-   * Replace the message shown for the current step, instruction and all. Use
-   * {@link setError} for a reason the attempt failed: this one throws away what
-   * the step was asking for, so a second failed attempt would leave the user
-   * with a complaint and nothing to act on.
-   */
-  setMessage(message: string): void
-  /**
    * Say what went wrong, under the step's message rather than instead of it.
    *
    * There is nothing to call to take it away again. It goes when the next
    * attempt succeeds or the step changes, because those are the two moments it
    * has stopped being true. A `clearError()` would only invent a way to leave a
    * stale complaint on screen.
+   *
+   * Nothing here replaces the instruction. A step that says what to do and a
+   * line saying why the last try did not work are two different things, and a
+   * user who has just been told they were wrong needs to still be able to read
+   * what they were asked for.
+   *
+   * These utils belong to the attempt that was turned down. Calling one after
+   * the tour has moved on does nothing at all, because whatever it had to say
+   * was about a step the user has already left.
    */
   setError(message: string): void
 }

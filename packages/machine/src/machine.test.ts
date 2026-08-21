@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { Machine } from './machine.js'
 import type { Content, Host, Presenter } from './port.js'
-import type { MachineOptions, StepBase, StoryBase } from './types.js'
+import type { ErrorUtils, MachineOptions, StepBase, StoryBase } from './types.js'
 
 // None of the claims in this file is about layout, so none of them needs a
 // browser to be true. They were browser tests until the machine came out of
@@ -18,6 +18,12 @@ type Anchor = string
 
 interface Step extends StepBase<Anchor, Step> {
   target: string
+  /**
+   * Writable here, the way `LekoStep` declares it. `StepBase` has it `readonly`
+   * to say the machine never writes it. The application owns the object and is
+   * free to edit its own text, and one test below does exactly that.
+   */
+  message?: string
 }
 
 type Story = StoryBase<Anchor, Step, Story>
@@ -40,6 +46,8 @@ class Fake implements Presenter<Anchor, Step> {
   readonly shown: string[] = []
   /** What it was last told to say. */
   content: Content | undefined
+  /** Every retell, so a test can ask which step got rewritten, and with what. */
+  readonly retold: { step: string; anchor: Anchor; content: Content }[] = []
   slow = false
   rejected = 0
   hidden = 0
@@ -70,7 +78,8 @@ class Fake implements Presenter<Anchor, Step> {
     this.content = content
   }
 
-  retell(_step: Step, _anchor: Anchor, content: Content): void {
+  retell(step: Step, anchor: Anchor, content: Content): void {
+    this.retold.push({ step: step.id, anchor, content })
     this.content = content
   }
 
@@ -153,6 +162,23 @@ function held(): { promise: Promise<void>; settle: () => void } {
     settle = resolve
   })
   return { promise, settle }
+}
+
+/**
+ * A step that fails every attempt, and hands back what the attempt was given.
+ * `use()` is what `onValidationError` was called with, so it is only good after
+ * a `nextStep()` that the step turned down.
+ */
+function failing(id: string, target: string, message?: string) {
+  let given: ErrorUtils | undefined
+  const step: Step = {
+    id,
+    target,
+    message,
+    validate: () => false,
+    onValidationError: (_anchor, utils) => void (given = utils),
+  }
+  return { step, use: () => given! }
 }
 
 /** The same two steps as fresh objects, the way a re-render hands them back. */
@@ -278,6 +304,136 @@ describe('a signal, and the step waiting for it', () => {
     // recorded while nobody was being shown a step is not evidence of anything.
     tour.start('returning')
     expect(tour.step?.id).toBe('save-again')
+  })
+})
+
+describe('what a failed attempt can do about itself', () => {
+  // `validate` said no, and `onValidationError` is handed three things it can do
+  // about that. Nothing in this file called any of them until now, and two bugs
+  // were living in the gap.
+
+  test('shake asks the presenter to say no, and moves nothing', () => {
+    const { step, use } = failing('one', 'first')
+    const tour = start([step, { id: 'two', target: 'second' }])
+
+    tour.nextStep()
+    use().shake()
+
+    expect(drawing().rejected).toBe(1)
+    expect(tour.step?.id).toBe('one')
+  })
+
+  test('setError adds a reason, and leaves the instruction where it was', () => {
+    const { step, use } = failing('one', 'first', 'Type your postcode.')
+    const tour = start([step, { id: 'two', target: 'second' }])
+
+    tour.nextStep()
+    use().setError('That is not a postcode.')
+
+    // Under the instruction rather than over it. Somebody who has just been
+    // told they were wrong has to still be able to read what was asked for.
+    expect(drawing().content?.text).toBe('Type your postcode.')
+    expect(drawing().content?.error).toBe('That is not a postcode.')
+
+    use().setError('Six characters, like SW1A 1AA.')
+
+    expect(drawing().content?.text).toBe('Type your postcode.')
+    expect(drawing().content?.error).toBe('Six characters, like SW1A 1AA.')
+  })
+
+  test('the step is read for its message every time, so an edit to it is seen', () => {
+    const step: Step = { id: 'one', target: 'first', message: 'Type your postcode.' }
+    start([step, { id: 'two', target: 'second' }])
+
+    expect(drawing().content?.text).toBe('Type your postcode.')
+
+    // The story belongs to the application, and the machine holds no copy of
+    // its text. This is why nothing here writes to `message` either.
+    step.message = 'Type the postcode on your bill.'
+    drawing().resize()
+
+    expect(drawing().content?.text).toBe('Type the postcode on your bill.')
+  })
+
+  test('an error is about the attempt, so entering the step again leaves it behind', () => {
+    const { step, use } = failing('one', 'first', 'Type your postcode.')
+    const tour = start([{ id: 'zero', target: 'second' }, step])
+
+    tour.nextStep()
+    tour.nextStep()
+    use().setError('That is not a postcode.')
+    expect(drawing().content?.error).toBe('That is not a postcode.')
+
+    tour.prevStep()
+    tour.nextStep()
+
+    expect(drawing().content?.error).toBeUndefined()
+    expect(drawing().content?.text).toBe('Type your postcode.')
+  })
+
+  test('a second attempt at the same step is still holding good utils', () => {
+    const { step, use } = failing('one', 'first')
+    const tour = start([step, { id: 'two', target: 'second' }])
+
+    tour.nextStep()
+    const first = use()
+    tour.nextStep()
+
+    // Failing does not move the tour, so nothing has happened to the step these
+    // belong to. Only an arrival or a stop ends an attempt.
+    first.setError('still no')
+
+    expect(drawing().content?.error).toBe('still no')
+  })
+
+  test('utils held past the step they belong to do nothing at all', () => {
+    let ready = false
+    let kept: ErrorUtils | undefined
+    const tour = start([
+      {
+        id: 'one',
+        target: 'first',
+        validate: () => ready,
+        onValidationError: (_anchor, utils) => void (kept = utils),
+      },
+      { id: 'two', target: 'second', message: 'The second step.' },
+    ])
+
+    tour.nextStep()
+    ready = true
+    tour.nextStep()
+    expect(tour.step?.id).toBe('two')
+
+    const fake = drawing()
+    fake.retold.length = 0
+    // `onValidationError` returns void, so a handler is free to look something
+    // up and call back once the tour has moved on.
+    kept?.setError('about the step before')
+    kept?.shake()
+
+    // Under `two` this is a complaint about work the user already finished,
+    // anchored to an element `two` never named.
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
+    expect(fake.content?.text).toBe('The second step.')
+    expect(fake.content?.error).toBeUndefined()
+  })
+
+  test('utils held past the end of the tour do nothing either', () => {
+    const { step, use } = failing('one', 'first')
+    const tour = start([step, { id: 'two', target: 'second' }])
+
+    tour.nextStep()
+    const kept = use()
+    tour.stop()
+
+    const fake = drawing()
+    fake.retold.length = 0
+    kept.setError('after it was over')
+    kept.shake()
+
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
   })
 })
 

@@ -126,7 +126,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   expect(after.note - before.note).toBeCloseTo(after.target - before.target, 0)
 })
 
-test('setMessage replaces the words in place', () => {
+test('an error is written into the box that is already there', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
     {
@@ -134,7 +134,7 @@ test('setMessage replaces the words in place', () => {
       target,
       message: 'Type your name.',
       validate: () => false,
-      onValidationError: (_el, utils) => utils.setMessage('A name, not a number.'),
+      onValidationError: (_el, utils) => utils.setError('A name, not a number.'),
     },
     { id: 'two', target },
   ])
@@ -142,30 +142,12 @@ test('setMessage replaces the words in place', () => {
   const before = rect(message()!)
   leko.nextStep()
 
-  expect(words()).toBe('A name, not a number.')
+  expect(words()).toBe('Type your name.')
+  expect(error()?.textContent).toBe('A name, not a number.')
   // Failing validation does not move the step, so it must not move the message
-  // out from under someone reading it.
+  // out from under someone reading it. The box grows downwards to fit the
+  // reason, and the words already being read stay where they were.
   expect(rect(message()!).top).toBeCloseTo(before.top, 0)
-})
-
-test('a step that had no message can still be given one', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([
-    {
-      id: 'one',
-      target,
-      // A signal, so there is no control either and the box starts away.
-      awaits: 'order-saved',
-      validate: () => false,
-      onValidationError: (_el, utils) => utils.setMessage('Not yet.'),
-    },
-  ])
-
-  expect(visible()).toBe(false)
-  leko.reached('order-saved')
-  await appears()
-
-  expect(words()).toBe('Not yet.')
 })
 
 // --- the next control -----------------------------------------------------

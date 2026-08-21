@@ -11,7 +11,7 @@ app.append(
       <aside class="rail">
         <h1>Leko sandbox</h1>
         <p class="rail-note">
-          Thirteen situations a tour has to survive. Start a story and then use the
+          Fourteen situations a tour has to survive. Start a story and then use the
           page — the cutout is a hole, so everything inside it still works.
           The step's message sits beside its cutout and follows it as you
           scroll; the bar below repeats it, along with the state.

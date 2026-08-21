@@ -287,7 +287,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       const anchor = this.presenter.resolve(step)
       if (anchor === null) return this.lose(step)
       if (!step.validate(anchor)) {
-        step.onValidationError?.(anchor, this.errorUtils(anchor))
+        step.onValidationError?.(anchor, this.errorUtils(step, anchor))
         return
       }
     }
@@ -362,18 +362,38 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     if (story) this.report(story, undefined, previous)
   }
 
-  private errorUtils(anchor: A): ErrorUtils {
+  /**
+   * What one failed attempt at `step` is allowed to do about itself.
+   *
+   * `onValidationError` returns `void`, and a handler is free to look something
+   * up and call back afterwards. So each of these checks the counter the way
+   * every other callback into the application does. A handler that answers a
+   * second late is talking about a step the tour has left, and the words it
+   * wrote belong on that step or nowhere.
+   *
+   * Without the check, a `setError` held that long put the last step's
+   * complaint under the current step's instruction, anchored to an element the
+   * current step never named.
+   *
+   * Nothing here writes to the step. The step object belongs to the
+   * application, and {@link content} reads `message` off it every time it
+   * draws, so an application that edits its own text is seen and Leko never
+   * has a copy to go stale.
+   */
+  private errorUtils(step: S, anchor: A): ErrorUtils {
+    const run = this.generation
+    // The attempt is over the moment the tour moves. Every arrival and every
+    // stop bumps the counter, and a second failed attempt at the same step
+    // bumps nothing, so a step keeps its own utils working for as long as it is
+    // the step being attempted.
+    const stale = () => this.generation !== run
     return {
-      shake: () => this.presenter.reject(),
-      setMessage: (message) => {
-        const step = this.currentStory?.steps[this.at]
-        if (!step) return
-        step.message = message
-        this.presenter.retell(step, anchor, this.content(step))
+      shake: () => {
+        if (stale()) return
+        this.presenter.reject()
       },
       setError: (message) => {
-        const step = this.currentStory?.steps[this.at]
-        if (!step) return
+        if (stale()) return
         this.error = message
         this.presenter.retell(step, anchor, this.content(step))
       },
