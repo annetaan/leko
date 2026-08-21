@@ -305,6 +305,12 @@ in for a state nobody had written down.
 for 600ms while the draft loads, and it reads `meta` back as a chapter label
 while it is there.
 
+`examples/sandbox/src/cases/branching.ts` is the round trip. Three stories and
+one `start('shared', 'summary')` that hands the tour back at the step the paths
+meet. Watch the footer while you take a path. It reads `careful 1/2` inside the
+branch, and `shared 3/3` once you are back. Leko counts inside one story and
+never across a tour, so "step 4 of 6" is arithmetic the application does.
+
 ### Getting the names back, without maintaining a list
 
 A signal name is a string on both sides. The call site writes

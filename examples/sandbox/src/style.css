@@ -197,6 +197,19 @@ button:disabled {
   font-size: 22px;
 }
 
+.choices {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.panel label.checked {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
 .scroller {
   height: 220px;
   overflow: auto;

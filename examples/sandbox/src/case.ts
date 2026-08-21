@@ -21,8 +21,12 @@ export interface Case {
    * The stories this case can run. Typed against the real published types on
    * purpose: the sandbox is the first consumer of the API, so a shape that is
    * awkward here is a shape that will be awkward for everyone.
+   *
+   * `leko` is the same instance `mount` was given, for a story whose own hooks
+   * take the tour somewhere: a branch handing it back with `start(id, at)`.
+   * Most cases take `root` and stop there.
    */
-  stories: (root: HTMLElement) => LekoStory[]
+  stories: (root: HTMLElement, leko: Leko) => LekoStory[]
 }
 
 export function html<T extends HTMLElement>(markup: string): T {

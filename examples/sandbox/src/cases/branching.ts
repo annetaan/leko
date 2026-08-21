@@ -1,0 +1,166 @@
+import type { LekoStep } from '@annetaan/leko'
+
+import { type Case, html } from '../case.js'
+
+// What `start(id, at)` is for. One shared story, two branches out of it, and
+// both of them hand the tour back at the step where the paths meet again. The
+// footer is half the case: the counter restarts at 1/2 when a branch begins and
+// reads shared 3/3 at the rejoin, because Leko counts within one story and
+// never across a tour. “Step 4 of 6” is the application's arithmetic.
+export const branching: Case = {
+  id: 'branching',
+  title: 'A tour that branches',
+  proves:
+    'A branch is three stories and a start(id, at) back to the step they ' +
+    'rejoin at. The switch cuts rather than morphs, and the counter belongs ' +
+    'to whichever story is running.',
+
+  mount(root, leko) {
+    const panel = html(`
+      <div class="panel">
+        <h2>Order review</h2>
+        <div class="summary">
+          <span class="summary-label">Total</span>
+          <strong class="summary-value" data-total>¥2,640</strong>
+          <span class="summary-note">Two lines, tax included</span>
+        </div>
+        <div class="choices">
+          <button type="button" data-careful>Check every line</button>
+          <button type="button" data-quick>Send it now</button>
+        </div>
+        <table class="grid" data-lines>
+          <thead>
+            <tr><th>Item</th><th>Qty</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Enclosure, 2U</td><td>4</td></tr>
+            <tr><td>Rail kit</td><td>4</td></tr>
+          </tbody>
+        </table>
+        <label class="checked" data-check><input type="checkbox" data-checked /> I have read both lines</label>
+        <button type="button" data-send>Send the order</button>
+        <p class="hint" data-status data-sent="no">Nothing sent yet.</p>
+      </div>
+    `)
+    const checkbox = panel.querySelector<HTMLInputElement>('[data-checked]')!
+    const status = panel.querySelector<HTMLElement>('[data-status]')!
+
+    // Branching is a call the application makes. It knows which button was
+    // pressed and which flow that opens, and Leko is told the same way a host
+    // starts any story.
+    panel.querySelector('[data-careful]')!.addEventListener('click', () => {
+      leko.start('careful')
+    })
+    panel.querySelector('[data-quick]')!.addEventListener('click', () => {
+      leko.start('quick')
+    })
+
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) leko.reached('lines-checked')
+    })
+
+    panel.querySelector('[data-send]')!.addEventListener('click', () => {
+      status.textContent = 'Order sent.'
+      status.dataset['sent'] = 'yes'
+
+      // One call, at the point the order goes. Both branches end on it, and
+      // neither of them is named here.
+      leko.reached('order-sent')
+    })
+
+    root.append(panel)
+    return () => panel.remove()
+  },
+
+  stories: (root, leko) => {
+    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
+    const checkbox = at('[data-checked]') as HTMLInputElement
+    const status = at('[data-status]')
+
+    // What a branch assumes: nothing sent yet, and nothing read yet. Both are
+    // the page's own state rather than a variable this file keeps, which is
+    // also what the rejoin below asks about.
+    const fresh = (): void => {
+      checkbox.checked = false
+      status.textContent = 'Nothing sent yet.'
+      status.dataset['sent'] = 'no'
+    }
+
+    // The branch is over and the order really went, so the tour goes back to
+    // the shared story at the step the paths meet at. `stop()` from the footer
+    // arrives here as well, which is why the page's own state gets a say.
+    const rejoin = (step: LekoStep | undefined, previous: LekoStep | undefined): void => {
+      if (step || previous?.id !== 'send' || status.dataset['sent'] !== 'yes') return
+      leko.start('shared', 'summary')
+    }
+
+    return [
+      {
+        id: 'shared',
+        steps: [
+          {
+            id: 'total',
+            target: at('[data-total]'),
+            message: 'Where every path starts. Press Next.',
+          },
+          {
+            id: 'choose',
+            target: [at('[data-careful]'), at('[data-quick]')],
+            message:
+              'Two ways on. Each button starts a story of its own, so watch ' +
+              'the footer: the switch cuts rather than morphs, because two ' +
+              'unrelated stories interpolating into each other would be a ' +
+              'strange thing to watch.',
+          },
+          {
+            id: 'summary',
+            target: at('[data-status]'),
+            message:
+              'The rejoin, reached with start(‘shared’, ‘summary’). A step id ' +
+              'rather than an index, so inserting a step above this one does ' +
+              'not send both branches somewhere else.',
+          },
+        ],
+      },
+      {
+        id: 'careful',
+        onEnter: fresh,
+        onStep: rejoin,
+        steps: [
+          {
+            id: 'lines',
+            // The box is the target, because ticking it is the work. The rows
+            // it is a claim about get a cutout of their own rather than joining
+            // the union, so the space between the two stays dimmed and stays
+            // blocked.
+            target: at('[data-check]'),
+            related: [at('[data-lines]')],
+            message:
+              'careful 1/2 in the footer. A branch counts from one, because ' +
+              'the count belongs to the story that is running.',
+            awaits: 'lines-checked',
+          },
+          {
+            id: 'send',
+            target: at('[data-send]'),
+            message: 'Send it. That ends this branch, and the page hands the tour back.',
+            awaits: 'order-sent',
+          },
+        ],
+      },
+      {
+        id: 'quick',
+        onEnter: fresh,
+        onStep: rejoin,
+        steps: [
+          {
+            id: 'send',
+            target: at('[data-send]'),
+            message: 'quick 1/1. Same button, same signal, same rejoin, one step to get there.',
+            awaits: 'order-sent',
+          },
+        ],
+      },
+    ]
+  },
+}

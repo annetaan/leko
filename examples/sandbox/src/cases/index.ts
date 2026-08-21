@@ -1,6 +1,7 @@
 import type { Case } from '../case.js'
 import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
+import { branching } from './branching.js'
 import { formValidation } from './form-validation.js'
 import { linkedRegions } from './linked-regions.js'
 import { nestedScroller } from './nested-scroller.js'
@@ -24,6 +25,7 @@ export const cases: Case[] = [
   stepSetup,
   storySetup,
   twoStories,
+  branching,
   adjacentColumns,
   linkedRegions,
   nestedScroller,
