@@ -1,15 +1,8 @@
 {
-  "name": "@annetaan/leko",
+  "name": "@annetaan/leko-spotlight",
   "version": "0.0.0",
-  "description": "The spotlight you can click through. Product tours that cut a real hole in the overlay, so the user interacts with your actual UI.",
-  "keywords": [
-    "onboarding",
-    "product-tour",
-    "spotlight",
-    "tour",
-    "tutorial",
-    "walkthrough"
-  ],
+  "private": true,
+  "description": "The scrim, the hole it is cut with, and the message beside it. The drawing half of Leko.",
   "homepage": "https://github.com/annetaan/leko",
   "bugs": "https://github.com/annetaan/leko/issues",
   "license": "MIT",
@@ -17,11 +10,10 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/annetaan/leko.git",
-    "directory": "packages/core"
+    "directory": "packages/spotlight"
   },
   "files": [
     "dist",
-    "README.md",
     "LICENSE"
   ],
   "type": "module",
@@ -36,11 +28,8 @@
     },
     "./leko.css": "./dist/leko.css"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsc && cp src/leko.css dist/leko.css",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p type-tests/bare.tsconfig.json && tsc --noEmit -p type-tests/loose.tsconfig.json && tsc --noEmit -p type-tests/strict.tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
   }
 }

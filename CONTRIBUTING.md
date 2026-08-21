@@ -50,7 +50,7 @@ pnpm typecheck      # tsc --noEmit across workspace packages, and the type tests
 pnpm lint           # oxlint
 pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
-pnpm test           # vitest: core in three browsers, codegen in Node
+pnpm test           # vitest: spotlight and leko in three browsers, machine and codegen in Node
 ```
 
 Markdown is deliberately out of the formatter's reach — prose wrapping is a
@@ -101,9 +101,10 @@ page, not just the rule.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JavaScript
   at all and must stay that way. A bounded morph writing precomputed strings
   reads nothing and is not the same thing.
-- **Adding a runtime dependency to `packages/core`.** It has none on purpose:
-  a dependency there is a licensing and bundle-size liability for every
-  consumer.
+- **Adding a third-party runtime dependency to `packages/leko`.** It has none on
+  purpose: a dependency there is a licensing and bundle-size liability for every
+  consumer. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` come from
+  this repository under the same licence and are not what the rule is about.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design. The vocabulary is gathered *from* those calls, so an error there fires
   only between typing a new name and the generator running, and a `reached()`

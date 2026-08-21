@@ -73,5 +73,5 @@ report as-is, and it was:
 [crbug.com/542859657](https://issues.chromium.org/issues/542859657).
 
 If that is fixed, the declarative route becomes available again and the frame
-loop in `packages/core/src/scrim.ts` can go. Run this page first to check, on a
+loop in `packages/leko/src/scrim.ts` can go. Run this page first to check, on a
 2x display, and record what you saw it on above.

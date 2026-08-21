@@ -3,8 +3,8 @@
 Leko is a product-tour library that highlights an element by cutting a hole in an
 overlay, so the user can interact with the real element underneath.
 
-**Read [DESIGN.md](DESIGN.md) before changing anything under
-`packages/core/src/`.** It states the two constraints the library exists for and
+**Read [DESIGN.md](DESIGN.md) before changing anything under `packages/leko/`,
+`packages/machine/` or `packages/spotlight/`.** It states the two constraints the library exists for and
 argues every rule about the scrim next to the browser behaviour that forced it,
 citing the page under [`spike/`](spike/) that settled each one. Read the cited
 page before overruling a rule; do not restate a rule here that belongs there.
@@ -37,7 +37,9 @@ DESIGN.md. Do not do any of them without reading that page first.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JS at all
   and must stay that way. A bounded morph writing precomputed strings is not
   the same thing and is fine.
-- **Adding a runtime dependency to `packages/core`.** It has none, deliberately.
+- **Adding a third-party runtime dependency to `packages/leko`.** It has none,
+  deliberately. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` are
+  first-party and are fine.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design: the vocabulary is gathered from those calls, and a `reached()` call
   has to stay compilable in builds where no tour runs. DESIGN.md argues it.
@@ -53,8 +55,15 @@ DESIGN.md. Do not do any of them without reading that page first.
 ## Writing code here
 
 Functional core, thin imperative shell — DESIGN.md says why. Geometry goes in
-`geometry.ts` as pure functions with tests of their own; DOM work stays in
-`scrim.ts`, `message.ts` and `leko.ts` and stays small.
+`packages/spotlight/src/geometry.ts` as pure functions with tests of their own;
+DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
+
+`packages/machine` decides which step the tour is on and takes no `lib.dom`, so
+a `document` in it is a compile error. `packages/spotlight` draws and knows
+nothing about steps. `packages/leko` wires the two together, owns the public
+types, and is the only package that publishes. What each half may ask of the
+other is `packages/machine/src/port.ts`, and DESIGN.md argues the two rules that
+interface exists to keep.
 
 New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a
@@ -63,7 +72,7 @@ browser does wants a page in `spike/`.
 `packages/codegen` is the same split: `scan.ts` and `emit.ts` are functions a
 test drives, and `generate.ts` is the part that touches tsconfig and disk. It
 runs in Node as its own Vitest project. Behaviour of the public types wants a
-program under `packages/core/type-tests/`, one per vocabulary state, because an
+program under `packages/leko/type-tests/`, one per vocabulary state, because an
 augmentation applies to a whole compilation.
 
 ## Working in this repository

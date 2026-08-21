@@ -1,23 +1,8 @@
-import { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
-import { Message, type MessageContent } from './message.js'
-import { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'
-import type {
-  ErrorUtils,
-  LekoOptions,
-  LekoSignal,
-  LekoState,
-  LekoStep,
-  LekoStory,
-  LekoTarget,
-} from './types.js'
-
-const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
+import type { Content, Host, Presenter } from './port.js'
+import type { ErrorUtils, MachineOptions, MachineState, StepBase, StoryBase } from './types.js'
 
 /** What the next control reads until an instance says otherwise. */
 const NEXT_LABEL = 'Next'
-
-const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
-  Array.isArray(value) ? value : [value]
 
 /**
  * Whether `onEnter` handed back something to wait for. Asked of the value
@@ -28,34 +13,26 @@ const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
 const isThenable = (value: unknown): value is Promise<void> =>
   typeof (value as Promise<void> | undefined)?.then === 'function'
 
-interface Resolved {
-  /** The element `validate` is given: the first of `target`. */
-  action: HTMLElement
-  cutouts: Cutout[]
-}
-
-export class Leko {
-  private readonly options: LekoOptions
+/**
+ * Which step a tour is on, and how it gets to the next one.
+ *
+ * Nothing here knows what an element is. Whatever draws the tour arrives
+ * through {@link Presenter}, and the tsconfig for this package leaves `lib.dom`
+ * out so that a stray `document` is a compile error rather than a habit.
+ */
+export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> implements Host<
+  S,
+  St
+> {
+  private readonly options: MachineOptions<A, S, St>
+  private readonly presenter: Presenter<A, S>
   /**
    * Every story the application has registered, of which at most one is ever
    * running. Held here so that a call site reports a signal once, to the
    * instance, and never has to know how many stories might care.
    */
-  private readonly stories = new Map<string, LekoStory>()
-  private currentStory: LekoStory | undefined
-  /**
-   * One scrim per scrolling ancestor, innermost first, always ending with the
-   * document. Only the innermost carries the step's cutouts; each outer one is
-   * cut to the shape of the scroller inside it, so the layers together dim the
-   * whole page while each still scrolls with its own content.
-   */
-  private layers: Scrim[] = []
-  /**
-   * Outlives the scrims on purpose. A step in a different scroller rebuilds the
-   * stack of scrims, but the message is anchored to the target rather than
-   * mounted in any of them, so it has nothing to rebuild.
-   */
-  private message: Message | undefined
+  private readonly stories = new Map<string, St>()
+  private currentStory: St | undefined
   /**
    * What the last attempt at the current step was told was wrong with it, set
    * through {@link ErrorUtils.setError}. Held here rather than on the step: it
@@ -66,22 +43,21 @@ export class Leko {
   /** Where in `currentStory.steps` the tour is. Exposed by {@link index}. */
   private at = 0
   /**
-   * The step whose {@link LekoStep.onEnter} has been called and whose `onLeave`
-   * has not. Held rather than worked out from `at`, because a step is abandoned
-   * part way through entering often enough — a rejection, or a signal arriving
-   * while the handler is still in flight — and the cleanup is owed either way.
+   * The step whose `onEnter` has been called and whose `onLeave` has not. Held
+   * rather than worked out from `at`, because a step is abandoned part way
+   * through entering often enough — a rejection, or a signal arriving while the
+   * handler is still in flight — and the cleanup is owed either way.
    */
-  private entered: LekoStep | undefined
+  private entered: S | undefined
   /**
-   * The story whose {@link LekoStory.onEnter} has been called and whose
-   * `onLeave` has not, held for the reason {@link entered} is: a story
-   * abandoned while its setup is still in flight is owed its cleanup all the
-   * same.
+   * The story whose `onEnter` has been called and whose `onLeave` has not, held
+   * for the reason {@link entered} is: a story abandoned while its setup is
+   * still in flight is owed its cleanup all the same.
    */
-  private enteredStory: LekoStory | undefined
+  private enteredStory: St | undefined
   /**
    * Which `onEnter` is in flight, from the call until it settles, and
-   * `undefined` when none is. Nothing may be drawn in that window. The target
+   * `undefined` when none is. Nothing may be drawn in that window. The anchor
    * is resolved after `onEnter`, so a resize arriving mid-flight would measure
    * a step the tour has not entered yet.
    *
@@ -97,31 +73,38 @@ export class Leko {
    */
   private preparing: 'story' | 'step' | undefined
   /**
-   * The step {@link LekoStory.onStep} was last told the tour is on, which is not
-   * `steps[at]`: a step whose `onEnter` is still running is where the tour is
-   * heading and nowhere a host has heard of. Every `previous` is read from here,
-   * so the calls chain — each one leaves from where the last one arrived — and a
-   * run that ends before it draws says it came from nowhere.
+   * The step `onStep` was last told the tour is on, which is not `steps[at]`: a
+   * step whose `onEnter` is still running is where the tour is heading and
+   * nowhere a host has heard of. Every `previous` is read from here, so the
+   * calls chain — each one leaves from where the last one arrived — and a run
+   * that ends before it draws says it came from nowhere.
    */
-  private announced: LekoStep | undefined
+  private announced: S | undefined
   /**
    * Bumped on every start, every arrival at a step and every stop, so an
    * `onEnter` settling late can tell that it is talking about a step nobody is
-   * on any more. The
-   * morph asks the same question by reading the state, which will not work
-   * here: two entries in a row leave the state saying `transitioning` both
-   * times.
+   * on any more. A presenter that settles late is dropped by the same counter,
+   * which is why {@link Presenter.show} makes no promise about when or whether
+   * it settles.
    */
   private generation = 0
-  private currentState: LekoState = 'idle'
-  private onViewportChange: (() => void) | undefined
-  private watcher: MutationObserver | undefined
+  private currentState: MachineState = 'idle'
 
-  constructor(options: LekoOptions = {}) {
+  /**
+   * The presenter is built here rather than handed in, because it needs a
+   * {@link Host} and the host is this object. A factory is the shortest way to
+   * close that loop without leaving a window where one exists and the other
+   * does not.
+   */
+  constructor(
+    options: MachineOptions<A, S, St>,
+    presenter: (host: Host<S, St>) => Presenter<A, S>,
+  ) {
     this.options = options
+    this.presenter = presenter(this)
   }
 
-  get state(): LekoState {
+  get state(): MachineState {
     return this.currentState
   }
 
@@ -133,12 +116,12 @@ export class Leko {
    * against, and {@link index} is the position within it. Adding to or
    * reordering `steps` while it runs moves the ground under that position.
    */
-  get story(): LekoStory | undefined {
+  get story(): St | undefined {
     return this.currentState === 'idle' ? undefined : this.currentStory
   }
 
   /** The step being shown, or `undefined` while idle. */
-  get step(): LekoStep | undefined {
+  get step(): S | undefined {
     return this.currentState === 'idle' ? undefined : this.currentStory?.steps[this.at]
   }
 
@@ -148,7 +131,7 @@ export class Leko {
    * Read this rather than searching `story.steps` for {@link step}. A step is a
    * plain object with no identity of its own, and a story may hold the same one
    * twice, so `indexOf` returns the first of them and a counter built on it
-   * walks backwards. Leko is holding the position anyway.
+   * walks backwards. The machine is holding the position anyway.
    */
   get index(): number | undefined {
     return this.currentState === 'idle' ? undefined : this.at
@@ -162,23 +145,13 @@ export class Leko {
    * running swaps what the current step is read from and redraws nothing: a
    * re-render must not restart a tour someone is in the middle of.
    */
-  setStory(story: LekoStory): void {
+  setStory(story: St): void {
     this.stories.set(story.id, story)
     if (this.currentStory?.id === story.id) this.currentStory = story
   }
 
   /**
    * Show `storyId`, from its first step or from `at` — a step id or an index.
-   *
-   * Whatever was running stops, and reports its own ending first. One story at
-   * a time is the whole design: two scrims would each block with rectangles
-   * built from their own cutouts, so each would cover the other's target.
-   *
-   * Moving a user from one story into another is an ordinary thing to do, and
-   * `at` composes them: run a shared story, branch into one of several, then
-   * start the shared one again at the step the branch rejoins. The switch cuts
-   * rather than morphs, the same as any other start, because two unrelated
-   * stories interpolating into each other would be a strange thing to watch.
    *
    * Nothing is torn down until the arguments are known to be good, so a typo
    * cannot end a tour someone is in the middle of. An `at` that is not a whole
@@ -211,7 +184,7 @@ export class Leko {
    * A handler that hands back nothing costs nothing, exactly as a step's does —
    * the first step is entered in the same turn `start()` was called in.
    */
-  private enterStory(story: LekoStory): void {
+  private enterStory(story: St): void {
     const run = ++this.generation
     this.enteredStory = story
     let entering: unknown
@@ -256,14 +229,8 @@ export class Leko {
    *
    * A move is reported only once it has survived being drawn, which is why
    * {@link arrive} asks whether the tour is still on the arrival it started.
-   * `draw` ends a run whose target has gone, `stop` reports that ending, and a
-   * move announced after it would put a readout back on a story that is over.
    */
-  private report(
-    story: LekoStory,
-    step: LekoStep | undefined,
-    previous: LekoStep | undefined,
-  ): void {
+  private report(story: St, step: S | undefined, previous: S | undefined): void {
     story.onStep?.(step, previous)
     this.options.onStep?.(step, previous, story)
   }
@@ -276,24 +243,14 @@ export class Leko {
    * call. Instrumentation is meant to stay in the source permanently, including
    * in builds where no tour ever runs, so an unmatched call has to be free and
    * silent.
-   *
-   * `name` is any string, always. The project's vocabulary is offered as
-   * completion and never enforced here, which is the same reason this method
-   * stays silent about a name nothing awaits.
    */
-  reached(name: LekoSignal): void {
+  reached(name: string): void {
     const step = this.step
     if (step?.awaits === name) this.advance(step)
   }
 
   /**
    * Advance whatever step is showing, without naming it.
-   *
-   * This is for a control on screen: the one Leko puts on the message of a step
-   * that declares no signal, or one the host puts in its own chrome — the
-   * sandbox's footer. Instrumentation spread through application code wants
-   * {@link reached} instead: a bare "advance" has to know the shape of the tour
-   * to be written in the right place.
    *
    * A no-op while idle, so callers never have to guard.
    */
@@ -302,30 +259,35 @@ export class Leko {
     if (step) this.advance(step)
   }
 
+  /** {@link Host.next}. The presenter's own control means what `nextStep` means. */
+  next(): void {
+    this.nextStep()
+  }
+
   /**
-   * It is *not* a no-op mid morph: silently dropping a call would be Leko
-   * deciding the application did not mean it, which is the guessing this library
+   * It is *not* a no-op mid morph: silently dropping a call would be the
+   * library deciding the application did not mean it, which is the guessing it
    * exists to avoid. A morph is a step that arrived and is still moving, and a
    * call during one means what it says.
    *
    * An `onEnter` in flight is the other thing. Nothing that step assumes has
-   * been built, its target has not been looked for, and it has never been on
+   * been built, its anchor has not been looked for, and it has never been on
    * screen, so there is no step here to advance away from and nothing for
    * `validate` to read. The call is dropped where it stands rather than held
    * until the handler settles: a signal saved over is a step advancing on
    * something that happened before it began.
    */
-  private advance(step: LekoStep): void {
+  private advance(step: S): void {
     if (this.preparing) return
     const story = this.currentStory
     if (!story) return
     const steps = story.steps
 
     if (step.validate) {
-      const action = resolveTarget(asArray(step.target)[0]!)
-      if (!action) return this.lose(step)
-      if (!step.validate(action)) {
-        step.onValidationError?.(action, this.errorUtils(action))
+      const anchor = this.presenter.resolve(step)
+      if (anchor === null) return this.lose(step)
+      if (!step.validate(anchor)) {
+        step.onValidationError?.(anchor, this.errorUtils(anchor))
         return
       }
     }
@@ -341,9 +303,6 @@ export class Leko {
   /**
    * Step back. Never validates: going back is not a claim of success.
    *
-   * It reports through {@link LekoStory.onStep} like anything else. The hook
-   * says where the story is, and not why it went there.
-   *
    * A step whose own `onEnter` is in flight is one this can walk out of, and
    * {@link advance} is the call that gets dropped there instead. A story whose
    * `onEnter` is in flight is not. Every step of it is waiting on that handler,
@@ -358,7 +317,7 @@ export class Leko {
   }
 
   /**
-   * Reports the ending through {@link LekoStory.onStep} before returning, with
+   * Reports the ending through the story's `onStep` before returning, with
    * `step` as `undefined`. The host that called this knows already, and
    * whatever draws the progress is written somewhere else and does not.
    *
@@ -369,11 +328,11 @@ export class Leko {
   }
 
   /**
-   * Ending a run, told where the tour is going next so that
-   * {@link LekoStory.onLeave} can be. `next` is a story only when `start()` is
-   * displacing this one; every other ending has nowhere to name.
+   * Ending a run, told where the tour is going next so that the story's
+   * `onLeave` can be. `next` is a story only when `start()` is displacing this
+   * one; every other ending has nowhere to name.
    */
-  private end(next: LekoStory | undefined): void {
+  private end(next: St | undefined): void {
     if (this.currentState === 'idle') return
     const story = this.currentStory
     const previous = this.announced
@@ -387,9 +346,7 @@ export class Leko {
     // start a story, and the arrival that story announces is where the tour
     // really is by the time this call finishes.
     this.announced = undefined
-    this.teardown()
-    this.message?.destroy()
-    this.message = undefined
+    this.presenter.teardown()
     // Taken before `leave` runs, because `leave` hands control to the
     // application and a step's `onLeave` is allowed to start a story of its
     // own. That story is entered by the time control comes back, so reading
@@ -405,84 +362,27 @@ export class Leko {
     if (story) this.report(story, undefined, previous)
   }
 
-  /** Step, then story, then instance: the nearest one that says anything wins. */
-  private setting(step: LekoStep, key: 'padding' | 'radius'): number {
-    return step[key] ?? this.currentStory?.[key] ?? this.options[key] ?? DEFAULTS[key]
-  }
-
-  private errorUtils(action: HTMLElement): ErrorUtils {
+  private errorUtils(anchor: A): ErrorUtils {
     return {
-      shake: () => this.layers[0]?.shake(),
+      shake: () => this.presenter.reject(),
       setMessage: (message) => {
         const step = this.currentStory?.steps[this.at]
         if (!step) return
         step.message = message
-        // Nothing has moved, so a visible message only changes its words.
-        // Re-placing it would jump the box out from under someone in the middle
-        // of reading why they were stopped. A step that had no message until now
-        // has nowhere to jump from, so that one is placed properly.
-        if (this.message?.visible) this.message.setText(message)
-        else this.say(step, action)
+        this.presenter.retell(step, anchor, this.content(step))
       },
       setError: (message) => {
         const step = this.currentStory?.steps[this.at]
         if (!step) return
         this.error = message
-        if (this.message?.visible) this.message.setError(message)
-        else this.say(step, action)
+        this.presenter.retell(step, anchor, this.content(step))
       },
     }
   }
 
-  /**
-   * The step's cutouts, in whatever space `measure` reports in.
-   *
-   * The scrim wants them in its own content coordinates; the message wants the
-   * same shapes in viewport coordinates, to work out which side of them has room
-   * on screen. Same geometry, two readers, so the space is the parameter.
-   */
-  private resolve(step: LekoStep, measure: (el: HTMLElement) => Rect): Resolved | null {
-    const targets = resolveTargets(asArray(step.target))
-    const action = targets[0]
-    if (!action) return null
-
-    const padding = this.setting(step, 'padding')
-    const radius = this.setting(step, 'radius')
-
-    // The action target is one cutout — the union of however many elements were
-    // named. Everything in `related` stays separate, because the union of two
-    // distant regions covers everything between them.
-    const box = union(targets.map(measure))
-    if (!box) return null
-    const cutouts: Cutout[] = [{ ...grow(box, padding), radius }]
-
-    for (const el of resolveTargets(step.related ?? [])) {
-      cutouts.push({ ...grow(measure(el), padding), radius })
-    }
-    return { action, cutouts }
-  }
-
-  /**
-   * Put the message beside the step's cutouts.
-   *
-   * Measured in viewport coordinates and only at step boundaries: the side is
-   * chosen from what is on screen now, and the browser holds the message there
-   * through every scroll that follows.
-   */
-  private say(step: LekoStep, action: HTMLElement): void {
-    const content: MessageContent = {
-      text: step.message,
-      error: this.error,
-      next: this.nextLabel(step),
-    }
-    if (!content.text && !content.error && !content.next) {
-      this.message?.hide()
-      return
-    }
-    this.message ??= new Message(() => this.nextStep())
-    const onScreen = this.resolve(step, (el) => el.getBoundingClientRect())
-    const gap = this.setting(step, 'padding')
-    this.message.show(content, action, onScreen?.cutouts ?? [], gap)
+  /** Everything the box beside the cutout should be showing for this step. */
+  private content(step: S): Content {
+    return { text: step.message, error: this.error, next: this.nextLabel(step) }
   }
 
   /**
@@ -499,65 +399,28 @@ export class Leko {
    * even where the step has no message, because a box with a button in it is
    * the difference between a step the user can leave and one they cannot.
    */
-  private nextLabel(step: LekoStep): string | undefined {
+  private nextLabel(step: S): string | undefined {
     if (step.awaits !== undefined) return undefined
     return this.options.nextLabel ?? NEXT_LABEL
   }
 
   /**
-   * Every scrolling ancestor of `el`, innermost first, always ending in `null`
-   * for the document itself.
-   */
-  private static chainOf(el: HTMLElement): (HTMLElement | null)[] {
-    const container = findScrollContainer(el)
-    return container ? [container, ...Leko.chainOf(container)] : [null]
-  }
-
-  /**
-   * Put the cutouts where they belong, right now and without animating.
+   * {@link Host.moved}. Nothing about the tour changed, so the step is placed
+   * rather than replayed.
    *
-   * Used when the surface moved under the tour rather than the tour moving —
-   * a resize, say. Replaying the opening there would blow the cutout back up to
-   * the size of the page and converge again, so for a moment almost nothing
-   * would be dimmed.
+   * Nothing of this step has been measured while its `onEnter` is in flight,
+   * and measuring it here would be reading the anchor early by another route.
    */
-  private place(): void {
+  moved(): void {
     const step = this.currentStory?.steps[this.at]
-    // Nothing of this step has been measured while its `onEnter` is in flight,
-    // and measuring it here would be reading the target early by another route.
     if (this.currentState === 'idle' || this.preparing || !step) return
-    const inner = this.layers[0]
-    if (!inner) return
-    for (const layer of this.layers) layer.resize()
-    const action = resolveTarget(asArray(step.target)[0]!)
-    this.cutOuterLayers(Leko.chainOf(action ?? document.body))
-    const resolved = this.resolve(step, (el) => rectWithin(el, inner.container))
-    if (resolved) inner.set(resolved.cutouts)
-    // The message needs no help to follow a scroll, but a resize can leave the
-    // side it was put on without room, so that choice is made again.
-    if (action) this.say(step, action)
-  }
-
-  /** Each outer layer is cut to the scroller nested inside it. */
-  private cutOuterLayers(chain: (HTMLElement | null)[]): void {
-    this.layers.slice(1).forEach((layer, i) => {
-      const nested = chain[i]
-      if (!nested) return
-      // Match the scroller's own rounding, or its corners show through the hole.
-      const radius = parseFloat(getComputedStyle(nested).borderTopLeftRadius) || 0
-      layer.set([{ ...paddingBoxWithin(nested, layer.container), radius }])
-    })
+    this.presenter.place(step, this.presenter.resolve(step), this.content(step))
   }
 
   /**
-   * Every arrival at a step, forwards or back, and the only place a step
-   * starts. The order is the whole of it: leave the step before this one, let
-   * the application build what this one assumes, and only then look at the page.
+   * Enter `steps[at]`.
    *
-   * Resolving the target first would read one that does not exist yet, or one
-   * that `onEnter` is about to move. So a handler that hands back a promise
-   * moves everything below it into a later turn, and one that hands back
-   * nothing costs nothing at all.
+   * A handler that hands back nothing costs nothing at all.
    */
   private enter(animate: boolean): void {
     const story = this.currentStory
@@ -574,7 +437,7 @@ export class Leko {
     this.preparing = undefined
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived.
-    this.message?.hide()
+    this.presenter.hide()
     const run = ++this.generation
     this.leave(step)
     // Leaving is a call into the application, and an application is free to
@@ -612,12 +475,12 @@ export class Leko {
    * Draw the step, then say the tour moved, in that order and only if it is
    * still the arrival that started.
    *
-   * `draw` hands a lost target to `lose`, and a host that handles it keeps the
+   * `draw` hands a lost anchor to `lose`, and a host that handles it keeps the
    * tour on this step, so that path reports the move like any other. A host
    * with no handler gets a `stop`, which bumps the generation and reports the
    * ending itself.
    */
-  private arrive(step: LekoStep, animate: boolean, story: LekoStory, run: number): void {
+  private arrive(step: S, animate: boolean, story: St, run: number): void {
     // `onEnter` is the other call into the application that can take the tour
     // somewhere else before anything of this step has been drawn.
     if (this.generation !== run) return
@@ -632,30 +495,61 @@ export class Leko {
   }
 
   /**
-   * Pairs with {@link LekoStep.onEnter}, once for every call to it. Cleared
-   * before the handler runs, so an `onLeave` that calls `stop()` does not come
-   * back round to itself.
+   * Hand the step to the presenter and wait for it to arrive.
+   *
+   * `show` handing back nothing means it is already there, and the step is
+   * settled in this turn. Where it hands back a promise, only the arrival that
+   * is still current may call the step settled: starting another interrupts
+   * this one, and without the counter its promise would resolve a moment later
+   * and mark the *new* step as done before it had moved.
    */
-  private leave(next: LekoStep | undefined): void {
+  private draw(step: S, animate: boolean): void {
+    const anchor = this.presenter.resolve(step)
+    if (anchor === null) return this.lose(step)
+
+    const run = this.generation
+    const showing = this.presenter.show(step, anchor, this.content(step), animate)
+    // `show` is a call into the presenter, and a presenter that cannot find
+    // what it needs says so through `lost`, which ends the run before this
+    // returns. Calling the step settled after that would put `running` back on
+    // a tour that is over.
+    if (this.generation !== run) return
+    if (!isThenable(showing)) {
+      this.currentState = 'running'
+      return
+    }
+    this.currentState = 'transitioning'
+    void showing.then(() => {
+      if (this.generation !== run) return
+      this.currentState = 'running'
+    })
+  }
+
+  /**
+   * Pairs with the step's `onEnter`, once for every call to it. Cleared before
+   * the handler runs, so an `onLeave` that calls `stop()` does not come back
+   * round to itself.
+   */
+  private leave(next: S | undefined): void {
     const step = this.entered
     this.entered = undefined
     step?.onLeave?.(step, next)
   }
 
   /**
-   * Pairs with {@link LekoStory.onEnter}, once for every call to it. The story
-   * is handed in rather than read from `enteredStory` here, because `end` has
-   * to take it before the step's `onLeave` runs. {@link leave} clears first for
+   * Pairs with the story's `onEnter`, once for every call to it. The story is
+   * handed in rather than read from `enteredStory` here, because `end` has to
+   * take it before the step's `onLeave` runs. {@link leave} clears first for
    * the same reason, and can do it in one place because nothing runs between.
    */
-  private leaveStory(story: LekoStory | undefined, next: LekoStory | undefined): void {
+  private leaveStory(story: St | undefined, next: St | undefined): void {
     story?.onLeave?.(story, next)
   }
 
   /**
    * An `onEnter` that failed leaves a step assuming a state nobody built, so
    * the tour stops rather than pointing the user at something that is not
-   * ready. That is what `lose` decides about a target that is not there.
+   * ready. That is what `lose` decides about an anchor that is not there.
    *
    * The reason is thrown again on its own, because a library that quietly eats
    * an application's exception is why the bug takes a day to find. Throwing it
@@ -669,116 +563,25 @@ export class Leko {
     })
   }
 
-  private draw(step: LekoStep, animate: boolean): void {
-    const action = resolveTarget(asArray(step.target)[0]!)
-    if (!action) return this.lose(step)
-
-    const chain = Leko.chainOf(action)
-    // A step in a different set of scrollers needs a different stack of scrims.
-    // Rebuilding is not a morph, so it happens outright rather than half-way.
-    const sameStack =
-      this.layers.length === chain.length && this.layers.every((l, i) => l.container === chain[i])
-    if (!sameStack) this.teardown()
-
-    if (this.layers.length === 0) {
-      this.layers = chain.map((container) => new Scrim(container))
-      this.watchViewport()
-    }
-
-    const container = chain[0] ?? null
-    const resolved = this.resolve(step, (el) => rectWithin(el, container))
-    if (!resolved) return this.lose(step)
-
-    const inner = this.layers[0]
-    if (!inner) return this.lose(step)
-
-    // These holes move only when layout does, never when something scrolls.
-    this.cutOuterLayers(chain)
-
-    if (!animate) {
-      // Open from a hole larger than the surface, so the scrim converges inward
-      // rather than appearing already cut.
-      const w = inner.element.offsetWidth
-      const h = inner.element.offsetHeight
-      const m = Math.max(w, h)
-      inner.set([{ x: -m, y: -m, width: w + m * 2, height: h + m * 2, radius: 0 }])
-    }
-
-    this.watchTarget(step, action)
-
-    // The message went when the last step did, and comes back once the cutout
-    // has arrived. The side with room is a fact about where the hole ends up,
-    // so there is nowhere honest to put it while one is on its way.
-    const duration = this.currentStory?.duration ?? this.options.duration ?? DEFAULTS.duration
-    const morphing = inner.morph(resolved.cutouts, duration)
-    if (!morphing) {
-      this.currentState = 'running'
-      this.say(step, action)
-      return
-    }
-    this.currentState = 'transitioning'
-    // Only the morph that actually finished may call the step settled. Starting
-    // a new one interrupts the last, and without this its promise would resolve
-    // a moment later and mark the *new* step as done before it had moved.
-    void morphing.then((finished) => {
-      if (!finished || this.currentState !== 'transitioning') return
-      this.currentState = 'running'
-      this.say(step, action)
-    })
-  }
-
   /**
-   * Notice when the step's target leaves the page.
-   *
-   * Without this the cutout would sit over the gap where the element used to
-   * be, which is the worst of both: the page is dimmed, and the one thing the
-   * user was told to act on is not there. Mutations are watched rather than
-   * polled, so this stays off the frame budget.
+   * {@link Host.lost}. The step is handed in rather than read from `at`,
+   * because a presenter watching the step it was shown can notice the loss
+   * after the tour has started heading somewhere else.
    */
-  private watchTarget(step: LekoStep, action: HTMLElement): void {
-    this.watcher?.disconnect()
-    this.watcher = new MutationObserver(() => {
-      if (action.isConnected) return
-      this.lose(step)
-    })
-    this.watcher.observe(document.body, { childList: true, subtree: true })
+  lost(step: S): void {
+    this.lose(step)
   }
 
-  /**
-   * Resizing changes the surface the path is drawn on, so the path is rebuilt —
-   * placed, not replayed. Scrolling deliberately is not listened for: the scrim
-   * sits inside whatever scrolls, so it moves with the target on its own.
-   */
-  private watchViewport(): void {
-    this.onViewportChange = () => this.place()
-    window.addEventListener('resize', this.onViewportChange)
-  }
-
-  private lose(step: LekoStep): void {
+  private lose(step: S): void {
     const story = this.currentStory
-    // Whatever the host decides to do about it, the message goes now: its anchor
-    // has left the page, and an anchored element whose anchor is gone falls back
-    // to wherever normal positioning puts it.
-    this.message?.hide()
+    // Whatever the host decides to do about it, the message goes now: its
+    // anchor has left the page, and an anchored element whose anchor is gone
+    // falls back to wherever normal positioning puts it.
+    this.presenter.hide()
     if (story && this.options.onTargetLost) {
       this.options.onTargetLost(step, story.id)
       return
     }
     this.stop()
   }
-
-  private teardown(): void {
-    this.watcher?.disconnect()
-    this.watcher = undefined
-    if (this.onViewportChange) {
-      window.removeEventListener('resize', this.onViewportChange)
-      this.onViewportChange = undefined
-    }
-    for (const layer of this.layers) layer.destroy()
-    this.layers = []
-  }
-}
-
-export function createLeko(options: LekoOptions = {}): Leko {
-  return new Leko(options)
 }

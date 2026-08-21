@@ -387,9 +387,9 @@ for a project that needs it and keeps the completion.
 - **It does not cover story ids.** `start('first-order')` deserves the same
   treatment through a third interface beside these two. It was left out to keep
   the first one small.
-- **It does not put the generator inside the core.** `packages/core` has no
-  dependencies and this needs the TypeScript compiler API, so it is a package of
-  its own that a consumer installs only if they want it.
+- **It does not put the generator inside the core.** `packages/leko` takes no
+  third-party dependencies and this needs the TypeScript compiler API, so it is
+  a package of its own that a consumer installs only if they want it.
 
 #### Targets have the same hole, with an easier answer
 
@@ -428,7 +428,7 @@ the `include` of the tsconfig is compiled by nobody, so the augmentation never
 applies and again nothing reports a problem. The generator checks its own output
 against the project after writing it and says so, because nothing else will.
 
-`packages/core/type-tests/` holds the three states, one `tsconfig` each: no
+`packages/leko/type-tests/` holds the three states, one `tsconfig` each: no
 vocabulary, a vocabulary, and a vocabulary with the promise. An augmentation
 applies to a whole compilation, so they cannot be three files in one program.
 The strict one asserts a `@ts-expect-error`, which is the only way to assert that
@@ -587,23 +587,110 @@ A morph takes the message away and places it again once the cutout has arrived.
 Which side has room is a fact about where the cutout ends up, so there is no
 honest place for it while the hole is still in flight.
 
-**The core has no runtime dependencies and must stay that way.** Do not reach for
-an animation library — a scalar tween is all this needs, and a dependency here
-would be a licensing and bundle-size liability for every consumer.
+**The core has no third-party runtime dependencies and must stay that way.** Do
+not reach for an animation library — a scalar tween is all this needs, and a
+dependency here would be a licensing and bundle-size liability for every
+consumer. `@annetaan/leko-spotlight` is not one of those. It ships from this
+repository under the same licence, and the rule was written about code from
+somewhere else.
+
+## Three packages, and the seam between them
+
+`@annetaan/leko` is the only package anyone installs. Underneath it are two that
+do different jobs, and the line between them was drawn after the same bug turned
+up three times.
+
+`packages/machine` decides which step the tour is on. `packages/spotlight` draws
+the scrim, the hole and the message. Neither knows what the other is for.
+
+### Why they are apart
+
+The machine carries seven fields: `currentState`, `at`, `entered`,
+`enteredStory`, `preparing`, `announced` and `generation`. What has to hold
+between them was written in comments and nowhere else, and three fixes in a row
+were the same shape. An `onEnter` settled at one moment, a call from the host
+arrived at another, and two of the seven ended up disagreeing about where the
+tour was. #31 reported a step nobody had been told the tour reached. #33 left
+the in-flight flag up and killed every later signal. #35 walked out of a story
+whose setup had not finished.
+
+Those are interleavings. Finding them by hand means guessing which one to write
+a test for. Enumerating them means running the machine thousands of times, and
+that was unaffordable while every run needed chromium, firefox and webkit. The
+suite has 74 tests for the machine and each ran three times, in three engines,
+for claims that never mention layout.
+
+So `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in
+that package is a compile error, and the tests for it can run against a fake in
+Node.
+
+### The seam runs both ways
+
+The naive picture has the scrim downstream of the machine, and it is wrong. Four
+things went the other way.
+
+`draw` wrote `currentState`, and whether the tour read `running` or
+`transitioning` depended on whether a morph had started. A `MutationObserver`
+turned a target leaving the page into the end of a run. `place` read `preparing`
+before it measured anything. `validate` took an `HTMLElement`.
+
+The machine kept all four. It stopped knowing they were DOM. `Machine<A, S, St>`
+is generic over the anchor type, which is `HTMLElement` in `@annetaan/leko` and
+whatever a test finds convenient.
+
+### Two rules the port exists to keep
+
+**The presenter never schedules itself.** A resize listener used to call
+`place()`, and `place()` checked `preparing`. Now the presenter reports through
+`Host.moved()` and waits. Whether the tour may be measured at all is a fact
+about the machine's state, and one owner for that guard is the point.
+
+**The presenter never decides whether there is a next control.** `Content.next`
+is filled in by the machine, derived from `awaits`, and the presenter renders
+what it is given. The second constraint depends on that rule, and a presenter
+free to decide it would be a way to configure the rule back off.
+
+One thing got shorter. `draw` used to tell an interrupted morph from a finished
+one by reading `currentState`, because a morph does not bump the generation
+counter. `Presenter.show` now hands back something the machine checks against
+its own run counter, which is what it already did with `onEnter`. Two rules
+became one.
+
+### What is declared twice, and why
+
+`Target`, `ErrorUtils` and the three state literals are written out in both
+`@annetaan/leko` and the package underneath it. That is deliberate while those
+packages are private. A published `.d.ts` that referred to
+`@annetaan/leko-machine` would not resolve in anyone's project.
+
+Whether all three get published is open. Publishing them costs three changelogs
+and a version matrix. Bundling at the `@annetaan/leko` boundary instead costs a
+build tool in a package that gets by on `tsc`. I lean towards publishing, and
+the duplication above goes away on the day that is decided either way.
 
 ## Layout
 
 ```
-packages/core/       the `@annetaan/leko` package
+packages/leko/       the `@annetaan/leko` package, the only published one
   src/types.ts       public types (LekoStep, LekoStory, LekoOptions, LekoState)
+  src/leko.ts        the public class: the machine and the presenter, wired
+  src/presenter.ts   Presenter over the DOM, drawn with the spotlight
+  src/index.ts       public entry point
+  src/*.test.ts      browser tests; excluded from the published build
+  type-tests/        one tsconfig per vocabulary state; run by `pnpm typecheck`
+packages/machine/    the `@annetaan/leko-machine` package, private for now
+  src/machine.ts     which step the tour is on, and how it gets to the next
+  src/port.ts        Presenter and Host: what each half may ask of the other
+  src/types.ts       StepBase, StoryBase, ErrorUtils, MachineState
+  src/globals.d.ts   the two globals this package takes no `lib.dom` for
+  src/machine.test.ts  Node tests, against a presenter the file writes
+packages/spotlight/  the `@annetaan/leko-spotlight` package, private for now
   src/geometry.ts    target resolution, unions, and the path the scrim is clipped to
   src/scrim.ts       the scrim element: where it mounts, how it morphs
   src/message.ts     the step message: where it mounts, how it keeps up
-  src/leko.ts        the state machine
-  src/index.ts       public entry point
+  src/index.ts       everything `@annetaan/leko` draws with
   src/*.test.ts      browser tests; excluded from the published build
   src/leko.css       optional; the --leko-* defaults, written out to be findable
-  type-tests/        one tsconfig per vocabulary state; run by `pnpm typecheck`
 packages/codegen/    the `@annetaan/leko-codegen` package
   src/scan.ts        the walk: every name a reached() call reports
   src/emit.ts        the declaration file that comes out, as a string
@@ -643,8 +730,8 @@ ones that have actually caught things.
 
 The shell is deliberately thin. Reading layout, writing styles and owning the
 lifetime of an element are the parts that cannot be pure, so they are kept in
-`scrim.ts`, `message.ts` and `leko.ts` and kept small — decide with a function,
-then apply the answer. When a piece of logic starts being hard to follow inside a
+`scrim.ts`, `message.ts` and `presenter.ts` and kept small — decide with a
+function, then apply the answer. When a piece of logic starts being hard to follow inside a
 class, that is usually a sign it wanted to be a function in `geometry.ts` with a
 test of its own.
 
@@ -653,10 +740,10 @@ for it only when the alternative is genuinely worse.
 
 ## Why the tests run where they do
 
-**jsdom is not an option here.** It has no layout, and every claim this library
-makes is about layout the browser actually performed — where a box ended up,
-what hit-testing returns at a point. A test that cannot see layout cannot test
-this library, so the suite runs through Vitest's browser mode instead.
+**jsdom is not an option for anything about layout.** It has no layout, and a
+claim about where a box ended up or what hit-testing returns at a point cannot
+be tested without it. `spotlight` and `leko` run through Vitest's browser mode
+for that reason.
 
 All three engines run because the two things the library is built on are ones
 engines disagree about: what `clip-path: path()` interpolates, and how much of
@@ -667,11 +754,30 @@ first, so a browser that degrades reports that rather than a failure.
 install — passing here is not evidence about any particular Safari, and the
 floor below still has to be checked on the real thing.
 
-`packages/codegen` runs in Node instead, as its own Vitest project. It reads
-TypeScript source and writes a file. There is no layout in any of that and no
-DOM to be wrong about, and running it three times in three browsers would prove
-nothing and cost three times as much. The rule is about what a test needs to see,
-and these two need different things.
+`packages/machine` and `packages/codegen` run in Node, each as its own Vitest
+project. Neither has a DOM to be wrong about. The rule is about what a test
+needs to see, and these need different things from the two above.
+
+`packages/machine` was the bigger move. 44 of the 74 tests in `leko.test.ts`
+never mentioned the DOM once. They said that a signal advanced a step, or that a
+report named the step before it, and each of them cost three browser engines a
+run to say it. They test the machine against a presenter the test file writes,
+where an anchor is a string and a target that is not on the page is a name the
+fake does not hold. That took 132 browser runs down to 44 Node ones, and the
+whole machine project finishes in under 100ms.
+
+The 30 that stayed are the ones whose assertion touches the page: what
+`elementFromPoint` returns, where a scrim mounted, what a resize did to a
+cutout. That is the line, and it is worth keeping sharp. A test that never
+mentions the DOM is a test that never needed a browser, and one that does needs
+all three engines.
+
+Put each of #31, #33 and #35 back into `machine.ts` and the Node project catches
+all three: six failures, one and one. #35 needed two tests written for it there,
+because the pair that found it originally asked `scrim()` whether anything had
+been drawn and so belonged to the browser project by that line. The claim itself
+is about a guard on `prevStep`, and the machine project is where the next round
+of this is going to be looked for.
 
 ## Browser support
 

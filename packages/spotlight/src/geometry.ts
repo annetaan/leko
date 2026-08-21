@@ -1,4 +1,9 @@
-import type { LekoTarget } from './types.js'
+/**
+ * Anything the spotlight can be pointed at. Declared here rather than imported,
+ * because the package this one is drawn for is the package that depends on it.
+ * `@annetaan/leko` names the same union `LekoTarget` for its users.
+ */
+export type Target = string | HTMLElement
 
 export interface Rect {
   x: number
@@ -16,15 +21,12 @@ export interface Cutout extends Rect {
  * never read as "all matches", because widening that later would silently
  * change what existing tours highlight.
  */
-export function resolveTarget(
-  target: LekoTarget,
-  scope: ParentNode = document,
-): HTMLElement | null {
+export function resolveTarget(target: Target, scope: ParentNode = document): HTMLElement | null {
   if (typeof target !== 'string') return target.isConnected ? target : null
   return scope.querySelector<HTMLElement>(target)
 }
 
-export function resolveTargets(targets: readonly LekoTarget[], scope?: ParentNode): HTMLElement[] {
+export function resolveTargets(targets: readonly Target[], scope?: ParentNode): HTMLElement[] {
   return targets
     .map((target) => resolveTarget(target, scope))
     .filter((el): el is HTMLElement => el !== null)

@@ -31,4 +31,4 @@ does one of these needs to answer that page, not just the rule.
 - [ ] Moves the morph onto `element.animate()`
 - [ ] Drops a subpath when a step needs fewer cutouts
 - [ ] Reads layout while the user scrolls
-- [ ] Adds a runtime dependency to `packages/core`
+- [ ] Adds a third-party runtime dependency to `packages/leko`

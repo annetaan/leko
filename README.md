@@ -144,7 +144,7 @@ nothing to import, and nothing lands in your bundle.
 A step can highlight several adjacent elements as one hole (`target: [a, b]`),
 or bring along further holes that explain it (`related: [...]`). Every option is
 documented next to itself in
-[`packages/core/src/types.ts`](packages/core/src/types.ts).
+[`packages/leko/src/types.ts`](packages/leko/src/types.ts).
 
 ## What makes it different
 

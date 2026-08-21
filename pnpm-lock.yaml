@@ -37,7 +37,7 @@ importers:
     dependencies:
       '@annetaan/leko':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/leko
     devDependencies:
       '@annetaan/leko-codegen':
         specifier: workspace:*
@@ -50,7 +50,7 @@ importers:
     devDependencies:
       '@annetaan/leko':
         specifier: workspace:*
-        version: link:../core
+        version: link:../leko
       '@types/node':
         specifier: ^24.10.0
         version: 24.13.3
@@ -61,7 +61,18 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@24.13.3)
 
-  packages/core: {}
+  packages/leko:
+    dependencies:
+      '@annetaan/leko-machine':
+        specifier: workspace:*
+        version: link:../machine
+      '@annetaan/leko-spotlight':
+        specifier: workspace:*
+        version: link:../spotlight
+
+  packages/machine: {}
+
+  packages/spotlight: {}
 
 packages:
 

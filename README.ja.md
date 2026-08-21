@@ -96,7 +96,7 @@ async function onOrderSubmit() {
 
 スポットライトの対象を複数要素 (`target: [a, b]`) にすることも可能です。
 また操作可能なスポットライトとは別の領域へ (`related: [...]`) スポットライトを向けることもできます。
-使用できるオプションは [`packages/core/src/types.ts`](packages/core/src/types.ts) に、各フィールドの隣に書いてあります。
+使用できるオプションは [`packages/leko/src/types.ts`](packages/leko/src/types.ts) に、各フィールドの隣に書いてあります。
 
 ## 他のライブラリーと比較したLekoの強み
 
