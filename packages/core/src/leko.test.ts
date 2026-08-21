@@ -947,6 +947,57 @@ test('a step waiting on its onEnter is not advanced past, and the call is not sa
   ])
 })
 
+test('going back out of a step in flight leaves the tour able to advance', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+  expect(leko.state).toBe('transitioning')
+  leko.prevStep()
+
+  // `b`'s handler finds the counter has moved and returns, which is right, and
+  // the flag saying a step is still being built is one of the things it does not
+  // get to. Leaving it standing left a tour that looked fine on `a` and dropped
+  // every call from there on.
+  expect(leko.step?.id).toBe('a')
+  leko.nextStep()
+  expect(leko.step?.id).toBe('b')
+
+  settle()
+  await promise
+  expect(leko.state).toBe('running')
+})
+
+test('going back out of a step in flight leaves a resize placing the cutout', () => {
+  const [first, second] = pair()
+  const { promise } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+  leko.prevStep()
+  first.style.top = '500px'
+  window.dispatchEvent(new Event('resize'))
+
+  // `place` stands back while a step is being built, because nothing of it has
+  // been measured. `a` was measured, and the target it is cut to has moved.
+  expect(centre(first)).toBe(first)
+})
+
 test('the move is reported once the step has arrived, not when the position changed', async () => {
   const [first, second] = pair()
   const { promise, settle } = held()

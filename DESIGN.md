@@ -243,6 +243,15 @@ What it checks is a counter, bumped on every arrival and every stop. The morph
 answers the same question by reading `state`, and that will not work here. Two
 entries in a row leave the state saying `transitioning` both times.
 
+`prevStep()` overtakes an `onEnter` as well, and that is the one I got wrong.
+The flag saying a step is still being built is cleared by the handler that
+settles, and that handler checks the counter before it touches anything. Go back
+out of a step in flight and the counter has already moved, so the flag stays up
+for good. The tour draws the step behind it and looks fine. Every `reached()`
+and every `nextStep()` after that is dropped, and a resize stops placing the
+cutout. So `enter` clears the flag on the way in. It belongs to the arrival that
+is running, and the arrival it replaced has no say in it.
+
 Neither hook is for analytics. `onStep` already reports that a step started, and
 it reports it for every step, whether or not anything had to be built for it.
 

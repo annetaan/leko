@@ -83,6 +83,11 @@ export class Leko {
    * True from the call to `onEnter` until it settles. Nothing may be drawn in
    * that window. The target is resolved after `onEnter`, so a resize arriving
    * mid-flight would measure a step the tour has not entered yet.
+   *
+   * The handler that settles clears it, and that handler checks the counter
+   * first, so an arrival that was abandoned never gets there. {@link enter}
+   * clears it on the way in for that reason: the flag belongs to the arrival
+   * that is running, and the one it replaced has no say in it.
    */
   private preparing = false
   /**
@@ -550,6 +555,11 @@ export class Leko {
     // Whatever was wrong with an attempt at the step being left is not an
     // attempt at this one, which is why `setError` has no counterpart to call.
     this.error = undefined
+    // The step being replaced may have been waiting on its `onEnter`. Its
+    // handler will find the counter has moved and return without clearing this,
+    // which would leave a drawn step that no signal can advance. Cleared before
+    // `leave` runs, so a story started from inside a handler keeps its own.
+    this.preparing = false
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived.
     this.message?.hide()
