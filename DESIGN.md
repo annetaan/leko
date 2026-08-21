@@ -288,6 +288,19 @@ over. Run a shared story, branch out of it, then start the shared one again
 where the branch rejoins. A handler can skip the teardown both of them need on
 that round trip. The step's `onLeave` takes its destination for the same reason.
 
+Going back does not get out of it either. `prevStep()` walks out of a step whose
+own `onEnter` is in flight, and I argued for that. A back button under a dimmed
+page is what someone reaches for while a slow step loads. A story that is still
+setting up is a different shape. Every step it has is waiting on that one
+handler, so the step behind is no readier than the step ahead, and entering it
+would run its `onEnter` against a record that has not arrived. The call is
+dropped for those 600ms.
+
+Which handler is in flight is a field, reading `story` or `step`. It was a
+boolean until the day I needed to tell those apart, and the only way to do it
+was to ask whether any step had been entered yet. That is a true fact standing
+in for a state nobody had written down.
+
 `examples/sandbox/src/cases/story-setup.ts` is the case. It holds the first step
 for 600ms while the draft loads, and it reads `meta` back as a chapter label
 while it is there.

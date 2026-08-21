@@ -1457,6 +1457,57 @@ test('a story waiting on its onEnter does not let a step advance underneath it',
   expect(leko.state).toBe('running')
 })
 
+test('a story waiting on its onEnter does not let a step be gone back to either', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const entered: string[] = []
+  const leko = register({
+    id: 'story',
+    onEnter: () => promise,
+    steps: [
+      { id: 'a', target: first, onEnter: () => void entered.push('a') },
+      { id: 'b', target: second, onEnter: () => void entered.push('b') },
+    ],
+  })
+
+  leko.start('story', 1)
+  leko.prevStep()
+
+  // Walking out of a step in flight is a step's own business. Every step of
+  // this story is waiting on the same handler, so `a` is no readier than `b`.
+  expect(leko.index).toBe(1)
+  expect(leko.state).toBe('transitioning')
+  expect(scrim()).toBeNull()
+  expect(entered).toEqual([])
+
+  settle()
+  await promise
+
+  expect(leko.step?.id).toBe('b')
+  expect(centre(second)).toBe(second)
+})
+
+test('going back works again once the story has settled', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const leko = register({
+    id: 'story',
+    onEnter: () => promise,
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second },
+    ],
+  })
+
+  leko.start('story', 1)
+  settle()
+  await promise
+  leko.prevStep()
+
+  expect(leko.step?.id).toBe('a')
+  expect(centre(first)).toBe(first)
+})
+
 test('a story is left after its step is, and told nothing where the tour is over', () => {
   const [first, second] = pair()
   const order: string[] = []

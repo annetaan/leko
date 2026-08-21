@@ -305,6 +305,11 @@ export interface LekoStory {
    * it settles** — not its own `onEnter`, and not resolving its target. Entry
    * runs outermost first: this, then the step's, then the page is measured.
    *
+   * Nothing the host calls moves the tour in that window either. `nextStep()`,
+   * `reached()` and `prevStep()` are all dropped, because every step is waiting
+   * on this handler and none of them is readier than another. `start()` and
+   * `stop()` still take the tour somewhere else, and {@link onLeave} runs.
+   *
    * **A rejection stops the tour** and the reason is thrown again, exactly as a
    * step's does. {@link onLeave} still runs, because a handler that failed
    * halfway may already have registered something.

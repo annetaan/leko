@@ -80,16 +80,22 @@ export class Leko {
    */
   private enteredStory: LekoStory | undefined
   /**
-   * True from the call to `onEnter` until it settles. Nothing may be drawn in
-   * that window. The target is resolved after `onEnter`, so a resize arriving
-   * mid-flight would measure a step the tour has not entered yet.
+   * Which `onEnter` is in flight, from the call until it settles, and
+   * `undefined` when none is. Nothing may be drawn in that window. The target
+   * is resolved after `onEnter`, so a resize arriving mid-flight would measure
+   * a step the tour has not entered yet.
+   *
+   * Which one it is decides what a call from the host can do. A step in flight
+   * holds up the step it is, and `prevStep` may still walk out of it. A story
+   * in flight holds up every step it has, so nothing goes anywhere until it
+   * settles.
    *
    * The handler that settles clears it, and that handler checks the counter
    * first, so an arrival that was abandoned never gets there. {@link enter}
-   * clears it on the way in for that reason: the flag belongs to the arrival
-   * that is running, and the one it replaced has no say in it.
+   * clears it on the way in for that reason: it belongs to the arrival that is
+   * running, and the one it replaced has no say in it.
    */
-  private preparing = false
+  private preparing: 'story' | 'step' | undefined
   /**
    * The step {@link LekoStory.onStep} was last told the tour is on, which is not
    * `steps[at]`: a step whose `onEnter` is still running is where the tour is
@@ -228,16 +234,16 @@ export class Leko {
     // Nothing is settled and nothing is drawn, which is what `transitioning`
     // says about the gap between two steps and says as well about this one.
     this.currentState = 'transitioning'
-    this.preparing = true
+    this.preparing = 'story'
     void entering.then(
       () => {
         if (this.generation !== run) return
-        this.preparing = false
+        this.preparing = undefined
         this.enter(false)
       },
       (reason: unknown) => {
         if (this.generation !== run) return
-        this.preparing = false
+        this.preparing = undefined
         this.failed(reason)
       },
     )
@@ -337,10 +343,16 @@ export class Leko {
    *
    * It reports through {@link LekoStory.onStep} like anything else. The hook
    * says where the story is, and not why it went there.
+   *
+   * A step whose own `onEnter` is in flight is one this can walk out of, and
+   * {@link advance} is the call that gets dropped there instead. A story whose
+   * `onEnter` is in flight is not. Every step of it is waiting on that handler,
+   * so the step behind is no readier than the step ahead.
    */
   prevStep(): void {
     const story = this.currentStory
     if (this.currentState === 'idle' || this.at === 0 || !story) return
+    if (this.preparing === 'story') return
     this.at -= 1
     this.enter(true)
   }
@@ -366,7 +378,7 @@ export class Leko {
     const story = this.currentStory
     const previous = this.announced
     this.generation += 1
-    this.preparing = false
+    this.preparing = undefined
     this.currentState = 'idle'
     this.currentStory = undefined
     this.at = 0
@@ -559,7 +571,7 @@ export class Leko {
     // handler will find the counter has moved and return without clearing this,
     // which would leave a drawn step that no signal can advance. Cleared before
     // `leave` runs, so a story started from inside a handler keeps its own.
-    this.preparing = false
+    this.preparing = undefined
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived.
     this.message?.hide()
@@ -581,16 +593,16 @@ export class Leko {
     // Between two steps with nothing settled, which is what `transitioning`
     // already means. A morph says the same thing about the same gap.
     this.currentState = 'transitioning'
-    this.preparing = true
+    this.preparing = 'step'
     void entering.then(
       () => {
         if (this.generation !== run) return
-        this.preparing = false
+        this.preparing = undefined
         this.arrive(step, animate, story, run)
       },
       (reason: unknown) => {
         if (this.generation !== run) return
-        this.preparing = false
+        this.preparing = undefined
         this.failed(reason)
       },
     )
