@@ -129,10 +129,26 @@ more information than the one that triggered it. `onLeave` is the same kind of
 call and gets the same treatment: a step that was arriving is not drawn over the
 top of what the application did while it was being left.
 
-`previous` says where the story came from, and not that the user saw it. A story
-that starts on a missing target and stops reports `[undefined, first]`, naming a
-step that was never drawn. Tracking the last step actually shown would be a
-field and a rule for something harmless.
+`previous` is the step a host was last told about. Most of the time that is
+`steps[at]` as well. The two come apart while a step is being entered. `at` is
+already the step the tour is heading for, and that step has not been drawn, so
+nothing has said its name yet.
+
+I had this the other way round at first. `previous` said where the story came
+from, whether or not the user saw it, and a run that stopped before it drew
+reported `[undefined, first]`. One field to hold the last step announced looked
+like a lot for something harmless.
+
+Then a story got an `onEnter` of its own. The window is no longer one step's
+setup. It is the whole story's setup, and then the first step's, and the
+sandbox case holds it open for 600ms while a draft order loads. Hit the
+sandbox's stop button inside that window and a readout is told the tour left a
+step it was never told the tour reached. So Leko holds the field now, `arrive` is the only place that writes it,
+and every `previous` is read from it.
+
+The same field answered a second case nobody had filed. A tour walking from `a`
+into a step whose target has gone used to report `[undefined, gone]`. Nobody saw
+`gone`. `a` is the step still on screen, and the ending leaves from there now.
 
 `onTargetLost` is where this matters most. Without a handler the tour stops.
 **With one, nothing stops.** Registering a handler is taking the tour over, and

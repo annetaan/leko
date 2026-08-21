@@ -86,6 +86,14 @@ export class Leko {
    */
   private preparing = false
   /**
+   * The step {@link LekoStory.onStep} was last told the tour is on, which is not
+   * `steps[at]`: a step whose `onEnter` is still running is where the tour is
+   * heading and nowhere a host has heard of. Every `previous` is read from here,
+   * so the calls chain — each one leaves from where the last one arrived — and a
+   * run that ends before it draws says it came from nowhere.
+   */
+  private announced: LekoStep | undefined
+  /**
    * Bumped on every start, every arrival at a step and every stop, so an
    * `onEnter` settling late can tell that it is talking about a step nobody is
    * on any more. The
@@ -209,7 +217,7 @@ export class Leko {
     // when it settles.
     if (!isThenable(entering)) {
       if (this.generation !== run) return
-      return this.enter(false, undefined)
+      return this.enter(false)
     }
 
     // Nothing is settled and nothing is drawn, which is what `transitioning`
@@ -220,7 +228,7 @@ export class Leko {
       () => {
         if (this.generation !== run) return
         this.preparing = false
-        this.enter(false, undefined)
+        this.enter(false)
       },
       (reason: unknown) => {
         if (this.generation !== run) return
@@ -316,7 +324,7 @@ export class Leko {
       return
     }
     this.at += 1
-    this.enter(true, step)
+    this.enter(true)
   }
 
   /**
@@ -328,9 +336,8 @@ export class Leko {
   prevStep(): void {
     const story = this.currentStory
     if (this.currentState === 'idle' || this.at === 0 || !story) return
-    const previous = story.steps[this.at]
     this.at -= 1
-    this.enter(true, previous)
+    this.enter(true)
   }
 
   /**
@@ -352,13 +359,17 @@ export class Leko {
   private end(next: LekoStory | undefined): void {
     if (this.currentState === 'idle') return
     const story = this.currentStory
-    const previous = story?.steps[this.at]
+    const previous = this.announced
     this.generation += 1
     this.preparing = false
     this.currentState = 'idle'
     this.currentStory = undefined
     this.at = 0
     this.error = undefined
+    // Cleared here rather than after the report, because the handlers below can
+    // start a story, and the arrival that story announces is where the tour
+    // really is by the time this call finishes.
+    this.announced = undefined
     this.teardown()
     this.message?.destroy()
     this.message = undefined
@@ -531,7 +542,7 @@ export class Leko {
    * moves everything below it into a later turn, and one that hands back
    * nothing costs nothing at all.
    */
-  private enter(animate: boolean, previous: LekoStep | undefined): void {
+  private enter(animate: boolean): void {
     const story = this.currentStory
     const step = story?.steps[this.at]
     if (!story || !step) return this.stop()
@@ -555,7 +566,7 @@ export class Leko {
     } catch (reason) {
       return this.failed(reason)
     }
-    if (!isThenable(entering)) return this.arrive(step, animate, story, previous, run)
+    if (!isThenable(entering)) return this.arrive(step, animate, story, run)
 
     // Between two steps with nothing settled, which is what `transitioning`
     // already means. A morph says the same thing about the same gap.
@@ -565,7 +576,7 @@ export class Leko {
       () => {
         if (this.generation !== run) return
         this.preparing = false
-        this.arrive(step, animate, story, previous, run)
+        this.arrive(step, animate, story, run)
       },
       (reason: unknown) => {
         if (this.generation !== run) return
@@ -584,18 +595,18 @@ export class Leko {
    * with no handler gets a `stop`, which bumps the generation and reports the
    * ending itself.
    */
-  private arrive(
-    step: LekoStep,
-    animate: boolean,
-    story: LekoStory,
-    previous: LekoStep | undefined,
-    run: number,
-  ): void {
+  private arrive(step: LekoStep, animate: boolean, story: LekoStory, run: number): void {
     // `onEnter` is the other call into the application that can take the tour
     // somewhere else before anything of this step has been drawn.
     if (this.generation !== run) return
     this.draw(step, animate)
-    if (this.generation === run) this.report(story, step, previous)
+    if (this.generation !== run) return
+    const previous = this.announced
+    // Written before the report goes out, for the reason `entered` is cleared
+    // before `onLeave` runs: a handler is free to start a story of its own, and
+    // what it does is the later word on where the tour is.
+    this.announced = step
+    this.report(story, step, previous)
   }
 
   /**

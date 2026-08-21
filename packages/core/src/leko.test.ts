@@ -690,8 +690,9 @@ test('a story whose target is already gone reports its ending, and no start', ()
 
   // `show` found nothing and stopped the run, which reported the ending. A
   // start announced after that would leave a readout pointing at a story that
-  // is not running — the frozen footer again, one call later.
-  expect(seen).toEqual([[undefined, 'ghost']])
+  // is not running — the frozen footer again, one call later. `ghost` is not
+  // named on the way out either: it was never drawn, so it was never announced.
+  expect(seen).toEqual([[undefined, undefined]])
   expect(leko.step).toBeUndefined()
 })
 
@@ -710,9 +711,10 @@ test('losing a target on the way to a step reports the ending and nothing after 
   seen.length = 0
   leko.nextStep()
 
-  // Reading the index back after `show` would say the story moved to `a`,
-  // because stopping is what put it there.
-  expect(seen).toEqual([[undefined, 'gone']])
+  // The ending leaves from `a`, which is the step a readout is still showing.
+  // `gone` was never drawn and so was never announced, and naming it would be
+  // the first a host had heard of it.
+  expect(seen).toEqual([[undefined, 'a']])
 })
 
 test('going back to a target that has gone reports the ending and nothing after it', () => {
@@ -731,7 +733,8 @@ test('going back to a target that has gone reports the ending and nothing after 
   seen.length = 0
   leko.prevStep()
 
-  expect(seen).toEqual([[undefined, 'a']])
+  // `b` is where the tour was and `a` is where it never arrived.
+  expect(seen).toEqual([[undefined, 'b']])
 })
 
 test('switching stories ends one and starts the other, and each hears only itself', () => {
@@ -1116,13 +1119,81 @@ test('a handler that only logs a lost target is left holding a tour that never s
   expect(seen).toEqual([['ghost', undefined]])
 })
 
-test('previous can name a step nobody saw', () => {
-  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '.missing' }] })
+test('a run stopped before it draws says it came from nowhere', async () => {
+  const { promise, settle } = held()
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [{ id: 'a', target: '.late', onEnter: () => promise }],
+  })
 
   leko.start('story')
+  leko.stop()
+  settle()
+  await promise
 
-  // Nothing was ever drawn, and the ending still says where it came from.
-  expect(seen).toEqual([[undefined, 'ghost']])
+  // The arrival at `a` was never announced, because `a` was never drawn. An
+  // ending naming it would tell a readout the tour left a step it was never
+  // told the tour reached.
+  expect(seen).toEqual([[undefined, undefined]])
+})
+
+test('a run stopped while the story is still setting up says the same', async () => {
+  const { promise, settle } = held()
+  const { leko, seen } = watched({
+    id: 'story',
+    onEnter: () => promise,
+    steps: [{ id: 'a', target: '.late' }],
+  })
+
+  leko.start('story')
+  leko.stop()
+  settle()
+  await promise
+
+  // A story's own setup runs before anything about its first step does, so this
+  // is the widest the window gets.
+  expect(seen).toEqual([[undefined, undefined]])
+})
+
+test('a story displaced before it drew leaves from nowhere as well', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const { leko, seen } = watched({
+    id: 'from',
+    steps: [{ id: 'a', target: first, onEnter: () => promise }],
+  })
+  leko.setStory({ id: 'into', steps: [{ id: 'b', target: second }] })
+
+  leko.start('from')
+  leko.start('into')
+  settle()
+  await promise
+
+  expect(seen).toEqual([[undefined, undefined]])
+  expect(leko.step?.id).toBe('b')
+})
+
+test('an ending names the step showing, not the one the tour was walking into', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+  seen.length = 0
+  leko.stop()
+  settle()
+  await promise
+
+  // The tour was on `b` by every internal measure and a readout was still
+  // showing `a`, which is the one the ending is about.
+  expect(seen).toEqual([[undefined, 'a']])
 })
 
 test('a story started from inside an ending report is not overwritten by the start that caused it', () => {

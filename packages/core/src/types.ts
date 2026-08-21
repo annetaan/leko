@@ -335,8 +335,9 @@ export interface LekoStory {
    *
    * `step` is where the story is now, and is `undefined` once there is nowhere
    * to be: past the last step, or after `stop()`. `previous` is where it came
-   * from, and is `undefined` on the first step of a run. Both being `undefined`
-   * never happens, because nothing moved.
+   * from, and is `undefined` on the first step of a run. Both are `undefined`
+   * when a run ends before it ever drew, which is the one case with nothing to
+   * name on either side.
    *
    * Which story moved is answered by where the handler is registered, so a
    * readout belonging to one story never has to sort out which one this was.
@@ -351,10 +352,10 @@ export interface LekoStory {
    * transition would be {@link LekoStep.validate} again, in a place where the
    * application has claimed nothing.
    *
-   * `previous` says where the story came from, which is not the same as saying
-   * the user saw it. A story that starts on a missing target and stops reports
-   * `[undefined, first]`, naming a step that was never drawn. Tracking the last
-   * step actually shown would be a field and a rule for something harmless.
+   * `previous` is the step this hook last named as `step`, so the calls chain:
+   * each one leaves from where the last one arrived. A step whose `onEnter` is
+   * still in flight has never been drawn and is never named, so a run that ends
+   * there says it came from nowhere rather than from a step nobody saw.
    *
    * Starting or stopping a story from inside a handler is allowed. `start()`
    * gives way to whatever a handler started while it was stopping the story
