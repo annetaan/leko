@@ -50,21 +50,56 @@ pnpm typecheck      # tsc --noEmit across workspace packages, and the type tests
 pnpm lint           # oxlint
 pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
-pnpm test           # vitest: spotlight and leko in three browsers, machine and codegen in Node
+pnpm check:pack     # what a published package would import, and whether it could
+pnpm test           # vitest: five projects, three of them in browsers
 ```
+
+`pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
+`leko-wiring` in Chromium alone, and `machine` and `codegen` in Node.
+[DESIGN.md](DESIGN.md#why-the-tests-run-where-they-do) says what puts a test in
+each one. The short version is whether a browser could get the answer wrong.
 
 Markdown is deliberately out of the formatter's reach — prose wrapping is a
 judgement call, and `.editorconfig` covers the rest. So are the pages under
 `spike/`: one of them is attached to a browser bug report as it stands, and a
 formatter should not be rewriting evidence.
 
+## What `@annetaan/leko` ships
+
+`packages/leko` is the only package here that publishes. `packages/machine` and
+`packages/spotlight` are `private: true` and stay that way.
+
+That means `packages/leko` cannot import them the way a package normally imports
+a dependency. It did, for a while. `tsc` emits one file per source file and
+leaves every import specifier alone, so `dist/leko.js` carried an import of
+`@annetaan/leko-machine`, and that package is not on the registry.
+
+Nothing reached anyone. `@annetaan/leko@0.0.0` holds the name and contains no
+code, so the broken output only ever existed on disk. It would have gone out on
+the first real release.
+
+Nothing here could have caught it either. Inside the workspace pnpm links both
+packages and everything resolves, so the build passed, the typecheck passed, and
+265 tests passed in three browsers. Every check the repository has was asking
+about the workspace rather than about the tarball.
+
+So `packages/leko` is built by `tsdown`, which bundles both halves into one
+`dist/index.js` and one `dist/index.d.ts`. Both are workspace `devDependencies`
+now. What a consumer installs is a single package with no runtime dependencies,
+which is what `packages/leko` promised in the first place.
+
+`pnpm check:pack` is the check. It reads what `npm pack` would send, finds every
+bare import in it, and fails if one names something the manifest does not depend
+on. Run it after anything that changes what a package imports or how it is
+built.
+
 ## Before opening a pull request
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format && pnpm test
+pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm test
 ```
 
-CI runs the same four, with `format:check` in place of `format`.
+CI runs the same five, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

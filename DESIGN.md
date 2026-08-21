@@ -742,8 +742,8 @@ for it only when the alternative is genuinely worse.
 
 **jsdom is not an option for anything about layout.** It has no layout, and a
 claim about where a box ended up or what hit-testing returns at a point cannot
-be tested without it. `spotlight` and `leko` run through Vitest's browser mode
-for that reason.
+be tested without it. `spotlight`, `leko` and `leko-wiring` run through Vitest's
+browser mode for that reason.
 
 All three engines run because the two things the library is built on are ones
 engines disagree about: what `clip-path: path()` interpolates, and how much of
@@ -768,9 +768,28 @@ whole machine project finishes in under 100ms.
 
 The 30 that stayed are the ones whose assertion touches the page: what
 `elementFromPoint` returns, where a scrim mounted, what a resize did to a
-cutout. That is the line, and it is worth keeping sharp. A test that never
-mentions the DOM is a test that never needed a browser, and one that does needs
-all three engines.
+cutout.
+
+### The line moved once more
+
+I had it in the wrong place. "Does the test mention the DOM" sorted the first 44
+correctly and then stopped working, because 20 of the 30 that stayed mention the
+DOM and no engine could answer any of them differently. `meta is carried and
+never read` builds two steps, walks from one to the other, and reads
+`step.meta` back. It touches the page once, to check that a hole landed on the
+second target. Chromium, Firefox and WebKit each ran it. So did `nextStep does
+nothing while idle`, and `an unknown story id shows nothing`. Two of the 30 had
+the same name as a test already in `machine.test.ts`.
+
+The question that sorts them is whether a browser could get the answer wrong.
+10 could. They ask what `elementFromPoint` returns, which element a scrim
+mounted in, and where a cutout sat after a resize. Those stay in `leko.test.ts`
+and run three times. The other 20 moved to `wiring.test.ts`, which runs in
+Chromium alone. They still go through the real `DomPresenter`, so they still say
+the two halves are wired to each other. They say it once instead of three times.
+
+That took the suite from 265 test runs to 225. No claim was deleted, and the
+count of distinct tests did not move.
 
 Put each of #31, #33 and #35 back into `machine.ts` and the Node project catches
 all three: six failures, one and one. #35 needed two tests written for it there,

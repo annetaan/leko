@@ -6,17 +6,24 @@ import { defineConfig } from 'vitest/config'
 // glob, so that a project can move to another environment without dragging the
 // rest with it.
 //
-// `spotlight` and `leko` run in real browsers, never jsdom. Every claim those
-// two packages make is about layout the browser actually performed — where a box
-// ended up, and what hit-testing returns at a point. jsdom has no layout, so it
-// can confirm none of it.
+// `spotlight`, `leko` and `leko-wiring` run in real browsers, never jsdom.
+// Every claim those three make is about a page that a browser laid out, and
+// jsdom has no layout to confirm any of it with.
 //
-// All three engines, because the two features the library is built on are ones
-// engines disagree about: what `clip-path: path()` interpolates, and how much of
-// anchor positioning exists. Note that Playwright's WebKit is a WebKit build
-// rather than Safari: its user agent carries a `Version/` token all the same,
-// and that token is not a Safari release anyone can install, so passing here is
-// not evidence about any particular Safari.
+// `spotlight` and `leko` run in all three engines, because the two features the
+// library is built on are ones engines disagree about: what `clip-path: path()`
+// interpolates, and how much of anchor positioning exists. Note that
+// Playwright's WebKit is a WebKit build rather than Safari: its user agent
+// carries a `Version/` token all the same, and that token is not a Safari
+// release anyone can install, so passing here is not evidence about any
+// particular Safari.
+//
+// `leko-wiring` runs in one. It drives the public API through the real
+// `DomPresenter` to pin down which step the tour is on and when it says so, and
+// no engine has an opinion about that. Those tests lived in `leko` and were run
+// three times to prove things like `meta` being carried unread. Splitting them
+// out is the same coverage for a third of the browser time; what decides which
+// file a test belongs in is whether the browser could get it wrong.
 //
 // `machine` and `codegen` run in Node. Neither has a DOM to be wrong about.
 // `machine` decides which step a tour is on, against a presenter the test
@@ -52,8 +59,15 @@ export default defineConfig({
       {
         test: {
           name: 'leko',
-          include: ['packages/leko/src/**/*.test.ts'],
+          include: ['packages/leko/src/leko.test.ts', 'packages/leko/src/message.test.ts'],
           browser: browsers(),
+        },
+      },
+      {
+        test: {
+          name: 'leko-wiring',
+          include: ['packages/leko/src/wiring.test.ts'],
+          browser: { ...browsers(), instances: [{ browser: 'chromium' }] },
         },
       },
       {

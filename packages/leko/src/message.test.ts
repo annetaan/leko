@@ -1,34 +1,11 @@
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
-import { createLeko } from './leko.js'
-import type { LekoOptions, LekoStep } from './types.js'
+import { box, keep, start } from './harness.js'
 
-// Duration 0 everywhere: these tests are about where the message ends up, not
-// about how long the cutout took to get there.
-const instances: ReturnType<typeof createLeko>[] = []
-const mounted: HTMLElement[] = []
-
-afterEach(() => {
-  for (const leko of instances.splice(0)) leko.stop()
-  for (const el of mounted.splice(0)) el.remove()
-})
-
-function start(steps: LekoStep[], options: LekoOptions = {}) {
-  const leko = createLeko({ duration: 0, ...options })
-  instances.push(leko)
-  leko.setStory({ id: 'story', steps })
-  leko.start('story')
-  return leko
-}
-
-function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElement {
-  const el = document.createElement('button')
-  el.textContent = text
-  Object.assign(el.style, { position: 'fixed', margin: '0', ...style })
-  document.body.append(el)
-  mounted.push(el)
-  return el
-}
+// Where the box beside the hole ends up, and what it has in it. Anchor
+// positioning is the feature engines disagree about most here, so these run in
+// all three. `start` puts the tour up with a duration of 0: these are about
+// where the message lands, not about how long the cutout took to get there.
 
 const message = () => document.querySelector<HTMLElement>('.leko-message')
 const words = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent
@@ -132,7 +109,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   Object.assign(target.style, { display: 'block', margin: '600px 0' })
   scroller.append(target)
   document.body.append(scroller)
-  mounted.push(scroller)
+  keep(scroller)
 
   start([{ id: 'one', target, message: 'Scroll the list.' }])
   scroller.scrollTop = 400

@@ -25,6 +25,11 @@ jobs:
       # fallen behind the source it was gathered from.
       - run: pnpm build
       - run: git diff --exit-code
+      # Every bare import in a published package has to be something npm will
+      # install. A workspace link is not: it resolves here and nowhere a
+      # consumer is, which is how `@annetaan/leko` came to ship imports of two
+      # packages that are not on the registry, with every other check green.
+      - run: pnpm check:pack
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check

@@ -17,7 +17,8 @@
     "lint": "oxlint",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:pack": "node scripts/check-pack.mjs"
   },
   "devDependencies": {
     "@vitest/browser": "^4.1.10",

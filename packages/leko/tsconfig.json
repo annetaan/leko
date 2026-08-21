@@ -1,8 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist"
+    // `tsdown` builds this package and reads its options from here. `tsc` must
+    // not emit: one file per source file leaves `@annetaan/leko-machine` in the
+    // output as an import, and that package is not published. `pnpm check:pack`
+    // is the check that catches it; this is the setting that stops it happening
+    // by accident.
+    "noEmit": true
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.ts"]

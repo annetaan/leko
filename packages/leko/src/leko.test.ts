@@ -1,57 +1,14 @@
-import { afterEach, expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 
-import { createLeko } from './leko.js'
-import type { LekoOptions, LekoStep, LekoStory } from './types.js'
+import { absorbed, box, centre, keep, register, scrim, start } from './harness.js'
 
-// Duration 0 everywhere: these tests are about what ends up on screen, not about
-// how long it took to get there.
-const instances: ReturnType<typeof createLeko>[] = []
-const mounted: HTMLElement[] = []
-
-afterEach(() => {
-  for (const leko of instances.splice(0)) leko.stop()
-  for (const el of mounted.splice(0)) el.remove()
-  vi.restoreAllMocks()
-})
-
-/** One story, registered and started, which is what most of these want. */
-function start(steps: LekoStep[], options: LekoOptions = {}) {
-  const leko = register({ id: 'story', steps }, options)
-  leko.start('story')
-  return leko
-}
-
-function register(story: LekoStory, options: LekoOptions = {}) {
-  const leko = createLeko({ duration: 0, ...options })
-  instances.push(leko)
-  leko.setStory(story)
-  return leko
-}
-
-function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElement {
-  const el = document.createElement('button')
-  el.textContent = text
-  Object.assign(el.style, { position: 'fixed', margin: '0', ...style })
-  document.body.append(el)
-  mounted.push(el)
-  return el
-}
-
-const centre = (el: HTMLElement) => {
-  const r = el.getBoundingClientRect()
-  return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-}
-
-const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
-
-/**
- * Whether the tour absorbed a hit at the centre of `el`, rather than the page
- * underneath receiving it. Asked this way round because the scrim paints and its
- * rectangles catch, so naming one element would be pinning down the mechanism
- * instead of the promise.
- */
-const absorbed = (el: HTMLElement): boolean =>
-  (centre(el) as HTMLElement | null)?.closest('.leko-scrim') != null
+// Claims about layout the browser actually performed: where a hole ended up,
+// what hit-testing returns at a point, which element a scrim was mounted in.
+// Engines disagree about `clip-path: path()` and about anchor positioning, so
+// every one of these runs in all three.
+//
+// Claims about which step the tour is on live in `wiring.test.ts` and run in
+// one browser, because no engine has an opinion about those.
 
 test('the target is reachable through the cutout, and the rest of the page is not', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
@@ -101,122 +58,6 @@ test('related regions get their own cutouts rather than joining the union', () =
   expect(absorbed(between)).toBe(true)
 })
 
-test('a selector matching several elements takes the first', () => {
-  const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  first.classList.add('pick-me')
-  const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
-  second.classList.add('pick-me')
-
-  start([{ id: 'sel', target: '.pick-me' }])
-
-  expect(centre(first)).toBe(first)
-  expect(absorbed(second)).toBe(true)
-})
-
-test('nextStep does nothing while idle, so callers need no guard', () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
-
-  expect(() => leko.nextStep()).not.toThrow()
-  expect(leko.state).toBe('idle')
-  expect(scrim()).toBeNull()
-})
-
-test('a step does not advance until the application says it succeeded', () => {
-  const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
-  let ready = false
-  const onValidationError = vi.fn()
-
-  const leko = start([
-    { id: 'first', target: first, validate: () => ready, onValidationError },
-    { id: 'second', target: second },
-  ])
-
-  leko.nextStep()
-  expect(leko.step?.id).toBe('first')
-  expect(onValidationError).toHaveBeenCalledOnce()
-  expect(onValidationError.mock.calls[0]?.[0]).toBe(first)
-
-  ready = true
-  leko.nextStep()
-  expect(leko.step?.id).toBe('second')
-  expect(centre(second)).toBe(second)
-})
-
-test('reached does nothing while idle, so it needs no guard either', () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = register({ id: 'story', steps: [{ id: 'one', target, awaits: 'ready' }] })
-
-  expect(() => leko.reached('ready')).not.toThrow()
-  expect(leko.state).toBe('idle')
-  expect(scrim()).toBeNull()
-})
-
-test('validate is handed the action target, never a related one', () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const related = box('related', { left: '100px', top: '300px', width: '120px', height: '40px' })
-  const validate = vi.fn(() => true)
-
-  const leko = start([
-    { id: 'a', target: [target], related: [related], validate },
-    { id: 'b', target },
-  ])
-  leko.nextStep()
-
-  expect(validate).toHaveBeenCalledWith(target)
-})
-
-test('the last step ends the tour', () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = start([{ id: 'only', target }])
-
-  leko.nextStep()
-
-  expect(leko.state).toBe('idle')
-  expect(scrim()).toBeNull()
-})
-
-test('a target that cannot be found stops the tour instead of pointing at nothing', () => {
-  const onTargetLost = vi.fn()
-  start([{ id: 'ghost', target: '#not-here' }], { onTargetLost })
-
-  expect(onTargetLost).toHaveBeenCalledOnce()
-  // An instance holds every story, so the handler is told which one lost it.
-  expect(onTargetLost).toHaveBeenCalledWith(expect.objectContaining({ id: 'ghost' }), 'story')
-  expect(scrim()).toBeNull()
-})
-
-test('starting a story puts away whatever was running', () => {
-  const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
-
-  const leko = register({ id: 'onboarding', steps: [{ id: 'a', target: first }] })
-  leko.setStory({ id: 'returning', steps: [{ id: 'b', target: second }] })
-
-  leko.start('onboarding')
-  leko.start('returning')
-
-  expect(leko.story?.id).toBe('returning')
-  expect(leko.step?.id).toBe('b')
-  // One scrim, because two would each block with rectangles cut from their own
-  // holes, and so would cover each other's target.
-  expect(document.querySelectorAll('.leko-scrim').length).toBe(1)
-  expect(centre(second)).toBe(second)
-  expect(absorbed(first)).toBe(true)
-})
-
-test('an unknown story id shows nothing', () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = register({ id: 'onboarding', steps: [{ id: 'a', target }] })
-
-  leko.start('nowhere')
-
-  expect(leko.state).toBe('idle')
-  expect(leko.story).toBeUndefined()
-  expect(scrim()).toBeNull()
-})
-
 test('a story overrides the padding the instance was given', () => {
   const target = box('target', { left: '100px', top: '200px', width: '120px', height: '40px' })
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
@@ -252,7 +93,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   content.append(target)
   scroller.append(content)
   document.body.append(scroller)
-  mounted.push(scroller)
+  keep(scroller)
 
   start([{ id: 'deep', target }])
 
@@ -262,19 +103,6 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
 
   scroller.scrollTop = 880
   expect(centre(target)).toBe(target)
-})
-
-test('a target that leaves the page while its step is showing does not go unnoticed', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const onTargetLost = vi.fn()
-  start([{ id: 'doomed', target }], { onTargetLost })
-
-  target.remove()
-  // Mutation records are delivered on a microtask.
-  await Promise.resolve()
-
-  expect(onTargetLost).toHaveBeenCalledOnce()
-  expect(onTargetLost.mock.calls[0]?.[0]?.id).toBe('doomed')
 })
 
 test('the page outside a scroller is dimmed too, not just the scroller', () => {
@@ -300,7 +128,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
   content.append(target)
   scroller.append(content)
   document.body.append(scroller)
-  mounted.push(scroller)
+  keep(scroller)
 
   const outside = box('outside', { left: '20px', top: '20px', width: '100px', height: '40px' })
 
@@ -338,7 +166,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   content.append(target)
   scroller.append(content)
   document.body.append(scroller)
-  mounted.push(scroller)
+  keep(scroller)
 
   start([{ id: 'deep', target }])
 
@@ -395,267 +223,4 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   // almost nothing dimmed for a few hundred milliseconds.
   expect(absorbed(far)).toBe(true)
   expect(centre(target)).toBe(target)
-})
-
-// --- onStep ---------------------------------------------------------------
-
-/** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
-function watched(story: Omit<LekoStory, 'onStep'>, options: LekoOptions = {}) {
-  const seen: [string | undefined, string | undefined][] = []
-  const leko = register(
-    { ...story, onStep: (step, previous) => seen.push([step?.id, previous?.id]) },
-    options,
-  )
-  return { leko, seen }
-}
-
-function pair(): [HTMLElement, HTMLElement] {
-  return [
-    box('first', { left: '100px', top: '100px', width: '120px', height: '40px' }),
-    box('second', { left: '100px', top: '300px', width: '120px', height: '40px' }),
-  ]
-}
-
-test('going back to a target that has gone reports the ending and nothing after it', () => {
-  const [first, second] = pair()
-  const { leko, seen } = watched({
-    id: 'story',
-    steps: [
-      { id: 'a', target: first },
-      { id: 'b', target: second },
-    ],
-  })
-
-  leko.start('story')
-  leko.nextStep()
-  first.remove()
-  seen.length = 0
-  leko.prevStep()
-
-  // `b` is where the tour was and `a` is where it never arrived.
-  expect(seen).toEqual([[undefined, 'b']])
-})
-
-// --- onEnter and onLeave --------------------------------------------------
-
-/** A promise the test settles by hand, so the gap can be looked at. */
-function held(): { promise: Promise<void>; settle: () => void } {
-  let settle!: () => void
-  const promise = new Promise<void>((resolve) => {
-    settle = resolve
-  })
-  return { promise, settle }
-}
-
-test('onEnter builds the state the step assumes, before the target is looked for', () => {
-  const leko = register({
-    id: 'story',
-    steps: [
-      {
-        id: 'late',
-        target: '.late',
-        onEnter: () => {
-          box('late', { left: '100px', top: '100px', width: '120px', height: '40px' }).className =
-            'late'
-        },
-      },
-    ],
-  })
-
-  leko.start('story')
-
-  // The element did not exist when `start()` was called. Resolving the target
-  // first would have lost the step before the application could build it.
-  const target = document.querySelector<HTMLElement>('.late')!
-  expect(leko.state).toBe('running')
-  expect(centre(target)).toBe(target)
-})
-
-test('a promise from onEnter is waited for, and nothing is drawn until it settles', async () => {
-  const { promise, settle } = held()
-  const leko = register({
-    id: 'story',
-    steps: [{ id: 'late', target: '.late', onEnter: () => promise }],
-  })
-
-  leko.start('story')
-
-  expect(leko.state).toBe('transitioning')
-  expect(scrim()).toBeNull()
-
-  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.className = 'late'
-  settle()
-  await promise
-
-  expect(leko.state).toBe('running')
-  expect(centre(target)).toBe(target)
-})
-
-test('going back out of a step in flight leaves a resize placing the cutout', () => {
-  const [first, second] = pair()
-  const { promise } = held()
-  const leko = register({
-    id: 'story',
-    steps: [
-      { id: 'a', target: first },
-      { id: 'b', target: second, onEnter: () => promise },
-    ],
-  })
-
-  leko.start('story')
-  leko.nextStep()
-  leko.prevStep()
-  first.style.top = '500px'
-  window.dispatchEvent(new Event('resize'))
-
-  // `place` stands back while a step is being built, because nothing of it has
-  // been measured. `a` was measured, and the target it is cut to has moved.
-  expect(centre(first)).toBe(first)
-})
-
-test('a handler that only logs a lost target is left holding a tour that never stopped', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const { leko, seen } = watched(
-    { id: 'story', steps: [{ id: 'ghost', target }] },
-    {
-      onTargetLost: () => {},
-    },
-  )
-
-  leko.start('story')
-  target.remove()
-  await Promise.resolve()
-
-  // Registering a handler is taking the tour over. Leko goes on holding it
-  // where it was, which is what a handler that logs and returns is signing up
-  // for without meaning to.
-  expect(leko.state).toBe('running')
-  expect(leko.step?.id).toBe('ghost')
-  expect(seen).toEqual([['ghost', undefined]])
-})
-
-test('a story started from inside onLeave is not overwritten by the step that was arriving', () => {
-  const [first, second] = pair()
-  const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
-  const leko = register({
-    id: 'story',
-    steps: [
-      {
-        id: 'a',
-        target: first,
-        onLeave: () => leko.start('elsewhere'),
-      },
-      { id: 'b', target: second },
-    ],
-  })
-  leko.setStory({ id: 'elsewhere', steps: [{ id: 'c', target: third }] })
-
-  leko.start('story')
-  leko.nextStep()
-
-  // Leaving is a call into the application, and the step that was arriving does
-  // not get drawn over the top of what the application did with it.
-  expect(leko.story?.id).toBe('elsewhere')
-  expect(leko.step?.id).toBe('c')
-  expect(centre(third)).toBe(third)
-})
-
-test('a promise from a story onEnter holds back the first step entirely', async () => {
-  const { promise, settle } = held()
-  const entered: string[] = []
-  const leko = register({
-    id: 'story',
-    onEnter: () => promise,
-    steps: [{ id: 'late', target: '.late', onEnter: () => void entered.push('step') }],
-  })
-
-  leko.start('story')
-
-  // Not just undrawn: the step's own handler has not run either.
-  expect(leko.state).toBe('transitioning')
-  expect(entered).toEqual([])
-  expect(scrim()).toBeNull()
-
-  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.className = 'late'
-  settle()
-  await promise
-
-  expect(entered).toEqual(['step'])
-  expect(leko.state).toBe('running')
-  expect(centre(target)).toBe(target)
-})
-
-test('a story waiting on its onEnter does not let a step be gone back to either', async () => {
-  const [first, second] = pair()
-  const { promise, settle } = held()
-  const entered: string[] = []
-  const leko = register({
-    id: 'story',
-    onEnter: () => promise,
-    steps: [
-      { id: 'a', target: first, onEnter: () => void entered.push('a') },
-      { id: 'b', target: second, onEnter: () => void entered.push('b') },
-    ],
-  })
-
-  leko.start('story', 1)
-  leko.prevStep()
-
-  // Walking out of a step in flight is a step's own business. Every step of
-  // this story is waiting on the same handler, so `a` is no readier than `b`.
-  expect(leko.index).toBe(1)
-  expect(leko.state).toBe('transitioning')
-  expect(scrim()).toBeNull()
-  expect(entered).toEqual([])
-
-  settle()
-  await promise
-
-  expect(leko.step?.id).toBe('b')
-  expect(centre(second)).toBe(second)
-})
-
-test('going back works again once the story has settled', async () => {
-  const [first, second] = pair()
-  const { promise, settle } = held()
-  const leko = register({
-    id: 'story',
-    onEnter: () => promise,
-    steps: [
-      { id: 'a', target: first },
-      { id: 'b', target: second },
-    ],
-  })
-
-  leko.start('story', 1)
-  settle()
-  await promise
-  leko.prevStep()
-
-  expect(leko.step?.id).toBe('a')
-  expect(centre(first)).toBe(first)
-})
-
-test('meta is carried and never read', () => {
-  const [first, second] = pair()
-  const { leko } = watched({
-    id: 'story',
-    steps: [
-      { id: 'a', target: first, meta: { chapter: 'setup' } },
-      { id: 'b', target: second, meta: { chapter: 'ordering' } },
-    ],
-  })
-
-  leko.start('story')
-  expect(leko.step?.meta).toEqual({ chapter: 'setup' })
-
-  leko.nextStep()
-
-  // A step carrying it behaves exactly as one without: nothing here branches on
-  // it, which is the whole promise.
-  expect(leko.step?.meta).toEqual({ chapter: 'ordering' })
-  expect(leko.state).toBe('running')
-  expect(centre(second)).toBe(second)
 })

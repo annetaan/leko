@@ -79,6 +79,11 @@ augmentation applies to a whole compilation.
 
 - Commits use the GitHub noreply address, set locally. Do not change
   `git config --global`.
+- `packages/leko` is built by `tsdown`, not `tsc`, because it bundles
+  `@annetaan/leko-machine` and `@annetaan/leko-spotlight` in. Both are private
+  and neither is on the registry, so an import of either left in `dist/` is a
+  package a consumer cannot install. `pnpm check:pack` is what catches that, and
+  it runs in CI. Anything that changes what a package imports wants it run.
 - Markdown is out of the formatter's reach, and so are the pages under
   `spike/`: `waapi-clip-path/index.html` is attached to
   [crbug.com/542859657](https://issues.chromium.org/issues/542859657) as it
