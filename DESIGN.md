@@ -791,6 +791,31 @@ the two halves are wired to each other. They say it once instead of three times.
 That took the suite from 265 test runs to 225. No claim was deleted, and the
 count of distinct tests did not move.
 
+### The machine's tests are grouped so the gaps show
+
+`machine.test.ts` is 46 tests and was one flat list. The claim names carry it
+top to bottom, and it has no map. That is fine for reading and no help at all
+for the question I actually have, which is what nobody has tested yet.
+
+So the tests sit in eight `describe` groups, one per axis the machine is asked
+about. Signals. Registering and starting. What the tour says it is doing.
+Saying where it got to. A target that is not there. What a step assumes. What a
+story assumes. Moving from one story to another.
+
+Read as a table, the small groups are the interesting ones. "What the tour says
+it is doing" holds 2 tests, and `state` is asserted all over the other seven
+without being pinned down in any of them. "A target that is not there" holds 2,
+both of a tour that finds the target missing the moment it looks, and neither
+crosses that with a handler still in flight.
+
+`ErrorUtils` has no group. `shake`, `setMessage` and `setError` are what a
+failed attempt is handed, and nothing in `machine.test.ts` calls any of them.
+The only tests that touch them are in `packages/leko/src/message.test.ts`, and
+those ask where the box rendered rather than what the machine did.
+
+Each of those three gaps has a bug in it. That is the argument for grouping
+rather than a tidiness one.
+
 Put each of #31, #33 and #35 back into `machine.ts` and the Node project catches
 all three: six failures, one and one. #35 needed two tests written for it there,
 because the pair that found it originally asked `scrim()` whether anything had
