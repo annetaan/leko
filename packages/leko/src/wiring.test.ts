@@ -374,3 +374,19 @@ test('meta is carried and never read', () => {
   expect(leko.state).toBe('running')
   expect(centre(second)).toBe(second)
 })
+
+test('taking back the story that is running puts the page back', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
+
+  leko.start('story')
+  expect(scrim()).not.toBeNull()
+
+  expect(leko.deleteStory('story')).toBe(true)
+
+  expect(leko.state).toBe('idle')
+  expect(scrim()).toBeNull()
+  expect(centre(target)).toBe(target)
+  // And it is out of reach, so nothing can put it back on screen.
+  expect(leko.start('story')).toBe(false)
+})

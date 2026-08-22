@@ -170,6 +170,47 @@ more information than the one that triggered it. `onLeave` is the same kind of
 call and gets the same treatment: a step that was arriving is not drawn over the
 top of what the application did while it was being left.
 
+### `start()` answers, and `reached()` still does not
+
+`start()` returns whether the story it named is the one now running. That looks
+like a contradiction of the rule two sections up, so here is the line between
+them.
+
+`reached('order-saved')` is instrumentation. It goes where the thing happens,
+it stays in builds where no tour ever runs, and most of the time no step is
+waiting for it. Something that has to be free to leave in cannot complain about
+being left in. `start('checkout')` is the host giving an order, once, on
+purpose. Get the id wrong and there is no symptom at all: nothing happens, the
+tour does not begin, and nothing anywhere says why. I have typed that mistake
+and spent a while on it.
+
+The asymmetry is the same one `awaits` and `reached()` already have, one layer
+down. A name is checked where somebody meant it as a name, and left alone where
+it is a report about the world.
+
+`false` also comes back where the arguments were good and the tour went
+somewhere else anyway, which is the give-way above. The question this answers is
+the one a caller can act on. Is the story I named the one on screen. Not whether
+the arguments parsed, which nobody can do anything with.
+
+Story ids are still outside the generated vocabulary, so a typo is caught at
+runtime here rather than by the compiler. That is the second thing on the list
+in the codegen section, and this is the cheaper half of it.
+
+### Taking a story back
+
+`setStory` had no pair, so the map of stories only ever grew. A screen that
+registers a story when it mounts had nowhere to put the unregister, and the
+instance held every story a session ever saw along with whatever their handlers
+closed over.
+
+`deleteStory(id)` is the pair, and it answers whether there was one to take
+back. Taking back the story that is running stops the tour. The application has
+said this story no longer exists, and going on showing it would point the user
+at steps nobody stands behind any more. The ending reports through `onStep` like
+every other ending, so a progress readout hears about it rather than being left
+on the last step for ever.
+
 `previous` is the step a host was last told about. Most of the time that is
 `steps[at]` as well. The two come apart while a step is being entered. `at` is
 already the step the tour is heading for, and that step has not been drawn, so

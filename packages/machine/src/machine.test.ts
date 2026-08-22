@@ -488,6 +488,99 @@ describe('registering a story, and starting one', () => {
     expect(tour.step?.id).toBe('a')
   })
 
+  test('start says whether the story it named is the one now running', () => {
+    const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
+
+    expect(tour.start('onboarding')).toBe(true)
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('start says no to an id nothing is registered under, and to a step that is not there', () => {
+    const tour = register({
+      id: 'onboarding',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second' },
+      ],
+    })
+    tour.start('onboarding')
+
+    // The silence `reached()` keeps is for instrumentation left in builds where
+    // no tour runs. A host giving an order and naming the wrong story has no
+    // other symptom to go on.
+    expect(tour.start('onbaording')).toBe(false)
+    expect(tour.start('onboarding', 'c')).toBe(false)
+    expect(tour.start('onboarding', 1.5)).toBe(false)
+    expect(tour.start('onboarding', 2)).toBe(false)
+    expect(tour.start('onboarding', -1)).toBe(false)
+
+    // And none of them ended the tour that was already running.
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('start says no where a handler took the tour somewhere else instead', () => {
+    const tour = register({
+      id: 'first',
+      steps: [{ id: 'a', target: 'first' }],
+      onStep: (step) => {
+        // The ending of `first` is where the application takes over.
+        if (!step) tour.start('third')
+      },
+    })
+    tour.setStory({ id: 'second', steps: [{ id: 'b', target: 'second' }] })
+    tour.setStory({ id: 'third', steps: [{ id: 'c', target: 'third' }] })
+    tour.start('first')
+
+    const started = tour.start('second')
+
+    // The arguments were good. The tour is somewhere else all the same, and
+    // that is what a caller can act on.
+    expect(started).toBe(false)
+    expect(tour.story?.id).toBe('third')
+  })
+
+  test('a story taken back is out of reach of start', () => {
+    const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
+
+    expect(tour.deleteStory('onboarding')).toBe(true)
+    expect(tour.start('onboarding')).toBe(false)
+    expect(tour.state).toBe('idle')
+  })
+
+  test('deleteStory says whether there was one to take back', () => {
+    const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
+
+    expect(tour.deleteStory('nothing-here')).toBe(false)
+    expect(tour.deleteStory('onboarding')).toBe(true)
+    expect(tour.deleteStory('onboarding')).toBe(false)
+  })
+
+  test('taking back the story that is running ends the tour, and reports it', () => {
+    const { tour, seen } = watched({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
+    tour.start('story')
+    seen.length = 0
+
+    tour.deleteStory('story')
+
+    // The application has said this story no longer exists. Going on showing it
+    // would point the user at steps nobody stands behind any more.
+    expect(tour.state).toBe('idle')
+    expect(tour.story).toBeUndefined()
+    expect(seen).toEqual([[undefined, 'a']])
+    expect(drawing().torn).toBe(1)
+  })
+
+  test('taking back a story the tour is not on leaves it alone', () => {
+    const tour = register({ id: 'running', steps: [{ id: 'a', target: 'first' }] })
+    tour.setStory({ id: 'other', steps: [{ id: 'b', target: 'second' }] })
+    tour.start('running')
+
+    expect(tour.deleteStory('other')).toBe(true)
+
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('a')
+  })
+
   test('a story that shows the same step object twice still counts forwards', () => {
     // One object in two places, which is what a host generating steps from data
     // gets without thinking about it. `steps.indexOf(step)` answers 1 at both.

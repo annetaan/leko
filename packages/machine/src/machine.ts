@@ -199,12 +199,28 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Nothing is torn down until the arguments are known to be good, so a typo
    * cannot end a tour someone is in the middle of. An `at` that is not a whole
    * number in range is such a typo: `steps[1.5]` is nowhere.
+   *
+   * **Answers whether the story named here is the one now running.** A typo
+   * gets `false`, and so does an `at` that names nothing.
+   *
+   * This is not the silence `reached()` keeps, and the two are different on
+   * purpose. A `reached()` call is instrumentation, written where a thing
+   * happens and left in builds where no tour runs, so a name nobody awaits has
+   * to cost nothing and say nothing. `start()` is a host giving an order. A
+   * story id it got wrong is a mistake with no other symptom: nothing happens,
+   * and nothing anywhere says why.
+   *
+   * `false` also comes back where the arguments were good and the tour went
+   * elsewhere anyway. Ending the story that was running hands control to the
+   * application, and a handler is free to start a story of its own, which wins.
+   * The question this answers is the one a caller can act on — is the story I
+   * named the one on screen — rather than whether the arguments parsed.
    */
-  start(storyId: string, at: string | number = 0): void {
+  start(storyId: string, at: string | number = 0): boolean {
     const story = this.stories.get(storyId)
-    if (!story) return
+    if (!story) return false
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
-    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return
+    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return false
     // What is ending is told what is starting, so teardown a branch and the
     // story it rejoins both need can be skipped.
     this.end(story)
@@ -213,9 +229,37 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // would overwrite it, and it would never report an ending of its own. So
     // the most recent `start` wins, which is the one made with the most
     // information.
-    if (this.position) return
+    if (this.position) return false
     this.position = { story, index }
     this.enterStory(story)
+    // Asked after the fact rather than assumed, because `onEnter` is a call
+    // into the application too and can take the tour somewhere else before this
+    // returns.
+    return this.position?.story === story
+  }
+
+  /**
+   * Take a story back, and stop the tour if that is the story it is on.
+   *
+   * The pair to {@link setStory}, and the answer to a `stories` map that only
+   * ever grew. A screen that registers a story on mount has somewhere to put
+   * the unregister now, and the handlers a story closes over stop being reachable
+   * with it.
+   *
+   * Stopping is the honest thing to do when the running story is the one taken
+   * back. The application has said this story no longer exists, and going on
+   * showing it would be pointing the user at steps nobody stands behind any
+   * more. The ending reports through `onStep` like any other, so a progress
+   * readout hears about it.
+   *
+   * Answers whether there was a story registered under that id.
+   */
+  deleteStory(storyId: string): boolean {
+    const story = this.stories.get(storyId)
+    if (!story) return false
+    if (this.position?.story.id === storyId) this.stop()
+    this.stories.delete(storyId)
+    return true
   }
 
   /**

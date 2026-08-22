@@ -66,6 +66,25 @@ export class Leko {
   }
 
   /**
+   * Take a story back, and stop the tour if that is the story it is on.
+   *
+   * The pair to {@link setStory}. A screen that registers a story when it
+   * mounts has somewhere to put the unregister, and without one the instance
+   * holds every story a session ever saw, along with whatever their handlers
+   * closed over.
+   *
+   * **Taking back the story that is running stops the tour**, and the ending
+   * reports through {@link LekoStory.onStep} like any other. The application
+   * has said this story no longer exists, and going on showing it would point
+   * the user at steps nobody stands behind any more.
+   *
+   * Answers whether there was a story registered under that id.
+   */
+  deleteStory(storyId: string): boolean {
+    return this.machine.deleteStory(storyId)
+  }
+
+  /**
    * Show `storyId`, from its first step or from `at` — a step id or an index.
    *
    * Whatever was running stops, and reports its own ending first. One story at
@@ -81,9 +100,25 @@ export class Leko {
    * Nothing is torn down until the arguments are known to be good, so a typo
    * cannot end a tour someone is in the middle of. An `at` that is not a whole
    * number in range is such a typo: `steps[1.5]` is nowhere.
+   *
+   * **Answers whether the story named here is the one now running.** A typo
+   * gets `false`, and so does an `at` that names nothing.
+   *
+   * This is not the silence {@link reached} keeps, and the difference is the
+   * point. A `reached()` call is instrumentation, written where a thing happens
+   * and left in builds where no tour ever runs, so a name nobody awaits has to
+   * cost nothing and say nothing. `start()` is the host giving an order, and a
+   * story id it got wrong has no other symptom: nothing happens, and nothing
+   * anywhere says why.
+   *
+   * `false` also comes back where the arguments were good and the tour went
+   * elsewhere anyway. Ending whatever was running hands control to the
+   * application, and a handler is free to start a story of its own, which wins.
+   * What this answers is the question a caller can act on — is the story I
+   * named the one on screen.
    */
-  start(storyId: string, at: string | number = 0): void {
-    this.machine.start(storyId, at)
+  start(storyId: string, at: string | number = 0): boolean {
+    return this.machine.start(storyId, at)
   }
 
   /**
