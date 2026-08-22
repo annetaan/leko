@@ -1,4 +1,4 @@
-import type { StepBase } from './types.js'
+import type { StepBase, StoryBase } from './types.js'
 
 /** Everything the box beside the cutout can be asked to show at once. */
 export interface Content {
@@ -25,7 +25,7 @@ export interface Content {
  * whether the tour may be measured at all is a fact about the machine's state
  * and the machine is the only thing holding it.
  */
-export interface Presenter<A, S extends StepBase<A, S>> {
+export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
   /** The step's anchor, or `null` when it is not on the page. */
   resolve(step: S): A | null
   /**
@@ -39,7 +39,7 @@ export interface Presenter<A, S extends StepBase<A, S>> {
    * machine checks its own run counter when this settles, so a late one is
    * dropped the way a late `onEnter` is.
    */
-  show(step: S, anchor: A, content: Content, animate: boolean): Promise<void> | void
+  show(story: St, step: S, anchor: A, content: Content, animate: boolean): Promise<void> | void
   /**
    * Put it where it belongs now, without animating. For a surface that moved
    * under the tour rather than a tour that moved.
@@ -48,13 +48,13 @@ export interface Presenter<A, S extends StepBase<A, S>> {
    * step's anchor leaves the page, and a presenter with layers to resize still
    * has work to do in that turn.
    */
-  place(step: S, anchor: A | null, content: Content): void
+  place(story: St, step: S, anchor: A | null, content: Content): void
   /**
    * The words changed and nothing moved. Whether that means editing a box
    * already on screen or placing one that was not showing is the presenter's
    * to decide.
    */
-  retell(step: S, anchor: A, content: Content): void
+  retell(story: St, step: S, anchor: A, content: Content): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
   /** Take the message away. The cutouts stay where they are. */
@@ -64,10 +64,23 @@ export interface Presenter<A, S extends StepBase<A, S>> {
 }
 
 /**
- * What a presenter is allowed to ask of the machine. The machine implements
- * this and hands itself to the factory that builds the presenter.
+ * What a presenter is allowed to tell the machine. Three things it noticed, and
+ * nothing to ask.
+ *
+ * The machine hands one of these to the factory that builds the presenter. It
+ * used to hand itself, which made every method here part of the machine's own
+ * public API and gave `Machine` a `next()` beside its `nextStep()` that did the
+ * same thing.
+ *
+ * There was a fourth member, `story`, and it was the only reason this interface
+ * needed to know what a story is. A presenter read it to find the `padding` the
+ * running story asked for. That is a drawing question answered by reaching back
+ * through the state half at a moment nobody had written down: correct during
+ * `show`, `undefined` during `teardown`, and nothing said so. The story is a
+ * parameter of {@link Presenter.show}, {@link Presenter.place} and
+ * {@link Presenter.retell} now, handed over at the moment it is needed.
  */
-export interface Host<S, St> {
+export interface Host<S> {
   /**
    * The anchor of `step` left the page. The step is named rather than looked
    * up, because a presenter watching the step it was shown can notice the loss
@@ -78,6 +91,4 @@ export interface Host<S, St> {
   moved(): void
   /** A control the presenter drew was used. Means what `nextStep` means. */
   next(): void
-  /** The story being shown, or `undefined` while idle. */
-  readonly story: St | undefined
 }

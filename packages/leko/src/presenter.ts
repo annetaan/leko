@@ -35,9 +35,9 @@ interface Resolved {
  * than acted on, because whether the tour may be measured at all is the
  * machine's to know.
  */
-export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
+export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory> {
   private readonly options: LekoOptions
-  private readonly host: Host<LekoStep, LekoStory>
+  private readonly host: Host<LekoStep>
   /**
    * One scrim per scrolling ancestor, innermost first, always ending with the
    * document. Only the innermost carries the step's cutouts; each outer one is
@@ -54,14 +54,20 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
 
-  constructor(options: LekoOptions, host: Host<LekoStep, LekoStory>) {
+  constructor(options: LekoOptions, host: Host<LekoStep>) {
     this.options = options
     this.host = host
   }
 
-  /** Step, then story, then instance: the nearest one that says anything wins. */
-  private setting(step: LekoStep, key: 'padding' | 'radius'): number {
-    return step[key] ?? this.host.story?.[key] ?? this.options[key] ?? DEFAULTS[key]
+  /**
+   * Step, then story, then instance: the nearest one that says anything wins.
+   *
+   * The story is handed in rather than read back off the host. It used to come
+   * from `host.story`, which is the state half answering a drawing question,
+   * and correct only at moments nobody had written down.
+   */
+  private setting(story: LekoStory, step: LekoStep, key: 'padding' | 'radius'): number {
+    return step[key] ?? story[key] ?? this.options[key] ?? DEFAULTS[key]
   }
 
   resolve(step: LekoStep): HTMLElement | null {
@@ -75,13 +81,17 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
    * same shapes in viewport coordinates, to work out which side of them has room
    * on screen. Same geometry, two readers, so the space is the parameter.
    */
-  private cutouts(step: LekoStep, measure: (el: HTMLElement) => Rect): Resolved | null {
+  private cutouts(
+    story: LekoStory,
+    step: LekoStep,
+    measure: (el: HTMLElement) => Rect,
+  ): Resolved | null {
     const targets = resolveTargets(asArray(step.target))
     const action = targets[0]
     if (!action) return null
 
-    const padding = this.setting(step, 'padding')
-    const radius = this.setting(step, 'radius')
+    const padding = this.setting(story, step, 'padding')
+    const radius = this.setting(story, step, 'radius')
 
     // The action target is one cutout — the union of however many elements were
     // named. Everything in `related` stays separate, because the union of two
@@ -103,14 +113,14 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
    * chosen from what is on screen now, and the browser holds the message there
    * through every scroll that follows.
    */
-  private say(step: LekoStep, action: HTMLElement, content: Content): void {
+  private say(story: LekoStory, step: LekoStep, action: HTMLElement, content: Content): void {
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       return
     }
     this.message ??= new Message(() => this.host.next())
-    const onScreen = this.cutouts(step, (el) => el.getBoundingClientRect())
-    const gap = this.setting(step, 'padding')
+    const onScreen = this.cutouts(story, step, (el) => el.getBoundingClientRect())
+    const gap = this.setting(story, step, 'padding')
     this.message.show(content, action, onScreen?.cutouts ?? [], gap)
   }
 
@@ -135,6 +145,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
   }
 
   show(
+    story: LekoStory,
     step: LekoStep,
     anchor: HTMLElement,
     content: Content,
@@ -153,7 +164,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
     }
 
     const container = chain[0] ?? null
-    const resolved = this.cutouts(step, (el) => rectWithin(el, container))
+    const resolved = this.cutouts(story, step, (el) => rectWithin(el, container))
     if (!resolved) return this.host.lost(step)
 
     const inner = this.layers[0]
@@ -176,10 +187,10 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
-    const duration = this.host.story?.duration ?? this.options.duration ?? DEFAULTS.duration
+    const duration = story.duration ?? this.options.duration ?? DEFAULTS.duration
     const morphing = inner.morph(resolved.cutouts, duration)
     if (!morphing) {
-      this.say(step, anchor, content)
+      this.say(story, step, anchor, content)
       return
     }
     // Nothing back where the morph was interrupted. Another one starting is the
@@ -187,7 +198,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
     // begin it, so the settlement below is dropped there either way.
     return morphing.then((finished) => {
       if (!finished) return
-      this.say(step, anchor, content)
+      this.say(story, step, anchor, content)
     })
   }
 
@@ -199,16 +210,16 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
    * the size of the page and converge again, so for a moment almost nothing
    * would be dimmed.
    */
-  place(step: LekoStep, anchor: HTMLElement | null, content: Content): void {
+  place(story: LekoStory, step: LekoStep, anchor: HTMLElement | null, content: Content): void {
     const inner = this.layers[0]
     if (!inner) return
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(DomPresenter.chainOf(anchor ?? document.body))
-    const resolved = this.cutouts(step, (el) => rectWithin(el, inner.container))
+    const resolved = this.cutouts(story, step, (el) => rectWithin(el, inner.container))
     if (resolved) inner.set(resolved.cutouts)
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again.
-    if (anchor) this.say(step, anchor, content)
+    if (anchor) this.say(story, step, anchor, content)
   }
 
   /**
@@ -217,13 +228,13 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep> {
    * reading why they were stopped. A step that had no message until now has
    * nowhere to jump from, so that one is placed properly.
    */
-  retell(step: LekoStep, anchor: HTMLElement, content: Content): void {
+  retell(story: LekoStory, step: LekoStep, anchor: HTMLElement, content: Content): void {
     if (this.message?.visible) {
       this.message.setText(content.text ?? '')
       this.message.setError(content.error ?? '')
       return
     }
-    this.say(step, anchor, content)
+    this.say(story, step, anchor, content)
   }
 
   reject(): void {

@@ -40,7 +40,7 @@ const PAGE = ['first', 'second', 'third', 'target']
  * nothing to animate does. {@link Fake.slow} makes it wait instead, so the gap
  * between a step arriving and a step settling can be looked at.
  */
-class Fake implements Presenter<Anchor, Step> {
+class Fake implements Presenter<Anchor, Step, Story> {
   readonly page = new Set(PAGE)
   /** Every step it was asked to draw, in order. */
   readonly shown: string[] = []
@@ -54,13 +54,13 @@ class Fake implements Presenter<Anchor, Step> {
   torn = 0
   private settle: (() => void) | undefined
 
-  constructor(private readonly host: Host<Step, Story>) {}
+  constructor(private readonly host: Host<Step>) {}
 
   resolve(step: Step): Anchor | null {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(step: Step, _anchor: Anchor, content: Content): Promise<void> | void {
+  show(_story: Story, step: Step, _anchor: Anchor, content: Content): Promise<void> | void {
     this.shown.push(step.id)
     this.content = content
     // Whatever was in flight is interrupted and settles all the same, which is
@@ -73,12 +73,12 @@ class Fake implements Presenter<Anchor, Step> {
     })
   }
 
-  place(step: Step, _anchor: Anchor | null, content: Content): void {
+  place(_story: Story, step: Step, _anchor: Anchor | null, content: Content): void {
     this.shown.push(`place:${step.id}`)
     this.content = content
   }
 
-  retell(step: Step, anchor: Anchor, content: Content): void {
+  retell(_story: Story, step: Step, anchor: Anchor, content: Content): void {
     this.retold.push({ step: step.id, anchor, content })
     this.content = content
   }

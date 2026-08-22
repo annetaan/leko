@@ -737,6 +737,25 @@ is filled in by the machine, derived from `awaits`, and the presenter renders
 what it is given. The second constraint depends on that rule, and a presenter
 free to decide it would be a way to configure the rule back off.
 
+**The presenter is told, and never asks back.** `Host` had a fourth member,
+`story`. A presenter read it to find the `padding` the running story asked for.
+That is the drawing half reaching into the state half to answer a drawing
+question, at a moment nobody had written down. `host.story` is correct during
+`show` and `undefined` during `teardown`. Nothing said so, and nothing would
+have caught a reader that got it wrong.
+
+The story is a parameter of `show`, `place` and `retell` now. `Host` went from
+two type parameters to one, and its three remaining members all have the same
+shape. The presenter noticed something and says so. None of them returns
+anything.
+
+`Machine` used to implement `Host` and hand itself to the factory that builds
+the presenter. That put `lost`, `moved` and `next` on the machine's own public
+surface, so anything holding a tour could call them, and `next` sat beside
+`nextStep` doing the same job. The factory gets three closures now. A presenter
+cannot reach anything it was not given, and the three are gone from what a host
+can call.
+
 One thing got shorter. `draw` used to tell an interrupted morph from a finished
 one by reading `currentState`, because a morph does not bump the generation
 counter. `Presenter.show` now hands back something the machine checks against
@@ -750,10 +769,18 @@ became one.
 packages are private. A published `.d.ts` that referred to
 `@annetaan/leko-machine` would not resolve in anyone's project.
 
-Whether all three get published is open. Publishing them costs three changelogs
-and a version matrix. Bundling at the `@annetaan/leko` boundary instead costs a
-build tool in a package that gets by on `tsc`. I lean towards publishing, and
-the duplication above goes away on the day that is decided either way.
+This is settled now, and it went the other way from where I was leaning.
+Publishing all three would have cost three changelogs and a version matrix, and
+nobody wants `@annetaan/leko-machine` on its own. So `@annetaan/leko` bundles
+both halves in with `tsdown`, and what a consumer installs is one package with
+no runtime dependencies. The build tool that costs is a `devDependency`, which
+is not what the rule about dependencies is about.
+
+The duplication above stays, and it is what the boundary costs. `tsc` emits one
+file per source file and leaves every import specifier alone, so before the
+bundler the published `dist/` asked npm for two packages that are not on the
+registry. `pnpm check:pack` reads what `npm pack` would send and fails on a bare
+import the manifest does not depend on.
 
 ## Layout
 

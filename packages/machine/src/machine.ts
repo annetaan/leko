@@ -20,12 +20,9 @@ const isThenable = (value: unknown): value is Promise<void> =>
  * through {@link Presenter}, and the tsconfig for this package leaves `lib.dom`
  * out so that a stray `document` is a compile error rather than a habit.
  */
-export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> implements Host<
-  S,
-  St
-> {
+export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
   private readonly options: MachineOptions<A, S, St>
-  private readonly presenter: Presenter<A, S>
+  private readonly presenter: Presenter<A, S, St>
   /**
    * Every story the application has registered, of which at most one is ever
    * running. Held here so that a call site reports a signal once, to the
@@ -114,16 +111,26 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
   /**
    * The presenter is built here rather than handed in, because it needs a
-   * {@link Host} and the host is this object. A factory is the shortest way to
-   * close that loop without leaving a window where one exists and the other
-   * does not.
+   * {@link Host} and only this object can answer one. A factory is the shortest
+   * way to close that loop without leaving a window where one exists and the
+   * other does not.
+   *
+   * What goes to the factory is three closures rather than `this`. Handing
+   * `this` over made `lost`, `moved` and `next` public members of the machine,
+   * so anything holding a tour could call them, and `next` sat beside
+   * `nextStep` meaning the same thing. A presenter cannot reach anything here
+   * it was not given.
    */
   constructor(
     options: MachineOptions<A, S, St>,
-    presenter: (host: Host<S, St>) => Presenter<A, S>,
+    presenter: (host: Host<S>) => Presenter<A, S, St>,
   ) {
     this.options = options
-    this.presenter = presenter(this)
+    this.presenter = presenter({
+      lost: (step) => this.lose(step),
+      moved: () => this.surfaceMoved(),
+      next: () => this.nextStep(),
+    })
   }
 
   /**
@@ -293,11 +300,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     if (step) this.advance(step)
   }
 
-  /** {@link Host.next}. The presenter's own control means what `nextStep` means. */
-  next(): void {
-    this.nextStep()
-  }
-
   /**
    * It is *not* a no-op mid morph: silently dropping a call would be the
    * library deciding the application did not mean it, which is the guessing it
@@ -321,7 +323,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       const anchor = this.presenter.resolve(step)
       if (anchor === null) return this.lose(step)
       if (!step.validate(anchor)) {
-        step.onValidationError?.(anchor, this.errorUtils(step, anchor))
+        step.onValidationError?.(anchor, this.errorUtils(story, step, anchor))
         return
       }
     }
@@ -413,7 +415,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * draws, so an application that edits its own text is seen and Leko never
    * has a copy to go stale.
    */
-  private errorUtils(step: S, anchor: A): ErrorUtils {
+  private errorUtils(story: St, step: S, anchor: A): ErrorUtils {
     const run = this.generation
     // The attempt is over the moment the tour moves. Every arrival and every
     // stop bumps the counter, and a second failed attempt at the same step
@@ -428,7 +430,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       setError: (message) => {
         if (stale()) return
         this.error = message
-        this.presenter.retell(step, anchor, this.content(step))
+        this.presenter.retell(story, step, anchor, this.content(step))
       },
     }
   }
@@ -464,10 +466,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Nothing of this step has been measured while its `onEnter` is in flight,
    * and measuring it here would be reading the anchor early by another route.
    */
-  moved(): void {
-    const step = this.step
-    if (!step || this.preparing) return
-    this.presenter.place(step, this.presenter.resolve(step), this.content(step))
+  private surfaceMoved(): void {
+    const here = this.position
+    const step = here && here.story.steps[here.index]
+    if (!here || !step || this.preparing) return
+    this.presenter.place(here.story, step, this.presenter.resolve(step), this.content(step))
   }
 
   /**
@@ -540,7 +543,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // `onEnter` is the other call into the application that can take the tour
     // somewhere else before anything of this step has been drawn.
     if (this.generation !== run) return
-    this.draw(step, animate)
+    this.draw(story, step, animate)
     if (this.generation !== run) return
     const previous = this.announced
     // Written before the report goes out, for the reason `entered` is cleared
@@ -559,12 +562,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * this one, and without the counter its promise would resolve a moment later
    * and mark the *new* step as done before it had moved.
    */
-  private draw(step: S, animate: boolean): void {
+  private draw(story: St, step: S, animate: boolean): void {
     const anchor = this.presenter.resolve(step)
     if (anchor === null) return this.lose(step)
 
     const run = this.generation
-    const showing = this.presenter.show(step, anchor, this.content(step), animate)
+    const showing = this.presenter.show(story, step, anchor, this.content(step), animate)
     // `show` is a call into the presenter, and a presenter that cannot find
     // what it needs says so through `lost`, which ends the run before this
     // returns. Calling the step settled after that would put `running` back on
@@ -617,14 +620,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * {@link Host.lost}. The step is handed in rather than read from `at`,
-   * because a presenter watching the step it was shown can notice the loss
-   * after the tour has started heading somewhere else.
+   * A step whose anchor is not there. Reached from {@link draw} when the
+   * presenter resolves nothing, and from {@link Host.lost} when a presenter
+   * notices later. The step is handed in rather than read from
+   * {@link position}, because a presenter watching the step it was shown can
+   * notice the loss after the tour has started heading somewhere else.
    */
-  lost(step: S): void {
-    this.lose(step)
-  }
-
   private lose(step: S): void {
     const story = this.position?.story
     // Whatever the host decides to do about it, the message goes now: its
