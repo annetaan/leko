@@ -342,6 +342,42 @@ boolean until the day I needed to tell those apart, and the only way to do it
 was to ask whether any step had been entered yet. That is a true fact standing
 in for a state nobody had written down.
 
+#### `state` is read off the machine, never written to it
+
+That field was one of four holding overlapping answers. `currentState` said
+`idle`, `running` or `transitioning`. `currentStory` and `at` said where the
+tour was, and neither meant anything until `currentState` said it did.
+`preparing` said which handler was in flight, which is a second way of saying
+`transitioning`. Any two of them could disagree, and nothing checked.
+
+They did disagree. Lose a target after a slow `onEnter` and register
+`onTargetLost`, and the tour holds where it was, exactly as this file promised
+it would. `state` read `transitioning` for ever. The assignment that would have
+put it right lives in `draw`, and the lost anchor returns before reaching it.
+The host is left unable to tell a slow step from a stuck one. The suite asserted
+`state` twenty-six times before this, thirteen in the machine's own tests and
+thirteen in the browser, and every one of them sat somewhere the write does
+happen.
+
+The fix is not a fifth assignment. `state` is derived now, off three fields
+that each say one thing:
+
+```ts
+get state(): MachineState {
+  if (!this.position) return 'idle'
+  return this.preparing || this.settling ? 'transitioning' : 'running'
+}
+```
+
+`position` is where the tour is, and being idle is it being `undefined`.
+`preparing` is which `onEnter` is in flight. `settling` is whether the presenter
+is still moving what it last drew, which is the other half `transitioning`
+meant. Nothing can forget to write an answer that nobody stores.
+
+`position` holds the story and the index together because they are one fact.
+The three getters used to ask `currentState` whether the pair meant anything
+yet, and three places deciding one question is three places to get it wrong.
+
 `examples/sandbox/src/cases/story-setup.ts` is the case. It holds the first step
 for 600ms while the draft loads, and it reads `meta` back as a chapter label
 while it is there.

@@ -536,6 +536,57 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('transitioning')
   })
 
+  test('a handler that holds a lost target leaves the tour running', () => {
+    const tour = register(
+      {
+        id: 'story',
+        steps: [
+          { id: 'a', target: 'first' },
+          { id: 'b', target: 'second' },
+        ],
+      },
+      { onTargetLost: () => {} },
+    )
+    tour.start('story')
+    drawing().page.delete('second')
+    tour.nextStep()
+
+    // Registering a handler is taking the tour over, and the machine goes on
+    // holding it exactly where it was.
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+  })
+
+  test('a target lost while its step was still being built leaves it running too', async () => {
+    const { promise, settle } = held()
+    const tour = register(
+      {
+        id: 'story',
+        steps: [
+          { id: 'a', target: 'first' },
+          { id: 'b', target: 'second', onEnter: () => promise },
+        ],
+      },
+      { onTargetLost: () => {} },
+    )
+    tour.start('story')
+    tour.nextStep()
+    // Waiting on `onEnter`, which is what `transitioning` says here.
+    expect(tour.state).toBe('transitioning')
+
+    drawing().page.delete('second')
+    settle()
+    await promise
+
+    // The anchor is resolved after `onEnter` settles, so this is the one route
+    // to a lost target that arrives with the machine already saying
+    // `transitioning`. Nothing is settling any more and nothing is going to,
+    // and a tour reading `transitioning` for ever is a tour whose host cannot
+    // tell a slow step from a stuck one.
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+  })
+
   test('the index says how far into the story the step sits, and is empty while idle', () => {
     const tour = register({
       id: 'story',

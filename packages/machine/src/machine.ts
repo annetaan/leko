@@ -32,7 +32,24 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * instance, and never has to know how many stories might care.
    */
   private readonly stories = new Map<string, St>()
-  private currentStory: St | undefined
+  /**
+   * Which story is running and where in it the tour is, or `undefined` while
+   * nothing is running.
+   *
+   * One field, because the two are one fact. They were `currentStory` and `at`,
+   * and every reader had to ask a third field whether the pair meant anything
+   * yet. Being idle is this being `undefined`, so there is one way to say it
+   * and the three getters below do not each get to decide.
+   */
+  private position: { story: St; index: number } | undefined
+  /*
+   * `position`, `preparing` and `settling` are the three fields {@link state}
+   * is read from, and each says one thing. Where the tour is. Which `onEnter`
+   * is in flight. Whether the presenter is still moving. There is no fourth
+   * field holding the answer they add up to, because the day one of them
+   * changed without that field being updated is the bug this arrangement
+   * exists to prevent.
+   */
   /**
    * What the last attempt at the current step was told was wrong with it, set
    * through {@link ErrorUtils.setError}. Held here rather than on the step: it
@@ -40,11 +57,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * the application.
    */
   private error: string | undefined
-  /** Where in `currentStory.steps` the tour is. Exposed by {@link index}. */
-  private at = 0
   /**
    * The step whose `onEnter` has been called and whose `onLeave` has not. Held
-   * rather than worked out from `at`, because a step is abandoned part way
+   * rather than worked out from {@link position}, because a step is abandoned part way
    * through entering often enough — a rejection, or a signal arriving while the
    * handler is still in flight — and the cleanup is owed either way.
    */
@@ -73,7 +88,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private preparing: 'story' | 'step' | undefined
   /**
-   * The step `onStep` was last told the tour is on, which is not `steps[at]`: a
+   * The step `onStep` was last told the tour is on, which is not {@link step}: a
    * step whose `onEnter` is still running is where the tour is heading and
    * nowhere a host has heard of. Every `previous` is read from here, so the
    * calls chain — each one leaves from where the last one arrived — and a run
@@ -88,7 +103,14 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * it settles.
    */
   private generation = 0
-  private currentState: MachineState = 'idle'
+  /**
+   * Whether the presenter is still moving what it last drew.
+   *
+   * Set from {@link draw} when `show` hands back something to wait for, and
+   * cleared when that settles or when a fresh arrival replaces it. The morph is
+   * the only thing this is about; an `onEnter` in flight is {@link preparing}.
+   */
+  private settling = false
 
   /**
    * The presenter is built here rather than handed in, because it needs a
@@ -104,8 +126,20 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     this.presenter = presenter(this)
   }
 
+  /**
+   * Derived, never stored.
+   *
+   * It used to be a field, written at each of the handful of places that knew
+   * it had changed. One of them did not know: a target found missing after a
+   * slow `onEnter` left `transitioning` on a tour that had finished settling
+   * and was never going to settle again, so a host could not tell a slow step
+   * from a stuck one. The fix is not another assignment. Three fields already
+   * hold the whole answer, and reading it off them is a thing that cannot be
+   * forgotten.
+   */
   get state(): MachineState {
-    return this.currentState
+    if (!this.position) return 'idle'
+    return this.preparing || this.settling ? 'transitioning' : 'running'
   }
 
   /**
@@ -117,12 +151,13 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * reordering `steps` while it runs moves the ground under that position.
    */
   get story(): St | undefined {
-    return this.currentState === 'idle' ? undefined : this.currentStory
+    return this.position?.story
   }
 
   /** The step being shown, or `undefined` while idle. */
   get step(): S | undefined {
-    return this.currentState === 'idle' ? undefined : this.currentStory?.steps[this.at]
+    const here = this.position
+    return here && here.story.steps[here.index]
   }
 
   /**
@@ -134,7 +169,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * walks backwards. The machine is holding the position anyway.
    */
   get index(): number | undefined {
-    return this.currentState === 'idle' ? undefined : this.at
+    return this.position?.index
   }
 
   /**
@@ -147,7 +182,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   setStory(story: St): void {
     this.stories.set(story.id, story)
-    if (this.currentStory?.id === story.id) this.currentStory = story
+    const here = this.position
+    if (here?.story.id === story.id) this.position = { ...here, story }
   }
 
   /**
@@ -170,10 +206,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // would overwrite it, and it would never report an ending of its own. So
     // the most recent `start` wins, which is the one made with the most
     // information.
-    if (this.currentState !== 'idle') return
-    this.currentStory = story
-    this.at = index
-    this.currentState = 'running'
+    if (this.position) return
+    this.position = { story, index }
     this.enterStory(story)
   }
 
@@ -206,7 +240,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
     // Nothing is settled and nothing is drawn, which is what `transitioning`
     // says about the gap between two steps and says as well about this one.
-    this.currentState = 'transitioning'
+    // Saying it is all `preparing` does now: `state` reads it.
     this.preparing = 'story'
     void entering.then(
       () => {
@@ -279,9 +313,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private advance(step: S): void {
     if (this.preparing) return
-    const story = this.currentStory
-    if (!story) return
-    const steps = story.steps
+    const here = this.position
+    if (!here) return
+    const { story, index } = here
 
     if (step.validate) {
       const anchor = this.presenter.resolve(step)
@@ -292,11 +326,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       }
     }
 
-    if (this.at >= steps.length - 1) {
+    if (index >= story.steps.length - 1) {
       this.stop()
       return
     }
-    this.at += 1
+    this.position = { story, index: index + 1 }
     this.enter(true)
   }
 
@@ -309,10 +343,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * so the step behind is no readier than the step ahead.
    */
   prevStep(): void {
-    const story = this.currentStory
-    if (this.currentState === 'idle' || this.at === 0 || !story) return
+    const here = this.position
+    if (!here || here.index === 0) return
     if (this.preparing === 'story') return
-    this.at -= 1
+    this.position = { ...here, index: here.index - 1 }
     this.enter(true)
   }
 
@@ -333,14 +367,13 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * one; every other ending has nowhere to name.
    */
   private end(next: St | undefined): void {
-    if (this.currentState === 'idle') return
-    const story = this.currentStory
+    const story = this.position?.story
+    if (!story) return
     const previous = this.announced
     this.generation += 1
     this.preparing = undefined
-    this.currentState = 'idle'
-    this.currentStory = undefined
-    this.at = 0
+    this.settling = false
+    this.position = undefined
     this.error = undefined
     // Cleared here rather than after the report, because the handlers below can
     // start a story, and the arrival that story announces is where the tour
@@ -432,8 +465,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * and measuring it here would be reading the anchor early by another route.
    */
   moved(): void {
-    const step = this.currentStory?.steps[this.at]
-    if (this.currentState === 'idle' || this.preparing || !step) return
+    const step = this.step
+    if (!step || this.preparing) return
     this.presenter.place(step, this.presenter.resolve(step), this.content(step))
   }
 
@@ -443,13 +476,17 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * A handler that hands back nothing costs nothing at all.
    */
   private enter(animate: boolean): void {
-    const story = this.currentStory
-    const step = story?.steps[this.at]
-    if (!story || !step) return this.stop()
+    const here = this.position
+    const step = here && here.story.steps[here.index]
+    if (!here || !step) return this.stop()
+    const story = here.story
 
     // Whatever was wrong with an attempt at the step being left is not an
     // attempt at this one, which is why `setError` has no counterpart to call.
     this.error = undefined
+    // Whatever the presenter was moving is not this step's arrival. Leaving it
+    // set would have `state` reporting a morph that belongs to the step before.
+    this.settling = false
     // The step being replaced may have been waiting on its `onEnter`. Its
     // handler will find the counter has moved and return without clearing this,
     // which would leave a drawn step that no signal can advance. Cleared before
@@ -475,7 +512,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
     // Between two steps with nothing settled, which is what `transitioning`
     // already means. A morph says the same thing about the same gap.
-    this.currentState = 'transitioning'
     this.preparing = 'step'
     void entering.then(
       () => {
@@ -534,14 +570,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // returns. Calling the step settled after that would put `running` back on
     // a tour that is over.
     if (this.generation !== run) return
-    if (!isThenable(showing)) {
-      this.currentState = 'running'
-      return
-    }
-    this.currentState = 'transitioning'
+    if (!isThenable(showing)) return
+    this.settling = true
     void showing.then(() => {
       if (this.generation !== run) return
-      this.currentState = 'running'
+      this.settling = false
     })
   }
 
@@ -593,7 +626,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   private lose(step: S): void {
-    const story = this.currentStory
+    const story = this.position?.story
     // Whatever the host decides to do about it, the message goes now: its
     // anchor has left the page, and an anchored element whose anchor is gone
     // falls back to wherever normal positioning puts it.
