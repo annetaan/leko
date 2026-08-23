@@ -40,7 +40,7 @@ Show  → user watches     Do  → user performs
 ## What it looks like
 
 Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds thirteen situations a
+`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds fourteen situations a
 tour has to survive, and you drive each one yourself.
 
 Here is a story about ordering something.
@@ -198,6 +198,9 @@ bottom of the viewport, so it degrades rather than fails.
 
 ## Looking further
 
+- **[ONBOARDING.md](ONBOARDING.md)** is the map of the code. What to read in
+  what order, and one trace from a `reached()` call to the pixels it moves.
+  Start here if you are going to change something.
 - **[DESIGN.md](DESIGN.md)** is why the code is shaped the way it is. Each rule
   sits next to the browser behaviour that forced it.
 - **[`spike/`](spike/)** is the evidence. Three standalone pages, no build step

@@ -733,20 +733,24 @@ the scrim, the hole and the message. Neither knows what the other is for.
 
 ### Why they are apart
 
-The machine carries seven fields: `currentState`, `at`, `entered`,
-`enteredStory`, `preparing`, `announced` and `generation`. What has to hold
-between them was written in comments and nowhere else, and three fixes in a row
-were the same shape. An `onEnter` settled at one moment, a call from the host
-arrived at another, and two of the seven ended up disagreeing about where the
-tour was. #31 reported a step nobody had been told the tour reached. #33 left
-the in-flight flag up and killed every later signal. #35 walked out of a story
-whose setup had not finished.
+The machine carried seven fields when the line was drawn: `currentState`, `at`,
+`entered`, `enteredStory`, `preparing`, `announced` and `generation`. What has
+to hold between them was written in comments and nowhere else, and three fixes
+in a row were the same shape. An `onEnter` settled at one moment, a call from
+the host arrived at another, and two of the seven ended up disagreeing about
+where the tour was. #31 reported a step nobody had been told the tour reached.
+#33 left the in-flight flag up and killed every later signal. #35 walked out of
+a story whose setup had not finished.
 
 Those are interleavings. Finding them by hand means guessing which one to write
 a test for. Enumerating them means running the machine thousands of times, and
 that was unaffordable while every run needed chromium, firefox and webkit. The
-suite has 74 tests for the machine and each ran three times, in three engines,
+suite had 74 tests for the machine and each ran three times, in three engines,
 for claims that never mention layout.
+
+`currentState` and `at` are gone since, and what replaced them is argued under
+[`state` is read off the machine](#state-is-read-off-the-machine-never-written-to-it).
+The split is still what let those fixes be found.
 
 So `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in
 that package is a compile error, and the tests for it can run against a fake in
@@ -948,28 +952,34 @@ count of distinct tests did not move.
 
 ### The machine's tests are grouped so the gaps show
 
-`machine.test.ts` is 46 tests and was one flat list. The claim names carry it
+`machine.test.ts` is 62 tests and was one flat list. The claim names carry it
 top to bottom, and it has no map. That is fine for reading and no help at all
 for the question I actually have, which is what nobody has tested yet.
 
-So the tests sit in eight `describe` groups, one per axis the machine is asked
-about. Signals. Registering and starting. What the tour says it is doing.
-Saying where it got to. A target that is not there. What a step assumes. What a
-story assumes. Moving from one story to another.
+So the tests sit in nine `describe` groups, one per axis the machine is asked
+about. Signals. What a failed attempt can do about itself. Registering and
+starting. What the tour says it is doing. Saying where it got to. A target that
+is not there. What a step assumes. What a story assumes. Moving from one story
+to another.
 
-Read as a table, the small groups are the interesting ones. "What the tour says
-it is doing" holds 2 tests, and `state` is asserted all over the other seven
-without being pinned down in any of them. "A target that is not there" holds 2,
-both of a tour that finds the target missing the moment it looks, and neither
-crosses that with a handler still in flight.
+Read as a table, the small groups are the interesting ones. There were eight
+groups and 46 tests when I first drew them, and three of the groups were short.
+"What the tour says it is doing" held 2 tests, and `state` was asserted all over
+the others without being pinned down in any of them. "A target that is not
+there" held 2, both of a tour that finds the target missing the moment it looks,
+and neither crossed that with a handler still in flight. `ErrorUtils` had no
+group at all. `shake` and `setError` are what a failed attempt is handed, and
+the only tests that touched them were in `packages/leko/src/message.test.ts`,
+which asks where the box rendered rather than what the machine did.
 
-`ErrorUtils` has no group. `shake`, `setMessage` and `setError` are what a
-failed attempt is handed, and nothing in `machine.test.ts` calls any of them.
-The only tests that touch them are in `packages/leko/src/message.test.ts`, and
-those ask where the box rendered rather than what the machine did.
+Each of those three gaps had a bug in it, and two are closed now. #41 gave
+`ErrorUtils` a group of 7. #42 took the readout group to 4, and the two it added
+are the crossings that were missing: a lost target a handler is holding, and a
+target lost while its step was still being built. "A target that is not there"
+is the one still holding 2, and the crossing it named is covered from the
+readout group rather than from its own.
 
-Each of those three gaps has a bug in it. That is the argument for grouping
-rather than a tidiness one.
+That is the argument for grouping rather than a tidiness one.
 
 Put each of #31, #33 and #35 back into `machine.ts` and the Node project catches
 all three: six failures, one and one. #35 needed two tests written for it there,

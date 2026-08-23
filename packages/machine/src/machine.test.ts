@@ -191,10 +191,9 @@ const twoSteps = (message: string): Step[] => [
 // is the point: a group with two tests in it is a column nobody has crossed
 // with the others, and that is where the next bug is.
 //
-// `ErrorUtils` has no group at all. `shake`, `setMessage` and `setError` are
-// what a failed attempt is handed, and nothing in this file calls any of them.
-// The only tests that touch them are in `packages/leko/src/message.test.ts`,
-// which asks where the box rendered rather than what the machine did.
+// It has paid for itself twice. `ErrorUtils` had no group here and got one in
+// #41. The readout group held two tests and got the two crossings it was
+// missing in #42. "A target that is not there" is the one still holding two.
 
 describe('a signal, and the step waiting for it', () => {
   // The second constraint, tested from both ends. A step declares a name, the
@@ -604,11 +603,11 @@ describe('registering a story, and starting one', () => {
 describe('what the tour says it is doing', () => {
   // `state`, `step` and `index`, which are the whole public readout.
   //
-  // Two tests. Every other group here drives the machine through some sequence
-  // and then asks which step it landed on, so `state` is asserted all over the
-  // file and pinned down almost nowhere. Nothing below crosses the readout with
-  // a target that went missing, and nothing crosses it with a story whose setup
-  // is still in flight.
+  // Four tests. It held two, and every other group drives the machine through
+  // some sequence and then asks which step it landed on, so `state` was
+  // asserted all over the file and pinned down almost nowhere. #42 added the
+  // two crossings that were missing, both of a target that went away. Nothing
+  // here crosses the readout with a story whose setup is still in flight.
 
   test('interrupting a draw does not mark the next step as already settled', async () => {
     const tour = register({
@@ -945,7 +944,9 @@ describe('a target that is not there', () => {
   //
   // Neither crosses this with a handler in flight, and that is the gap worth
   // naming: a step whose `onEnter` returned a promise has already put the
-  // machine into `transitioning` by the time the anchor is resolved.
+  // machine into `transitioning` by the time the anchor is resolved. #42
+  // covered that crossing from the readout group, which asks what `state` reads
+  // afterwards. Nothing here asks what the tour does about the target itself.
 
   test('a story whose target is already gone reports its ending, and no start', () => {
     const { tour, seen } = watched({ id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] })

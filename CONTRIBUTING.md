@@ -3,6 +3,11 @@
 Thanks for looking. Leko is pre-release, so the API still moves; issues that
 report a broken assumption are as useful as pull requests.
 
+This file is the commands and the rules. [ONBOARDING.md](ONBOARDING.md) is the
+code: which file to open first, what the three packages are for, and one trace
+from a `reached()` call to the pixels it moves. Read it before your first
+change.
+
 ## Getting set up
 
 Node is pinned in `.node-version`, which mise, fnm, nvm, asdf and volta all
