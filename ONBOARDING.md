@@ -35,7 +35,7 @@ Node is pinned in `.node-version` and pnpm is pinned in `package.json`.
 the core from `src` through the `development` export condition, so there is no
 watch process and no stale `dist/` to debug.
 
-Fourteen cases sit in the left rail. Take them in this order on the first day.
+Fifteen cases sit in the left rail. Take them in this order on the first day.
 
 1. **stepping**. Five targets of different shapes and no validation in the way.
    Press `nextStep()` in the footer and watch the hole morph. This is the case
@@ -47,6 +47,10 @@ Fourteen cases sit in the left rail. Take them in this order on the first day.
    and only the one that declared that name moves.
 4. **branching**. Three stories and a `start('shared', 'summary')` that hands
    the tour back where the paths meet. Watch the footer counter.
+5. **signal-too-early**. Press Send and read the footer. The application
+   reported something true while the step waiting for it was still being built,
+   and the call was dropped. This is the one case where the interesting thing
+   is what did *not* happen.
 
 Every case states in one sentence what it proves. Read that line before you
 drive the case.
@@ -57,7 +61,7 @@ drive the case.
 pnpm test
 ```
 
-239 test runs across 17 files. It takes about 5 seconds on a laptop once the
+253 test runs across 17 files. It takes about 5 seconds on a laptop once the
 browsers are installed. Five Vitest projects, three of them in real browsers.
 
 ## The shape of the code
