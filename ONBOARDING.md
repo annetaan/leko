@@ -123,8 +123,8 @@ They are the same rule from two sides.
 The seam. Two interfaces and nothing else. `Presenter` is what the machine may
 ask of whatever draws. `Host` is the three things a presenter may report back.
 
-Read it twice. Three rules live here and DESIGN.md argues each under
-[Two rules the port exists to keep](DESIGN.md#two-rules-the-port-exists-to-keep).
+Read it twice. Three rules live here and DESIGN.md states each under
+[Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
@@ -284,7 +284,7 @@ every listener the library installs, and none of them advances a step.
 all. The scrim lives inside the thing that scrolls, so scrolling moves the scrim
 and the target together, and the message is anchor-positioned so the browser
 offsets it. If you find yourself adding a scroll listener, stop and read
-[Design](DESIGN.md#design) first.
+[Scrolling](DESIGN.md#scrolling) first.
 
 ## Which Vitest project a new test belongs in
 
@@ -305,9 +305,9 @@ mentioned the DOM and no engine could disagree about any of them. They moved to
 
 `machine.test.ts` is grouped into 9 `describe` blocks, one per axis the machine
 is asked about. Read them as a table. A group with two tests in it is a column
-nobody has crossed with the others, and DESIGN.md's
-[section on this](DESIGN.md#the-machines-tests-are-grouped-so-the-gaps-show)
-says each of the three gaps it found had a bug in it.
+nobody has crossed with the others, and that is where the next bug is.
+DESIGN.md says so under
+[How to write here, and where tests go](DESIGN.md#how-to-write-here-and-where-tests-go).
 
 ## I want to change X
 
@@ -324,8 +324,8 @@ says each of the three gaps it found had a bug in it.
 `Target`, `ErrorUtils` and the three state literals are written out twice, in
 `@annetaan/leko` and in the package underneath it. That is deliberate while
 those packages are private, and DESIGN.md explains it under
-[What is declared twice](DESIGN.md#what-is-declared-twice-and-why). Change one
-and change the other.
+[Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
+Change one and change the other.
 
 Before opening a pull request:
 

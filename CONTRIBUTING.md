@@ -22,7 +22,7 @@ pnpm test
 ```
 
 The Playwright step is not optional. The suite runs in real browsers and there
-is no fallback — [DESIGN.md](DESIGN.md#why-the-tests-run-where-they-do) says why
+is no fallback — [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says why
 jsdom cannot stand in.
 
 ## Seeing it run
@@ -61,7 +61,7 @@ pnpm test           # vitest: five projects, three of them in browsers
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
 `leko-wiring` in Chromium alone, and `machine` and `codegen` in Node.
-[DESIGN.md](DESIGN.md#why-the-tests-run-where-they-do) says what puts a test in
+[DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in
 each one. The short version is whether a browser could get the answer wrong.
 
 Markdown is deliberately out of the formatter's reach — prose wrapping is a
@@ -149,7 +149,7 @@ page, not just the rule.
   design. The vocabulary is gathered *from* those calls, so an error there fires
   only between typing a new name and the generator running, and a `reached()`
   call has to be free to stay in the source in builds where no tour runs.
-  [DESIGN.md](DESIGN.md#strict-on-awaits-never-on-reached) argues it.
+  [DESIGN.md](DESIGN.md#gathering-the-vocabulary-from-the-call-sites) states it.
 - **Making an unmatched signal do something.** Warning about it, holding it
   until a step that awaits it appears, or letting a story that is not running
   keep up with it. Instrumentation has to be free to leave in the source, and a
