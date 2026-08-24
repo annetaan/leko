@@ -8,7 +8,7 @@ export const nextControl: Case = {
   title: 'Typing, and the control that follows it',
   proves:
     'A step with nothing for the application to report gets a control of its ' +
-    'own, and validate still decides. The step waiting on a signal has none.',
+    'own, and validate guards it. The step waiting on a signal has neither.',
 
   mount(root, leko) {
     const panel = html(`
@@ -50,9 +50,9 @@ export const nextControl: Case = {
             id: 'name',
             target: at('input[name="name"]'),
             message: 'Give the project a name of your own, then press Next.',
-            // Pressing the control claims the moment has come. What the state
-            // actually is stays this step's decision, exactly as it would be if
-            // a signal had arrived.
+            // Pressing the control claims the moment has come and claims
+            // nothing about the state behind it, which is why a step with a
+            // control is the kind of step that can want a guard.
             validate: (el) => {
               const value = (el as HTMLInputElement).value.trim()
               return value !== '' && value !== 'Untitled'
@@ -67,7 +67,7 @@ export const nextControl: Case = {
           {
             id: 'save',
             target: at('[data-save]'),
-            message: 'Now save it. No control on this one. The save is what ends it.',
+            message: 'Now save it. No control on this one, and no guard. The save ends it.',
             awaits: 'project-renamed',
           },
           {

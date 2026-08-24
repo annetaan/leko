@@ -155,6 +155,12 @@ page, not just the rule.
   keep up with it. Instrumentation has to be free to leave in the source, and a
   step advanced by something that happened while it was not on screen has
   established nothing.
+- **Letting a call through while an arrival is in flight, "just this one".**
+  The gate is what pays for the state core being five fields with no run
+  counter. Every exception puts back a callback that has to ask afterwards
+  whether the world moved while it ran.
+  [DESIGN.md](DESIGN.md#one-gate-and-what-it-refuses) states it, along with the
+  one exception there is and why `stop()` gets to be it.
 
 ## Adding a spike
 

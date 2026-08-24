@@ -40,7 +40,7 @@ Show  → user watches     Do  → user performs
 ## What it looks like
 
 Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds fourteen situations a
+`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds fifteen situations a
 tour has to survive, and you drive each one yourself.
 
 Here is a story about ordering something.

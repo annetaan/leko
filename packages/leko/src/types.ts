@@ -253,12 +253,16 @@ export interface LekoStep {
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 
   /**
-   * Called before advancing. Returning `false` blocks the transition and
-   * triggers {@link onValidationError}.
+   * Called before advancing on the next control. Returning `false` blocks the
+   * transition and triggers {@link onValidationError}.
    *
-   * This is what separates Leko from overlay-based tours: the step advances on
-   * your application's real state, not on a DOM event that may or may not mean
-   * the user succeeded.
+   * The control claims the moment has come, and claims nothing about the state
+   * behind it, so a step that has one can want a guard. This is that guard.
+   *
+   * **Ignored on a step that declares {@link awaits}.** Such a step has no
+   * control, and it advances because the application said the thing happened.
+   * Reading the page to check would be a second source of truth for the same
+   * question, and the second kind is what the second constraint keeps out.
    *
    * Receives the action target — the first element of {@link LekoStep.target},
    * never one of {@link LekoStep.related}.
@@ -399,9 +403,9 @@ export interface LekoOptions {
    * defeated by a button. So which steps have one is derived rather than
    * configured, and this option only says what it reads.
    *
-   * Both routes go through {@link LekoStep.validate}. Pressing the control
-   * claims the moment has come, exactly as a signal does, and the step still
-   * decides whether the state is right.
+   * The control is also the only route {@link LekoStep.validate} guards. A
+   * step that declares a signal has no control and no guard, for one reason:
+   * the application has already said the thing happened.
    */
   nextLabel?: string
 
@@ -432,7 +436,65 @@ export interface LekoOptions {
    * for a tour that branches, or a call to whatever counts things.
    */
   onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
+
+  /**
+   * Called when a call meant to do something and did not. See
+   * {@link LekoProblem}.
+   *
+   * Off by default, like everything else Leko has not been asked for. Nothing
+   * is logged: the core has no build-time environment to strip a development
+   * branch with, so anything it wrote to the console would be written in
+   * production too, and `console.error` is collected by error trackers and
+   * fails test suites that treat it as a failure. Which of those a project
+   * wants is the project's to choose.
+   *
+   * ```ts
+   * createLeko({
+   *   onDiagnostic: (problem) => {
+   *     if (import.meta.env.DEV) console.warn('[leko]', problem)
+   *   },
+   * })
+   * ```
+   */
+  onDiagnostic?: (problem: LekoProblem) => void
 }
+
+/**
+ * Something a call meant to do and did not.
+ *
+ * Every member is a call a working application would not have made, or one it
+ * made at a moment nothing could act on. Neither has any other symptom. The
+ * tour does not move, and nothing anywhere says why.
+ *
+ * Three things stay silent on purpose and are not here. A {@link Leko.reached}
+ * naming something no step waits for, because instrumentation is meant to stay
+ * in the source permanently and something free to leave in cannot complain
+ * about being left in. {@link Leko.nextStep} while idle, and
+ * {@link Leko.prevStep} on the first step, because a button that sits there is
+ * allowed to be pressed. A caller doing everything right ends up in all three.
+ */
+export type LekoProblem =
+  /** {@link Leko.start} was given an id nothing is registered under. */
+  | { kind: 'story-not-found'; storyId: string }
+  /** Its `at` named no step, or an index outside the story. */
+  | { kind: 'step-not-found'; storyId: string; at: string | number }
+  /**
+   * A signal the step showing was waiting for, reported while that step was
+   * still being built. It is dropped rather than saved for later, so the step
+   * goes on waiting for something the application has already been through.
+   *
+   * The likely fix is in the step, not in the call: an `onEnter` doing work the
+   * user can get ahead of is a step that wants splitting in two.
+   */
+  | { kind: 'signal-dropped'; name: string; step: LekoStep }
+  /**
+   * A call that arrived while Leko was inside the application, which is an
+   * `onEnter` in flight or an `onLeave` running. Nothing of the step being
+   * built has been built, so there is nothing there to act on.
+   *
+   * `stop()` is never here. It is the one call that asks nothing.
+   */
+  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'prevStep' | 'setStory' }
 
 /**
  * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.

@@ -57,37 +57,18 @@ export class Leko {
    * Register a story, replacing any story already registered under that id.
    *
    * Replacing rather than adding, so that a component re-registering on every
-   * render does not accumulate copies of itself. Doing it to the story that is
-   * running swaps what the current step is read from and redraws nothing: a
-   * re-render must not restart a tour someone is in the middle of.
+   * render does not accumulate copies of itself.
    *
-   * **A story that comes back with fewer steps than the tour has taken stops
-   * it**, and the ending reports through {@link LekoStory.onStep} like any
-   * other. There is no step where the user is standing any more, and a tour
-   * left standing there answers `running` with no step to show while every
-   * signal after it lands on nothing.
+   * **A call naming the story the tour is on does nothing.** Registering is how
+   * a story becomes something {@link start} can find, and it is never a way to
+   * change a tour while somebody is walking through it. The re-rendering
+   * component is the case that rule is written for: the tour keeps the object
+   * it entered, and the steps stay where they were under the user's feet.
+   *
+   * Answers whether the story was registered.
    */
-  setStory(story: LekoStory): void {
-    this.machine.setStory(story)
-  }
-
-  /**
-   * Take a story back, and stop the tour if that is the story it is on.
-   *
-   * The pair to {@link setStory}. A screen that registers a story when it
-   * mounts has somewhere to put the unregister, and without one the instance
-   * holds every story a session ever saw, along with whatever their handlers
-   * closed over.
-   *
-   * **Taking back the story that is running stops the tour**, and the ending
-   * reports through {@link LekoStory.onStep} like any other. The application
-   * has said this story no longer exists, and going on showing it would point
-   * the user at steps nobody stands behind any more.
-   *
-   * Answers whether there was a story registered under that id.
-   */
-  deleteStory(storyId: string): boolean {
-    return this.machine.deleteStory(storyId)
+  setStory(story: LekoStory): boolean {
+    return this.machine.setStory(story)
   }
 
   /**
@@ -117,11 +98,9 @@ export class Leko {
    * story id it got wrong has no other symptom: nothing happens, and nothing
    * anywhere says why.
    *
-   * `false` also comes back where the arguments were good and the tour went
-   * elsewhere anyway. Ending whatever was running hands control to the
-   * application, and a handler is free to start a story of its own, which wins.
-   * What this answers is the question a caller can act on — is the story I
-   * named the one on screen.
+   * `false` also comes back where the arguments were good and the story's own
+   * `onEnter` threw, and where the call arrived while Leko was inside the
+   * application and could not act on anything.
    */
   start(storyId: string, at: string | number = 0): boolean {
     return this.machine.start(storyId, at)

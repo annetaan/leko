@@ -71,11 +71,18 @@ configure it.** `LekoOptions.nextLabel` only says what the control reads.
 
 Without a control, two actions have to share one step. "Type 3, then place the
 order." The interface got coarser because the application had nothing to report.
-Pressing the control claims the moment has come, the way `reached()` does. Both
-routes run the same `validate`, and the step still decides. Everything reaching
-the control inside one frame is the same press. See `next-control.ts`.
+Everything reaching the control inside one frame is the same press. See
+`next-control.ts`.
 
 ## A failed attempt
+
+**`validate` guards the control, and only the control.** Pressing it claims the
+moment has come and claims nothing about the state behind it, so a step with a
+control can want a guard. A step that declares `awaits` has neither. The
+application already said the thing happened, and reading the page to check is a
+second source of truth for the same question. The second kind is what the second
+constraint exists to keep out, and one rule derived from `awaits` is easier to
+hold than two.
 
 `onValidationError` is handed two things, `shake()` and `setError()`.
 
@@ -93,6 +100,28 @@ See `late-reason.ts`.
 
 Leko does not hold the instruction. `step.message` is read every time it draws,
 and `StepBase.message` is `readonly` to say so.
+
+## Registering a story
+
+`setStory(story)` puts a story in the map under its id, replacing whatever was
+there. A component that registers on every render does not accumulate copies of
+itself, which is the only reason it replaces rather than adds.
+
+That is all it is for. The instrumentation goes into an application first, and
+the stories come later, so `setStory` exists to let a story appear at any point
+before something calls `start()` with its id.
+
+**A `setStory` naming the story the tour is on does nothing, and answers
+`false`.** It is never a way to change a tour while somebody is walking through
+it. Swap the object and the steps move under the position the tour is holding.
+A story shorter than the tour has gone leaves it standing nowhere. The
+re-rendering component is the case that matters, and refusing serves it: the
+tour keeps the object it entered.
+
+There is no `deleteStory`. Registering by id is a development-time convenience,
+and the map only grows where ids are themselves dynamic, which nothing has asked
+for. A pair to `setStory` also lets a registration call end a tour as a side
+effect, and nothing else in the API does that.
 
 ## Saying where the tour got to
 
@@ -112,11 +141,17 @@ of them and is told which. `stop()` reports the ending with no step, and so does
 running past the last one. A hook that could not say "nowhere" would leave a
 progress readout showing the final step for ever.
 
-**A handler may start or stop a story.** `start()` reports the ending of
-whatever was running before it sets up what comes next, so a handler on that
-ending can start a story of its own. **The most recent call wins rather than the
-outermost**, because it was made with more information than the one that
-triggered it.
+**A handler may start a story from an ending that has nowhere to go.** `stop()`
+and a tour running off its last step report with the machine already idle, and
+nothing runs after that report, so the story a handler starts there is the story
+that runs. `branching.ts` rejoins that way.
+
+**An ending caused by `start()` is not that kind.** Displacing one story with
+another is one operation, and the report goes out in the middle of it. A story
+begun from there would be overwritten by the one already on its way. So it is
+refused, like every other call made while Leko is inside the application. That
+refusal is what makes `next` worth having: the story `onLeave` is told about is
+the story that runs.
 
 **`start()` answers whether the story it named is the one now running.
 `reached()` still does not.** A `reached()` call is instrumentation, and most of
@@ -159,10 +194,10 @@ about a step while its `onEnter` still runs is naming something the user cannot
 see. A handler that returns nothing costs no turn.
 
 **Every `onEnter` gets its `onLeave`.** It runs where the handler failed
-halfway, and where something overtook it, because a handler that registered
-something before it fell over is owed one. `onLeave` is given where the tour is
-going, since a panel that two steps use in turn is worth leaving open. Starting
-another story counts as ending.
+halfway, and where a `stop()` walked out of it, because a handler that
+registered something before it fell over is owed one. `onLeave` is given where
+the tour is going, since a panel that two steps use in turn is worth leaving
+open. Starting another story counts as ending.
 
 **A rejection stops the tour, and the reason is thrown again.** The state the
 step assumes was never built, so drawing it would point the user at something
@@ -170,37 +205,93 @@ that is not ready. There is no hook for that failure. The rejection came from
 the application's own code, and the place with the context to do something about
 it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
 
-**A signal arriving while `onEnter` is in flight is dropped where it stands.**
-The state that step assumes is half built, its target has not been looked for,
-and it has never been on screen. There is no step here to advance away from.
-Mid-morph is the opposite and the call goes through, because a morphing step has
-been through the whole arrival and the user is looking at it.
+## One gate, and what it refuses
 
-`stop()` and `start()` overtake an `onEnter`, because those are the host saying
-the tour goes elsewhere. `prevStep()` overtakes a step's `onEnter` too. A back
-button under a dimmed page is what someone reaches for while a slow step loads.
-**A story's `onEnter` is not overtaken by it.** Every step is waiting on that one
-handler, so the step behind is no readier than the step ahead.
+**Leko never acts on a call while it is inside a call into the application.**
+
+An arrival is such a window. It runs from the moment a move begins until the
+step has been handed to whatever draws it, and `onEnter` is inside it whether it
+answers in the turn or hands back a promise that lands half a second later. A
+teardown is another: `onLeave` is running and the run is half taken apart.
+
+Inside either, `reached()`, `nextStep()`, `prevStep()`, `start()` and
+`setStory()` all do nothing. Nothing that step assumes has been built, its
+target has not been looked for, and it has never been on screen, so there is no
+step there to act on. The call is dropped where it stands rather than saved for
+when the arrival lands, because a signal saved over is a step advancing on
+something that happened before it began.
+
+**`stop()` is the exception, and asks nothing.** A tour that cannot be turned
+off until an `onEnter` somebody else wrote decides to settle is worse than any
+race this keeps out, and a component unmounting mid-arrival has nowhere else to
+go. Ending is also the one thing that needs nothing of the arrival. It throws
+the arrival away rather than acting on it, and the handler landing afterwards
+finds nothing standing where it left.
+
+**A morph is not an arrival.** A step that is drawn and still moving has been
+through the whole window and the user is looking at it, so every call goes
+through. Dropping one there would be Leko deciding the user did not mean the
+button they pressed.
+
+What the gate buys is that no callback has to ask afterwards whether the world
+moved while it ran. Where that question was written by hand at every crossing,
+one of them was always about to be forgotten.
+
+## Saying that a call did nothing
+
+Five calls do nothing. Three of them stay silent and two do not, and the line is
+whether a caller doing everything right can end up there.
+
+Silent: `reached()` with a name nothing waits for, `nextStep()` while idle, and
+`prevStep()` on the first step. A next button calls `nextStep()` whether or not
+a tour is running, a back button sits there on the first step, and `reached()`
+is the strongest case of all. Instrumentation is meant to stay in the source
+permanently, including in builds where no tour ever runs, so something that must
+be free to leave in cannot complain about being left in. **Those three must
+never speak**, and nothing should be added here that makes them.
+
+Reported through `onDiagnostic`: a `start()` naming a story or a step that is
+not there, and any call refused by the gate above. There is no version of
+`start('typo-id')` a working application meant, and a call refused mid-arrival
+came from an application doing everything right at a moment nothing could be
+done with it. Neither has any other symptom. The tour does not move, and nothing
+anywhere says why.
+
+**A `reached()` that matched and was dropped is reported**, and that is the
+split worth holding on to. A name nobody waits for is normal. A name the step
+showing declared, arriving while that step was still being built, means the step
+now waits for something the application has already been through. `awaits` is
+the same string on both sides and the vocabulary is gathered from the call sites
+either way, so silence there is a step that hangs for no visible reason.
+
+**Nothing is logged.** The core has no build-time environment to strip a
+development branch with, so anything written to the console is written in
+production too. `console.error` is collected by error trackers and fails test
+suites that treat it as a failure, `console.warn` is quieter and still arrives
+where the host did not ask for it. `onTargetLost` is the precedent: a step whose
+target cannot be resolved is reported to the application rather than logged,
+because Leko does not know what the host wants done about it.
 
 ## `state` is derived
 
-`state` is derived rather than stored. Three fields each say one thing, and
-it is read off them.
+`state` is derived rather than stored. Two fields each say one thing, and it is
+read off them.
 
 ```ts
 get state(): MachineState {
   if (!this.position) return 'idle'
-  return this.preparing || this.settling ? 'transitioning' : 'running'
+  return this.phase === 'ready' ? 'running' : 'transitioning'
 }
 ```
 
 `position` is where the tour is, and being idle is it being `undefined`. It
-holds the story and the index together because they are one fact. `preparing` is
-which `onEnter` is in flight. `settling` is whether the presenter is still
-moving what it last drew.
+holds the story and the index together because they are one fact, and it is
+replaced rather than edited on every move, so holding the object is holding the
+step occurrence. `phase` is how far along the machine is with what it is doing,
+and it is the same field the gate above reads.
 
 **Nothing can forget to write an answer that nobody stores.** Before adding a
-field here, check whether it is a fourth way of saying what three fields already
+field here, check whether it is a third way of saying what two fields already
 say.
 
 ## Gathering the vocabulary from the call sites

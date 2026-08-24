@@ -295,17 +295,19 @@ test('a step with only an error to show gets a box for it', async () => {
     {
       id: 'one',
       target,
-      awaits: 'order-saved',
       validate: () => false,
       onValidationError: (_el, utils) => utils.setError('The total is still zero.'),
     },
   ])
 
-  expect(visible()).toBe(false)
-  leko.reached('order-saved')
   await appears()
+  expect(words()).toBe('')
+  expect(on(error())).toBe(false)
+
+  leko.nextStep()
 
   expect(error()?.textContent).toBe('The total is still zero.')
+  expect(on(error())).toBe(true)
 })
 
 test('a refusal during the opening morph does not take the message with it', async () => {
@@ -316,7 +318,6 @@ test('a refusal during the opening morph does not take the message with it', asy
         id: 'one',
         target,
         message: 'Press it.',
-        awaits: 'order-saved',
         validate: () => false,
         onValidationError: (_el, utils) => utils.shake(),
       },
@@ -329,7 +330,7 @@ test('a refusal during the opening morph does not take the message with it', asy
   // The box waits for the cutout to land, because which side of the hole it
   // goes on is a fact about where the hole ends up.
   expect(visible()).toBe(false)
-  leko.reached('order-saved')
+  leko.nextStep()
 
   // A shake used to halt the morph, and a morph that ends unfinished is how the
   // presenter knows an arrival was interrupted — so the message was never said,

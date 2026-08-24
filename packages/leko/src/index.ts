@@ -3,6 +3,7 @@ export type {
   ErrorUtils,
   LekoKnownSignal,
   LekoOptions,
+  LekoProblem,
   LekoSignal,
   LekoSignals,
   LekoState,
