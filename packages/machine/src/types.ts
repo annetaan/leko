@@ -22,6 +22,10 @@ export interface StepBase<A, S> {
    * The guard on advancing, given whatever the presenter resolved the step's
    * anchor to. `A` is an element in `@annetaan/leko` and anything at all in a
    * test.
+   *
+   * **Ignored on a step that declares `awaits`.** Such a step advances because
+   * the application said the thing happened, and reading the page to check is a
+   * second source of truth for the same question.
    */
   validate?: (anchor: A) => boolean
   onValidationError?: (anchor: A, utils: ErrorUtils) => void

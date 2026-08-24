@@ -71,11 +71,18 @@ configure it.** `LekoOptions.nextLabel` only says what the control reads.
 
 Without a control, two actions have to share one step. "Type 3, then place the
 order." The interface got coarser because the application had nothing to report.
-Pressing the control claims the moment has come, the way `reached()` does. Both
-routes run the same `validate`, and the step still decides. Everything reaching
-the control inside one frame is the same press. See `next-control.ts`.
+Everything reaching the control inside one frame is the same press. See
+`next-control.ts`.
 
 ## A failed attempt
+
+**`validate` guards the control, and only the control.** Pressing it claims the
+moment has come and claims nothing about the state behind it, so a step with a
+control can want a guard. A step that declares `awaits` has neither. The
+application already said the thing happened, and reading the page to check is a
+second source of truth for the same question. The second kind is what the second
+constraint exists to keep out, and one rule derived from `awaits` is easier to
+hold than two.
 
 `onValidationError` is handed two things, `shake()` and `setError()`.
 

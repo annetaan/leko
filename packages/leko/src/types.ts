@@ -253,12 +253,16 @@ export interface LekoStep {
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 
   /**
-   * Called before advancing. Returning `false` blocks the transition and
-   * triggers {@link onValidationError}.
+   * Called before advancing on the next control. Returning `false` blocks the
+   * transition and triggers {@link onValidationError}.
    *
-   * This is what separates Leko from overlay-based tours: the step advances on
-   * your application's real state, not on a DOM event that may or may not mean
-   * the user succeeded.
+   * The control claims the moment has come, and claims nothing about the state
+   * behind it, so a step that has one can want a guard. This is that guard.
+   *
+   * **Ignored on a step that declares {@link awaits}.** Such a step has no
+   * control, and it advances because the application said the thing happened.
+   * Reading the page to check would be a second source of truth for the same
+   * question, and the second kind is what the second constraint keeps out.
    *
    * Receives the action target — the first element of {@link LekoStep.target},
    * never one of {@link LekoStep.related}.
@@ -399,9 +403,9 @@ export interface LekoOptions {
    * defeated by a button. So which steps have one is derived rather than
    * configured, and this option only says what it reads.
    *
-   * Both routes go through {@link LekoStep.validate}. Pressing the control
-   * claims the moment has come, exactly as a signal does, and the step still
-   * decides whether the state is right.
+   * The control is also the only route {@link LekoStep.validate} guards. A
+   * step that declares a signal has no control and no guard, for one reason:
+   * the application has already said the thing happened.
    */
   nextLabel?: string
 

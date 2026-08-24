@@ -316,7 +316,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     if (!here) return
     const { story, index } = here
 
-    if (step.validate) {
+    // A step that declares a signal is not guarded here. The application has
+    // already said the thing happened, and reading the page to check would be
+    // a second source of truth for the same question. See {@link nextLabel}:
+    // `awaits` decides whether the step has a control, and it decides whether
+    // it has a guard, for one reason.
+    if (step.validate && step.awaits === undefined) {
       const anchor = this.presenter.resolve(step)
       if (anchor === null) return this.lose(step)
       if (!step.validate(anchor)) {

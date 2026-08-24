@@ -244,8 +244,7 @@ describe('a signal, and the step waiting for it', () => {
     expect(tour.step?.id).toBe('first')
   })
 
-  test('a signal still has to get past validate', () => {
-    let ready = false
+  test('a signal does not get past validate, because it does not go near it', () => {
     const onValidationError = vi.fn()
 
     const tour = start([
@@ -253,19 +252,42 @@ describe('a signal, and the step waiting for it', () => {
         id: 'first',
         target: 'first',
         awaits: 'order-saved',
-        validate: () => ready,
+        // Written on a step that also declares a signal, which is a shape the
+        // types allow and the machine ignores. The application has said the
+        // order was saved. Reading the page to check would be a second source
+        // of truth for the same question.
+        validate: () => false,
         onValidationError,
       },
       { id: 'second', target: 'second' },
     ])
 
     tour.reached('order-saved')
-    expect(tour.step?.id).toBe('first')
-    expect(onValidationError).toHaveBeenCalledOnce()
 
-    ready = true
-    tour.reached('order-saved')
     expect(tour.step?.id).toBe('second')
+    expect(onValidationError).not.toHaveBeenCalled()
+  })
+
+  test('the guard is about the step, not about the call that advanced it', () => {
+    const onValidationError = vi.fn()
+
+    const tour = start([
+      {
+        id: 'first',
+        target: 'first',
+        awaits: 'never-sent',
+        validate: () => false,
+        onValidationError,
+      },
+      { id: 'second', target: 'second' },
+    ])
+
+    // A host with a next control of its own, on a step that declares a signal.
+    // The step has no guard, so this is the same move the signal would make.
+    tour.nextStep()
+
+    expect(tour.step?.id).toBe('second')
+    expect(onValidationError).not.toHaveBeenCalled()
   })
 
   test('a signal reported before its step is showing is not saved up', () => {
