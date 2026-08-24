@@ -60,6 +60,12 @@ export class Leko {
    * render does not accumulate copies of itself. Doing it to the story that is
    * running swaps what the current step is read from and redraws nothing: a
    * re-render must not restart a tour someone is in the middle of.
+   *
+   * **A story that comes back with fewer steps than the tour has taken stops
+   * it**, and the ending reports through {@link LekoStory.onStep} like any
+   * other. There is no step where the user is standing any more, and a tour
+   * left standing there answers `running` with no step to show while every
+   * signal after it lands on nothing.
    */
   setStory(story: LekoStory): void {
     this.machine.setStory(story)

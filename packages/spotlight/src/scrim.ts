@@ -91,6 +91,12 @@ export class Scrim {
   private blockers: HTMLElement[] = []
   private frame: number | undefined
   private settle: ((finished: boolean) => void) | undefined
+  /**
+   * The morph in flight, or `undefined` between morphs. A shake is never held
+   * here: what this exists for is telling a step still arriving apart from one
+   * that has arrived, and only {@link morph} is an arrival.
+   */
+  private arriving: Promise<boolean> | undefined
 
   constructor(container: HTMLElement | null) {
     this.container = container
@@ -267,7 +273,14 @@ export class Scrim {
     // every frame for a difference nobody can act on inside 320ms, and the
     // arriving hole is the one the user is about to reach for.
     this.block(padded)
-    return this.run(paths, duration)
+    const arriving = this.run(paths, duration)
+    this.arriving = arriving
+    void arriving.then(() => {
+      // Only if nothing has replaced it. A morph interrupted by the next one
+      // settles after that one has already claimed the field.
+      if (this.arriving === arriving) this.arriving = undefined
+    })
+    return arriving
   }
 
   /**
@@ -279,6 +292,27 @@ export class Scrim {
    */
   shake(): void {
     if (prefersReducedMotion() || this.cutouts.length === 0) return
+    // A shake is a `run`, and a `run` halts whatever is running. Doing that to
+    // a morph would settle it unfinished, and unfinished is how the presenter
+    // knows an arrival was interrupted — so it would hold back the message that
+    // waits for the cutout to land, and the step would be left with a shaking
+    // hole and nothing said. The refusal is worth as much a moment later, so it
+    // waits for the arrival it would otherwise have cut short.
+    //
+    // A morph that ends unfinished was interrupted by another step. The
+    // rejection belongs to the step that has been left, so it goes with it.
+    const arriving = this.arriving
+    if (arriving) {
+      void arriving.then((finished) => {
+        if (finished) this.nudge()
+      })
+      return
+    }
+    this.nudge()
+  }
+
+  /** The shake itself, once it is known to be interrupting nothing. */
+  private nudge(): void {
     const nudged = (dx: number): string =>
       this.path(this.cutouts.map((c) => ({ ...c, x: c.x + dx })))
     const settled = this.path(this.cutouts)

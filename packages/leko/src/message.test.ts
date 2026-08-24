@@ -308,6 +308,36 @@ test('a step with only an error to show gets a box for it', async () => {
   expect(error()?.textContent).toBe('The total is still zero.')
 })
 
+test('a refusal during the opening morph does not take the message with it', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const leko = start(
+    [
+      {
+        id: 'one',
+        target,
+        message: 'Press it.',
+        awaits: 'order-saved',
+        validate: () => false,
+        onValidationError: (_el, utils) => utils.shake(),
+      },
+    ],
+    // The one test here that wants a morph rather than a cutout already in
+    // place: what it is about is the window while the hole is still moving.
+    { duration: 200 },
+  )
+
+  // The box waits for the cutout to land, because which side of the hole it
+  // goes on is a fact about where the hole ends up.
+  expect(visible()).toBe(false)
+  leko.reached('order-saved')
+
+  // A shake used to halt the morph, and a morph that ends unfinished is how the
+  // presenter knows an arrival was interrupted — so the message was never said,
+  // and the step was left with a shaken hole and nothing to read beside it.
+  await appears()
+  expect(words()).toBe('Press it.')
+})
+
 test('stopping takes the message with it, and gives the target its anchor name back', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--theirs')

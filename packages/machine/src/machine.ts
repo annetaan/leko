@@ -68,20 +68,29 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private enteredStory: St | undefined
   /**
-   * Which `onEnter` is in flight, from the call until it settles, and
-   * `undefined` when none is. Nothing may be drawn in that window. The anchor
-   * is resolved after `onEnter`, so a resize arriving mid-flight would measure
-   * a step the tour has not entered yet.
+   * Which arrival is in progress, and `undefined` when none is.
+   *
+   * It covers the whole arrival: from the moment a story or a step is entered
+   * until the step has been handed to the presenter, whether or not `onEnter`
+   * returned anything to wait for. Nothing is drawn in that window and the
+   * anchor has not been looked for, so a resize arriving mid-flight would
+   * measure a step the tour has not entered yet.
+   *
+   * It marked only the promise before, which made one call mean two things: a
+   * signal reported from inside a synchronous `onEnter` advanced the step,
+   * and the same signal reported from inside an `async` one was dropped.
+   * Nothing about the step differs between the two — in both it is a step
+   * nobody has seen — so what this marks is the arrival, not the promise.
    *
    * Which one it is decides what a call from the host can do. A step in flight
    * holds up the step it is, and `prevStep` may still walk out of it. A story
    * in flight holds up every step it has, so nothing goes anywhere until it
    * settles.
    *
-   * The handler that settles clears it, and that handler checks the counter
-   * first, so an arrival that was abandoned never gets there. {@link enter}
-   * clears it on the way in for that reason: it belongs to the arrival that is
-   * running, and the one it replaced has no say in it.
+   * {@link arrive} clears it, once the counter says the arrival is still the
+   * current one, so an arrival that was abandoned never gets there.
+   * {@link enter} sets it on the way in for that reason: it belongs to the
+   * arrival that is running, and the one it replaced has no say in it.
    */
   private preparing: 'story' | 'step' | undefined
   /**
@@ -186,11 +195,27 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * render does not accumulate copies of itself. Doing it to the story that is
    * running swaps what the current step is read from and redraws nothing: a
    * re-render must not restart a tour someone is in the middle of.
+   *
+   * **A story that comes back with fewer steps than the tour has taken stops
+   * it**, and the ending reports through `onStep` like any other. Nothing
+   * stands where the tour was standing. A position left out of range answers
+   * `running` with no step to show, `nextStep()` and every signal after it land
+   * on nothing, and the cutout stays where it was — a tour that cannot be
+   * finished and says nothing about why. This is what {@link deleteStory}
+   * decides about a whole story, decided again about the step someone is on.
    */
   setStory(story: St): void {
     this.stories.set(story.id, story)
     const here = this.position
-    if (here?.story.id === story.id) this.position = { ...here, story }
+    if (here?.story.id !== story.id) return
+    // Stopped before the swap, not after, so that the ending speaks for the
+    // registration the tour actually ran: `onLeave` is owed to the object that
+    // was entered, and `onStep` should not be reported against a different one.
+    // Nothing is put back afterwards either — an ending is somewhere a handler
+    // can start a story of its own, and that story is the one running by the
+    // time this returns.
+    if (here.index >= story.steps.length) return this.stop()
+    this.position = { ...here, story }
   }
 
   /**
@@ -255,10 +280,14 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Answers whether there was a story registered under that id.
    */
   deleteStory(storyId: string): boolean {
-    const story = this.stories.get(storyId)
-    if (!story) return false
+    // Out of the map before the tour stops, not after. Stopping hands control
+    // to the application, and a handler is free to start this very story again
+    // — the id is still one it knows. Deleting afterwards would take a story
+    // out from under a tour that had already begun running it, leaving the
+    // machine on a story nothing is registered under and `start` unable to
+    // reach it again.
+    if (!this.stories.delete(storyId)) return false
     if (this.position?.story.id === storyId) this.stop()
-    this.stories.delete(storyId)
     return true
   }
 
@@ -272,6 +301,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   private enterStory(story: St): void {
     const run = ++this.generation
     this.enteredStory = story
+    // Nothing of this story is settled and nothing is drawn, which is what
+    // `transitioning` says about the gap between two steps and says as well
+    // about this one. It is set before `onEnter` is called rather than after,
+    // so that a handler answering synchronously is inside the window too.
+    // `enter` takes the window over from here.
+    this.preparing = 'story'
     let entering: unknown
     try {
       entering = story.onEnter?.(story)
@@ -289,14 +324,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       return this.enter(false)
     }
 
-    // Nothing is settled and nothing is drawn, which is what `transitioning`
-    // says about the gap between two steps and says as well about this one.
-    // Saying it is all `preparing` does now: `state` reads it.
-    this.preparing = 'story'
     void entering.then(
       () => {
         if (this.generation !== run) return
-        this.preparing = undefined
         this.enter(false)
       },
       (reason: unknown) => {
@@ -350,12 +380,16 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * exists to avoid. A morph is a step that arrived and is still moving, and a
    * call during one means what it says.
    *
-   * An `onEnter` in flight is the other thing. Nothing that step assumes has
+   * A step still arriving is the other thing. Nothing that step assumes has
    * been built, its anchor has not been looked for, and it has never been on
    * screen, so there is no step here to advance away from and nothing for
    * `validate` to read. The call is dropped where it stands rather than held
-   * until the handler settles: a signal saved over is a step advancing on
+   * until the arrival lands: a signal saved over is a step advancing on
    * something that happened before it began.
+   *
+   * That holds however `onEnter` answered. A handler that returns nothing is
+   * still a handler the tour is inside, and a signal reported from within one
+   * is as early as a signal reported from within an `async` one.
    */
   private advance(step: S): void {
     if (this.preparing) return
@@ -383,10 +417,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   /**
    * Step back. Never validates: going back is not a claim of success.
    *
-   * A step whose own `onEnter` is in flight is one this can walk out of, and
-   * {@link advance} is the call that gets dropped there instead. A story whose
-   * `onEnter` is in flight is not. Every step of it is waiting on that handler,
-   * so the step behind is no readier than the step ahead.
+   * A step still arriving is one this can walk out of, and {@link advance} is
+   * the call that gets dropped there instead. A story still arriving is not:
+   * every step of it is waiting on that handler, so the step behind is no
+   * readier than the step ahead.
    */
   prevStep(): void {
     const here = this.position
@@ -507,8 +541,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * {@link Host.moved}. Nothing about the tour changed, so the step is placed
    * rather than replayed.
    *
-   * Nothing of this step has been measured while its `onEnter` is in flight,
-   * and measuring it here would be reading the anchor early by another route.
+   * Nothing of this step has been measured while it is still arriving, and
+   * measuring it here would be reading the anchor early by another route.
    */
   private surfaceMoved(): void {
     const here = this.position
@@ -534,11 +568,14 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // Whatever the presenter was moving is not this step's arrival. Leaving it
     // set would have `state` reporting a morph that belongs to the step before.
     this.settling = false
-    // The step being replaced may have been waiting on its `onEnter`. Its
-    // handler will find the counter has moved and return without clearing this,
-    // which would leave a drawn step that no signal can advance. Cleared before
-    // `leave` runs, so a story started from inside a handler keeps its own.
-    this.preparing = undefined
+    // This arrival begins here rather than at the `await` below, so that the
+    // synchronous part of it is inside the window too: `onLeave`, `onEnter` and
+    // the draw are all calls the application can be inside, and through every
+    // one of them `state` used to answer `running` about a step the presenter
+    // had never been given. Set before `leave` runs, so a story started from
+    // inside a handler keeps its own — and it replaces whatever the step being
+    // left had here, which is what stops an abandoned handler from clearing it.
+    this.preparing = 'step'
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived.
     this.presenter.hide()
@@ -557,15 +594,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     }
     if (!isThenable(entering)) return this.arrive(step, animate, story, run)
 
-    // Between two steps with nothing settled, which is what `transitioning`
-    // already means. A morph says the same thing about the same gap.
-    this.preparing = 'step'
     void entering.then(
-      () => {
-        if (this.generation !== run) return
-        this.preparing = undefined
-        this.arrive(step, animate, story, run)
-      },
+      () => this.arrive(step, animate, story, run),
       (reason: unknown) => {
         if (this.generation !== run) return
         this.preparing = undefined
@@ -587,6 +617,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // `onEnter` is the other call into the application that can take the tour
     // somewhere else before anything of this step has been drawn.
     if (this.generation !== run) return
+    // The arrival is over and what is left is the drawing of it. Cleared before
+    // `draw` rather than after, because a step whose anchor turns out to be
+    // missing can be left standing by `onTargetLost`, and a tour standing on a
+    // step is `running`.
+    this.preparing = undefined
     this.draw(story, step, animate)
     if (this.generation !== run) return
     const previous = this.announced
