@@ -545,25 +545,23 @@ describe('registering a story, and starting one', () => {
     expect(tour.step?.id).toBe('a')
   })
 
-  test('start says no where a handler took the tour somewhere else instead', () => {
+  test('a story started from the ending of a stop still wins', () => {
     const tour = register({
       id: 'first',
       steps: [{ id: 'a', target: 'first' }],
       onStep: (step) => {
-        // The ending of `first` is where the application takes over.
+        // Nothing follows this report. The tour is idle by the time it goes
+        // out, so this is the last word on where it is.
         if (!step) tour.start('third')
       },
     })
-    tour.setStory({ id: 'second', steps: [{ id: 'b', target: 'second' }] })
     tour.setStory({ id: 'third', steps: [{ id: 'c', target: 'third' }] })
     tour.start('first')
 
-    const started = tour.start('second')
+    tour.stop()
 
-    // The arguments were good. The tour is somewhere else all the same, and
-    // that is what a caller can act on.
-    expect(started).toBe(false)
     expect(tour.story?.id).toBe('third')
+    expect(tour.step?.id).toBe('c')
   })
 
   test('a story that shows the same step object twice still counts forwards', () => {
@@ -1520,16 +1518,19 @@ describe('moving from one story to another', () => {
     expect(left).toEqual([['a', undefined]])
   })
 
-  test('a story started from inside an ending report is not overwritten by the start that caused it', () => {
+  test('a start displacing a story is one operation, so onLeave is told the truth', () => {
     const heard: string[] = []
+    const left: string[] = []
+    const started: boolean[] = []
     const tour = register(
       {
         id: 'from',
+        onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
         steps: [{ id: 'a', target: 'first' }],
-        // Reacting to the ending by sending the user somewhere else, which is an
-        // ordinary thing for a host to do.
+        // Reacting to the ending by sending the user somewhere else, which is
+        // an ordinary thing for a host to do and is not one it can do here.
         onStep: (step) => {
-          if (step === undefined) tour.start('rescue')
+          if (step === undefined) started.push(tour.start('rescue'))
         },
       },
       { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`) },
@@ -1539,13 +1540,16 @@ describe('moving from one story to another', () => {
 
     tour.start('from')
     heard.length = 0
-    tour.start('into')
 
-    // `into` gives way. Carrying on would have overwritten `rescue`, and that
-    // story would have ended without ever saying so.
-    expect(tour.story?.id).toBe('rescue')
-    expect(tour.step?.id).toBe('b')
-    expect(heard).toEqual(['rescue:b', 'from:undefined'])
+    expect(tour.start('into')).toBe(true)
+
+    // `from` was told `into` is next and skipped whatever the two share. A
+    // `rescue` starting from that report would make `next` a lie, and would run
+    // on state that was left behind for a story that never came.
+    expect(started).toEqual([false])
+    expect(left).toEqual(['from->into'])
+    expect(tour.story?.id).toBe('into')
+    expect(heard).toEqual(['from:undefined', 'into:c'])
   })
 
   test('a story started from inside a step onLeave is refused, and the ending finishes', () => {

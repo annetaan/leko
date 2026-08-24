@@ -134,11 +134,17 @@ of them and is told which. `stop()` reports the ending with no step, and so does
 running past the last one. A hook that could not say "nowhere" would leave a
 progress readout showing the final step for ever.
 
-**A handler may start or stop a story.** `start()` reports the ending of
-whatever was running before it sets up what comes next, so a handler on that
-ending can start a story of its own. **The most recent call wins rather than the
-outermost**, because it was made with more information than the one that
-triggered it.
+**A handler may start a story from an ending that has nowhere to go.** `stop()`
+and a tour running off its last step report with the machine already idle, and
+nothing runs after that report, so the story a handler starts there is the story
+that runs. `branching.ts` rejoins that way.
+
+**An ending caused by `start()` is not that kind.** Displacing one story with
+another is one operation, and the report goes out in the middle of it. A story
+begun from there would be overwritten by the one already on its way. So it is
+refused, like every other call made while Leko is inside the application. That
+refusal is what makes `next` worth having: the story `onLeave` is told about is
+the story that runs.
 
 **`start()` answers whether the story it named is the one now running.
 `reached()` still does not.** A `reached()` call is instrumentation, and most of

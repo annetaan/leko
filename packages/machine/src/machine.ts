@@ -204,8 +204,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * number in range is such a typo: `steps[1.5]` is nowhere.
    *
    * **Answers whether the story named here is the one now running.** A typo
-   * gets `false`, and so does an `at` that names nothing, and so does a call
-   * that arrived while the machine was inside the application.
+   * gets `false`, and so does an `at` that names nothing, a call that arrived
+   * while the machine was inside the application, and a story whose own
+   * `onEnter` threw.
    *
    * This is not the silence `reached()` keeps, and the two are different on
    * purpose. A `reached()` call is instrumentation, written where a thing
@@ -221,15 +222,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
     if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return false
     // What is ending is told what is starting, so teardown a branch and the
-    // story it rejoins both need can be skipped. Nothing can get in between:
-    // `end` runs the old story's handlers with the phase closed, so `next` is a
-    // promise this call keeps.
+    // story it rejoins both need can be skipped. Displacing one story with
+    // another is one operation from out here, and `end` keeps the phase closed
+    // through the whole of it, including the report. So nothing gets between
+    // the two halves and `next` is a promise this call keeps.
     this.end(story)
-    // That ending is somewhere a host can react to by starting a story of its
-    // own, and that story is running by the time `end` returns. Carrying on
-    // would overwrite it. The most recent `start` wins, which is the one made
-    // with the most information.
-    if (this.position) return false
     this.position = { story, index }
     this.enterStory(story)
     // Asked after the fact rather than assumed, because a story's `onEnter` can
@@ -368,12 +365,17 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
   /**
    * Ending a run, told where the tour is going next so that the story's
-   * `onLeave` can be. `next` is a story only when `start()` is displacing this
-   * one; every other ending has nowhere to name.
+   * `onLeave` can be. `next` is a story only when {@link start} is displacing
+   * this one; every other ending has nowhere to name.
    *
-   * Called from inside the machine rather than gated, because {@link stop} and
-   * {@link start} are the gate and a lost anchor has to be able to end a run
-   * from the middle of one.
+   * **An ending with somewhere to go stays closed through its own report.**
+   * The `start` that caused it has not put the new story up yet, and a story
+   * begun from that report would be overwritten by the one already on its way.
+   * That is also what makes `next` worth having: the story named there is the
+   * story that runs.
+   *
+   * An ending with nowhere to go opens first. Nothing follows the report, so a
+   * host is free to start a story from it, and `branching.ts` rejoins that way.
    */
   private end(next: St | undefined): void {
     const here = this.position
@@ -397,7 +399,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // the order they were entered in.
     step?.onLeave?.(step, undefined)
     story.onLeave?.(story, next)
-    this.phase = 'ready'
+    if (!next) this.phase = 'ready'
     this.report(story, undefined, previous)
   }
 

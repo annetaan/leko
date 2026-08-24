@@ -98,11 +98,9 @@ export class Leko {
    * story id it got wrong has no other symptom: nothing happens, and nothing
    * anywhere says why.
    *
-   * `false` also comes back where the arguments were good and the tour went
-   * elsewhere anyway. Ending whatever was running hands control to the
-   * application, and a handler is free to start a story of its own, which wins.
-   * What this answers is the question a caller can act on — is the story I
-   * named the one on screen.
+   * `false` also comes back where the arguments were good and the story's own
+   * `onEnter` threw, and where the call arrived while Leko was inside the
+   * application and could not act on anything.
    */
   start(storyId: string, at: string | number = 0): boolean {
     return this.machine.start(storyId, at)
