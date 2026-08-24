@@ -207,9 +207,9 @@ test('a promise from onEnter is waited for, and nothing is drawn until it settle
   expect(centre(target)).toBe(target)
 })
 
-test('going back out of a step in flight leaves a resize placing the cutout', () => {
+test('a resize stands back while a step is being built, and lands once it is drawn', async () => {
   const [first, second] = pair()
-  const { promise } = held()
+  const { promise, settle } = held()
   const leko = register({
     id: 'story',
     steps: [
@@ -220,13 +220,19 @@ test('going back out of a step in flight leaves a resize placing the cutout', ()
 
   leko.start('story')
   leko.nextStep()
-  leko.prevStep()
-  first.style.top = '500px'
+  second.style.top = '500px'
   window.dispatchEvent(new Event('resize'))
 
-  // `place` stands back while a step is being built, because nothing of it has
-  // been measured. `a` was measured, and the target it is cut to has moved.
+  // Nothing of `b` has been measured yet, and measuring it here would be
+  // reading its anchor early by another route. The hole is still `a`'s.
   expect(centre(first)).toBe(first)
+
+  settle()
+  await promise
+  second.style.top = '600px'
+  window.dispatchEvent(new Event('resize'))
+
+  expect(centre(second)).toBe(second)
 })
 
 test('a handler that only logs a lost target is left holding a tour that never stopped', async () => {
@@ -250,16 +256,17 @@ test('a handler that only logs a lost target is left holding a tour that never s
   expect(seen).toEqual([['ghost', undefined]])
 })
 
-test('a story started from inside onLeave is not overwritten by the step that was arriving', () => {
+test('a story started from inside onLeave is refused, and the step that was arriving lands', () => {
   const [first, second] = pair()
   const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
+  const started: boolean[] = []
   const leko = register({
     id: 'story',
     steps: [
       {
         id: 'a',
         target: first,
-        onLeave: () => leko.start('elsewhere'),
+        onLeave: () => void started.push(leko.start('elsewhere')),
       },
       { id: 'b', target: second },
     ],
@@ -269,11 +276,11 @@ test('a story started from inside onLeave is not overwritten by the step that wa
   leko.start('story')
   leko.nextStep()
 
-  // Leaving is a call into the application, and the step that was arriving does
-  // not get drawn over the top of what the application did with it.
-  expect(leko.story?.id).toBe('elsewhere')
-  expect(leko.step?.id).toBe('c')
-  expect(centre(third)).toBe(third)
+  // Leaving is a call into the application, and a story started from inside one
+  // would be drawn over by the step this move was already on its way to.
+  expect(started).toEqual([false])
+  expect(leko.step?.id).toBe('b')
+  expect(centre(second)).toBe(second)
 })
 
 test('a promise from a story onEnter holds back the first step entirely', async () => {

@@ -181,10 +181,10 @@ about a step while its `onEnter` still runs is naming something the user cannot
 see. A handler that returns nothing costs no turn.
 
 **Every `onEnter` gets its `onLeave`.** It runs where the handler failed
-halfway, and where something overtook it, because a handler that registered
-something before it fell over is owed one. `onLeave` is given where the tour is
-going, since a panel that two steps use in turn is worth leaving open. Starting
-another story counts as ending.
+halfway, and where a `stop()` walked out of it, because a handler that
+registered something before it fell over is owed one. `onLeave` is given where
+the tour is going, since a panel that two steps use in turn is worth leaving
+open. Starting another story counts as ending.
 
 **A rejection stops the tour, and the reason is thrown again.** The state the
 step assumes was never built, so drawing it would point the user at something
@@ -192,37 +192,58 @@ that is not ready. There is no hook for that failure. The rejection came from
 the application's own code, and the place with the context to do something about
 it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
 
-**A signal arriving while `onEnter` is in flight is dropped where it stands.**
-The state that step assumes is half built, its target has not been looked for,
-and it has never been on screen. There is no step here to advance away from.
-Mid-morph is the opposite and the call goes through, because a morphing step has
-been through the whole arrival and the user is looking at it.
+## One gate, and what it refuses
 
-`stop()` and `start()` overtake an `onEnter`, because those are the host saying
-the tour goes elsewhere. `prevStep()` overtakes a step's `onEnter` too. A back
-button under a dimmed page is what someone reaches for while a slow step loads.
-**A story's `onEnter` is not overtaken by it.** Every step is waiting on that one
-handler, so the step behind is no readier than the step ahead.
+**Leko never acts on a call while it is inside a call into the application.**
+
+An arrival is such a window. It runs from the moment a move begins until the
+step has been handed to whatever draws it, and `onEnter` is inside it whether it
+answers in the turn or hands back a promise that lands half a second later. A
+teardown is another: `onLeave` is running and the run is half taken apart.
+
+Inside either, `reached()`, `nextStep()`, `prevStep()`, `start()` and
+`setStory()` all do nothing. Nothing that step assumes has been built, its
+target has not been looked for, and it has never been on screen, so there is no
+step there to act on. The call is dropped where it stands rather than saved for
+when the arrival lands, because a signal saved over is a step advancing on
+something that happened before it began.
+
+**`stop()` is the exception, and asks nothing.** A tour that cannot be turned
+off until an `onEnter` somebody else wrote decides to settle is worse than any
+race this keeps out, and a component unmounting mid-arrival has nowhere else to
+go. Ending is also the one thing that needs nothing of the arrival. It throws
+the arrival away rather than acting on it, and the handler landing afterwards
+finds nothing standing where it left.
+
+**A morph is not an arrival.** A step that is drawn and still moving has been
+through the whole window and the user is looking at it, so every call goes
+through. Dropping one there would be Leko deciding the user did not mean the
+button they pressed.
+
+What the gate buys is that no callback has to ask afterwards whether the world
+moved while it ran. Where that question was written by hand at every crossing,
+one of them was always about to be forgotten.
 
 ## `state` is derived
 
-`state` is derived rather than stored. Three fields each say one thing, and
-it is read off them.
+`state` is derived rather than stored. Two fields each say one thing, and it is
+read off them.
 
 ```ts
 get state(): MachineState {
   if (!this.position) return 'idle'
-  return this.preparing || this.settling ? 'transitioning' : 'running'
+  return this.phase === 'ready' ? 'running' : 'transitioning'
 }
 ```
 
 `position` is where the tour is, and being idle is it being `undefined`. It
-holds the story and the index together because they are one fact. `preparing` is
-which `onEnter` is in flight. `settling` is whether the presenter is still
-moving what it last drew.
+holds the story and the index together because they are one fact, and it is
+replaced rather than edited on every move, so holding the object is holding the
+step occurrence. `phase` is how far along the machine is with what it is doing,
+and it is the same field the gate above reads.
 
 **Nothing can forget to write an answer that nobody stores.** Before adding a
-field here, check whether it is a fourth way of saying what three fields already
+field here, check whether it is a third way of saying what two fields already
 say.
 
 ## Gathering the vocabulary from the call sites

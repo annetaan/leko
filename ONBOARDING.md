@@ -97,9 +97,9 @@ it.
 | File | Lines | What it holds |
 | --- | --- | --- |
 | `packages/leko/src/types.ts` | 443 | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | 180 | The public class. Four getters and seven methods |
+| `packages/leko/src/leko.ts` | 167 | The public class. Four getters and six methods |
 | `packages/leko/src/presenter.ts` | 292 | `DomPresenter`: the two halves, wired |
-| `packages/machine/src/machine.ts` | 685 | Which step the tour is on |
+| `packages/machine/src/machine.ts` | 615 | Which step the tour is on |
 | `packages/machine/src/port.ts` | 94 | `Presenter` and `Host`. The seam |
 | `packages/machine/src/types.ts` | 58 | `StepBase`, `StoryBase`, `ErrorUtils` |
 | `packages/spotlight/src/geometry.ts` | 221 | Pure functions. Numbers in, numbers out |
@@ -128,9 +128,9 @@ Read it twice. Three rules live here and DESIGN.md states each under
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
-**3. `packages/machine/src/machine.ts`** (685 lines)
+**3. `packages/machine/src/machine.ts`** (615 lines)
 
-The hard file. Budget two hours. Read the field declarations at the top first,
+The hard file. Budget an hour. Read the field declarations at the top first,
 then the section below on what each field means, then the methods.
 
 **4. `packages/spotlight/src/geometry.ts`** (221 lines)
@@ -154,9 +154,9 @@ line 65.
 Now the wiring makes sense. `DomPresenter` implements the `Presenter` interface
 from step 2 using the three files from steps 4 to 6.
 
-**8. `packages/leko/src/leko.ts`** (180 lines)
+**8. `packages/leko/src/leko.ts`** (167 lines)
 
-Four getters and seven methods, each one delegating to the machine. It is thin
+Four getters and six methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
 **9. `packages/codegen/`** (572 lines, optional)
@@ -171,11 +171,11 @@ This is the trace worth walking with the files open. The application calls
 | | Where | What happens |
 | --- | --- | --- |
 | 1 | `leko.ts:137` | `Leko.reached` hands the name straight to the machine |
-| 2 | `machine.ts:332` | `reached` reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here |
-| 3 | `machine.ts:360` | `advance` drops the call if an `onEnter` is in flight. Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
-| 4 | `machine.ts:525` | `enter` clears the error, hides the message, bumps `generation`, runs the last step's `onLeave`, then this step's `onEnter` |
-| 5 | `machine.ts:586` | `arrive` draws, then reports. In that order, and only if `generation` still matches |
-| 6 | `machine.ts:609` | `draw` resolves the anchor and calls `presenter.show` |
+| 2 | `reached` | reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here |
+| 3 | `advance` | Drops the call unless `accepting`. Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
+| 4 | `enter` | Clears the error, hides the message, closes the phase, runs the last step's `onLeave`, then this step's `onEnter` |
+| 5 | `arrive` | Opens the phase, draws, then reports. In that order |
+| 6 | `draw` | resolves the anchor and calls `presenter.show` |
 | 7 | `presenter.ts:147` | `DomPresenter.show` walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts, cuts the outer layers |
 | 8 | `scrim.ts:253` | `Scrim.morph` pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts:169` | `run` writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
@@ -183,7 +183,7 @@ This is the trace worth walking with the files open. The application calls
 | 11 | `presenter.ts:116` | `say` runs after the morph settles, and only if it finished |
 | 12 | `message.ts:216` | `Message.show` fills the box, opens the popover, takes the anchor |
 | 13 | `message.ts:309` | `place` picks a side from viewport measurements and writes `position-area` |
-| 14 | `machine.ts:318` | `report` calls the story's `onStep`, then the instance's |
+| 14 | `report` | calls the story's `onStep`, then the instance's |
 
 Step 5 is the one to hold on to. The move is reported after it survived being
 drawn. A progress readout that heard about a step while its `onEnter` was still
@@ -191,10 +191,10 @@ running would be naming something the user cannot see.
 
 The other direction is three calls. `Host.lost` when a target leaves the page,
 `Host.moved` on a resize, and `Host.next` when the control is pressed. The
-machine hands the presenter three closures in its constructor at
-`machine.ts:124`, so the presenter cannot reach anything else on the machine.
+machine hands the presenter three closures in its constructor, so the presenter
+cannot reach anything else on the machine.
 
-## The nine fields in the machine
+## The five fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
@@ -203,20 +203,17 @@ disagreeing about where the tour was.
 | --- | --- |
 | `stories` | Every registered story. At most one runs |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
+| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
-| `entered` | The step whose `onEnter` ran and whose `onLeave` has not |
-| `enteredStory` | The same, one level up |
-| `preparing` | `'story'`, `'step'` or `undefined`. Which `onEnter` is in flight |
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
-| `generation` | Bumped on every start, arrival and stop. A late callback checks it |
-| `settling` | Whether the presenter is still moving what it last drew |
+| `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
-`state` is derived rather than stored, at `machine.ts:147`.
+`state` is derived rather than stored.
 
 ```ts
 get state(): MachineState {
   if (!this.position) return 'idle'
-  return this.preparing || this.settling ? 'transitioning' : 'running'
+  return this.phase === 'ready' ? 'running' : 'transitioning'
 }
 ```
 
@@ -228,15 +225,29 @@ a host could not tell a slow step from a stuck one. The suite asserted `state`
 happen.
 
 Nothing can forget to write an answer that nobody stores. If you add a field
-here, ask whether it is a fourth way of saying something three fields already
-say.
+here, ask whether it is a third way of saying something two fields already say.
 
-`generation` is the pattern to learn. Every call into the application can take
-the tour somewhere else before it returns. An `onEnter`, an `onLeave`, an
-`onStep`, an `onValidationError`. So each of them captures `run = this.generation`
-and checks it before touching anything afterwards. You will see
-`if (this.generation !== run) return` eleven times in the file. Each one is a real
-case somebody hit.
+`accepting` is the pattern to learn.
+
+```ts
+private get accepting(): boolean {
+  return this.phase === 'ready' || this.phase === 'settling'
+}
+```
+
+Every call into the application is a window where the tour could be taken
+somewhere else before control comes back. An `onEnter`, an `onLeave`, an
+`onStep`, an `onValidationError`. Rather than checking afterwards whether the
+world moved, the machine refuses to act inside the window at all, so there is
+nothing to check. `reached`, `nextStep`, `prevStep`, `start` and `setStory` all
+ask this first.
+
+`stop()` does not ask, and that is the one exception. A tour nobody can turn off
+until an application's `onEnter` settles is worse than the race. The two
+`onEnter` continuations and `arrive` compare `this.position` against the object
+they started with, because a `stop()` can have thrown their arrival away while
+they were gone. Those three comparisons are all that is left of a counter that
+used to be checked in thirteen places.
 
 ## The two constraints, and the line that keeps each
 
@@ -261,7 +272,7 @@ at the centre of an element rather than the page underneath.
 
 **2. Steps advance on application state, never on DOM events.**
 
-`machine.ts:332` is the whole mechanism. A name matches a step's `awaits`, or
+`Machine.reached` is the whole mechanism. A name matches a step's `awaits`, or
 nothing happens.
 
 Grep for the other half of it:
