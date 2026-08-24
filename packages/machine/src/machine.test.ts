@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { Machine } from './machine.js'
 import type { Content, Host, Presenter } from './port.js'
-import type { ErrorUtils, MachineOptions, StepBase, StoryBase } from './types.js'
+import type { ErrorUtils, MachineOptions, Problem, StepBase, StoryBase } from './types.js'
 
 // None of the claims in this file is about layout, so none of them needs a
 // browser to be true. They were browser tests until the machine came out of
@@ -1485,6 +1485,129 @@ describe('a call that arrives while the machine is inside the application', () =
 
     expect(tour.step?.id).toBe('b')
     expect(drawing().shown).toEqual(['a', 'b'])
+  })
+})
+
+describe('saying that a call did nothing', () => {
+  // The line is whether a caller doing everything right can end up here. If it
+  // can, silence. If it cannot, the call was a mistake every time and has no
+  // other symptom, which is a bad afternoon.
+
+  /** A tour with a diagnostic wired up, and the list it writes into. */
+  function heard(story: Story) {
+    const problems: Problem<Step>[] = []
+    const tour = register(story, { onDiagnostic: (problem) => problems.push(problem) })
+    return { tour, problems }
+  }
+
+  test('a story id nothing is registered under, and an at that names nothing', () => {
+    const { tour, problems } = heard({
+      id: 'onboarding',
+      steps: [{ id: 'a', target: 'first' }],
+    })
+
+    tour.start('onbaording')
+    tour.start('onboarding', 'no-such-step')
+    tour.start('onboarding', 4)
+
+    expect(problems).toEqual([
+      { kind: 'story-not-found', storyId: 'onbaording' },
+      { kind: 'step-not-found', storyId: 'onboarding', at: 'no-such-step' },
+      { kind: 'step-not-found', storyId: 'onboarding', at: 4 },
+    ])
+  })
+
+  test('a signal the step was waiting for, dropped because it was still arriving', async () => {
+    const { promise, settle } = held()
+    const step: Step = { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise }
+    const { tour, problems } = heard({
+      id: 'story',
+      steps: [{ id: 'a', target: 'first' }, step],
+    })
+
+    tour.start('story')
+    tour.nextStep()
+    tour.reached('ready')
+
+    // The one a correct application hits. The user did the thing, the code
+    // reported it, and the step it was for goes on waiting for ever.
+    expect(problems).toEqual([{ kind: 'signal-dropped', name: 'ready', step }])
+
+    settle()
+    await promise
+    expect(tour.step?.id).toBe('b')
+  })
+
+  test('a name nothing is waiting for stays silent, whatever the machine is doing', async () => {
+    const { promise, settle } = held()
+    const { tour, problems } = heard({
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise },
+      ],
+    })
+
+    tour.reached('anything') // idle
+    tour.start('story')
+    tour.reached('anything') // running, and no step waits for it
+    tour.nextStep()
+    tour.reached('anything') // arriving
+
+    // Instrumentation is meant to stay in the source permanently, including in
+    // builds where no tour runs, so something free to leave in cannot complain
+    // about being left in.
+    expect(problems).toEqual([])
+    settle()
+    await promise
+  })
+
+  test('every host call refused inside an arrival says which one it was', async () => {
+    const { promise, settle } = held()
+    const { tour, problems } = heard({
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', onEnter: () => promise },
+      ],
+    })
+    tour.setStory({ id: 'other', steps: [{ id: 'x', target: 'third' }] })
+
+    tour.start('story')
+    tour.nextStep()
+
+    tour.nextStep()
+    tour.prevStep()
+    tour.start('other')
+    tour.setStory({ id: 'fresh', steps: [{ id: 'z', target: 'third' }] })
+    tour.stop()
+
+    // `stop` is not among them. It is the one call that asks nothing, so there
+    // is never anything to report about it.
+    expect(problems).toEqual([
+      { kind: 'call-refused', call: 'nextStep' },
+      { kind: 'call-refused', call: 'prevStep' },
+      { kind: 'call-refused', call: 'start' },
+      { kind: 'call-refused', call: 'setStory' },
+    ])
+    settle()
+    await promise
+  })
+
+  test('a button that sits there is allowed to be pressed', () => {
+    const { tour, problems } = heard({
+      id: 'story',
+      steps: [{ id: 'a', target: 'first' }],
+    })
+
+    tour.nextStep() // idle
+    tour.prevStep() // idle
+    tour.start('story')
+    tour.prevStep() // the first step, where a back button still sits
+    // And re-registering the running story, which a re-render does every time.
+    tour.setStory({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
+
+    expect(problems).toEqual([])
   })
 })
 

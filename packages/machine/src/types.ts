@@ -54,9 +54,39 @@ export interface ErrorUtils {
 
 export type MachineState = 'idle' | 'running' | 'transitioning'
 
+/**
+ * Something a call meant to do and did not.
+ *
+ * Every member is a call a working application would not have made, or one it
+ * made at a moment nothing could act on. Neither has any other symptom: the
+ * tour simply does not move, and nothing anywhere says why.
+ *
+ * What is deliberately not here is the silence. A `reached()` naming something
+ * no step waits for stays silent, permanently, because instrumentation has to
+ * be free to leave in. So does `nextStep()` while idle, and `prevStep()` on the
+ * first step, because a button that sits there is allowed to be pressed.
+ *
+ * `@annetaan/leko` declares this shape again for its users rather than
+ * re-exporting it, for the reason {@link ErrorUtils} does.
+ */
+export type Problem<S> =
+  /** {@link Machine.start} was given an id nothing is registered under. */
+  | { kind: 'story-not-found'; storyId: string }
+  /** Its `at` named no step, or an index outside the story. */
+  | { kind: 'step-not-found'; storyId: string; at: string | number }
+  /**
+   * A signal the step showing was waiting for, reported while that step was
+   * still being built. It is dropped rather than saved, so the step goes on
+   * waiting for something the application has already been through.
+   */
+  | { kind: 'signal-dropped'; name: string; step: S }
+  /** A call that arrived while the machine was inside the application. */
+  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'prevStep' | 'setStory' }
+
 export interface MachineOptions<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
   /** The words on the next control, where a step gets one. */
   nextLabel?: string
   onTargetLost?: (step: S, storyId: string) => void
   onStep?: (step: S | undefined, previous: S | undefined, story: St) => void
+  onDiagnostic?: (problem: Problem<S>) => void
 }

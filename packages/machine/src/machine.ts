@@ -1,5 +1,12 @@
 import type { Content, Host, Presenter } from './port.js'
-import type { ErrorUtils, MachineOptions, MachineState, StepBase, StoryBase } from './types.js'
+import type {
+  ErrorUtils,
+  MachineOptions,
+  MachineState,
+  Problem,
+  StepBase,
+  StoryBase,
+} from './types.js'
 
 /** What the next control reads until an instance says otherwise. */
 const NEXT_LABEL = 'Next'
@@ -132,6 +139,15 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
+   * Say that a call arrived at a moment nothing could be done with it, and
+   * answer `false` so that a caller reading the answer gets the same news.
+   */
+  private refuse(call: Extract<Problem<S>, { kind: 'call-refused' }>['call']): false {
+    this.options.onDiagnostic?.({ kind: 'call-refused', call })
+    return false
+  }
+
+  /**
    * Derived, never stored.
    *
    * It used to be a field, written at each of the handful of places that knew
@@ -190,7 +206,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Answers whether the story was registered.
    */
   setStory(story: St): boolean {
-    if (!this.accepting) return false
+    if (!this.accepting) return this.refuse('setStory')
+    // Not a diagnostic. A component re-registering on every render lands here
+    // on every render while a tour runs, and that is the case the rule is
+    // written for rather than a mistake to be told about.
     if (this.position?.story.id === story.id) return false
     this.stories.set(story.id, story)
     return true
@@ -216,11 +235,17 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * and nothing anywhere says why.
    */
   start(storyId: string, at: string | number = 0): boolean {
-    if (!this.accepting) return false
+    if (!this.accepting) return this.refuse('start')
     const story = this.stories.get(storyId)
-    if (!story) return false
+    if (!story) {
+      this.options.onDiagnostic?.({ kind: 'story-not-found', storyId })
+      return false
+    }
     const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
-    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) return false
+    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) {
+      this.options.onDiagnostic?.({ kind: 'step-not-found', storyId, at })
+      return false
+    }
     // What is ending is told what is starting, so teardown a branch and the
     // story it rejoins both need can be skipped. Displacing one story with
     // another is one operation from out here, and `end` keeps the phase closed
@@ -286,7 +311,15 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   reached(name: string): void {
     const step = this.step
-    if (step?.awaits === name) this.advance(step)
+    if (step?.awaits !== name) return
+    // Matched, and dropped anyway. A step waiting for a name the application
+    // has already reported waits for ever, and this is the only place anything
+    // knows that happened.
+    if (!this.accepting) {
+      this.options.onDiagnostic?.({ kind: 'signal-dropped', name, step })
+      return
+    }
+    this.advance(step)
   }
 
   /**
@@ -296,7 +329,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   nextStep(): void {
     const step = this.step
-    if (step) this.advance(step)
+    if (!step) return
+    if (!this.accepting) {
+      this.refuse('nextStep')
+      return
+    }
+    this.advance(step)
   }
 
   /**
@@ -311,7 +349,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * that happened before it began.
    */
   private advance(step: S): void {
-    if (!this.accepting) return
     const here = this.position
     if (!here) return
     const { story, index } = here
@@ -345,9 +382,14 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * answer for a story's `onEnter` and is now the answer for both.
    */
   prevStep(): void {
-    if (!this.accepting) return
     const here = this.position
+    // A back button sits there on the first step and is allowed to be pressed,
+    // so that is silence rather than a refusal.
     if (!here || here.index === 0) return
+    if (!this.accepting) {
+      this.refuse('prevStep')
+      return
+    }
     const leaving = this.step
     this.position = { ...here, index: here.index - 1 }
     this.enter(true, leaving)

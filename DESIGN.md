@@ -237,6 +237,41 @@ What the gate buys is that no callback has to ask afterwards whether the world
 moved while it ran. Where that question was written by hand at every crossing,
 one of them was always about to be forgotten.
 
+## Saying that a call did nothing
+
+Five calls do nothing. Three of them stay silent and two do not, and the line is
+whether a caller doing everything right can end up there.
+
+Silent: `reached()` with a name nothing waits for, `nextStep()` while idle, and
+`prevStep()` on the first step. A next button calls `nextStep()` whether or not
+a tour is running, a back button sits there on the first step, and `reached()`
+is the strongest case of all. Instrumentation is meant to stay in the source
+permanently, including in builds where no tour ever runs, so something that must
+be free to leave in cannot complain about being left in. **Those three must
+never speak**, and nothing should be added here that makes them.
+
+Reported through `onDiagnostic`: a `start()` naming a story or a step that is
+not there, and any call refused by the gate above. There is no version of
+`start('typo-id')` a working application meant, and a call refused mid-arrival
+came from an application doing everything right at a moment nothing could be
+done with it. Neither has any other symptom. The tour does not move, and nothing
+anywhere says why.
+
+**A `reached()` that matched and was dropped is reported**, and that is the
+split worth holding on to. A name nobody waits for is normal. A name the step
+showing declared, arriving while that step was still being built, means the step
+now waits for something the application has already been through. `awaits` is
+the same string on both sides and the vocabulary is gathered from the call sites
+either way, so silence there is a step that hangs for no visible reason.
+
+**Nothing is logged.** The core has no build-time environment to strip a
+development branch with, so anything written to the console is written in
+production too. `console.error` is collected by error trackers and fails test
+suites that treat it as a failure, `console.warn` is quieter and still arrives
+where the host did not ask for it. `onTargetLost` is the precedent: a step whose
+target cannot be resolved is reported to the application rather than logged,
+because Leko does not know what the host wants done about it.
+
 ## `state` is derived
 
 `state` is derived rather than stored. Two fields each say one thing, and it is

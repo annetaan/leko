@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest'
 
 import { absorbed, box, centre, held, pair, register, scrim, start, watched } from './harness.js'
+import type { LekoProblem, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
 // the presenter a test writes. What each of these pins down is which step the
@@ -398,4 +399,24 @@ test('re-registering the story that is running leaves the page alone', () => {
   expect(scrim()).toBe(drawn)
   expect(centre(target)).toBe(target)
   expect(centre(other)).not.toBe(other)
+})
+
+test('a diagnostic reaches the host, with the step the signal was for', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const problems: LekoProblem[] = []
+  const step: LekoStep = { id: 'b', target: second, awaits: 'saved', onEnter: () => promise }
+  const leko = register(
+    { id: 'story', steps: [{ id: 'a', target: first }, step] },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+
+  leko.start('story')
+  leko.nextStep()
+  leko.reached('saved')
+
+  expect(problems).toEqual([{ kind: 'signal-dropped', name: 'saved', step }])
+  settle()
+  await promise
+  expect(leko.step?.id).toBe('b')
 })
