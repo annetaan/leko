@@ -94,6 +94,28 @@ See `late-reason.ts`.
 Leko does not hold the instruction. `step.message` is read every time it draws,
 and `StepBase.message` is `readonly` to say so.
 
+## Registering a story
+
+`setStory(story)` puts a story in the map under its id, replacing whatever was
+there. A component that registers on every render does not accumulate copies of
+itself, which is the only reason it replaces rather than adds.
+
+That is all it is for. The instrumentation goes into an application first, and
+the stories come later, so `setStory` exists to let a story appear at any point
+before something calls `start()` with its id.
+
+**A `setStory` naming the story the tour is on does nothing, and answers
+`false`.** It is never a way to change a tour while somebody is walking through
+it. Swap the object and the steps move under the position the tour is holding.
+A story shorter than the tour has gone leaves it standing nowhere. The
+re-rendering component is the case that matters, and refusing serves it: the
+tour keeps the object it entered.
+
+There is no `deleteStory`. Registering by id is a development-time convenience,
+and the map only grows where ids are themselves dynamic, which nothing has asked
+for. A pair to `setStory` also lets a registration call end a tour as a side
+effect, and nothing else in the API does that.
+
 ## Saying where the tour got to
 
 `LekoStory.onStep` does not reopen the second constraint. That constraint is

@@ -192,30 +192,20 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Register a story, replacing any story already registered under that id.
    *
    * Replacing rather than adding, so that a component re-registering on every
-   * render does not accumulate copies of itself. Doing it to the story that is
-   * running swaps what the current step is read from and redraws nothing: a
-   * re-render must not restart a tour someone is in the middle of.
+   * render does not accumulate copies of itself.
    *
-   * **A story that comes back with fewer steps than the tour has taken stops
-   * it**, and the ending reports through `onStep` like any other. Nothing
-   * stands where the tour was standing. A position left out of range answers
-   * `running` with no step to show, `nextStep()` and every signal after it land
-   * on nothing, and the cutout stays where it was — a tour that cannot be
-   * finished and says nothing about why. This is what {@link deleteStory}
-   * decides about a whole story, decided again about the step someone is on.
+   * **A call naming the story the tour is on does nothing.** Registering is how
+   * a story becomes something {@link start} can find, and it is never a way to
+   * change a tour while somebody is walking through it. The re-rendering
+   * component is the case that rule is written for: the tour keeps the object
+   * it entered, and the steps stay where they were under the user's feet.
+   *
+   * Answers whether the story was registered.
    */
-  setStory(story: St): void {
+  setStory(story: St): boolean {
+    if (this.position?.story.id === story.id) return false
     this.stories.set(story.id, story)
-    const here = this.position
-    if (here?.story.id !== story.id) return
-    // Stopped before the swap, not after, so that the ending speaks for the
-    // registration the tour actually ran: `onLeave` is owed to the object that
-    // was entered, and `onStep` should not be reported against a different one.
-    // Nothing is put back afterwards either — an ending is somewhere a handler
-    // can start a story of its own, and that story is the one running by the
-    // time this returns.
-    if (here.index >= story.steps.length) return this.stop()
-    this.position = { ...here, story }
+    return true
   }
 
   /**
@@ -261,34 +251,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // into the application too and can take the tour somewhere else before this
     // returns.
     return this.position?.story === story
-  }
-
-  /**
-   * Take a story back, and stop the tour if that is the story it is on.
-   *
-   * The pair to {@link setStory}, and the answer to a `stories` map that only
-   * ever grew. A screen that registers a story on mount has somewhere to put
-   * the unregister now, and the handlers a story closes over stop being reachable
-   * with it.
-   *
-   * Stopping is the honest thing to do when the running story is the one taken
-   * back. The application has said this story no longer exists, and going on
-   * showing it would be pointing the user at steps nobody stands behind any
-   * more. The ending reports through `onStep` like any other, so a progress
-   * readout hears about it.
-   *
-   * Answers whether there was a story registered under that id.
-   */
-  deleteStory(storyId: string): boolean {
-    // Out of the map before the tour stops, not after. Stopping hands control
-    // to the application, and a handler is free to start this very story again
-    // — the id is still one it knows. Deleting afterwards would take a story
-    // out from under a tour that had already begun running it, leaving the
-    // machine on a story nothing is registered under and `start` unable to
-    // reach it again.
-    if (!this.stories.delete(storyId)) return false
-    if (this.position?.story.id === storyId) this.stop()
-    return true
   }
 
   /**

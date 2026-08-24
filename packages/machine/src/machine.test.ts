@@ -453,16 +453,40 @@ describe('registering a story, and starting one', () => {
     expect(tour.step?.id).toBe('b')
   })
 
-  test('re-registering the story that is running does not restart it', () => {
+  test('re-registering the story that is running does nothing at all', () => {
     const tour = register({ id: 'onboarding', steps: twoSteps('before') })
     tour.start('onboarding')
     tour.nextStep()
 
     // A component that registers on every render hands the same story back with
-    // fresh objects in it, and must not throw the user back to the first step.
-    tour.setStory({ id: 'onboarding', steps: twoSteps('after') })
+    // fresh objects in it. Registering is how `start` finds a story, and never a
+    // way to change one somebody is walking through, so this is refused.
+    expect(tour.setStory({ id: 'onboarding', steps: twoSteps('after') })).toBe(false)
 
     expect(tour.step?.id).toBe('b')
+    expect(tour.step?.message).toBe('before')
+  })
+
+  test('the refusal is only about the story the tour is on', () => {
+    const tour = register({ id: 'running', steps: [{ id: 'a', target: 'first' }] })
+    tour.start('running')
+
+    expect(tour.setStory({ id: 'other', steps: [{ id: 'b', target: 'second' }] })).toBe(true)
+
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('a')
+    expect(tour.start('other')).toBe(true)
+  })
+
+  test('a story registered again once the tour is off it takes', () => {
+    const tour = register({ id: 'onboarding', steps: twoSteps('before') })
+    tour.start('onboarding')
+    tour.stop()
+
+    expect(tour.setStory({ id: 'onboarding', steps: twoSteps('after') })).toBe(true)
+
+    tour.start('onboarding')
+    tour.nextStep()
     expect(tour.step?.message).toBe('after')
   })
 
@@ -536,108 +560,6 @@ describe('registering a story, and starting one', () => {
     // that is what a caller can act on.
     expect(started).toBe(false)
     expect(tour.story?.id).toBe('third')
-  })
-
-  test('a story that comes back shorter than the tour has gone ends the tour', () => {
-    const { tour, seen } = watched({
-      id: 'onboarding',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second' },
-        { id: 'c', target: 'first' },
-      ],
-    })
-    tour.start('onboarding', 'c')
-    seen.length = 0
-
-    tour.setStory({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
-
-    // Nothing stands where the user was standing. Holding the position anyway
-    // left a tour reading `running` with no step to show, on which `nextStep()`
-    // and every signal after it landed on nothing.
-    expect(tour.state).toBe('idle')
-    expect(tour.step).toBeUndefined()
-    expect(seen).toEqual([[undefined, 'c']])
-    expect(drawing().torn).toBe(1)
-  })
-
-  test('a story that still has a step where the tour is standing is swapped in place', () => {
-    const { tour, seen } = watched({
-      id: 'onboarding',
-      steps: [...twoSteps('before'), { id: 'c', target: 'first' }],
-    })
-    tour.start('onboarding')
-    tour.nextStep()
-    seen.length = 0
-
-    // Shorter than it was, and still long enough to hold the step someone is
-    // on. Losing a step further along is the story's business, not the tour's.
-    tour.setStory({ id: 'onboarding', steps: twoSteps('after') })
-
-    expect(seen).toEqual([])
-    expect(tour.step?.message).toBe('after')
-  })
-
-  test('a story taken back stays taken back, whatever a handler does about it', () => {
-    const tour = register({
-      id: 'onboarding',
-      steps: [{ id: 'a', target: 'first' }],
-      // Stopping is where the application gets to react, and the id is still
-      // one it knows. Starting it again from here is the thing that used to
-      // beat the delete.
-      onLeave: (story) => void tour.start(story.id),
-    })
-    tour.start('onboarding')
-
-    expect(tour.deleteStory('onboarding')).toBe(true)
-
-    // Taken out of the map after the stop, this left the tour running a story
-    // that `deleteStory` had reported gone and `start` could no longer reach.
-    expect(tour.state).toBe('idle')
-    expect(tour.story).toBeUndefined()
-    expect(tour.start('onboarding')).toBe(false)
-  })
-
-  test('a story taken back is out of reach of start', () => {
-    const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
-
-    expect(tour.deleteStory('onboarding')).toBe(true)
-    expect(tour.start('onboarding')).toBe(false)
-    expect(tour.state).toBe('idle')
-  })
-
-  test('deleteStory says whether there was one to take back', () => {
-    const tour = register({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
-
-    expect(tour.deleteStory('nothing-here')).toBe(false)
-    expect(tour.deleteStory('onboarding')).toBe(true)
-    expect(tour.deleteStory('onboarding')).toBe(false)
-  })
-
-  test('taking back the story that is running ends the tour, and reports it', () => {
-    const { tour, seen } = watched({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
-    tour.start('story')
-    seen.length = 0
-
-    tour.deleteStory('story')
-
-    // The application has said this story no longer exists. Going on showing it
-    // would point the user at steps nobody stands behind any more.
-    expect(tour.state).toBe('idle')
-    expect(tour.story).toBeUndefined()
-    expect(seen).toEqual([[undefined, 'a']])
-    expect(drawing().torn).toBe(1)
-  })
-
-  test('taking back a story the tour is not on leaves it alone', () => {
-    const tour = register({ id: 'running', steps: [{ id: 'a', target: 'first' }] })
-    tour.setStory({ id: 'other', steps: [{ id: 'b', target: 'second' }] })
-    tour.start('running')
-
-    expect(tour.deleteStory('other')).toBe(true)
-
-    expect(tour.state).toBe('running')
-    expect(tour.step?.id).toBe('a')
   })
 
   test('a story that shows the same step object twice still counts forwards', () => {

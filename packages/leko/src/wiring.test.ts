@@ -375,18 +375,20 @@ test('meta is carried and never read', () => {
   expect(centre(second)).toBe(second)
 })
 
-test('taking back the story that is running puts the page back', () => {
+test('re-registering the story that is running leaves the page alone', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const other = box('other', { left: '300px', top: '100px', width: '120px', height: '40px' })
   const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
 
   leko.start('story')
-  expect(scrim()).not.toBeNull()
+  const drawn = scrim()
 
-  expect(leko.deleteStory('story')).toBe(true)
+  // What a component re-rendering hands back. The tour is walking through this
+  // story, so nothing about it moves.
+  expect(leko.setStory({ id: 'story', steps: [{ id: 'one', target: other }] })).toBe(false)
 
-  expect(leko.state).toBe('idle')
-  expect(scrim()).toBeNull()
+  expect(leko.state).toBe('running')
+  expect(scrim()).toBe(drawn)
   expect(centre(target)).toBe(target)
-  // And it is out of reach, so nothing can put it back on screen.
-  expect(leko.start('story')).toBe(false)
+  expect(centre(other)).not.toBe(other)
 })
