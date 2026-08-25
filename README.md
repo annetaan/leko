@@ -198,8 +198,9 @@ dependencies. Framework wrappers will be additive, never required.
 | Several stories on one instance, one of them running | ✅ Working |
 | Signal names gathered from the call sites, offered on `awaits` | ✅ Working |
 | A next control on the message, on steps that await nothing | ✅ Working |
-| Advancing on a URL change, and surviving the navigation | 📋 Planned |
-| Chapters, to skip over and to resume into | 📋 Planned |
+| A control that ends the tour, on screen for as long as it runs | ✅ Working |
+| Following `state` from a host, with `watch` | ✅ Working |
+| Advancing on a URL change | 📋 Planned |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |
 
 ## Browser support

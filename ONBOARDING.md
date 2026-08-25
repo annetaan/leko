@@ -104,7 +104,7 @@ it.
 | File | What it holds |
 | --- | --- |
 | `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | The public class. Four getters and five methods |
+| `packages/leko/src/leko.ts` | The public class. Four getters and six methods |
 | `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired |
 | `packages/machine/src/machine.ts` | Which step the tour is on |
 | `packages/machine/src/port.ts` | `Presenter` and `Host`. The seam |
@@ -162,7 +162,7 @@ from step 2 using the three files from steps 4 to 6.
 
 **8. `packages/leko/src/leko.ts`**
 
-Four getters and five methods, each one delegating to the machine. It is thin
+Four getters and six methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
 **9. `packages/codegen/`** (optional)
@@ -219,6 +219,12 @@ disagreeing about where the tour was.
 | `error` | What the last attempt at this step was told was wrong |
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
+
+`watch` adds two more, and they are about telling somebody rather than about the
+tour: `watchers` holds the listeners, and `before` holds what `state` read when
+this turn first wrote to `position` or `phase`. Those two fields are the only
+ones written through setters, and the setters are what raise the notification,
+so no write can forget to announce itself.
 
 `state` is derived rather than stored.
 

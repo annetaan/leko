@@ -458,6 +458,41 @@ not about the screen would have allowed, and the cost of it is a fifth member on
 field here, check whether it is a third way of saying what two fields already
 say.
 
+## Watching `state`
+
+`watch(listener)` says when `state` changed and hands back the way to stop. With
+`state` itself as the snapshot, that is both halves of a React
+`useSyncExternalStore`. Without it a host that wants to disable its own controls
+while the tour is between things has to read `state` on a timer, because
+`onStep` fires when the tour arrives somewhere and `state` moves three times
+that no arrival explains: a morph landing, a story's `onEnter` in flight before
+any step exists, and a target being looked for again.
+
+**It fires on the derived value, not on the fields it is read from.** `settling`
+to `ready` is a crossing a watcher should hear. `story` to `step` is not, and
+neither is a call that wrote a field the answer does not depend on.
+
+**One call per turn.** `enter` writes the phase twice on its way to a step that
+is not on screen yet, and `end` empties two fields in a row. A watcher told
+about each write would see a flicker that never existed for anybody, so the
+answer is compared with what it was when the turn started and reported only if
+the two differ. A run that starts and settles inside one turn says `running`
+once.
+
+**Nothing is called from inside a machine operation.** A watcher is application
+code, and one calling `stop()` would be doing it half way through an arrival,
+which is the reentrancy the gate above exists to keep out. The call goes in a
+microtask, which is after the operation and still before the next task.
+
+**It carries the state and nothing else.** `onStep` carries the step and the one
+before it. A watcher carrying both would be one hook doing two jobs, and a
+listener could not tell which of them woke it.
+
+The notify has one place to live. `position` and `phase` are written through
+setters and the setters are what call it, so a new write cannot forget to
+announce itself. That is the same bargain `state` being derived struck, one
+level up.
+
 ## Gathering the vocabulary from the call sites
 
 A signal name is a string on both sides, and a typo does not fail. The step

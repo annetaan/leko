@@ -47,13 +47,13 @@ const stateOut = pick('[data-state]')
 const noteOut = pick('[data-note]')
 
 let teardown: (() => void) | undefined
+let unwatch: (() => void) | undefined
 let leko: Leko | undefined
 let problem: string | undefined
 
 // Called by every story's onStep, so the readout is told rather than looking.
 // Reading the instance from in here is the point of the test: if the hook fired
 // before Leko had finished moving, this would print the step it just left.
-let following = false
 function report(): void {
   const state = leko?.state ?? 'idle'
   stateOut.textContent = state
@@ -71,25 +71,12 @@ function report(): void {
   // A diagnostic outlives the step it was reported during, because that step is
   // usually still on screen waiting for the signal that got dropped.
   noteOut.textContent = [where, problem].filter(Boolean).join('  ⟵  ')
-
-  // `state` has no hook of its own, so the chip has to go and look. It changes
-  // when a morph starts and again when it lands, and again when a target leaves
-  // the page and the tour waits for it, and the step does not move on any of
-  // them. The last of those is announced by nothing at all, so this follows for
-  // as long as a story runs rather than for the length of one morph. Polling is
-  // what a host is left with today, and it is the whole of #51.
-  if (state === 'idle' || following) return
-  following = true
-  const tick = (): void => {
-    following = (leko?.state ?? 'idle') !== 'idle'
-    report()
-    if (following) requestAnimationFrame(tick)
-  }
-  requestAnimationFrame(tick)
 }
 
 function show(next: Case): void {
   leko?.stop()
+  unwatch?.()
+  unwatch = undefined
   problem = undefined
   teardown?.()
 
@@ -125,6 +112,12 @@ function show(next: Case): void {
     // instance. A readout belonging to a single story goes on that story.
     onStep: report,
   })
+
+  // `state` moves when no step does: a morph landing, a story's onEnter in
+  // flight, a target being looked for again. This read the instance on every
+  // frame for as long as a story ran before `watch` existed, which is what the
+  // hook was written to replace.
+  unwatch = leko.watch(report)
 
   stageRoot.replaceChildren()
   teardown = next.mount(stageRoot, leko)
@@ -165,9 +158,8 @@ pick('.controls').addEventListener('click', (event) => {
     if (!action) return
     actions[action.dataset['action'] ?? '']?.()
   }
-  // A step whose onEnter waits for something reports nothing until it lands, so
-  // the chip would sit on the last state it was told about for as long as the
-  // handler runs. Asking once here is what starts it following.
+  // The note beside the chip carries the diagnostic, which `watch` knows
+  // nothing about. The state half of the readout looks after itself now.
   report()
 })
 

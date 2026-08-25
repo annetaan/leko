@@ -12,7 +12,7 @@ import {
   start,
   watched,
 } from './harness.js'
-import type { LekoProblem, LekoStep } from './types.js'
+import type { LekoProblem, LekoState, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
 // the presenter a test writes. What each of these pins down is which step the
@@ -179,6 +179,66 @@ test('a target replaced by an identical one is found again, and nothing ends', a
   expect(leko.step?.id).toBe('doomed')
   // The machine was never told anything happened, so nothing was reported.
   expect(seen).toEqual([])
+})
+
+test('a watcher hears the crossings onStep never mentions', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'only', target: '#anchor' }] })
+  const states: LekoState[] = []
+  const stop = leko.watch((state) => states.push(state))
+
+  leko.start('story')
+  await vi.waitUntil(() => states.at(-1) === 'running', { timeout: 2000 })
+
+  // One crossing for the whole arrival. The first draw has nothing to morph
+  // from, so it is cut rather than animated, and a watcher is told the answer
+  // the turn ended on rather than everything it passed through.
+  expect(states).toEqual(['running'])
+  expect(seen).toEqual([['only', undefined]])
+
+  target.remove()
+  await vi.waitUntil(() => states.at(-1) === 'transitioning', { timeout: 1000 })
+
+  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  fresh.id = 'anchor'
+  await vi.waitUntil(() => states.at(-1) === 'running', { timeout: 3000 })
+
+  // Two more crossings, and the tour never moved. Nothing in `onStep` could
+  // have told a host any of this, which is the whole reason for `watch`.
+  expect(states).toEqual(['running', 'transitioning', 'running'])
+  expect(seen).toEqual([['only', undefined]])
+
+  stop()
+  leko.stop()
+  await new Promise((r) => setTimeout(r, 0))
+
+  expect(states).toEqual(['running', 'transitioning', 'running'])
+  expect(leko.state).toBe('idle')
+})
+
+test('a tour stopped while a curtain is owed does not draw itself back', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const leko = register({ id: 'story', steps: [{ id: 'only', target: '#anchor' }] })
+
+  leko.start('story')
+  target.remove()
+  await vi.waitUntil(() => leko.state === 'transitioning', { timeout: 1000 })
+
+  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  fresh.id = 'anchor'
+  await vi.waitUntil(() => leko.state === 'running', { timeout: 3000 })
+
+  // The target is back and the step is waiting out the rest of the curtain's
+  // minimum before it is drawn again. A `stop()` inside that window used to
+  // leave the timer running, and the tour rebuilt itself on a page that had
+  // nothing left to take it away.
+  leko.stop()
+  await new Promise((r) => setTimeout(r, 600))
+
+  expect(document.querySelectorAll('[class^=leko-]').length).toBe(0)
+  expect(leko.state).toBe('idle')
 })
 
 test('a target that comes back late is picked up by the search', async () => {

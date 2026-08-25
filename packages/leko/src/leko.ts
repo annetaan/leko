@@ -144,6 +144,31 @@ export class Leko {
   }
 
   /**
+   * Be told when {@link state} changes, and get back the way to stop.
+   *
+   * ```ts
+   * const stop = leko.watch((state) => setBusy(state === 'transitioning'))
+   * ```
+   *
+   * `state` moves in ways {@link LekoOptions.onStep} never mentions: a morph
+   * landing, a story's `onEnter` in flight before any step exists, a target
+   * that left the page and is being looked for again. The tour has not moved in
+   * any of them, so nothing is reported and a host reading `state` on a timer
+   * is what is left without this.
+   *
+   * It fires once per turn and only where the answer changed, so a run that
+   * starts and settles in the same turn says `running` once rather than
+   * flickering through what it passed on the way. The call lands in a
+   * microtask, after whatever moved the tour has finished with it.
+   *
+   * With {@link state} as the snapshot, this is the `subscribe` half of a React
+   * `useSyncExternalStore`.
+   */
+  watch(watcher: (state: LekoState) => void): () => void {
+    return this.machine.watch(watcher)
+  }
+
+  /**
    * Reports the ending through {@link LekoStory.onStep} before returning, with
    * `step` as `undefined`. The host that called this knows already, and
    * whatever draws the progress is written somewhere else and does not.

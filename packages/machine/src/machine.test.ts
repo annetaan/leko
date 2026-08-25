@@ -107,6 +107,12 @@ class Fake implements Presenter<Anchor, Step, Story> {
     this.torn += 1
   }
 
+  /** The morph reached the end, the way a real one does after 320ms. */
+  land(): void {
+    this.settle?.()
+    this.settle = undefined
+  }
+
   /** The step's target left the page, the way a MutationObserver would notice. */
   lose(step: Step): void {
     this.page.delete(step.target)
@@ -181,6 +187,18 @@ function watched(story: Omit<Story, 'onStep'>, options: Options = {}) {
     options,
   )
   return { tour, seen }
+}
+
+/**
+ * Empty the microtask queue, which is where a watcher is called.
+ *
+ * Three, because a settling morph takes one to reach the `then` in `draw`, the
+ * write in there takes another to reach the microtask `announce` queues, and
+ * the third is slack. There is no `setTimeout` in this package: it takes no
+ * `lib.dom`, and a test is not a reason to start.
+ */
+const turn = async (): Promise<void> => {
+  for (let i = 0; i < 3; i += 1) await Promise.resolve()
 }
 
 /** A promise the test settles by hand, so the gap can be looked at. */
@@ -740,6 +758,101 @@ describe('what the tour says it is doing', () => {
 
     expect(tour.step?.id).toBe('b')
     expect(tour.state).toBe('running')
+  })
+
+  test('watching state hears every crossing, and only the crossings', async () => {
+    const seen: string[] = []
+    const tour = register({
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first', awaits: 'saved' },
+        { id: 'b', target: 'second' },
+      ],
+    })
+    drawing().slow = true
+    tour.watch((state) => seen.push(state))
+
+    tour.start('story')
+    await turn()
+
+    // One call for a turn that wrote `phase` three times on its way to a step
+    // that has not settled. A watcher told about each write would see a flicker
+    // that never existed for anybody.
+    expect(seen).toEqual(['transitioning'])
+
+    drawing().land()
+    await turn()
+
+    expect(seen).toEqual(['transitioning', 'running'])
+
+    // A name nothing waits for moves nothing, so there is nothing to say.
+    tour.reached('unrelated')
+    await turn()
+
+    expect(seen).toEqual(['transitioning', 'running'])
+  })
+
+  test('a run that starts and settles in one turn says running once', async () => {
+    const seen: string[] = []
+    const tour = register({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
+    tour.watch((state) => seen.push(state))
+
+    tour.start('story')
+    await turn()
+
+    expect(tour.state).toBe('running')
+    expect(seen).toEqual(['running'])
+
+    tour.stop()
+    await turn()
+
+    expect(seen).toEqual(['running', 'idle'])
+  })
+
+  test('a watcher hears the wait for a target that left the page', async () => {
+    const only: Step = { id: 'a', target: 'first' }
+    const seen: string[] = []
+    const tour = register({ id: 'story', steps: [only] })
+    tour.start('story')
+    tour.watch((state) => seen.push(state))
+
+    drawing().hunt(only)
+    await turn()
+
+    expect(seen).toEqual(['transitioning'])
+
+    drawing().found(only)
+    await turn()
+
+    expect(seen).toEqual(['transitioning', 'running'])
+  })
+
+  test('watching stops when the unsubscribe is called, from inside or outside', async () => {
+    const seen: string[] = []
+    const tour = register({
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second' },
+      ],
+    })
+    const stop = tour.watch((state) => {
+      seen.push(state)
+      // From inside itself, which is why the set is copied before it is walked.
+      if (state === 'idle') stop()
+    })
+
+    tour.start('story')
+    await turn()
+    tour.stop()
+    await turn()
+
+    expect(seen).toEqual(['running', 'idle'])
+
+    tour.start('story')
+    await turn()
+
+    expect(seen).toEqual(['running', 'idle'])
   })
 
   test('a wait the tour has already left leaves nothing behind', () => {

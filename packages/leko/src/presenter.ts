@@ -83,6 +83,8 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   private waiting: ReturnType<typeof setTimeout> | undefined
   /** The frame the curtain is waiting to be painted in, if it is. */
   private painting: number | undefined
+  /** The rest of the minimum a curtain still owes, while a step waits it out. */
+  private owing: ReturnType<typeof setTimeout> | undefined
   /**
    * When the curtain was first painted, which is when the minimum starts.
    *
@@ -200,6 +202,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   private lift(): number {
     clearTimeout(this.waiting)
     this.waiting = undefined
+    // A step still waiting out the last curtain is a step nothing is heading
+    // for any more. Left running, its timer draws it over whatever this
+    // arrival is about to put on screen.
+    clearTimeout(this.owing)
+    this.owing = undefined
     if (this.painting !== undefined) {
       cancelAnimationFrame(this.painting)
       this.painting = undefined
@@ -331,9 +338,9 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     const covered = this.since !== undefined || this.painting !== undefined
     const owed = this.lift()
     if (owed === 0) return this.reveal(story, step, anchor, content, animate || covered)
-    return new Promise<void>((settle) => setTimeout(settle, owed)).then(() =>
-      this.reveal(story, step, anchor, content, true),
-    )
+    return new Promise<void>((settle) => {
+      this.owing = setTimeout(settle, owed)
+    }).then(() => this.reveal(story, step, anchor, content, true))
   }
 
   /** Draw the step. Called once the curtain, if there was one, has paid its dues. */
@@ -564,6 +571,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   teardown(): void {
     clearTimeout(this.waiting)
     this.waiting = undefined
+    // Every timer this owns goes, including the one a step was waiting out. A
+    // tour that has been stopped drawing itself back onto the page 300ms later
+    // is the worst of the lot, because nothing is left to take it away again.
+    clearTimeout(this.owing)
+    this.owing = undefined
     if (this.painting !== undefined) cancelAnimationFrame(this.painting)
     this.painting = undefined
     this.since = undefined

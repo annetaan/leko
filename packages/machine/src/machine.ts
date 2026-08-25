@@ -67,12 +67,28 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * anything else, so its identity is the step occurrence the tour is standing
    * on. {@link errorUtils} is built on that.
    */
-  private position: { story: St; index: number } | undefined
+  #position: { story: St; index: number } | undefined
+  private get position(): { story: St; index: number } | undefined {
+    return this.#position
+  }
+  private set position(next: { story: St; index: number } | undefined) {
+    if (next === this.#position) return
+    this.announce()
+    this.#position = next
+  }
   /**
    * The one field a call from the application is answered against, and half of
    * what {@link state} is read from.
    */
-  private phase: Phase = 'ready'
+  #phase: Phase = 'ready'
+  private get phase(): Phase {
+    return this.#phase
+  }
+  private set phase(next: Phase) {
+    if (next === this.#phase) return
+    this.announce()
+    this.#phase = next
+  }
   /**
    * What the last attempt at the current step was told was wrong with it, set
    * through {@link ErrorUtils.setError}. Held here rather than on the step: it
@@ -95,6 +111,14 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * needs this.
    */
   private showing: Promise<void> | undefined
+  /** Everything watching {@link state}, and nothing else is told about it. */
+  private readonly watchers = new Set<(state: MachineState) => void>()
+  /**
+   * What `state` read when this turn first wrote to a field it is derived from,
+   * while a notification is on its way. `undefined` means none is queued, which
+   * is also what stops one turn queueing six.
+   */
+  private before: MachineState | undefined
 
   /**
    * The presenter is built here rather than handed in, because it needs a
@@ -166,6 +190,61 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   get state(): MachineState {
     if (!this.position) return 'idle'
     return this.phase === 'ready' ? 'running' : 'transitioning'
+  }
+
+  /**
+   * Be told when {@link state} changes, and get back the way to stop.
+   *
+   * `state` moves in ways `onStep` never mentions. A morph landing, a story's
+   * `onEnter` in flight before any step exists, a target that left the page and
+   * is being looked for again: the tour is between things in all three and has
+   * not moved in any of them. Without this a host wanting to stand back while
+   * that is true has to read {@link state} on a timer, and a `subscribe` is
+   * half of what `useSyncExternalStore` asks for. The other half is `state`
+   * itself.
+   *
+   * **It carries the state and nothing else.** `onStep` carries the step and
+   * the one before it. A watcher that carried both would be one hook doing two
+   * jobs, and a listener could not tell which of them woke it.
+   */
+  watch(watcher: (state: MachineState) => void): () => void {
+    this.watchers.add(watcher)
+    return () => void this.watchers.delete(watcher)
+  }
+
+  /**
+   * Say that `state` changed, once the turn that changed it is over.
+   *
+   * Called from the setters of the two fields `state` is read from, before the
+   * write, so what it holds on to is the answer as it stood. **Every write goes
+   * through those setters, so this cannot be forgotten** — which is the same
+   * bargain `state` being derived struck, one level up.
+   *
+   * **A turn, not a write.** `enter` writes `phase` twice before the step is on
+   * screen and `end` empties two fields in a row. A watcher told about each of
+   * those would see a flicker that never existed for the user, so the answer is
+   * compared with what it was at the start of the turn and reported only if the
+   * two differ. A run that starts and settles inside one turn says `running`
+   * once, and a call that changed nothing says nothing at all.
+   *
+   * **Nothing is called from inside a machine operation.** A watcher is
+   * application code, and an application that called `stop()` from one would be
+   * doing it half way through an arrival, which is the reentrancy the phase
+   * gate exists to keep out. A microtask puts it after the operation and still
+   * before the next task.
+   */
+  private announce(): void {
+    if (this.watchers.size === 0 || this.before !== undefined) return
+    const before = this.state
+    this.before = before
+    queueMicrotask(() => {
+      this.before = undefined
+      const now = this.state
+      if (now === before) return
+      // Copied, because a watcher is free to unsubscribe from inside itself.
+      const watching = Array.from(this.watchers)
+      for (const watcher of watching) watcher(now)
+    })
   }
 
   /**
