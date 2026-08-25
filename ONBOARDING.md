@@ -150,8 +150,7 @@ rectangles from `complementRects` on the page.
 
 **6. `packages/spotlight/src/message.ts`** (364 lines)
 
-The box. Mostly inline styles and one interesting function, `chooseSide` at
-line 65.
+The box. Mostly inline styles and one interesting function, `chooseSide`.
 
 **7. `packages/leko/src/presenter.ts`** (292 lines)
 
@@ -174,20 +173,20 @@ This is the trace worth walking with the files open. The application calls
 
 | | Where | What happens |
 | --- | --- | --- |
-| 1 | `leko.ts:137` | `Leko.reached` hands the name straight to the machine |
-| 2 | `reached` | reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here |
-| 3 | `advance` | Drops the call unless `accepting`. Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
-| 4 | `enter` | Clears the error, hides the message, closes the phase, runs the last step's `onLeave`, then this step's `onEnter` |
-| 5 | `arrive` | Opens the phase, draws, then reports. In that order |
-| 6 | `draw` | resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts:147` | `DomPresenter.show` walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts, cuts the outer layers |
-| 8 | `scrim.ts:253` | `Scrim.morph` pads both cutout lists to the same length, then starts the loop |
-| 9 | `scrim.ts:169` | `run` writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
-| 10 | `scrim.ts:223` | `block` puts the blocking rectangles where the cutouts are not |
-| 11 | `presenter.ts:116` | `say` runs after the morph settles, and only if it finished |
-| 12 | `message.ts:216` | `Message.show` fills the box, opens the popover, takes the anchor |
-| 13 | `message.ts:309` | `place` picks a side from viewport measurements and writes `position-area` |
-| 14 | `report` | calls the story's `onStep`, then the instance's |
+| 1 | `leko.ts` `Leko.reached` | Hands the name straight to the machine |
+| 2 | `machine.ts` `reached` | Reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here |
+| 3 | `machine.ts` `advance` | Drops the call unless `accepting`. Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
+| 4 | `machine.ts` `enter` | Clears the error, hides the message, closes the phase, runs the last step's `onLeave`, then this step's `onEnter` |
+| 5 | `machine.ts` `arrive` | Opens the phase, draws, then reports. In that order |
+| 6 | `machine.ts` `draw` | Resolves the anchor and calls `presenter.show` |
+| 7 | `presenter.ts` `DomPresenter.show` | Walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts, cuts the outer layers |
+| 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
+| 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
+| 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
+| 11 | `presenter.ts` `say` | Runs after the morph settles, and only if it finished |
+| 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
+| 13 | `message.ts` `place` | Picks a side from viewport measurements and writes `position-area` |
+| 14 | `machine.ts` `report` | Calls the story's `onStep`, then the instance's |
 
 Step 5 is the one to hold on to. The move is reported after it survived being
 drawn. A progress readout that heard about a step while its `onEnter` was still
@@ -261,9 +260,9 @@ Here is where they live in code.
 
 **1. Never place an element over the target.**
 
-`scrim.ts:119` sets `pointerEvents: 'none'` on the scrim. The scrim paints and
+The `Scrim` constructor sets `pointerEvents: 'none'` on the scrim. The scrim paints and
 catches nothing. Its children do the catching, and those children come from
-`complementRects` in `geometry.ts:160`, which returns what is left of the
+`complementRects` in `geometry.ts`, which returns what is left of the
 surface once the holes are taken out.
 
 That makes the constraint true by construction. The rectangles are built from
@@ -291,9 +290,9 @@ every listener the library installs, and none of them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts:258` | A `MutationObserver` noticing the target left the page. Reports `Host.lost` |
-| `presenter.ts:272` | A `resize` listener. Reports `Host.moved` |
-| `message.ts:176` | A `click` on the next control. Reports `Host.next` |
+| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Reports `Host.lost` |
+| `presenter.ts` `watchViewport` | A `resize` listener. Reports `Host.moved` |
+| `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 
 **There is no scroll listener anywhere.** Scroll tracking runs no JavaScript at
 all. The scrim lives inside the thing that scrolls, so scrolling moves the scrim

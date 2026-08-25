@@ -97,6 +97,11 @@ augmentation applies to a whole compilation.
   `spike/`: `waapi-clip-path/index.html` is attached to
   [crbug.com/542859657](https://issues.chromium.org/issues/542859657) as it
   stands, and a formatter should not be rewriting evidence.
+- **No line numbers in prose.** Point into a file by naming the symbol or the
+  heading, never `machine.ts:147`. Nothing checks a line number and nothing
+  updates one, so it goes stale the first time somebody edits above it and then
+  sends a reader somewhere wrong while looking precise. `leko-signals.d.ts` is
+  the exception, because the generator rewrites it every build.
 - Package names are `@annetaan/leko` and `@annetaan/leko-codegen`; the project is
   called Leko. The scope exists only because npm rejects the unscoped name, and
   is not part of the brand.

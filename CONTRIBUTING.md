@@ -69,6 +69,13 @@ judgement call, and `.editorconfig` covers the rest. So are the pages under
 `spike/`: one of them is attached to a browser bug report as it stands, and a
 formatter should not be rewriting evidence.
 
+**No line numbers in prose.** Point into a file by naming the symbol, the
+function or the heading, never `file.ts:147`. Nothing checks a line number and
+nothing updates one, so they go stale the first time somebody edits above them
+and then send a reader to the wrong place with an air of precision. The
+generated `leko-signals.d.ts` is the exception, and it carries them because the
+generator rewrites the file every build.
+
 ## What `@annetaan/leko` ships
 
 `packages/leko` is the only package here that publishes. `packages/machine` and
