@@ -16,6 +16,11 @@ app.append(
           The step's message sits beside its cutout and follows it as you
           scroll; the bar below repeats it, along with the state.
         </p>
+        <p class="rail-note">
+          The log at the bottom is every call and every hook, in the order a
+          host sees them. What the states mean is drawn in
+          <code>packages/machine/model/phases.md</code>.
+        </p>
         <nav class="cases" data-nav></nav>
       </aside>
       <main class="stage">
@@ -26,10 +31,13 @@ app.append(
         <div class="stage-body" data-root></div>
       </main>
       <footer class="controls">
-        <span class="starts" data-starts></span>
-        <button type="button" data-action="stop">stop()</button>
-        <span class="state" data-state>idle</span>
-        <span class="note" data-note>No tour running.</span>
+        <div class="log" data-log></div>
+        <div class="control-row">
+          <span class="starts" data-starts></span>
+          <button type="button" data-action="stop">stop()</button>
+          <span class="state" data-state>idle</span>
+          <span class="note" data-note>No tour running.</span>
+        </div>
       </footer>
     </div>
   `),
@@ -44,6 +52,43 @@ const stageRoot = pick('[data-root]')
 const starts = pick('[data-starts]')
 const stateOut = pick('[data-state]')
 const noteOut = pick('[data-note]')
+const logOut = pick('[data-log]')
+
+/** When the showing case was mounted, so every row can say how long after it. */
+let opened = performance.now()
+
+/**
+ * One line in the footer log.
+ *
+ * The order is the order a host really sees, and it is not the order things
+ * happened in. `onStep` is called inside the operation that moved the tour, and
+ * `watch` is a microtask, so a move prints its step before it prints the state
+ * it left the machine in. Reordering them here would be the sandbox teaching
+ * something the API does not do.
+ */
+function note(kind: 'call' | 'state' | 'step' | 'problem', text: string): void {
+  const row = document.createElement('div')
+  row.className = 'log-row'
+  row.dataset['kind'] = kind
+
+  const at = document.createElement('span')
+  at.className = 'log-at'
+  at.textContent = `+${Math.round(performance.now() - opened)}ms`
+
+  const label = document.createElement('span')
+  label.className = 'log-kind'
+  label.textContent = kind
+
+  const body = document.createElement('span')
+  body.className = 'log-text'
+  body.textContent = text
+
+  row.append(at, label, body)
+  logOut.append(row)
+  // A case left running for a while is a long tour, not a leak to grow.
+  while (logOut.childElementCount > 200) logOut.firstElementChild?.remove()
+  logOut.scrollTop = logOut.scrollHeight
+}
 
 let teardown: (() => void) | undefined
 let unwatch: (() => void) | undefined
@@ -80,6 +125,9 @@ function show(next: Case): void {
   problem = undefined
   teardown?.()
 
+  logOut.replaceChildren()
+  opened = performance.now()
+
   title.textContent = next.title
   proves.textContent = next.proves
   for (const link of nav.querySelectorAll<HTMLElement>('[data-case]')) {
@@ -103,9 +151,12 @@ function show(next: Case): void {
         problem = `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
       } else if (found.kind === 'target-lost') {
         problem = `Target for “${found.storyId} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
+      } else if (found.kind === 'call-refused') {
+        problem = `${found.call}() arrived while Leko was inside the application, and was not acted on.`
       } else {
         problem = `${found.kind}: ${JSON.stringify(found)}`
       }
+      note('problem', problem)
       report()
     },
     // The one hook that says where the tour got to, for however many stories a
@@ -113,6 +164,10 @@ function show(next: Case): void {
     // stories live in several places writes exactly this and routes it, which
     // is what the second line does.
     onStep: (step, previous, story) => {
+      // `step` is undefined where the run ended, and `previous` is where the
+      // last report arrived, so the two of them read as a chain down the log.
+      const from = previous ? `“${previous.id}” → ` : ''
+      note('step', `${story.id}: ${from}${step ? `“${step.id}”` : 'the run ended'}`)
       report()
       caseStep?.(step, previous, story)
     },
@@ -122,7 +177,10 @@ function show(next: Case): void {
   // flight, a target being looked for again. This read the instance on every
   // frame for as long as a story ran before `watch` existed, which is what the
   // hook was written to replace.
-  unwatch = leko.watch(report)
+  unwatch = leko.watch((state) => {
+    note('state', state)
+    report()
+  })
 
   stageRoot.replaceChildren()
   teardown = next.mount(stageRoot, leko)
@@ -153,7 +211,10 @@ for (const item of cases) {
 // only exists on a step that declares no `awaits`. A button in this footer would
 // be one that ignores that.
 const actions: Record<string, () => void> = {
-  stop: () => leko?.stop(),
+  stop: () => {
+    note('call', 'stop()')
+    leko?.stop()
+  },
 }
 
 pick('.controls').addEventListener('click', (event) => {
@@ -161,6 +222,11 @@ pick('.controls').addEventListener('click', (event) => {
   const story = el.closest<HTMLElement>('[data-start]')?.dataset['start']
   if (story) {
     problem = undefined
+    // Logged before the call rather than after, so a start that displaces a
+    // running story sits above the teardown it causes. There is no row for the
+    // answer, because every `false` `start` returns has a diagnostic of its own
+    // and that lands here too.
+    note('call', `start('${story}')`)
     leko?.start(story)
   } else {
     const action = el.closest<HTMLElement>('[data-action]')

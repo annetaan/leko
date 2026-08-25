@@ -254,14 +254,80 @@ button:disabled {
   position: sticky;
   bottom: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   border-top: 1px solid var(--line);
   background: var(--surface);
   /* Above the scrim. Tour chrome always has to be — the scrim blocks the page
      on purpose, and the controls are not part of the page being toured. */
   z-index: 10000;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+}
+
+/* Every call and every hook, in the order a host sees them. The state chip
+   beside the buttons says where the tour is now; this says how it got there,
+   which is the half a person reading a case is usually after. */
+.log {
+  height: 116px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.log:empty::after {
+  content: 'Nothing yet. Start a story.';
+  color: var(--muted);
+}
+
+.log-row {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.log-at {
+  flex: none;
+  width: 7ch;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-kind {
+  flex: none;
+  width: 7ch;
+  color: var(--muted);
+}
+
+.log-text {
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.log-row[data-kind='state'] .log-kind,
+.log-row[data-kind='state'] .log-text {
+  color: var(--accent);
+}
+
+.log-row[data-kind='problem'] .log-kind,
+.log-row[data-kind='problem'] .log-text {
+  color: var(--flag);
+}
+
+.log-row[data-kind='call'] .log-text {
+  font-weight: 600;
 }
 
 .controls button {

@@ -3,7 +3,7 @@
 `machine.qnt` is `packages/machine/src/machine.ts` written down as a state
 machine, in [Quint](https://quint.sh/). A search walks it looking for a state
 that breaks one of its invariants, and the traces it finds are replayed against
-the real class.
+the real class. [`phases.md`](phases.md) is the same machine as a picture.
 
 I wrote it because `machine.test.ts` had grown to 1901 lines and every one of
 them was an example I had thought of. It is 1828 now, because the presenter the
