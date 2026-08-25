@@ -10,11 +10,12 @@ page under [`spike/`](spike/) that settled each rule.
 commands, and the changes that look like improvements and are not.
 
 None of the three tells you which file to open first. That is what this one is
-for. It also does not repeat their arguments. Where a rule matters I say which
-line of code keeps it and point at the section of DESIGN.md that argues it.
+for. It also does not repeat their arguments. Where a rule matters I name the
+function that keeps it and point at the section of DESIGN.md that argues it.
 
-There are about 3,300 lines of source here and 2,900 lines of tests. You can read
-all of it in a day. Most of that day is the 685 lines of `machine.ts`.
+There are roughly three thousand lines of source here and about as many again
+in tests. You can read all of it in a day, and most of that day is
+`machine.ts`.
 
 ## Day one
 
@@ -61,8 +62,8 @@ drive the case.
 pnpm test
 ```
 
-250 test runs across 17 files. It takes about 5 seconds on a laptop once the
-browsers are installed. Five Vitest projects, three of them in real browsers.
+Around 250 test runs across 17 files. It takes about 5 seconds on a laptop once
+the browsers are installed. Five Vitest projects, three of them in real browsers.
 
 ## The shape of the code
 
@@ -98,33 +99,33 @@ three browser engines.
 a package a consumer cannot install. `pnpm check:pack` catches that and CI runs
 it.
 
-| File | Lines | What it holds |
-| --- | --- | --- |
-| `packages/leko/src/types.ts` | 505 | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | 155 | The public class. Four getters and five methods |
-| `packages/leko/src/presenter.ts` | 292 | `DomPresenter`: the two halves, wired |
-| `packages/machine/src/machine.ts` | 641 | Which step the tour is on |
-| `packages/machine/src/port.ts` | 94 | `Presenter` and `Host`. The seam |
-| `packages/machine/src/types.ts` | 92 | `StepBase`, `StoryBase`, `ErrorUtils`, `Problem` |
-| `packages/spotlight/src/geometry.ts` | 221 | Pure functions. Numbers in, numbers out |
-| `packages/spotlight/src/scrim.ts` | 329 | The overlay element and its morph loop |
-| `packages/spotlight/src/message.ts` | 364 | The box beside the hole |
-| `packages/codegen/src/scan.ts` | 165 | Every name a `reached()` call reports |
+| File | What it holds |
+| --- | --- |
+| `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
+| `packages/leko/src/leko.ts` | The public class. Four getters and five methods |
+| `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired |
+| `packages/machine/src/machine.ts` | Which step the tour is on |
+| `packages/machine/src/port.ts` | `Presenter` and `Host`. The seam |
+| `packages/machine/src/types.ts` | `StepBase`, `StoryBase`, `ErrorUtils`, `Problem` |
+| `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
+| `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
+| `packages/spotlight/src/message.ts` | The box beside the hole |
+| `packages/codegen/src/scan.ts` | Every name a `reached()` call reports |
 
 ## Read the files in this order
 
-**1. `packages/leko/src/types.ts`** (505 lines)
+**1. `packages/leko/src/types.ts`**
 
-Start with the biggest file. Almost none of it is code. It is the public API
+Start with the longest file in the repository. Almost none of it is code. It is the public API
 with the argument for each option written next to it, and reading it gives you
 the vocabulary for everything else. `LekoStep`, `LekoStory`, `LekoOptions`.
 
 Read the JSDoc on `LekoStep.awaits` and on `LekoOptions.nextLabel` together.
 They are the same rule from two sides.
 
-**2. `packages/machine/src/port.ts`** (94 lines)
+**2. `packages/machine/src/port.ts`**
 
-The seam. Two interfaces and nothing else. `Presenter` is what the machine may
+The seam, and the shortest thing here. Two interfaces and nothing else. `Presenter` is what the machine may
 ask of whatever draws. `Host` is the three things a presenter may report back.
 
 Read it twice. Three rules live here and DESIGN.md states each under
@@ -132,37 +133,37 @@ Read it twice. Three rules live here and DESIGN.md states each under
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
-**3. `packages/machine/src/machine.ts`** (641 lines)
+**3. `packages/machine/src/machine.ts`**
 
-The hard file. Budget an hour. Read the field declarations at the top first,
+The hard one, and the long one. Budget an hour. Read the field declarations at the top first,
 then the section below on what each field means, then the methods.
 
-**4. `packages/spotlight/src/geometry.ts`** (221 lines)
+**4. `packages/spotlight/src/geometry.ts`**
 
 Relief after the machine. Every function takes numbers and returns numbers.
 `complementRects` is the one to understand. It is what the scrim blocks with,
 and it is what makes constraint 1 true by construction.
 
-**5. `packages/spotlight/src/scrim.ts`** (329 lines)
+**5. `packages/spotlight/src/scrim.ts`**
 
 The overlay element. `morph` and `run` are the animation. `block` puts the
 rectangles from `complementRects` on the page.
 
-**6. `packages/spotlight/src/message.ts`** (364 lines)
+**6. `packages/spotlight/src/message.ts`**
 
 The box. Mostly inline styles and one interesting function, `chooseSide`.
 
-**7. `packages/leko/src/presenter.ts`** (292 lines)
+**7. `packages/leko/src/presenter.ts`**
 
 Now the wiring makes sense. `DomPresenter` implements the `Presenter` interface
 from step 2 using the three files from steps 4 to 6.
 
-**8. `packages/leko/src/leko.ts`** (155 lines)
+**8. `packages/leko/src/leko.ts`**
 
 Four getters and five methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
-**9. `packages/codegen/`** (572 lines, optional)
+**9. `packages/codegen/`** (optional)
 
 Separate concern. Skip it until you need it.
 
