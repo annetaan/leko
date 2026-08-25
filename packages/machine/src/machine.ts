@@ -216,14 +216,19 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * Show `storyId`, from its first step or from `at` — a step id or an index.
+   * Show `storyId`, from its first step.
    *
-   * Nothing is torn down until the arguments are known to be good, so a typo
-   * cannot end a tour someone is in the middle of. An `at` that is not a whole
-   * number in range is such a typo: `steps[1.5]` is nowhere.
+   * There is no way to begin anywhere else. A story runs from the top forward
+   * or it does not run, which is the same line {@link nextStep} is the only
+   * mover under: a step that declares `awaits` cannot be arrived at twice,
+   * because the application reported that name once and will not report it
+   * again. A tour somebody wants to redo is a shorter story.
+   *
+   * Nothing is torn down until the id is known to be good, so a typo cannot end
+   * a tour someone is in the middle of.
    *
    * **Answers whether the story named here is the one now running.** A typo
-   * gets `false`, and so does an `at` that names nothing, a call that arrived
+   * gets `false`, and so does a story with no steps in it, a call that arrived
    * while the machine was inside the application, and a story whose own
    * `onEnter` threw.
    *
@@ -234,16 +239,18 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * story id it got wrong is a mistake with no other symptom: nothing happens,
    * and nothing anywhere says why.
    */
-  start(storyId: string, at: string | number = 0): boolean {
+  start(storyId: string): boolean {
     if (!this.accepting) return this.refuse('start')
     const story = this.stories.get(storyId)
     if (!story) {
       this.options.onDiagnostic?.({ kind: 'story-not-found', storyId })
       return false
     }
-    const index = typeof at === 'string' ? story.steps.findIndex((s) => s.id === at) : at
-    if (!Number.isInteger(index) || index < 0 || index >= story.steps.length) {
-      this.options.onDiagnostic?.({ kind: 'step-not-found', storyId, at })
+    // A story with nothing in it used to be caught by the bounds check on `at`,
+    // because `0 >= 0`. Without one it would enter, find no step, and report a
+    // run that began and ended in the same turn.
+    if (story.steps.length === 0) {
+      this.options.onDiagnostic?.({ kind: 'story-empty', storyId })
       return false
     }
     // What is ending is told what is starting, so teardown a branch and the
@@ -252,7 +259,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // through the whole of it, including the report. So nothing gets between
     // the two halves and `next` is a promise this call keeps.
     this.end(story)
-    this.position = { story, index }
+    this.position = { story, index: 0 }
     this.enterStory(story)
     // Asked after the fact rather than assumed, because a story's `onEnter` can
     // throw and end the run before this returns.

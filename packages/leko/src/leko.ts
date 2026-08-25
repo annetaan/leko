@@ -72,24 +72,29 @@ export class Leko {
   }
 
   /**
-   * Show `storyId`, from its first step or from `at` — a step id or an index.
+   * Show `storyId`, from its first step.
    *
    * Whatever was running stops, and reports its own ending first. One story at
    * a time is the whole design: two scrims would each block with rectangles
    * built from their own cutouts, so each would cover the other's target.
    *
-   * Moving a user from one story into another is an ordinary thing to do, and
-   * `at` composes them: run a shared story, branch into one of several, then
-   * start the shared one again at the step the branch rejoins. The switch cuts
-   * rather than morphs, the same as any other start, because two unrelated
+   * **There is no way to begin anywhere but the beginning.** A story runs from
+   * the top forward or it does not run. A step that declares `awaits` cannot be
+   * arrived at twice, because the application reported that name once and will
+   * not report it again, so a tour standing there a second time waits for ever.
+   * Moving a user from one story into another is still ordinary, and it is what
+   * a branch does: run a shared story, start one of several, then start the one
+   * they rejoin at. The switch cuts rather than morphs, because two unrelated
    * stories interpolating into each other would be a strange thing to watch.
    *
-   * Nothing is torn down until the arguments are known to be good, so a typo
-   * cannot end a tour someone is in the middle of. An `at` that is not a whole
-   * number in range is such a typo: `steps[1.5]` is nowhere.
+   * A tour somebody wants to redo part of is a shorter story. See
+   * [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md).
+   *
+   * Nothing is torn down until the id is known to be good, so a typo cannot end
+   * a tour someone is in the middle of.
    *
    * **Answers whether the story named here is the one now running.** A typo
-   * gets `false`, and so does an `at` that names nothing.
+   * gets `false`, and so does a story with no steps in it.
    *
    * This is not the silence {@link reached} keeps, and the difference is the
    * point. A `reached()` call is instrumentation, written where a thing happens
@@ -98,12 +103,12 @@ export class Leko {
    * story id it got wrong has no other symptom: nothing happens, and nothing
    * anywhere says why.
    *
-   * `false` also comes back where the arguments were good and the story's own
-   * `onEnter` threw, and where the call arrived while Leko was inside the
-   * application and could not act on anything.
+   * `false` also comes back where the id was good and the story's own `onEnter`
+   * threw, and where the call arrived while Leko was inside the application and
+   * could not act on anything.
    */
-  start(storyId: string, at: string | number = 0): boolean {
-    return this.machine.start(storyId, at)
+  start(storyId: string): boolean {
+    return this.machine.start(storyId)
   }
 
   /**

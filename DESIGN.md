@@ -174,10 +174,20 @@ left under a dimmed page with a hole over nothing. See `target-disappears.ts`.
 ## What a step and a story assume
 
 A step usually assumes something. A record exists, a panel is open. The story
-around it assumes the same kind of thing one level out. Put that on the first
-step's `onEnter` and you have said it belongs to that step, and `start(id, 2)`
-skips past it. So `LekoStory` and `LekoStep` each have an `onEnter` and an
-`onLeave`.
+around it assumes the same kind of thing one level out, and assumes it for
+longer.
+
+**The story's `onLeave` is the half that cannot be written anywhere else.** It
+runs when the run ends, after the last step's, and a `start()` displacing this
+story tells it where the tour is going. Put a story's clear-up on the first
+step's `onLeave` and it fires the moment the tour reaches step 2, with the rest
+of the story still standing on what it took away. No step's leaving means the
+story is over.
+
+`onEnter` is that hook's partner. A drawer opened in `steps[0].onEnter` and
+closed in `story.onLeave` is one pair split across two levels, and nobody should
+have to read that. So `LekoStory` and `LekoStep` each have an `onEnter` and an
+`onLeave`, and the story's runs first.
 
 **`onEnter` runs first, and the target is resolved after it settles.** Resolve
 first and the selector reads a page the step has not set up yet. That order is
@@ -207,8 +217,8 @@ it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
 
 ## A story is atomic, and stories are short
 
-**Leko offers no way back.** There is no `prevStep()`, and there never was a
-good one.
+**Leko offers no way back, and no way in other than the beginning.** There is no
+`prevStep()`, and `start()` takes a story id and nothing else.
 
 A step that declares `awaits` cannot be returned to. Step 2 says "save the
 order" and waits for `order-saved`. Somebody saves it, the tour moves on, and a
@@ -224,14 +234,24 @@ steps and not others, which is worse than no control. Application state does not
 run backwards. `onLeave` and `onEnter` can close a panel again. They cannot
 unsave an order.
 
-**So the answer to "I need to go back" is a shorter story.** Write several. A
-story of four steps costs a few seconds to run again, and somebody who misread
-step 3 loses those seconds. A story of twenty does not, and twenty is where a
-back button starts to feel necessary.
+The same argument closes the other end. A `start(id, at)` that put somebody on
+step 4 would put them on a step whose signal has already been reported, or on
+one whose `onEnter` assumes work the steps before it did. Both are the same
+mistake seen from the front.
+
+**So the answer to "I need to go back" and to "start me part way through" is a
+shorter story.** Write several. A story of four steps costs a few seconds to run
+again, and somebody who misread step 3 loses those seconds. A story of twenty
+does not, and twenty is where a back button starts to feel necessary.
 
 This is easier on the application as well. Plenty of applications cannot undo
 the state a step left behind, and a tour that pretends otherwise puts bugs in
 code that was never written for it.
+
+**What two paths share is a story, not a step they both point at.**
+`branching.ts` is four of them: an intro, two branches, and the summary both
+branches finish by starting. Neither branch has to know how many steps came
+before it.
 
 Nothing in the API is needed to work this way. `setStory` registers as many
 stories as a project has, and `start(id)` replays one from the top. What a

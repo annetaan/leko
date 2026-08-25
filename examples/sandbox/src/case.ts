@@ -23,8 +23,8 @@ export interface Case {
    * awkward here is a shape that will be awkward for everyone.
    *
    * `leko` is the same instance `mount` was given, for a story whose own hooks
-   * take the tour somewhere: a branch handing it back with `start(id, at)`.
-   * Most cases take `root` and stop there.
+   * take the tour somewhere: a branch ending by starting the story its paths
+   * meet at. Most cases take `root` and stop there.
    */
   stories: (root: HTMLElement, leko: Leko) => LekoStory[]
 }

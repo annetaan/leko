@@ -468,7 +468,7 @@ describe('registering a story, and starting one', () => {
   // What `setStory` and `start` do to a machine that is already running
   // something, and what they refuse to do.
 
-  test('a story can be started part-way through', () => {
+  test('a story always begins at its first step', () => {
     const tour = register({
       id: 'onboarding',
       steps: [
@@ -476,9 +476,27 @@ describe('registering a story, and starting one', () => {
         { id: 'b', target: 'second' },
       ],
     })
-    tour.start('onboarding', 'b')
-
+    tour.start('onboarding')
+    tour.nextStep()
     expect(tour.step?.id).toBe('b')
+
+    // Running it again puts somebody back at the top, which is the only place
+    // a story can be entered and the reason a story should be short.
+    tour.start('onboarding')
+
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a story with no steps in it does not start', () => {
+    const { tour, seen } = watched({ id: 'empty', steps: [] })
+
+    expect(tour.start('empty')).toBe(false)
+
+    // The bounds check on `at` used to catch this, because `0 >= 0`. Entering
+    // anyway would report a run that began and ended in the same turn.
+    expect(tour.state).toBe('idle')
+    expect(seen).toEqual([])
+    expect(drawing().shown).toEqual([])
   })
 
   test('re-registering the story that is running does nothing at all', () => {
@@ -530,9 +548,6 @@ describe('registering a story, and starting one', () => {
     tour.start('story')
     seen.length = 0
     tour.start('nowhere')
-    tour.start('story', 'no-such-step')
-    // In range and still not a step, because `steps[0.5]` is nowhere.
-    tour.start('story', 0.5)
 
     expect(seen).toEqual([])
     expect(tour.story?.id).toBe('story')
@@ -546,7 +561,7 @@ describe('registering a story, and starting one', () => {
     expect(tour.step?.id).toBe('a')
   })
 
-  test('start says no to an id nothing is registered under, and to a step that is not there', () => {
+  test('start says no to an id nothing is registered under', () => {
     const tour = register({
       id: 'onboarding',
       steps: [
@@ -554,18 +569,16 @@ describe('registering a story, and starting one', () => {
         { id: 'b', target: 'second' },
       ],
     })
+    tour.setStory({ id: 'nothing-to-show', steps: [] })
     tour.start('onboarding')
 
     // The silence `reached()` keeps is for instrumentation left in builds where
     // no tour runs. A host giving an order and naming the wrong story has no
     // other symptom to go on.
     expect(tour.start('onbaording')).toBe(false)
-    expect(tour.start('onboarding', 'c')).toBe(false)
-    expect(tour.start('onboarding', 1.5)).toBe(false)
-    expect(tour.start('onboarding', 2)).toBe(false)
-    expect(tour.start('onboarding', -1)).toBe(false)
+    expect(tour.start('nothing-to-show')).toBe(false)
 
-    // And none of them ended the tour that was already running.
+    // And neither of them ended the tour that was already running.
     expect(tour.step?.id).toBe('a')
   })
 
@@ -1429,20 +1442,19 @@ describe('saying that a call did nothing', () => {
     return { tour, problems }
   }
 
-  test('a story id nothing is registered under, and an at that names nothing', () => {
+  test('a story id nothing is registered under, and a story with nothing in it', () => {
     const { tour, problems } = heard({
       id: 'onboarding',
       steps: [{ id: 'a', target: 'first' }],
     })
+    tour.setStory({ id: 'nothing-to-show', steps: [] })
 
     tour.start('onbaording')
-    tour.start('onboarding', 'no-such-step')
-    tour.start('onboarding', 4)
+    tour.start('nothing-to-show')
 
     expect(problems).toEqual([
       { kind: 'story-not-found', storyId: 'onbaording' },
-      { kind: 'step-not-found', storyId: 'onboarding', at: 'no-such-step' },
-      { kind: 'step-not-found', storyId: 'onboarding', at: 4 },
+      { kind: 'story-empty', storyId: 'nothing-to-show' },
     ])
   })
 

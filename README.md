@@ -105,8 +105,8 @@ current step declared that name, and nothing otherwise.
 
 ### Write several short stories, not one long one
 
-There is no back button, and there is no way to start a story part-way through.
-A story runs from its first step forward, or it stops.
+There is no back button, and `start()` takes a story id and nothing else. A
+story runs from its first step forward, or it stops.
 
 That sounds like a missing feature and it is a position. A step usually waits
 for something the application reports, and once the order is saved nothing will
@@ -117,7 +117,8 @@ undo the state a step left behind.
 So a story of four steps is the shape to aim for. Running it again costs a few
 seconds, which is what somebody who misread step 3 should pay. A story of twenty
 is where a back button starts to feel necessary, and that is the signal to split
-it. [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
+it. What two paths share is a story as well, rather than a step they both point
+at. [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
 
 ### Write the call, get the name back
 

@@ -2,18 +2,20 @@ import type { LekoStep } from '@annetaan/leko'
 
 import { type Case, html } from '../case.js'
 
-// What `start(id, at)` is for. One shared story, two branches out of it, and
-// both of them hand the tour back at the step where the paths meet again. The
-// footer is half the case: the counter restarts at 1/2 when a branch begins and
-// reads shared 3/3 at the rejoin, because Leko counts within one story and
-// never across a tour. “Step 4 of 6” is the application's arithmetic.
+// Four short stories rather than one long one with a jump in it. An intro, two
+// branches out of it, and a summary both branches hand the tour to. A story is
+// atomic — it runs from its first step or it does not run — so the thing the
+// paths meet at is a story of its own rather than a step somebody points at.
+//
+// The footer is half the case: the counter restarts at 1/1 when the summary
+// begins, because Leko counts within one story and never across a tour.
+// “Step 4 of 6” is the application's arithmetic.
 export const branching: Case = {
   id: 'branching',
   title: 'A tour that branches',
   proves:
-    'A branch is three stories and a start(id, at) back to the step they ' +
-    'rejoin at. The switch cuts rather than morphs, and the counter belongs ' +
-    'to whichever story is running.',
+    'A branch is four short stories. Where the paths meet is a story too, ' +
+    'because a story runs from its first step or it does not run.',
 
   mount(root, leko) {
     const panel = html(`
@@ -86,17 +88,17 @@ export const branching: Case = {
       status.dataset['sent'] = 'no'
     }
 
-    // The branch is over and the order really went, so the tour goes back to
-    // the shared story at the step the paths meet at. `stop()` from the footer
-    // arrives here as well, which is why the page's own state gets a say.
+    // The branch is over and the order really went, so the tour starts the
+    // story the paths meet at. `stop()` from the footer arrives here as well,
+    // which is why the page's own state gets a say.
     const rejoin = (step: LekoStep | undefined, previous: LekoStep | undefined): void => {
       if (step || previous?.id !== 'send' || status.dataset['sent'] !== 'yes') return
-      leko.start('shared', 'summary')
+      leko.start('summary')
     }
 
     return [
       {
-        id: 'shared',
+        id: 'intro',
         steps: [
           {
             id: 'total',
@@ -112,13 +114,22 @@ export const branching: Case = {
               'unrelated stories interpolating into each other would be a ' +
               'strange thing to watch.',
           },
+        ],
+      },
+      {
+        // Where the paths meet. This used to be the last step of `intro`, and
+        // both branches jumped to it by name. A story cannot be entered part
+        // way through, so what two branches share is a story rather than a
+        // step, and it says what it needs in its own `onEnter`.
+        id: 'summary',
+        steps: [
           {
             id: 'summary',
             target: at('[data-status]'),
             message:
-              'The rejoin, reached with start(‘shared’, ‘summary’). A step id ' +
-              'rather than an index, so inserting a step above this one does ' +
-              'not send both branches somewhere else.',
+              'The rejoin, and a story of its own. Both branches finished by ' +
+              'calling start(‘summary’), so neither of them had to know how ' +
+              'many steps came before it.',
           },
         ],
       },

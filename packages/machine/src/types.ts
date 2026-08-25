@@ -72,8 +72,8 @@ export type MachineState = 'idle' | 'running' | 'transitioning'
 export type Problem<S> =
   /** {@link Machine.start} was given an id nothing is registered under. */
   | { kind: 'story-not-found'; storyId: string }
-  /** Its `at` named no step, or an index outside the story. */
-  | { kind: 'step-not-found'; storyId: string; at: string | number }
+  /** The story it named has no steps in it, so there is nothing to show. */
+  | { kind: 'story-empty'; storyId: string }
   /**
    * A signal the step showing was waiting for, reported while that step was
    * still being built. It is dropped rather than saved, so the step goes on

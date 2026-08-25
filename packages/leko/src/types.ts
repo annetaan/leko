@@ -304,8 +304,13 @@ export interface LekoStory {
    * both is the same: a tour usually takes something for granted. What belongs
    * here is what the story takes for granted throughout — a screen to be on, a
    * record to run against, fixtures to stand in for data the user has not got
-   * yet. Putting it on the first step says it belongs to that step, and it
-   * stops being true the moment `start(id, 2)` skips past.
+   * yet.
+   *
+   * The half that cannot be written anywhere else is {@link onLeave}. It runs
+   * when the run ends, and the first step's runs the moment the tour reaches
+   * the second, with the rest of the story still to go. This is that hook's
+   * partner, so a drawer opened here is closed there rather than in two places
+   * a level apart.
    *
    * **A promise is waited for, and nothing about the first step happens until
    * it settles** — not its own `onEnter`, and not resolving its target. Entry
@@ -476,8 +481,8 @@ export interface LekoOptions {
 export type LekoProblem =
   /** {@link Leko.start} was given an id nothing is registered under. */
   | { kind: 'story-not-found'; storyId: string }
-  /** Its `at` named no step, or an index outside the story. */
-  | { kind: 'step-not-found'; storyId: string; at: string | number }
+  /** The story it named has no steps in it, so there is nothing to show. */
+  | { kind: 'story-empty'; storyId: string }
   /**
    * A signal the step showing was waiting for, reported while that step was
    * still being built. It is dropped rather than saved for later, so the step

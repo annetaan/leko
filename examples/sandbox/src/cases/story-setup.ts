@@ -2,9 +2,10 @@ import { type Case, html } from '../case.js'
 
 // What a story assumes throughout, arranged once. The table is empty until the
 // tour loads a draft order into it, and every step of this story is written
-// against that draft. Putting the load on the first step would say it belongs
-// to that step, and `start('story-setup', 'quantity')` would then skip it and
-// point at rows that are not there.
+// against that draft. The load has a matching clear-up, and that is the half
+// that decides where it goes: a story's `onLeave` runs when the run ends, and
+// the first step's runs the moment the tour reaches the second, with the rows
+// still in use.
 export const storySetup: Case = {
   id: 'story-setup',
   title: 'A story that sets its own scene',
