@@ -193,6 +193,25 @@ export interface LekoStep {
    */
   curtain?: boolean | number
 
+  /**
+   * What the curtain says while this step arrives. Nothing by default.
+   *
+   * Leko does not know what an `onEnter` is doing, so it puts no words of its
+   * own there. The step does: it is where that handler is written. Read step,
+   * then story, then instance, the way {@link curtain} is.
+   *
+   * This is not {@link message}. The message is what the step arrives at, and
+   * it is drawn beside a cutout that does not exist while the curtain is down.
+   * This is the journey, and it docks at the foot of the viewport because under
+   * a curtain there is no hole to sit beside.
+   *
+   * Worth writing wherever an arrival is long rather than merely slow. Nothing
+   * bounds an `onEnter`: a search that takes fifteen seconds is waited out for
+   * fifteen seconds, and a blank sheet held that long reads as a tour that has
+   * broken.
+   */
+  curtainLabel?: string
+
   /** Space between the target's border box and the cutout edge, in px. */
   padding?: number
 
@@ -316,6 +335,15 @@ export interface LekoStory {
    */
   curtain?: boolean | number
 
+  /**
+   * What a curtain says in this story, where the step arriving does not say.
+   * See {@link LekoStep.curtainLabel}.
+   *
+   * This is also what covers the story's own arrival, because `onEnter` on a
+   * story runs before any step has been entered and there is no step to ask.
+   */
+  curtainLabel?: string
+
   /** Default padding for steps of this story that do not set their own. */
   padding?: number
 
@@ -377,8 +405,8 @@ export interface LekoStory {
 
 /**
  * Defaults for every story on the instance. A story may override `curtain`,
- * `padding`, `radius` and `duration`, and a step may override the first three
- * again: the nearest one that says anything wins.
+ * `curtainLabel`, `padding`, `radius` and `duration`, and a step may override
+ * the first four again: the nearest one that says anything wins.
  */
 export interface LekoOptions {
   /**
@@ -393,11 +421,15 @@ export interface LekoOptions {
   curtain?: boolean | number
 
   /**
-   * What the curtain says while it is down. Nothing by default.
+   * What a curtain says where neither the step arriving nor its story does.
+   * Nothing by default. See {@link LekoStep.curtainLabel}.
    *
-   * Leko does not know what an `onEnter` is doing, so it puts no words of its
-   * own there. A host that knows can say so, and the box docks at the foot of
-   * the viewport, because under a curtain there is no hole to sit beside.
+   * This is the foot of that cascade, and what it covers is the curtain nobody
+   * declared: {@link curtain} is on by default, so an arrival that turns out to
+   * be slow draws one in a project that never asked for it. Nothing here knows
+   * what is being waited for — the step that did know said nothing — so the
+   * words that belong here are the general ones a host would put on any wait of
+   * its own. A step that knows better says so itself.
    */
   curtainLabel?: string
 

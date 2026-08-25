@@ -152,8 +152,20 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     // Straight through where nothing is being waited for. `setTimeout(fn, 0)`
     // is still a task away, and a step that says it is slow should not spend
     // one of those with the page open.
-    if (after === 0) return this.drawCurtain(story)
-    this.waiting = setTimeout(() => this.drawCurtain(story), after)
+    if (after === 0) return this.drawCurtain(story, step)
+    this.waiting = setTimeout(() => this.drawCurtain(story, step), after)
+  }
+
+  /**
+   * What the curtain says, or `undefined` where nothing anywhere says.
+   *
+   * The same near-to-far read as {@link setting}, and the instance's is the foot
+   * of it rather than a separate thing: a curtain nobody declared is one whose
+   * step said nothing, so it falls through to whatever the host would put on any
+   * wait of its own. A story's own arrival has no step to ask.
+   */
+  private curtainLabel(story: LekoStory, step: LekoStep | undefined): string | undefined {
+    return step?.curtainLabel ?? story.curtainLabel ?? this.options.curtainLabel
   }
 
   /**
@@ -166,7 +178,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    * `onEnter` used to draw nothing at all, so somebody pressed Start, watched
    * nothing happen, and pressed it again.
    */
-  private drawCurtain(story: LekoStory): void {
+  private drawCurtain(story: LekoStory, step: LekoStep | undefined): void {
     this.waiting = undefined
     if (this.layers.length === 0) {
       this.layers = [new Scrim(null)]
@@ -182,14 +194,14 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
       this.since = performance.now()
     })
     this.showClose([])
-    if (this.options.curtainLabel !== undefined) {
+    const text = this.curtainLabel(story, step)
+    if (text !== undefined) {
       this.message ??= new Message(() => this.host.next())
-      this.message.show(
-        { text: this.options.curtainLabel, error: undefined, next: undefined },
-        undefined,
-        [],
-        this.setting(story, story.steps[0]!, 'padding'),
-      )
+      // No anchor and no cutouts, so the box docks and the gap between it and a
+      // hole is a measurement about nothing. Zero rather than a padding read off
+      // some step, which is a number this cannot use and had no honest way to
+      // pick.
+      this.message.show({ text, error: undefined, next: undefined }, undefined, [], 0)
     }
   }
 
@@ -505,7 +517,12 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     // normal wait, and this is not one: a hole standing over nothing for two
     // seconds is the state this search exists to avoid showing anybody.
     this.message?.hide()
-    this.drawCurtain(story)
+    // No step, for the same reason. A step's `curtainLabel` says what its
+    // `onEnter` is doing, and that handler finished before this step was ever
+    // drawn. Putting those words over a target that has gone missing since
+    // would be the curtain saying something untrue about a wait of a different
+    // kind, so this falls to whatever the story or the host says generally.
+    this.drawCurtain(story, undefined)
     this.watcher?.disconnect()
     this.watcher = new MutationObserver(() => {
       const found = this.resolve(step)

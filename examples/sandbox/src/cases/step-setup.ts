@@ -10,7 +10,9 @@ export const stepSetup: Case = {
 
   proves:
     'onEnter builds the state the step assumes and the target is resolved ' +
-    'after it settles. onLeave puts the panel back on the way out.',
+    'after it settles. The curtain over that wait wears the step’s own ' +
+    'words rather than the instance’s. onLeave puts the panel back on the ' +
+    'way out.',
 
   mount(root) {
     const panel = html(`
@@ -54,6 +56,12 @@ export const stepSetup: Case = {
             // than captured while the story was being built.
             target: 'input[name="postcode"]',
             message: 'The tour opened the section, waited, and then measured.',
+
+            // The instance sets a general “Setting the step up…”, which is all a
+            // host can say about a wait it does not recognise. This step knows,
+            // because the handler being waited for is written right below it,
+            // and what it says beats the general one.
+            curtainLabel: 'Reading the address off the account…',
 
             // Everything a step assumes, arranged in one place. The 700ms is
             // whatever the application actually does here — a request, an

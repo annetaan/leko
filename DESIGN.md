@@ -360,10 +360,30 @@ minimum is measured from the frame the curtain was first painted in, so a step
 that declares `curtain: true` and hands back nothing owes nothing: it was set
 and replaced inside one task and no frame ever carried it.
 
-**Leko puts no words on it.** `curtainLabel` is there for a host that knows what
-is being waited for. Leko does not, and a library that guesses at that is the
-guessing this one exists to avoid. The box docks, because there is no hole to
-sit beside.
+**Leko puts no words on it, and a step usually should.** Leko does not know what
+an `onEnter` is doing, and a library that guesses at that is the guessing this
+one exists to avoid. The step does know. That handler is written on the step, so
+`curtainLabel` reads step, then story, then instance, the way `curtain` does. A
+story's own `onEnter` runs before any step has been entered, and that one asks
+the story.
+
+Nothing bounds an `onEnter`. A search that takes 15 seconds is waited out for 15
+seconds, and a grey sheet held that long with nothing on it reads as a tour that
+has broken. That is what the step-level words are for.
+
+**The instance's are the foot of that cascade, and they cover the curtain nobody
+declared.** `curtain` is on by default at 250ms, so an arrival that turns out to
+be slow draws one in a project that never asked for it. Nothing at that level
+knows what is being waited for. The step that would have known said nothing. So
+what belongs on the instance is the general wording a host would put on any wait
+of its own.
+
+The box docks, because there is no hole to sit beside.
+
+**A search borrows none of it.** A target that goes missing after its step was
+drawn puts up the same curtain, and by then that step's `onEnter` is long
+finished. Those words are about a wait that is over, so the search falls through
+to the story or the instance instead.
 
 **It narrows the race and does not close it.** A request already in flight comes
 back inside the window whatever is on screen, and its signal is dropped. See

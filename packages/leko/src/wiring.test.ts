@@ -687,6 +687,9 @@ test('a story setting its own scene draws a curtain over a page with no scrim ye
   await vi.waitUntil(() => centre(target) === target)
 })
 
+/** What the curtain is saying, or `null` while it says nothing. */
+const said = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent ?? null
+
 test('a curtain says what a host gave it to say, and docks', () => {
   const [first, second] = pair()
   const { promise } = held()
@@ -704,12 +707,83 @@ test('a curtain says what a host gave it to say, and docks', () => {
   leko.start('story')
   leko.nextStep()
 
-  const words = document.querySelector<HTMLElement>('.leko-message-text')
-  expect(words?.textContent).toBe('Fetching the receipt')
+  expect(said()).toBe('Fetching the receipt')
   // There is no hole to sit beside, so it goes where a message goes when it
   // cannot be anchored at all.
-  const at = words!.getBoundingClientRect()
+  const at = document.querySelector<HTMLElement>('.leko-message-text')!.getBoundingClientRect()
   expect(at.top).toBeGreaterThan(window.innerHeight / 2)
+})
+
+test('the step arriving says what its own wait is, over anything more general', () => {
+  const [first, second] = pair()
+  const { promise } = held()
+  const leko = register(
+    {
+      id: 'story',
+      curtainLabel: 'Setting the step up…',
+      steps: [
+        { id: 'a', target: first },
+        {
+          id: 'b',
+          target: second,
+          curtain: true,
+          curtainLabel: 'Searching every order in the account',
+          onEnter: () => promise,
+        },
+      ],
+    },
+    { curtainLabel: 'Working…' },
+  )
+
+  leko.start('story')
+  leko.nextStep()
+
+  // Step, then story, then instance. The step is where the handler being waited
+  // for is written, so it is the one that knows what the wait is about.
+  expect(said()).toBe('Searching every order in the account')
+})
+
+test("a story's own arrival wears the story's words, having no step to ask", async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const { promise, settle } = held()
+  const leko = register(
+    {
+      id: 'story',
+      curtain: true,
+      curtainLabel: 'Opening the demo account',
+      onEnter: () => promise,
+      steps: [{ id: 'one', target, curtainLabel: 'Never seen' }],
+    },
+    { curtainLabel: 'Working…' },
+  )
+
+  leko.start('story')
+
+  // `onEnter` on a story runs before any step has been entered, so the first
+  // step's words are not about this wait and are not borrowed for it.
+  expect(said()).toBe('Opening the demo account')
+
+  settle()
+  await vi.waitUntil(() => centre(target) === target)
+})
+
+test('a search does not wear the words of the step whose target went missing', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const leko = register(
+    {
+      id: 'story',
+      steps: [{ id: 'doomed', target: '#anchor', curtainLabel: 'Loading the order' }],
+    },
+    { curtainLabel: 'Working…' },
+  )
+
+  leko.start('story')
+  // The step's `onEnter` is long finished: it was drawn, and only then did its
+  // target leave. Its words are about a wait that is over, so the curtain the
+  // search puts up falls through to the general ones instead.
+  target.remove()
+  await vi.waitUntil(() => said() === 'Working…', { timeout: 1000 })
 })
 
 test('curtain false leaves the window exactly as it was', () => {
