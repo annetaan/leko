@@ -193,10 +193,11 @@ Step 5 is the one to hold on to. The move is reported after it survived being
 drawn. A progress readout that heard about a step while its `onEnter` was still
 running would be naming something the user cannot see.
 
-The other direction is three calls. `Host.lost` when a target leaves the page,
-`Host.moved` on a resize, and `Host.next` when the control is pressed. The
-machine hands the presenter three closures in its constructor, so the presenter
-cannot reach anything else on the machine.
+The other direction is four calls. `Host.lost` when a target has gone and is not
+coming back, `Host.moved` on a resize, `Host.next` when the step's control is
+pressed, and `Host.close` when the one that ends the tour is. The machine hands
+the presenter four closures in its constructor, so the presenter cannot reach
+anything else on the machine.
 
 ## The six fields in the machine
 
@@ -291,9 +292,10 @@ every listener the library installs, and none of them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Reports `Host.lost` |
+| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Starts a search, and reports `Host.lost` only if it gives up |
 | `presenter.ts` `watchViewport` | A `resize` listener. Reports `Host.moved` |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
+| `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |
 
 **There is no scroll listener anywhere.** Scroll tracking runs no JavaScript at
 all. The scrim lives inside the thing that scrolls, so scrolling moves the scrim
