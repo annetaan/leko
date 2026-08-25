@@ -19,7 +19,7 @@ export const storySetup: Case = {
     const panel = html(`
       <div class="panel">
         <h2>Draft order</h2>
-        <p class="hint" data-chapter></p>
+        <p class="hint" data-chapter>&mdash;</p>
         <table data-lines>
           <thead>
             <tr><th>Item</th><th>Qty</th></tr>
@@ -65,20 +65,28 @@ export const storySetup: Case = {
         // tour is simply over — teardown a following story needs is teardown
         // a handler can skip on.
         onLeave: (_story, next) => {
-          caption().textContent = ''
+          caption().textContent = '—'
           if (!next) rows().innerHTML = empty
         },
 
         // Chapters, entirely in application code. Leko carries `meta` and never
         // reads it, so grouping steps costs the library no concept at all.
+        //
+        // Never blank, because a blank line has no height. This caption is
+        // written after the first step has been measured, so growing the line
+        // here would push the table down and leave the cutout above the rows
+        // it was drawn around.
         onStep: (step) => {
-          caption().textContent = step ? `Chapter: ${String(step.meta?.chapter ?? '—')}` : ''
+          caption().textContent = step ? `Chapter: ${String(step.meta?.chapter ?? '—')}` : '—'
         },
 
         steps: [
           {
             id: 'lines',
-            target: '[data-rows] tr',
+            // Both rows, as one cutout. The sentence below says rows, and a
+            // selector matching several takes the first, so naming the two
+            // corners is what makes the screen agree with the message.
+            target: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'],
             meta: { chapter: 'The draft' },
             message:
               'These rows did not exist when Start was pressed. The story ' +
