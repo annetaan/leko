@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"]
+    // The replay reads its corpus off disk. Node's types are not DOM types, and
+    // the rule above is about `document`, which they do not declare.
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*"],
   "exclude": []

@@ -30,6 +30,11 @@ jobs:
       # consumer is, which is how `@annetaan/leko` came to ship imports of two
       # packages that are not on the registry, with every other check green.
       - run: pnpm check:pack
+      # A search over `packages/machine/model/machine.qnt` for a state that
+      # breaks one of its invariants. The seeds are fresh every run, so a
+      # failure here is not reproducible from this file: the run prints the seed
+      # that found it. That is a fuzzer working, not flake.
+      - run: pnpm model
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check

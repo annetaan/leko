@@ -803,6 +803,7 @@ own.
 | A rule, and why it holds | this file |
 | Evidence that a browser does not do what the spec suggests | [`spike/`](spike/) |
 | A situation a tour meets | [`examples/sandbox/src/cases/`](examples/sandbox/src/cases/) |
+| The machine's states, in a form a search can walk | [`packages/machine/model/`](packages/machine/model/) |
 | How to walk the code, the layout, which project a test goes in | [ONBOARDING.md](ONBOARDING.md) |
 | How to work in the repository | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Which implementation came before, and what it got wrong | the commits |

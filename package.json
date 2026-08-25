@@ -18,9 +18,12 @@
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
     "test": "vitest run",
+    "model": "node scripts/model-check.mjs",
+    "model:traces": "node scripts/model-traces.mjs",
     "check:pack": "node scripts/check-pack.mjs"
   },
   "devDependencies": {
+    "@informalsystems/quint": "0.32.0",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
     "oxfmt": "^0.62.0",

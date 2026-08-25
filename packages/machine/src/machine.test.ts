@@ -1,152 +1,14 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import type { Anchor, Options, Step, Story } from './fake.js'
+import { Fake } from './fake.js'
 import { Machine } from './machine.js'
-import type { Content, Host, Presenter } from './port.js'
-import type { ErrorUtils, MachineOptions, Problem, StepBase, StoryBase } from './types.js'
+import type { ErrorUtils, Problem } from './types.js'
 
 // None of the claims in this file is about layout, so none of them needs a
 // browser to be true. They were browser tests until the machine came out of
 // `@annetaan/leko`, and each one cost three engines a run to say that a signal
 // advanced a step. The ones about where a box ended up stayed behind.
-
-/**
- * An anchor is a name here. The machine does two things with one: hands it to
- * `validate`, and hands it back to the presenter. A string carries as much as
- * an element would.
- */
-type Anchor = string
-
-interface Step extends StepBase<Anchor, Step> {
-  target: string
-  /**
-   * Writable here, the way `LekoStep` declares it. `StepBase` has it `readonly`
-   * to say the machine never writes it. The application owns the object and is
-   * free to edit its own text, and one test below does exactly that.
-   */
-  message?: string
-}
-
-type Story = StoryBase<Anchor, Step, Story>
-type Options = MachineOptions<Anchor, Step, Story>
-
-/** The names on the page. A step pointing anywhere else resolves to nothing. */
-const PAGE = ['first', 'second', 'third', 'target']
-
-/**
- * Stands in for whatever draws the tour, and keeps a note of what it was asked
- * for.
- *
- * It settles in the turn it was called in, which is what a presenter with
- * nothing to animate does. {@link Fake.slow} makes it wait instead, so the gap
- * between a step arriving and a step settling can be looked at.
- */
-class Fake implements Presenter<Anchor, Step, Story> {
-  readonly page = new Set(PAGE)
-  /** Every step it was asked to draw, in order. */
-  readonly shown: string[] = []
-  /** What it was last told to say. */
-  content: Content | undefined
-  /** Every retell, so a test can ask which step got rewritten, and with what. */
-  readonly retold: { step: string; anchor: Anchor; content: Content }[] = []
-  slow = false
-  rejected = 0
-  torn = 0
-  private settle: (() => void) | undefined
-
-  constructor(private readonly host: Host<Step>) {}
-
-  resolve(step: Step): Anchor | null {
-    return this.page.has(step.target) ? step.target : null
-  }
-
-  show(_story: Story, step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
-    // No searching here. A presenter that gives a missing target time to appear
-    // is answering a drawing question, and the machine is not asked about it
-    // until the answer is in.
-    if (anchor === null) return this.host.lost(step)
-    this.shown.push(step.id)
-    this.content = content
-    // Whatever was in flight is interrupted and settles all the same, which is
-    // what a real morph does rather than hanging.
-    this.settle?.()
-    this.settle = undefined
-    if (!this.slow) return
-    return new Promise<void>((resolve) => {
-      this.settle = resolve
-    })
-  }
-
-  place(_story: Story, step: Step, _anchor: Anchor | null, content: Content): void {
-    this.shown.push(`place:${step.id}`)
-    this.content = content
-  }
-
-  retell(_story: Story, step: Step, anchor: Anchor, content: Content): void {
-    this.retold.push({ step: step.id, anchor, content })
-    this.content = content
-  }
-
-  reject(): void {
-    this.rejected += 1
-  }
-
-  /** Every arrival it was told about, as `story/step` or `story/-` for a story. */
-  readonly held: string[] = []
-
-  hold(story: Story, step: Step | undefined): void {
-    this.held.push(`${story.id}/${step?.id ?? '-'}`)
-  }
-
-  teardown(): void {
-    this.torn += 1
-  }
-
-  /** The morph reached the end, the way a real one does after 320ms. */
-  land(): void {
-    this.settle?.()
-    this.settle = undefined
-  }
-
-  /** The step's target left the page, the way a MutationObserver would notice. */
-  lose(step: Step): void {
-    this.page.delete(step.target)
-    this.host.lost(step)
-  }
-
-  /**
-   * The target left the page and this is looking for it, which is the half of
-   * the real presenter that nobody asked for. `lose` is what it says two
-   * seconds later, if it comes to that.
-   */
-  hunt(step: Step): void {
-    this.page.delete(step.target)
-    this.host.searching(step, true)
-  }
-
-  /** It came back, and the step is drawn again without the machine moving. */
-  found(step: Step): void {
-    this.page.add(step.target)
-    this.host.searching(step, false)
-  }
-
-  /** The surface moved under the tour, the way a resize would. */
-  resize(): void {
-    this.host.moved()
-  }
-
-  /**
-   * The next control this drew was pressed.
-   *
-   * The only way anything advances a step without naming a signal, which is why
-   * a test has to come through the presenter to do it. The machine has no
-   * method for this and deliberately does not: a step that declares `awaits`
-   * gets no control, and that rule is worth nothing if a caller can press one
-   * that was never drawn.
-   */
-  press(): void {
-    this.host.next()
-  }
-}
 
 const instances: Machine<Anchor, Step, Story>[] = []
 const fakes: Fake[] = []
@@ -684,6 +546,11 @@ describe('what the tour says it is doing', () => {
   // missing, both of a target that went away. The last two cross it with the
   // window nobody had asked about: the arrival where every handler answered on
   // the spot, which is most of them.
+  //
+  // Three of these came from `../model/`, which searches the machine rather than
+  // being written against it. All three are a presenter reporting about a step
+  // the tour has already walked away from, and every one of them was green here
+  // with the rule they are about taken out of `machine.ts`.
 
   test('interrupting a draw does not mark the next step as already settled', async () => {
     const tour = register({
@@ -876,6 +743,66 @@ describe('what the tour says it is doing', () => {
     // step it was armed on rather than the one showing. Reading it as anything
     // about the current step would strand the tour on `transitioning`.
     drawing().found(first)
+
+    expect(tour.state).toBe('running')
+  })
+
+  test('a search armed on a step the tour has left is not a search for this one', () => {
+    const first: Step = { id: 'a', target: 'first' }
+    const tour = start([first, { id: 'b', target: 'second' }])
+    press(tour)
+
+    // The presenter watches the step it was shown, and the tour can move while
+    // that observer is still armed. So a report of a target going away arrives
+    // for `a` while `b` is showing, and it is about neither the step on screen
+    // nor anything a host could act on.
+    drawing().hunt(first)
+
+    // A wait started here would be a wait the step it belongs to cannot end,
+    // and `b` would read `transitioning` for the rest of the run.
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+  })
+
+  test('a target lost on a step the tour has left does not end the run', () => {
+    const first: Step = { id: 'a', target: 'first' }
+    const problems: Problem<Step>[] = []
+    const tour = register(
+      { id: 'story', steps: [first, { id: 'b', target: 'second' }] },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+    tour.start('story')
+    press(tour)
+
+    // The same observer, giving up rather than waiting. A target the tour walked
+    // away from is allowed to go away.
+    drawing().lose(first)
+
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+    expect(problems).toEqual([])
+  })
+
+  test('a morph landing under a search does not call the step arrived', async () => {
+    const only: Step = { id: 'a', target: 'first' }
+    const tour = register({ id: 'story', steps: [only] })
+    drawing().slow = true
+
+    tour.start('story')
+    expect(tour.state).toBe('transitioning')
+
+    // Two things wrote the phase. The morph put `settling` on it and the search
+    // put `searching` over that, and only the one that wrote it may take its own
+    // off again.
+    drawing().hunt(only)
+    drawing().land()
+    await turn()
+
+    // What is on screen is a curtain over a target that is not there. A tour
+    // reading `running` through that is one whose host stands back for nothing.
+    expect(tour.state).toBe('transitioning')
+
+    drawing().found(only)
 
     expect(tour.state).toBe('running')
   })

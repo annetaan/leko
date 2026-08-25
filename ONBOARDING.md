@@ -220,6 +220,15 @@ disagreeing about where the tour was.
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
+These six and the six values of `phase` are written down again, as a state
+machine a search can walk, in
+[`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
+`pnpm model` hunts it for a state that breaks an invariant, and the traces it
+finds are replayed against the real class by `packages/machine/src/replay.test.ts`.
+Read [that directory's README](packages/machine/model/README.md) before changing
+either half, because a model that has drifted away from the code is worse than
+no model.
+
 `watch` adds two more, and they are about telling somebody rather than about the
 tour: `watchers` holds the listeners, and `before` holds what `state` read when
 this turn first wrote to `position` or `phase`. Those two fields are the only

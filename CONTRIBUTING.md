@@ -57,7 +57,18 @@ pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
 pnpm check:pack     # what a published package would import, and whether it could
 pnpm test           # vitest: five projects, three of them in browsers
+pnpm model          # search the Quint model of the machine for a broken invariant
+pnpm model:traces   # regenerate the traces that search replays against
 ```
+
+`pnpm model` walks [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt),
+which is `machine.ts` written down as a state machine, looking for a state that
+breaks one of its invariants. The traces it finds are committed and replayed
+against the real class by `packages/machine/src/replay.test.ts`. It takes about
+7 seconds, needs no JVM, and runs in CI. Its seeds are fresh every run, so a
+failure there will not reproduce from the workflow file. The run prints the seed
+that found it. [`packages/machine/model/README.md`](packages/machine/model/README.md)
+says what the model covers and what it does not.
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
 `leko-wiring` in Chromium alone, and `machine` and `codegen` in Node.
@@ -108,10 +119,10 @@ built.
 ## Before opening a pull request
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm test
+pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm model && pnpm test
 ```
 
-CI runs the same five, with `format:check` in place of `format`.
+CI runs the same six, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what
