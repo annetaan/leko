@@ -48,7 +48,6 @@ const noteOut = pick('[data-note]')
 
 let teardown: (() => void) | undefined
 let leko: Leko | undefined
-let lost: string | undefined
 let problem: string | undefined
 
 // Called by every story's onStep, so the readout is told rather than looking.
@@ -71,7 +70,7 @@ function report(): void {
       : 'No story running.'
   // A diagnostic outlives the step it was reported during, because that step is
   // usually still on screen waiting for the signal that got dropped.
-  noteOut.textContent = lost ?? [where, problem].filter(Boolean).join('  ⟵  ')
+  noteOut.textContent = [where, problem].filter(Boolean).join('  ⟵  ')
 
   // `state` has no hook of its own, on purpose: it changes when a morph starts
   // and again when it lands, while the step does not move either time. So the
@@ -88,7 +87,6 @@ function report(): void {
 
 function show(next: Case): void {
   leko?.stop()
-  lost = undefined
   problem = undefined
   teardown?.()
 
@@ -106,19 +104,18 @@ function show(next: Case): void {
     // an onEnter is doing. This one can: every slow handler in these cases is
     // standing in for a request.
     curtainLabel: 'Setting the step up…',
-    onTargetLost: (step, story) => {
-      lost = `Target for “${story} / ${step.id}” is gone. The tour stopped rather than point at nothing.`
-      leko?.stop()
-      report()
-    },
+
     // Nothing is logged by the library, so this is where a project decides.
     // The sandbox puts it in the footer, because a call that did nothing is
     // exactly the thing a person reading a case wants to see.
     onDiagnostic: (found) => {
-      problem =
-        found.kind === 'signal-dropped'
-          ? `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
-          : `${found.kind}: ${JSON.stringify(found)}`
+      if (found.kind === 'signal-dropped') {
+        problem = `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
+      } else if (found.kind === 'target-lost') {
+        problem = `Target for “${found.storyId} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
+      } else {
+        problem = `${found.kind}: ${JSON.stringify(found)}`
+      }
       report()
     },
     // One footer for however many stories a case registers, so it goes on the
@@ -158,7 +155,6 @@ pick('.controls').addEventListener('click', (event) => {
   const el = event.target as HTMLElement
   const story = el.closest<HTMLElement>('[data-start]')?.dataset['start']
   if (story) {
-    lost = undefined
     problem = undefined
     leko?.start(story)
   } else {

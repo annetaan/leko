@@ -82,11 +82,15 @@ export type Problem<S> =
   | { kind: 'signal-dropped'; name: string; step: S }
   /** A call that arrived while the machine was inside the application. */
   | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
+  /**
+   * A step's target was not on the page and did not come back, so the run
+   * stopped. Pointing a spotlight at nothing is worse than not running at all.
+   */
+  | { kind: 'target-lost'; step: S; storyId: string }
 
 export interface MachineOptions<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
   /** The words on the next control, where a step gets one. */
   nextLabel?: string
-  onTargetLost?: (step: S, storyId: string) => void
   onStep?: (step: S | undefined, previous: S | undefined, story: St) => void
   onDiagnostic?: (problem: Problem<S>) => void
 }

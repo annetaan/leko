@@ -101,14 +101,26 @@ test('the last step ends the tour', () => {
   expect(scrim()).toBeNull()
 })
 
-test('a target that cannot be found stops the tour instead of pointing at nothing', () => {
-  const onTargetLost = vi.fn()
-  start([{ id: 'ghost', target: '#not-here' }], { onTargetLost })
+test('a target that never turns up stops the tour instead of pointing at nothing', async () => {
+  const problems: LekoProblem[] = []
+  const leko = register(
+    { id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
 
-  expect(onTargetLost).toHaveBeenCalledOnce()
-  // An instance holds every story, so the handler is told which one lost it.
-  expect(onTargetLost).toHaveBeenCalledWith(expect.objectContaining({ id: 'ghost' }), 'story')
+  leko.start('story')
+
+  // Given time to appear first, under a curtain, because a step whose target
+  // renders a moment after its onEnter settled is the same situation.
+  expect(scrim()).not.toBeNull()
+  expect(leko.state).toBe('transitioning')
+
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+
   expect(scrim()).toBeNull()
+  expect(problems).toEqual([
+    { kind: 'target-lost', step: expect.objectContaining({ id: 'ghost' }), storyId: 'story' },
+  ])
 })
 
 test('starting a story puts away whatever was running', () => {
@@ -141,20 +153,30 @@ test('an unknown story id shows nothing', () => {
   expect(scrim()).toBeNull()
 })
 
-test('a target that leaves the page while its step is showing does not go unnoticed', async () => {
+test('a target replaced by an identical one is found again, and nothing ends', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const onTargetLost = vi.fn()
-  start([{ id: 'doomed', target }], { onTargetLost })
+  target.id = 'anchor'
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'doomed', target: '#anchor' }] })
 
+  leko.start('story')
+  seen.length = 0
+
+  // What a framework does when it renders over the step: the old node is
+  // disconnected and an identical one takes its place. Ending the tour here
+  // would be punishing an application for working normally.
   target.remove()
-  // Mutation records are delivered on a microtask.
-  await Promise.resolve()
+  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  fresh.id = 'anchor'
 
-  expect(onTargetLost).toHaveBeenCalledOnce()
-  expect(onTargetLost.mock.calls[0]?.[0]?.id).toBe('doomed')
+  await vi.waitUntil(() => centre(fresh) === fresh, { timeout: 5000 })
+
+  expect(leko.state).toBe('running')
+  expect(leko.step?.id).toBe('doomed')
+  // The machine was never told anything happened, so nothing was reported.
+  expect(seen).toEqual([])
 })
 
-test('moving on to a target that has gone reports the ending and nothing after it', () => {
+test('moving on to a target that has gone waits, then reports the ending', async () => {
   const [first, second] = pair()
   const { leko, seen } = watched({
     id: 'story',
@@ -169,8 +191,17 @@ test('moving on to a target that has gone reports the ending and nothing after i
   seen.length = 0
   leko.nextStep()
 
-  // `a` is where the tour was and `b` is where it never arrived.
-  expect(seen).toEqual([[undefined, 'a']])
+  // `b` is where the tour is, under a curtain, while its target is given time
+  // to turn up.
+  expect(seen).toEqual([['b', 'a']])
+  expect(leko.state).toBe('transitioning')
+
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+
+  expect(seen).toEqual([
+    ['b', 'a'],
+    [undefined, 'b'],
+  ])
 })
 
 test('onEnter builds the state the step assumes, before the target is looked for', () => {
@@ -244,27 +275,6 @@ test('a resize stands back while a step is being built, and lands once it is dra
   window.dispatchEvent(new Event('resize'))
 
   expect(centre(second)).toBe(second)
-})
-
-test('a handler that only logs a lost target is left holding a tour that never stopped', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const { leko, seen } = watched(
-    { id: 'story', steps: [{ id: 'ghost', target }] },
-    {
-      onTargetLost: () => {},
-    },
-  )
-
-  leko.start('story')
-  target.remove()
-  await Promise.resolve()
-
-  // Registering a handler is taking the tour over. Leko goes on holding it
-  // where it was, which is what a handler that logs and returns is signing up
-  // for without meaning to.
-  expect(leko.state).toBe('running')
-  expect(leko.step?.id).toBe('ghost')
-  expect(seen).toEqual([['ghost', undefined]])
 })
 
 test('a story started from inside onLeave is refused, and the step that was arriving lands', () => {

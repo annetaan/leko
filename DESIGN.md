@@ -200,11 +200,23 @@ from. `index` is there so a host never searches `story.steps`. A step is a plain
 object with no identity of its own, and a story holding the same one twice makes
 `indexOf` return the first of them.
 
-**Without an `onTargetLost` handler the tour stops. With one, nothing stops.**
-Registering a handler is taking the tour over, and Leko goes on holding it where
-it was. `state` reads `running`, `step` names the step whose target has gone,
-and the scrim keeps its last shape. Log the problem and return, and the user is
-left under a dimmed page with a hole over nothing. See `target-disappears.ts`.
+**A lost target is given two seconds to come back, and then the tour stops.**
+No hook decides otherwise. The target is *resolved again* rather than the old
+element re-checked, because a framework replacing a node with an identical one
+disconnects the old one, and `isConnected` on a replaced node is false for ever.
+A correct application loses its anchor every time it renders over the step, and
+ending the tour there would be punishing it for working normally.
+
+The search rides the `MutationObserver` that noticed the loss, so it costs no
+polling, and the curtain is down while it runs: a hole standing over nothing for
+two seconds is the state the wait exists to avoid showing anybody. It covers a
+target missing when the step arrives as well as one lost after it was drawn,
+because a user cannot tell those apart.
+
+**A `target` given as an element cannot be recovered**, since there is no
+selector to run again. That is the first real reason to prefer a string. The
+ending is reported as `target-lost` through `onDiagnostic`. See
+`target-disappears.ts`.
 
 ## What a step and a story assume
 
@@ -403,9 +415,9 @@ either way, so silence there is a step that hangs for no visible reason.
 development branch with, so anything written to the console is written in
 production too. `console.error` is collected by error trackers and fails test
 suites that treat it as a failure, `console.warn` is quieter and still arrives
-where the host did not ask for it. `onTargetLost` is the precedent: a step whose
-target cannot be resolved is reported to the application rather than logged,
-because Leko does not know what the host wants done about it.
+where the host did not ask for it. A step whose target never turns up is
+reported here rather than logged, for the same reason: Leko does not know what
+the host wants done about it.
 
 ## `state` is derived
 

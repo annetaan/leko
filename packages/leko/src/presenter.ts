@@ -26,6 +26,14 @@ const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
  */
 const CURTAIN_MINIMUM = 400
 
+/**
+ * How long a target that has left the page is given to come back.
+ *
+ * Long enough for a route transition, short enough that a tour ending does not
+ * read as a hang.
+ */
+const SEARCH = 2000
+
 const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
   Array.isArray(value) ? value : [value]
 
@@ -83,6 +91,15 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    * carries it, and there is nothing for a minimum to protect anybody from.
    */
   private since: number | undefined
+  /**
+   * The last step handed over, kept so that a target which comes back can be
+   * drawn again without the machine being told anything happened.
+   */
+  private drawn: { story: LekoStory; step: LekoStep; content: Content } | undefined
+  /** The deadline on a target that has left the page, while one is running. */
+  private searching: ReturnType<typeof setTimeout> | undefined
+  /** Ends the promise a search hands back, whichever way the search went. */
+  private settled: (() => void) | undefined
 
   constructor(options: LekoOptions, host: Host<LekoStep>) {
     this.options = options
@@ -291,10 +308,13 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   show(
     story: LekoStory,
     step: LekoStep,
-    anchor: HTMLElement,
+    anchor: HTMLElement | null,
     content: Content,
     animate: boolean,
   ): Promise<void> | void {
+    // Not on the page yet, which a step whose target renders a moment after its
+    // `onEnter` settled is as much as one whose target has gone.
+    if (!anchor) return this.search(story, step, content)
     // The curtain is what the hole opens out of when there was one. Blowing the
     // scrim up to a hole larger than the page first, which is how a tour that
     // has drawn nothing opens, would flash the whole page clear on the way.
@@ -328,10 +348,14 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
 
     const container = chain[0] ?? null
     const resolved = this.cutouts(story, step, (el) => rectWithin(el, container))
-    if (!resolved) return this.host.lost(step)
+    if (!resolved) return this.search(story, step, content)
 
     const inner = this.layers[0]
-    if (!inner) return this.host.lost(step)
+    if (!inner) return this.search(story, step, content)
+
+    // Kept so that a target which comes back can be drawn again without the
+    // machine hearing that anything happened.
+    this.drawn = { story, step, content }
 
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
@@ -425,9 +449,65 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     this.watcher?.disconnect()
     this.watcher = new MutationObserver(() => {
       if (action.isConnected) return
-      this.host.lost(step)
+      const held = this.drawn
+      if (held) this.search(held.story, held.step, held.content)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
+  }
+
+  /**
+   * A target that is not on the page is given time to come back.
+   *
+   * A framework replacing a node with an identical one disconnects the old one,
+   * so a correct application loses its anchor for a frame every time it renders
+   * over the step. Ending the tour there is the library punishing an
+   * application for working normally.
+   *
+   * **The target is resolved again rather than the old element re-checked.**
+   * `isConnected` on a node that has been replaced is false for ever, and a
+   * fresh resolve finds the replacement. A `target` given as an `HTMLElement`
+   * has no selector to run again, so it cannot be recovered and this waits out
+   * the deadline for nothing.
+   *
+   * The search rides the same `MutationObserver` that noticed the loss, so it
+   * costs no polling: every change to the page is another chance. Found in
+   * time, the step is drawn again and the machine is never told. Not found,
+   * `Host.lost` means what it has always meant.
+   */
+  private search(story: LekoStory, step: LekoStep, content: Content): Promise<void> | void {
+    if (this.searching !== undefined) return
+    // Whatever `curtain` says. That setting is about an arrival, which is a
+    // normal wait, and this is not one: a hole standing over nothing for two
+    // seconds is the state this search exists to avoid showing anybody.
+    this.message?.hide()
+    this.drawCurtain(story)
+    this.watcher?.disconnect()
+    this.watcher = new MutationObserver(() => {
+      const found = this.resolve(step)
+      if (!found) return
+      this.endSearch()
+      void this.show(story, step, found, content, true)
+    })
+    this.watcher.observe(document.body, { childList: true, subtree: true })
+    // Handed back so the machine reads `transitioning` while this runs. A tour
+    // waiting for a target to turn up is between things in the same way a tour
+    // waiting for a morph is, and a host should be able to tell.
+    return new Promise<void>((settled) => {
+      this.settled = settled
+      this.searching = setTimeout(() => {
+        this.endSearch()
+        this.host.lost(step)
+      }, SEARCH)
+    })
+  }
+
+  private endSearch(): void {
+    clearTimeout(this.searching)
+    this.searching = undefined
+    this.watcher?.disconnect()
+    this.watcher = undefined
+    this.settled?.()
+    this.settled = undefined
   }
 
   /**
@@ -458,6 +538,8 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     if (this.painting !== undefined) cancelAnimationFrame(this.painting)
     this.painting = undefined
     this.since = undefined
+    this.endSearch()
+    this.drawn = undefined
     this.destroyLayers()
     this.message?.destroy()
     this.message = undefined

@@ -472,23 +472,6 @@ export interface LekoOptions {
   nextLabel?: string
 
   /**
-   * Called when a step's target cannot be resolved. Without a handler the tour
-   * stops: pointing a spotlight at nothing is worse than not running at all.
-   *
-   * **With a handler, nothing stops.** Registering one is taking the tour over,
-   * and Leko goes on holding it exactly where it was. {@link Leko.state} still
-   * reads `running`, {@link Leko.step} still names the step whose target has
-   * gone, and the scrim keeps whatever shape it last had. The move is reported
-   * through {@link LekoStory.onStep} like any other, so a progress readout
-   * shows a step that is not on screen.
-   *
-   * The easy mistake is to log the problem and return, which leaves the user
-   * under a dimmed page with a hole over nothing. A handler that has no
-   * recovery in mind wants `stop()`, or `start()` at a step that does exist.
-   */
-  onTargetLost?: (step: LekoStep, storyId: string) => void
-
-  /**
    * Called when any story moves, after that story's own
    * {@link LekoStory.onStep}. Both fire, and neither replaces the other.
    *
@@ -614,6 +597,17 @@ export type LekoProblem =
    * `stop()` is never here. It is the one call that asks nothing.
    */
   | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
+  /**
+   * A step's target was not on the page and did not come back within two
+   * seconds, so the run stopped.
+   *
+   * A loss is given that long because a framework replacing a node with an
+   * identical one disconnects the old one, and the tour should not end because
+   * an application rendered normally. The target is resolved again during it,
+   * so a step written with a selector recovers and one written with an
+   * {@link LekoStep.target} element cannot: there is no selector to run again.
+   */
+  | { kind: 'target-lost'; step: LekoStep; storyId: string }
 
 /**
  * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.

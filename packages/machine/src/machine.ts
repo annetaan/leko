@@ -594,9 +594,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private draw(story: St, step: S, animate: boolean): void {
     const here = this.position
+    // A target that is not there is handed over all the same. Whether that is
+    // an ending or something to wait out is a drawing question, and the
+    // presenter says so through `lost` once it has decided.
     const anchor = this.presenter.resolve(step)
-    if (anchor === null) return this.lose(step)
-
     const showing = this.presenter.show(story, step, anchor, this.content(step), animate)
     // `show` is a call into the presenter, and a presenter that cannot find
     // what it needs says so through `lost`, which can end the run before this
@@ -630,25 +631,25 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * A step whose anchor is not there. Reached from {@link draw} when the
-   * presenter resolves nothing, and from {@link Host.lost} when a presenter
-   * notices later.
+   * A step whose target is not there and is not coming back.
+   *
+   * The presenter has already given it time and looked for it again, so by the
+   * time this is called there is nothing left to wait for. Pointing a spotlight
+   * at nothing is worse than not running at all, so the run ends and there is
+   * no hook that can decide otherwise.
    *
    * The step is handed in rather than read from {@link position} so that a
    * watcher still armed on the step before can be told apart from one reporting
    * the step the tour is on. Only the second is about anything.
+   *
+   * The report goes after the ending rather than before it, so that a host
+   * reacting to it by starting a story of its own gets the last word, the way
+   * it does from the ending `onStep`.
    */
   private lose(step: S): void {
     const story = this.position?.story
     if (!story || this.step !== step) return
-    // Whatever the host decides to do about it, the message goes now: its
-    // anchor has left the page, and an anchored element whose anchor is gone
-    // falls back to wherever normal positioning puts it.
-    this.presenter.hide()
-    if (this.options.onTargetLost) {
-      this.options.onTargetLost(step, story.id)
-      return
-    }
     this.end(undefined)
+    this.options.onDiagnostic?.({ kind: 'target-lost', step, storyId: story.id })
   }
 }

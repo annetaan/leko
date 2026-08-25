@@ -357,19 +357,19 @@ test('stopping takes the message with it, and gives the target its anchor name b
 
 test('the message goes when the target does', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  let lost = false
-  start([{ id: 'one', target, message: 'Press it.' }], {
-    // Kept running deliberately: without a handler the tour stops and the
-    // message would go with it, which would prove nothing.
-    onTargetLost: () => {
-      lost = true
-    },
-  })
+  target.id = 'anchor'
+  // A selector, so the target is given time to come back and the tour is still
+  // standing when this looks. Without one it stops and the message would go
+  // with it, which would prove nothing.
+  const leko = start([{ id: 'one', target: '#anchor', message: 'Press it.' }])
 
   target.remove()
   await frame()
 
-  expect(lost).toBe(true)
+  // Still standing, because the target is being given time to come back. A
+  // search that begins after the step was drawn is the presenter's own, so
+  // `state` still reads `running` until it gives up.
+  expect(leko.state).toBe('running')
   // An anchored element whose anchor has left the page falls back to normal
   // positioning, which would drop the message somewhere arbitrary.
   expect(visible()).toBe(false)

@@ -60,7 +60,11 @@ class Fake implements Presenter<Anchor, Step, Story> {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(_story: Story, step: Step, _anchor: Anchor, content: Content): Promise<void> | void {
+  show(_story: Story, step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
+    // No searching here. A presenter that gives a missing target time to appear
+    // is answering a drawing question, and the machine is not asked about it
+    // until the answer is in.
+    if (anchor === null) return this.host.lost(step)
     this.shown.push(step.id)
     this.content = content
     // Whatever was in flight is interrupted and settles all the same, which is
@@ -658,7 +662,8 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('transitioning')
   })
 
-  test('a handler that holds a lost target leaves the tour running', () => {
+  test('a target that is not there ends the run, whatever a host would prefer', () => {
+    const problems: Problem<Step>[] = []
     const tour = register(
       {
         id: 'story',
@@ -667,34 +672,36 @@ describe('what the tour says it is doing', () => {
           { id: 'b', target: 'second' },
         ],
       },
-      { onTargetLost: () => {} },
+      { onDiagnostic: (problem) => problems.push(problem) },
     )
     tour.start('story')
     drawing().page.delete('second')
     tour.nextStep()
 
-    // Registering a handler is taking the tour over, and the machine goes on
-    // holding it exactly where it was.
-    expect(tour.state).toBe('running')
-    expect(tour.step?.id).toBe('b')
+    // No hook decides otherwise. The presenter has already given the target
+    // time to come back by the time the machine hears about it, so there is
+    // nothing left to wait for and pointing a spotlight at nothing is worse
+    // than not running at all.
+    expect(tour.state).toBe('idle')
+    expect(problems).toEqual([
+      { kind: 'target-lost', step: { id: 'b', target: 'second' }, storyId: 'story' },
+    ])
   })
 
-  test('a target lost while its step was still being built leaves it running too', async () => {
+  test('a target lost while its step was still being built ends the run too', async () => {
     const { promise, settle } = held()
-    const tour = register(
-      {
-        id: 'story',
-        steps: [
-          { id: 'a', target: 'first' },
-          { id: 'b', target: 'second', onEnter: () => promise },
-        ],
-      },
-      { onTargetLost: () => {} },
-    )
+    const { tour, seen } = watched({
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', onEnter: () => promise },
+      ],
+    })
     tour.start('story')
     tour.nextStep()
     // Waiting on `onEnter`, which is what `transitioning` says here.
     expect(tour.state).toBe('transitioning')
+    seen.length = 0
 
     drawing().page.delete('second')
     settle()
@@ -702,11 +709,12 @@ describe('what the tour says it is doing', () => {
 
     // The anchor is resolved after `onEnter` settles, so this is the one route
     // to a lost target that arrives with the machine already saying
-    // `transitioning`. Nothing is settling any more and nothing is going to,
-    // and a tour reading `transitioning` for ever is a tour whose host cannot
-    // tell a slow step from a stuck one.
-    expect(tour.state).toBe('running')
-    expect(tour.step?.id).toBe('b')
+    // `transitioning`. A tour reading `transitioning` for ever is a tour whose
+    // host cannot tell a slow step from a stuck one.
+    expect(tour.state).toBe('idle')
+    // `b` was never drawn, so the ending leaves from the step a host was told
+    // about rather than from the one it was walking into.
+    expect(seen).toEqual([[undefined, 'a']])
   })
 
   test('a step still arriving says transitioning, whatever its handlers answered', () => {

@@ -31,6 +31,11 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
   /**
    * Draw the step, and hand back something that settles once it has arrived.
    *
+   * `anchor` is `null` where the target is not on the page. Drawing is not the
+   * only answer to that: a presenter may give it time to appear and report
+   * {@link Host.lost} once it has given up. What a missing target means is a
+   * drawing question, so it is answered here rather than by the machine.
+   *
    * Nothing back means it is there already, and the step is settled in this
    * turn. That is the same bargain the machine strikes with `onEnter`, and it
    * is what keeps a presenter with nothing to animate from costing a turn.
@@ -39,7 +44,13 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
    * machine checks its own run counter when this settles, so a late one is
    * dropped the way a late `onEnter` is.
    */
-  show(story: St, step: S, anchor: A, content: Content, animate: boolean): Promise<void> | void
+  show(
+    story: St,
+    step: S,
+    anchor: A | null,
+    content: Content,
+    animate: boolean,
+  ): Promise<void> | void
   /**
    * An arrival began, and nothing about the step it is heading for has been
    * built, looked for or drawn.
