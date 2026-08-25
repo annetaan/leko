@@ -180,6 +180,12 @@ export class Leko {
   }
 }
 
+/**
+ * Makes a tour, and is the only way to get one.
+ *
+ * {@link Leko} is exported as a type, so a call site never has to choose
+ * between this and `new Leko()` when the two would do the same thing.
+ */
 export function createLeko(options: LekoOptions = {}): Leko {
   return new Leko(options)
 }

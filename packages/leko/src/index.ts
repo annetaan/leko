@@ -1,4 +1,5 @@
-export { createLeko, Leko } from './leko.js'
+export { createLeko } from './leko.js'
+export type { Leko } from './leko.js'
 export type {
   ErrorUtils,
   LekoKnownSignal,

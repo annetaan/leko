@@ -36,9 +36,9 @@ const PACKAGE = '@annetaan/leko'
  * Resolving the package and asking it for its own symbol is the only honest way
  * to answer this. Matching on the name `Leko` would count any class in the
  * project called that, and a false positive here puts a stranger's string into
- * the vocabulary. Reading the shape of the package instead, by looking for a
- * file that declares `Leko` and `createLeko` together, makes the generator
- * depend on how the core happens to be split into files today.
+ * the vocabulary. Reading the shape of the package instead, by looking for the
+ * file that declares a class of that name with a `reached` on it, makes the
+ * generator depend on how the core happens to be split into files today.
  *
  * It is resolved per importing file, because that is where module resolution
  * starts, and cached, because most projects answer it the same way every time.
@@ -62,8 +62,9 @@ const lekoClass = (
     if (!moduleSymbol) return null
     const exported = checker.getExportsOfModule(moduleSymbol).find((s) => s.name === 'Leko')
     if (!exported) return null
-    // The entry point re-exports the class, so the export is an alias and the
-    // declaration it points at is what a method's parent will compare equal to.
+    // The entry point re-exports the class as a type, so the export is an alias
+    // either way, and the declaration it points at is what a method's parent
+    // will compare equal to.
     return exported.flags & tsm.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
   })()
 
