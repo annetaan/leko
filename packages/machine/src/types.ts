@@ -15,7 +15,6 @@ export interface StepBase<A, S> {
   readonly message?: string
   /** The signal this step waits for, or nothing where it advances on a control. */
   awaits?: string
-  meta?: Record<string, unknown>
   onEnter?: (step: S) => void | Promise<void>
   onLeave?: (step: S, next: S | undefined) => void
   /**
@@ -37,7 +36,6 @@ export interface StoryBase<A, S extends StepBase<A, S>, St> {
   steps: S[]
   onEnter?: (story: St) => void | Promise<void>
   onLeave?: (story: St, next: St | undefined) => void
-  onStep?: (step: S | undefined, previous: S | undefined) => void
 }
 
 /**

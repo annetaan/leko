@@ -41,8 +41,9 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
    * is what keeps a presenter with nothing to animate from costing a turn.
    *
    * A presenter interrupted part way through may settle late or never. The
-   * machine checks its own run counter when this settles, so a late one is
-   * dropped the way a late `onEnter` is.
+   * machine holds on to whatever this handed back and lets go of it the moment
+   * another arrival begins, so a late one is dropped the way a late `onEnter`
+   * is.
    */
   show(
     story: St,
@@ -82,8 +83,6 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
   retell(story: St, step: S, anchor: A, content: Content): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
-  /** Take the message away. The cutouts stay where they are. */
-  hide(): void
   /** Everything this presenter put on the page goes. */
   teardown(): void
 }

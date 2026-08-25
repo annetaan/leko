@@ -50,7 +50,6 @@ class Fake implements Presenter<Anchor, Step, Story> {
   readonly retold: { step: string; anchor: Anchor; content: Content }[] = []
   slow = false
   rejected = 0
-  hidden = 0
   torn = 0
   private settle: (() => void) | undefined
 
@@ -91,16 +90,11 @@ class Fake implements Presenter<Anchor, Step, Story> {
     this.rejected += 1
   }
 
-  hide(): void {
-    this.hidden += 1
-  }
-
   /** Every arrival it was told about, as `story/step` or `story/-` for a story. */
   readonly held: string[] = []
 
   hold(story: Story, step: Step | undefined): void {
     this.held.push(`${story.id}/${step?.id ?? '-'}`)
-    this.hidden += 1
   }
 
   teardown(): void {
@@ -180,12 +174,12 @@ function start(steps: Step[], options: Options = {}) {
 }
 
 /** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
-function watched(story: Omit<Story, 'onStep'>, options: Options = {}) {
+function watched(story: Story, options: Omit<Options, 'onStep'> = {}) {
   const seen: [string | undefined, string | undefined][] = []
-  const tour = register(
-    { ...story, onStep: (step, previous) => seen.push([step?.id, previous?.id]) },
-    options,
-  )
+  const tour = register(story, {
+    ...options,
+    onStep: (step, previous) => seen.push([step?.id, previous?.id]),
+  })
   return { tour, seen }
 }
 
@@ -629,15 +623,16 @@ describe('registering a story, and starting one', () => {
   })
 
   test('a story started from the ending of a stop still wins', () => {
-    const tour = register({
-      id: 'first',
-      steps: [{ id: 'a', target: 'first' }],
-      onStep: (step) => {
-        // Nothing follows this report. The tour is idle by the time it goes
-        // out, so this is the last word on where it is.
-        if (!step) tour.start('third')
+    const tour = register(
+      { id: 'first', steps: [{ id: 'a', target: 'first' }] },
+      {
+        onStep: (step) => {
+          // Nothing follows this report. The tour is idle by the time it goes
+          // out, so this is the last word on where it is.
+          if (!step) tour.start('third')
+        },
       },
-    })
+    )
     tour.setStory({ id: 'third', steps: [{ id: 'c', target: 'third' }] })
     tour.start('first')
 
@@ -968,9 +963,9 @@ describe('what the tour says it is doing', () => {
 })
 
 describe('saying where the tour got to', () => {
-  // `onStep` on the story and on the instance. The largest group in the file,
-  // because `previous` was got wrong twice and each fix arrived with the run
-  // that produced it.
+  // `onStep`, which is the one hook that says so. The largest group in the
+  // file, because `previous` was got wrong twice and each fix arrived with the
+  // run that produced it.
 
   test('a story reports where it went, and what it came from', () => {
     const { tour, seen } = watched({
@@ -1000,11 +995,10 @@ describe('saying where the tour got to', () => {
         { id: 'a', target: 'first' },
         { id: 'b', target: 'second' },
       ],
-      // Reading the instance from inside the hook is how a host writes a progress
-      // readout. Firing before the move landed would report the step just left.
-      onStep: () => seen.push(tour.step?.id),
     }
-    const tour = register(story)
+    // Reading the instance from inside the hook is how a host writes a progress
+    // readout. Firing before the move landed would report the step just left.
+    const tour = register(story, { onStep: () => seen.push(tour.step?.id) })
 
     tour.start('story')
     tour.nextStep()
@@ -1039,53 +1033,26 @@ describe('saying where the tour got to', () => {
     expect(seen).toEqual([])
   })
 
-  test('the story hook and the instance hook both fire, story first', () => {
-    const order: string[] = []
-    const told: (string | undefined)[] = []
-
-    const tour = register(
-      {
-        id: 'story',
-        steps: [
-          { id: 'a', target: 'first' },
-          { id: 'b', target: 'second' },
-        ],
-        onStep: () => order.push('story'),
-      },
-      {
-        onStep: (_step, _previous, story) => {
-          order.push('instance')
-          // Told which story, because this one hears all of them.
-          told.push(story.id)
-        },
-      },
-    )
-
-    tour.start('story')
-    tour.nextStep()
-
-    expect(order).toEqual(['story', 'instance', 'story', 'instance'])
-    expect(told).toEqual(['story', 'story'])
-  })
-
-  test('the instance hook hears every story, and each story hears only itself', () => {
+  test('the hook hears every story, and is told which one moved', () => {
     const heard: string[] = []
 
     const tour = register(
-      { id: 'from', steps: [{ id: 'a', target: 'first' }], onStep: () => heard.push('from-hook') },
-      { onStep: (_step, _previous, story) => heard.push(`instance:${story.id}`) },
+      { id: 'from', steps: [{ id: 'a', target: 'first' }] },
+      { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id ?? '-'}`) },
     )
     tour.setStory({ id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     tour.start('from')
     tour.start('into')
 
+    // One hook, told which story each time, which is what a handler that cares
+    // about only one of them reads. A hook registered on the story instead
+    // would have to be registered on every story, and a story added later
+    // without one would stop reporting with nothing to say so.
     expect(heard).toEqual([
-      'from-hook',
-      'instance:from', // started
-      'from-hook',
-      'instance:from', // ended, because starting another stops this one
-      'instance:into', // the new story registered no hook of its own
+      'from:a', // started
+      'from:-', // ended, because starting another stops this one
+      'into:b',
     ])
   })
 
@@ -1752,20 +1719,22 @@ describe('moving from one story to another', () => {
   // One story displacing another, including the case where the application does
   // the displacing from inside a handler the machine is in the middle of calling.
 
-  test('switching stories ends one and starts the other, and each hears only itself', () => {
+  test('switching stories ends one and starts the other, and says which is which', () => {
     const from: [string | undefined, string | undefined][] = []
     const into: [string | undefined, string | undefined][] = []
 
-    const tour = register({
-      id: 'from',
-      steps: [{ id: 'a', target: 'first' }],
-      onStep: (step, previous) => from.push([step?.id, previous?.id]),
-    })
-    tour.setStory({
-      id: 'into',
-      steps: [{ id: 'b', target: 'second' }],
-      onStep: (step, previous) => into.push([step?.id, previous?.id]),
-    })
+    const tour = register(
+      { id: 'from', steps: [{ id: 'a', target: 'first' }] },
+      {
+        // Which story moved is the third argument, so one handler sorts the two
+        // runs apart without either story carrying a hook.
+        onStep: (step, previous, story) => {
+          const seen = story.id === 'from' ? from : into
+          seen.push([step?.id, previous?.id])
+        },
+      },
+    )
+    tour.setStory({ id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     tour.start('from')
     tour.start('into')
@@ -1809,13 +1778,16 @@ describe('moving from one story to another', () => {
         id: 'from',
         onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
         steps: [{ id: 'a', target: 'first' }],
-        // Reacting to the ending by sending the user somewhere else, which is
-        // an ordinary thing for a host to do and is not one it can do here.
-        onStep: (step) => {
-          if (step === undefined) started.push(tour.start('rescue'))
+      },
+      {
+        onStep: (step, _previous, story) => {
+          heard.push(`${story.id}:${step?.id}`)
+          // Reacting to the ending by sending the user somewhere else, which is
+          // an ordinary thing for a host to do and is not one it can do from
+          // the report of an ending that already has a story on its way.
+          if (story.id === 'from' && step === undefined) started.push(tour.start('rescue'))
         },
       },
-      { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`) },
     )
     tour.setStory({ id: 'rescue', steps: [{ id: 'b', target: 'second' }] })
     tour.setStory({ id: 'into', steps: [{ id: 'c', target: 'third' }] })

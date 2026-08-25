@@ -4,33 +4,14 @@
  *
  * Private for now. `@annetaan/leko` is the package anyone installs, and this is
  * where the part of it that touches layout lives.
+ *
+ * What is exported is what `@annetaan/leko` imports and nothing else. The
+ * geometry has plenty of other pure functions, and each is reached from inside
+ * this package by importing the module it lives in, which is what the tests do
+ * too. A name here that no consumer names is a promise this package is not
+ * making.
  */
-export {
-  collapse,
-  type Corner,
-  CORNERS,
-  cornerRect,
-  type Cutout,
-  complementRects,
-  freeCorner,
-  grow,
-  lerpPath,
-  padCutouts,
-  punchedPath,
-  type Rect,
-  resolveTarget,
-  resolveTargets,
-  roundedRectPath,
-  segmentAt,
-  type Target,
-  union,
-} from './geometry.js'
+export { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
 export { Close } from './close.js'
-export { Message, type MessageContent } from './message.js'
-export {
-  findScrollContainer,
-  paddingBoxWithin,
-  prefersReducedMotion,
-  rectWithin,
-  Scrim,
-} from './scrim.js'
+export { Message } from './message.js'
+export { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'

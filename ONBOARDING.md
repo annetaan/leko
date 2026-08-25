@@ -189,7 +189,7 @@ This is the trace worth walking with the files open. The application calls
 | 11 | `presenter.ts` `say` | Runs after the morph settles, and only if it finished |
 | 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
 | 13 | `message.ts` `place` | Picks a side from viewport measurements and writes `position-area` |
-| 14 | `machine.ts` `report` | Calls the story's `onStep`, then the instance's |
+| 14 | `machine.ts` `report` | Calls the instance's `onStep`, told which story |
 
 Step 5 is the one to hold on to. The move is reported after it survived being
 drawn. A progress readout that heard about a step while its `onEnter` was still

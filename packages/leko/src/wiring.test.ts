@@ -474,28 +474,6 @@ test('moving on works again once the story has settled', async () => {
   expect(centre(second)).toBe(second)
 })
 
-test('meta is carried and never read', () => {
-  const [first, second] = pair()
-  const { leko } = watched({
-    id: 'story',
-    steps: [
-      { id: 'a', target: first, meta: { chapter: 'setup' } },
-      { id: 'b', target: second, meta: { chapter: 'ordering' } },
-    ],
-  })
-
-  leko.start('story')
-  expect(leko.step?.meta).toEqual({ chapter: 'setup' })
-
-  leko.nextStep()
-
-  // A step carrying it behaves exactly as one without: nothing here branches on
-  // it, which is the whole promise.
-  expect(leko.step?.meta).toEqual({ chapter: 'ordering' })
-  expect(leko.state).toBe('running')
-  expect(centre(second)).toBe(second)
-})
-
 test('re-registering the story that is running leaves the page alone', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const other = box('other', { left: '300px', top: '100px', width: '120px', height: '40px' })
@@ -599,18 +577,11 @@ test('the way out gives up the corner a cutout wants', () => {
   expect(at.left).toBeLessThan(window.innerWidth / 2)
 })
 
-test('close false draws nothing, and the scrim goes on blocking', () => {
-  const [first, second] = pair()
-  const leko = register({ id: 'story', steps: [{ id: 'one', target: first }] }, { close: false })
-
-  leko.start('story')
-
-  expect(closer()).toBeNull()
-  expect(absorbed(second)).toBe(true)
-  expect(leko.state).toBe('running')
-})
-
 test('renderClose fills a root Leko positions, and its teardown runs at the end', () => {
+  // The only thing a host may change about the way out other than its words.
+  // There is no option that draws none: a corner Leko chose and a host filled
+  // is the arrangement where neither half can leave a blocked page with no way
+  // off it.
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const undone: string[] = []
   const leko = register(

@@ -86,12 +86,12 @@ export const absorbed = (el: HTMLElement): boolean =>
   (centre(el) as HTMLElement | null)?.closest('.leko-scrim') != null
 
 /** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
-export function watched(story: Omit<LekoStory, 'onStep'>, options: LekoOptions = {}) {
+export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {
   const seen: [string | undefined, string | undefined][] = []
-  const leko = register(
-    { ...story, onStep: (step, previous) => seen.push([step?.id, previous?.id]) },
-    options,
-  )
+  const leko = register(story, {
+    ...options,
+    onStep: (step, previous) => seen.push([step?.id, previous?.id]),
+  })
   return { leko, seen }
 }
 

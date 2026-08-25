@@ -121,27 +121,18 @@ export interface ErrorUtils {
 }
 
 export interface LekoStep {
-  /** Stable identifier. Used for analytics and for resuming a tour. */
-  id: string
-
   /**
-   * Anything the application wants to hang on this step. Carried, never read.
+   * Stable identifier. Leko never reads it, and it is required so that
+   * everything else can.
    *
-   * Leko has no opinion about what goes here and never branches on it. That is
-   * the point: a tour that wants to group its steps into chapters, name the
-   * screen a step belongs to, or mark the ones worth counting, can do all of it
-   * without Leko growing a concept for each one. The
-   * application reads it back off {@link Leko.step}, or off the step handed to
-   * {@link LekoStory.onStep}.
-   *
-   * A chapter is the case this exists for. Grouping steps, jumping between the
-   * groups and recording which are done is a real thing to want and a large
-   * thing to build — a group with setup of its own is an object rather than a
-   * label, which moves where {@link Leko.index} counts from and needs a rule
-   * for resuming into the middle of one. None of that is settled, and a tag
-   * here plus a menu the application draws is what covers it in the meantime.
+   * It is the name a step goes by outside Leko: in the {@link LekoProblem} a
+   * diagnostic hands over, in whatever counts things from
+   * {@link LekoOptions.onStep}, and as the key for anything an application
+   * wants to hang on a step. Grouping steps into chapters is that last one — a
+   * table from id to chapter, written where the chapters are drawn. Leko grows
+   * no concept for it, which is why there is nowhere here to put one.
    */
-  meta?: Record<string, unknown>
+  id: string
 
   /**
    * What the user acts on.
@@ -244,8 +235,8 @@ export interface LekoStep {
    *
    * **A rejection stops the tour**, and the reason is thrown again rather than
    * swallowed. The state the step assumes was never built, so drawing it would
-   * point the user at something that is not ready — the judgement
-   * {@link LekoOptions.onTargetLost} makes about a target that is not there.
+   * point the user at something that is not ready — the same judgement Leko
+   * makes about a target that never turns up, reported as `target-lost`.
    * {@link onLeave} still runs, because a handler that failed halfway may
    * already have registered something.
    *
@@ -256,7 +247,7 @@ export interface LekoStep {
    * given whatever this handler settles on, and it knows nothing about why.
    *
    * This is not an analytics hook. Something that reports "a step started" for
-   * a caller's own metrics is {@link LekoStory.onStep}.
+   * a caller's own metrics is {@link LekoOptions.onStep}.
    */
   onEnter?: (step: LekoStep) => void | Promise<void>
 
@@ -371,7 +362,7 @@ export interface LekoStory {
    *
    * It runs after the current step's {@link LekoStep.onLeave} — cleanup goes
    * innermost first, the mirror of entry — and before the ending is reported
-   * through {@link onStep}.
+   * through {@link LekoOptions.onStep}.
    *
    * `next` is the story about to start, and `undefined` when the tour is simply
    * over. A shared story that branches and is started again afterwards is the
@@ -382,39 +373,6 @@ export interface LekoStory {
    * while the state behind it is dismantled shows the user nothing.
    */
   onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
-
-  /**
-   * Called when this story moves, including when it ends.
-   *
-   * `step` is where the story is now, and is `undefined` once there is nowhere
-   * to be: past the last step, or after `stop()`. `previous` is where it came
-   * from, and is `undefined` on the first step of a run. Both are `undefined`
-   * when a run ends before it ever drew, which is the one case with nothing to
-   * name on either side.
-   *
-   * Which story moved is answered by where the handler is registered, so a
-   * readout belonging to one story never has to sort out which one this was.
-   * {@link LekoOptions.onStep} hears every story instead, and is told.
-   *
-   * Anything that draws its own progress needs one of the two. Reading
-   * {@link Leko.step} tells a caller where the tour is only if it thinks to
-   * look again, and a story advances when the page reports a signal from
-   * somewhere else entirely.
-   *
-   * The return value is never read. Something that could block or redirect a
-   * transition would be {@link LekoStep.validate} again, in a place where the
-   * application has claimed nothing.
-   *
-   * `previous` is the step this hook last named as `step`, so the calls chain:
-   * each one leaves from where the last one arrived. A step whose `onEnter` is
-   * still in flight has never been drawn and is never named, so a run that ends
-   * there says it came from nowhere rather than from a step nobody saw.
-   *
-   * Starting or stopping a story from inside a handler is allowed. `start()`
-   * gives way to whatever a handler started while it was stopping the story
-   * before it, so the most recent call wins rather than the outermost.
-   */
-  onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined) => void
 }
 
 /**
@@ -472,13 +430,39 @@ export interface LekoOptions {
   nextLabel?: string
 
   /**
-   * Called when any story moves, after that story's own
-   * {@link LekoStory.onStep}. Both fire, and neither replaces the other.
+   * Called when any story moves, including when one ends. **The one place the
+   * tour says where it got to.**
    *
-   * This one is told which `story`, because it hears all of them. A handler
-   * belonging to a single story is not, since where it is registered already
-   * says. Register here for something that spans stories, such as one readout
-   * for a tour that branches, or a call to whatever counts things.
+   * `step` is where the tour is now, and is `undefined` once there is nowhere
+   * to be: past the last step, or after `stop()`. `previous` is where it came
+   * from, and is `undefined` on the first step of a run. Both are `undefined`
+   * when a run ends before it ever drew, which is the one case with nothing to
+   * name on either side. `story` is the one that moved.
+   *
+   * A story used to carry a hook of its own as well, and both fired. It could
+   * say nothing this cannot: it was never told which story it was, so anything
+   * spanning two of them had to be written here anyway, and a readout that
+   * lived on the story stopped reporting the moment somebody added a story and
+   * forgot to register it again. One hook told which story is the same job with
+   * no way to half-do it. A handler that only cares about one story asks
+   * `story.id`.
+   *
+   * Anything that draws its own progress needs this. Reading {@link Leko.step}
+   * tells a caller where the tour is only if it thinks to look again, and a
+   * story advances when the page reports a signal from somewhere else entirely.
+   *
+   * The return value is never read. Something that could block or redirect a
+   * transition would be {@link LekoStep.validate} again, in a place where the
+   * application has claimed nothing.
+   *
+   * `previous` is the step this hook last named as `step`, so the calls chain:
+   * each one leaves from where the last one arrived. A step whose `onEnter` is
+   * still in flight has never been drawn and is never named, so a run that ends
+   * there says it came from nowhere rather than from a step nobody saw.
+   *
+   * Starting or stopping a story from inside a handler is allowed. `start()`
+   * gives way to whatever a handler started while it was stopping the story
+   * before it, so the most recent call wins rather than the outermost.
    */
   onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
 
@@ -504,34 +488,30 @@ export interface LekoOptions {
   onDiagnostic?: (problem: LekoProblem) => void
 
   /**
-   * Whether Leko draws the control that ends the tour. On by default.
+   * The words on the control that ends the tour.
    *
-   * The scrim blocks the page with rectangles, so a host's own way out is under
-   * one unless that host thought about it, and a project that did not think
-   * about it has built a trap. Drawing one by default is what stops the trap
-   * being what you get for free.
+   * **There is always such a control, and there is no way to turn it off.** The
+   * scrim blocks the page with rectangles, so a host's own way out is under one
+   * unless that host put it above the scrim and off every cutout — and a host
+   * cannot do the second part, because the cutouts are Leko's to know. An
+   * option to take the control away would be an option to build a page somebody
+   * cannot leave, so what a host may change is what it says and what it looks
+   * like, never whether it is there.
    *
    * **It is the only control Leko draws outside the message, and it will stay
-   * that way.** {@link prevStep} does not exist and a next control belongs to a
-   * step. Ending is the one call that always works, so it is the one thing
-   * worth putting on the page unconditionally.
+   * that way.** There is no back control, and a next control belongs to a step
+   * and is derived from {@link LekoStep.awaits}. Ending is the one call that is
+   * never refused, so it is the one thing worth putting on the page
+   * unconditionally.
    *
    * Ending the tour is not a way past the work a step exists to make somebody
-   * do, so {@link LekoStep.awaits} says nothing about this. That rule is about
-   * the next control and about nothing else.
-   *
-   * Set `false` where the application has its own way out and would rather
-   * Leko stayed off the corners. The scrim goes on blocking the page, and
-   * reaching that way out is then the host's problem to solve.
-   */
-  close?: boolean
-
-  /**
-   * The words on the control that ends the tour.
+   * do, so `awaits` says nothing about this. That rule is about the next
+   * control and about nothing else.
    *
    * A word rather than a symbol by default, because an icon with no accessible
    * name is worse than a wide button. Restyle it with the `--leko-close-*`
-   * custom properties, the way the message takes `--leko-message-*`.
+   * custom properties, the way the message takes `--leko-message-*`, or take
+   * the markup over with {@link renderClose}.
    */
   closeLabel?: string
 
@@ -542,6 +522,10 @@ export interface LekoOptions {
    * Staying off the holes is the part that needs the geometry, so Leko keeps
    * that, and what the control looks like is yours. Hand back a function to
    * undo whatever you did, and it runs when the tour ends.
+   *
+   * This is what a host with its own idea of the control uses. There is no
+   * option that draws nothing: a corner Leko has chosen and a host has filled
+   * is the arrangement where neither half can produce a page with no way out.
    *
    * ```tsx
    * createLeko({

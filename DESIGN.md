@@ -80,9 +80,14 @@ The scrim blocks the page with rectangles. A host's own "skip the tour" button
 is under one of them unless that host thought about it, so a project that never
 thought about it has built a trap, and the trap is what it got for free.
 
-**So Leko draws a control that ends the tour, and it is on screen for as long as
-the tour is drawn.** `close: false` takes it away, for a host that has its own
-and would rather Leko stayed off the corners.
+**So Leko draws a control that ends the tour, it is on screen for as long as the
+tour is drawn, and there is no way to turn it off.** There was one. It was a
+host saying it had its own way out and would rather Leko stayed off the
+corners — and that host cannot put its own control anywhere safe, because
+staying off the cutouts needs geometry only Leko has. An option to take the
+control away was an option to build a page somebody cannot leave, which is the
+trap this whole control exists to close. What a host may change is what the
+control says and what it is made of, never whether it is there.
 
 **It is the only control Leko draws outside the message.** `prevStep()` does not
 exist, and a next control belongs to a step and is derived from `awaits`. Ending
@@ -160,7 +165,7 @@ effect, and nothing else in the API does that.
 
 ## Saying where the tour got to
 
-`LekoStory.onStep` does not reopen the second constraint. That constraint is
+`LekoOptions.onStep` does not reopen the second constraint. That constraint is
 about Leko **listening**. A click listener deciding a step succeeded is
 guessing. A hook reporting where the story is decides nothing, and it is the
 only way anything can draw its own progress.
@@ -169,12 +174,19 @@ The line to hold is that nothing handed back may come back in. **The return
 value is never read.** Something that could block a transition would be
 `validate` again, in a place where the application has claimed nothing.
 
-A story carries one and so does the instance. Both fire, story first. Register
-on the story and the answer to "which story moved" is where the handler sits.
-Something spanning stories cannot work that way, so the instance hook hears all
-of them and is told which. `stop()` reports the ending with no step, and so does
-running past the last one. A hook that could not say "nowhere" would leave a
-progress readout showing the final step for ever.
+**There is one hook, it lives on the instance, and it is told which story
+moved.** A story used to carry one as well and both fired, story first. The
+story's could say nothing the instance's cannot: it was never told which story
+it was, so anything spanning two of them was written on the instance anyway,
+and a readout that lived on the story stopped reporting the moment somebody
+added a story and forgot to register it again. What it cost was an ordering
+promise that had to hold on every path out of the machine. A handler that cares
+about one story asks `story.id`; a host whose stories live in several modules
+writes one handler and routes it, which is what `main.ts` in the sandbox does.
+
+`stop()` reports the ending with no step, and so does running past the last one.
+A hook that could not say "nowhere" would leave a progress readout showing the
+final step for ever.
 
 **A handler may start a story from an ending that has nowhere to go.** `stop()`
 and a tour running off its last step report with the machine already idle, and
@@ -559,18 +571,19 @@ geometry. **Because Leko never places an element over the target, the
 application is free to drive the real elements while a step is showing.**
 
 **A story that is not running observes nothing.** Progress recorded while nobody
-was shown a step is not evidence that the user followed it. Resuming is
-`start(storyId, stepId)`, which the application asks for on purpose. A signal
-cannot start a story for the same reason. **Time passing does not advance a step
+was shown a step is not evidence that the user followed it. Starting one is
+`start(storyId)`, which the application asks for on purpose. A signal cannot
+start a story for the same reason. **Time passing does not advance a step
 either.** A step that ends after five seconds has established nothing about
 whether the user did anything.
 
 **There are no chapters.** Grouping steps, jumping between the groups, recording
 how far somebody got. All of it is worth wanting, and none of it is here. Give a
-chapter setup of its own and it stops being a label and becomes an object,
-`index` starts counting something else, and resuming into the middle of one
-needs a rule. `LekoStep.meta` is there instead. Leko carries it and never reads
-it.
+chapter setup of its own and it stops being a label and becomes an object, and
+`index` starts counting something else. A step has an `id` and nothing else the
+application may hang things on: a table from id to chapter, written where the
+chapters are drawn, is what covers this, and it costs the library no concept at
+all. `story-setup.ts` does exactly that.
 
 ## Drawing
 

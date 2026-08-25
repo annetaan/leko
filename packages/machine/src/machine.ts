@@ -386,12 +386,18 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * Story first, then instance: the same near-to-far order the settings read
-   * in. Both fire, because a readout belonging to one story and a counter that
-   * spans all of them are different jobs and neither replaces the other.
+   * Where the tour got to, said once, to the one hook there is.
+   *
+   * A story used to carry a hook of its own and both fired, story first. The
+   * story's could say nothing this cannot — it was never told which story it
+   * was, so anything spanning two of them was written here anyway — and it cost
+   * an ordering promise that had to hold on every path out of this class.
+   *
+   * `step` is `undefined` where the run ended, and `previous` is read from
+   * {@link announced}, so the calls chain: each one leaves from where the last
+   * one arrived.
    */
   private report(story: St, step: S | undefined, previous: S | undefined): void {
-    story.onStep?.(step, previous)
     this.options.onStep?.(step, previous, story)
   }
 
@@ -655,8 +661,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     if (this.position !== here) return
     // The arrival is over and what is left is the drawing of it. Opened before
     // `draw` rather than after, because a step whose anchor turns out to be
-    // missing is handed to `onTargetLost`, and a host taking the tour over
-    // there has to be able to call `stop()`.
+    // missing can end the run from inside `draw`, and the `onStep` that reports
+    // that ending has to find a machine a host may call into.
     this.phase = 'ready'
     this.draw(story, step, animate)
     // Which is why this asks. `draw` can end the run through a lost anchor, and

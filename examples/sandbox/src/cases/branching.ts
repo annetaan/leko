@@ -1,5 +1,3 @@
-import type { LekoStep } from '@annetaan/leko'
-
 import { type Case, html } from '../case.js'
 
 // Four short stories rather than one long one with a jump in it. An intro, two
@@ -74,26 +72,18 @@ export const branching: Case = {
     return () => panel.remove()
   },
 
-  stories: (root, leko) => {
+  stories: (root) => {
     const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
     const checkbox = at('[data-checked]') as HTMLInputElement
     const status = at('[data-status]')
 
     // What a branch assumes: nothing sent yet, and nothing read yet. Both are
     // the page's own state rather than a variable this file keeps, which is
-    // also what the rejoin below asks about.
+    // also what the rejoin asks about.
     const fresh = (): void => {
       checkbox.checked = false
       status.textContent = 'Nothing sent yet.'
       status.dataset['sent'] = 'no'
-    }
-
-    // The branch is over and the order really went, so the tour starts the
-    // story the paths meet at. `stop()` from the footer arrives here as well,
-    // which is why the page's own state gets a say.
-    const rejoin = (step: LekoStep | undefined, previous: LekoStep | undefined): void => {
-      if (step || previous?.id !== 'send' || status.dataset['sent'] !== 'yes') return
-      leko.start('summary')
     }
 
     return [
@@ -136,7 +126,6 @@ export const branching: Case = {
       {
         id: 'careful',
         onEnter: fresh,
-        onStep: rejoin,
         steps: [
           {
             id: 'lines',
@@ -162,7 +151,6 @@ export const branching: Case = {
       {
         id: 'quick',
         onEnter: fresh,
-        onStep: rejoin,
         steps: [
           {
             id: 'send',
@@ -173,5 +161,21 @@ export const branching: Case = {
         ],
       },
     ]
+  },
+
+  // The branch is over and the order really went, so the tour starts the story
+  // the paths meet at. `stop()` from the footer arrives here as well, which is
+  // why the page's own state gets a say.
+  //
+  // `story` says which branch ended, and both are asked the same question, so
+  // it goes unread here. A hook that lived on the story instead would have been
+  // written twice — once per branch — and a third branch added later would
+  // rejoin nowhere with nothing to say why.
+  onStep: (root, leko) => {
+    const sent = root.querySelector<HTMLElement>('[data-status]')!
+    return (step, previous) => {
+      if (step || previous?.id !== 'send' || sent.dataset['sent'] !== 'yes') return
+      leko.start('summary')
+    }
   },
 }

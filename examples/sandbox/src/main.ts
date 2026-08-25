@@ -50,8 +50,9 @@ let teardown: (() => void) | undefined
 let unwatch: (() => void) | undefined
 let leko: Leko | undefined
 let problem: string | undefined
+/** The showing case's own step handler, if it asked for one. */
+let caseStep: ReturnType<NonNullable<Case['onStep']>> | undefined
 
-// Called by every story's onStep, so the readout is told rather than looking.
 // Reading the instance from in here is the point of the test: if the hook fired
 // before Leko had finished moving, this would print the step it just left.
 function report(): void {
@@ -108,9 +109,14 @@ function show(next: Case): void {
       }
       report()
     },
-    // One footer for however many stories a case registers, so it goes on the
-    // instance. A readout belonging to a single story goes on that story.
-    onStep: report,
+    // The one hook that says where the tour got to, for however many stories a
+    // case registers, and it is told which story each time. A host whose
+    // stories live in several places writes exactly this and routes it, which
+    // is what the second line does.
+    onStep: (step, previous, story) => {
+      report()
+      caseStep?.(step, previous, story)
+    },
   })
 
   // `state` moves when no step does: a morph landing, a story's onEnter in
@@ -121,9 +127,10 @@ function show(next: Case): void {
 
   stageRoot.replaceChildren()
   teardown = next.mount(stageRoot, leko)
+  caseStep = next.onStep?.(stageRoot, leko)
 
   starts.replaceChildren()
-  for (const story of next.stories(stageRoot, leko)) {
+  for (const story of next.stories(stageRoot)) {
     leko.setStory(story)
     starts.append(
       html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),

@@ -169,7 +169,7 @@ export class Leko {
   }
 
   /**
-   * Reports the ending through {@link LekoStory.onStep} before returning, with
+   * Reports the ending through {@link LekoOptions.onStep} before returning, with
    * `step` as `undefined`. The host that called this knows already, and
    * whatever draws the progress is written somewhere else and does not.
    *

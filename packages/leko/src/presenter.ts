@@ -280,12 +280,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    * get out of. Placed again on every step and every resize, so a hole that
    * moves into the corner it was in pushes it to another.
    *
-   * `close: false` is a host saying it has its own way out. Nothing is drawn
-   * then, and the scrim goes on blocking the page, which is that host's to
-   * answer for.
+   * There is no way to skip this. Whatever the scrim blocks, this is what gets
+   * out of it, and `renderClose` is how a host owns the markup without owning
+   * the decision.
    */
   private showClose(cutouts: readonly Rect[]): void {
-    if (this.options.close === false) return
     this.close ??= new Close(
       () => this.host.close(),
       this.options.closeLabel,
@@ -403,8 +402,9 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
       return
     }
     // Nothing back where the morph was interrupted. Another one starting is the
-    // only thing that interrupts this, and the machine bumped its counter to
-    // begin it, so the settlement below is dropped there either way.
+    // only thing that interrupts this, and the machine let go of the promise
+    // this call handed back to begin it, so the settlement below is dropped
+    // there either way.
     return morphing.then((finished) => {
       if (!finished) return
       this.say(story, step, anchor, content)
@@ -448,10 +448,6 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
 
   reject(): void {
     this.layers[0]?.shake()
-  }
-
-  hide(): void {
-    this.message?.hide()
   }
 
   /**
