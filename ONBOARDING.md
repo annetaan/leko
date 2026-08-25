@@ -13,7 +13,7 @@ None of the three tells you which file to open first. That is what this one is
 for. It also does not repeat their arguments. Where a rule matters I name the
 function that keeps it and point at the section of DESIGN.md that argues it.
 
-There are roughly three thousand lines of source here and about as many again
+There are about four thousand lines of source here and nearly as many again
 in tests. You can read all of it in a day, and most of that day is
 `machine.ts`.
 
@@ -38,7 +38,7 @@ watch process and no stale `dist/` to debug.
 
 Fifteen cases sit in the left rail. Take them in this order on the first day.
 
-1. **stepping**. Five targets of different shapes and no validation in the way.
+1. **stepping**. Six targets of different shapes and no validation in the way.
    Press `nextStep()` in the footer and watch the hole morph. This is the case
    to leave open while working on rendering.
 2. **scrollable-target**. Put the pointer over the highlighted panel and use
@@ -46,8 +46,10 @@ Fifteen cases sit in the left rail. Take them in this order on the first day.
    with rectangles instead of with itself, and it is the thing that broke.
 3. **two-stories**. One `reached('order-placed')` call, two stories registered,
    and only the one that declared that name moves.
-4. **branching**. Three stories and a `start('shared', 'summary')` that hands
-   the tour back where the paths meet. Watch the footer counter.
+4. **branching**. Three stories, and a `start('summary')` at the end of either
+   path that hands the tour on to where they meet. `start` takes a story id and
+   nothing else, so the shared part is a story rather than a step two paths
+   point at. Watch the footer counter.
 5. **signal-too-early**. Press Send and read the footer. The application
    reported something true while the step waiting for it was still being built,
    and the call was dropped. This is the one case where the interesting thing
@@ -62,8 +64,8 @@ drive the case.
 pnpm test
 ```
 
-Around 250 test runs across 17 files. It takes about 5 seconds on a laptop once
-the browsers are installed. Five Vitest projects, three of them in real browsers.
+284 test runs across 17 files. It takes about 8 seconds on a laptop once the
+browsers are installed. Five Vitest projects, three of them in real browsers.
 
 ## The shape of the code
 
@@ -90,8 +92,8 @@ The two halves never import each other. They meet in
 down in `packages/machine/src/port.ts`.
 
 `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in that
-package is a compile error. That is what lets its 62 tests run in Node against a
-fake presenter the test file writes, in under 100ms, instead of three times in
+package is a compile error. That is what lets its 73 tests run in Node against a
+fake presenter the test file writes, in under 200ms, instead of three times in
 three browser engines.
 
 `packages/leko` is built by `tsdown`, which bundles both halves in. Both are
@@ -126,7 +128,7 @@ They are the same rule from two sides.
 **2. `packages/machine/src/port.ts`**
 
 The seam, and the shortest thing here. Two interfaces and nothing else. `Presenter` is what the machine may
-ask of whatever draws. `Host` is the three things a presenter may report back.
+ask of whatever draws. `Host` is the five things a presenter may report back.
 
 Read it twice. Three rules live here and DESIGN.md states each under
 [Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
@@ -175,12 +177,12 @@ This is the trace worth walking with the files open. The application calls
 | | Where | What happens |
 | --- | --- | --- |
 | 1 | `leko.ts` `Leko.reached` | Hands the name straight to the machine |
-| 2 | `machine.ts` `reached` | Reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here |
-| 3 | `machine.ts` `advance` | Drops the call unless `accepting`. Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
-| 4 | `machine.ts` `enter` | Clears the error, hides the message, closes the phase, runs the last step's `onLeave`, then this step's `onEnter` |
+| 2 | `machine.ts` `reached` | Reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here. A name that matched and arrived while the phase was closed is dropped and reported |
+| 3 | `machine.ts` `advance` | Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
+| 4 | `machine.ts` `enter` | Clears the error, closes the phase, tells the presenter to `hold`, runs the last step's `onLeave`, then this step's `onEnter` |
 | 5 | `machine.ts` `arrive` | Opens the phase, draws, then reports. In that order |
 | 6 | `machine.ts` `draw` | Resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `DomPresenter.show` | Walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts, cuts the outer layers |
+| 7 | `presenter.ts` `show`, then `reveal` | Pays out whatever the curtain still owes, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
@@ -193,11 +195,16 @@ Step 5 is the one to hold on to. The move is reported after it survived being
 drawn. A progress readout that heard about a step while its `onEnter` was still
 running would be naming something the user cannot see.
 
-The other direction is four calls. `Host.lost` when a target has gone and is not
+The other direction is five calls. `Host.lost` when a target has gone and is not
 coming back, `Host.moved` on a resize, `Host.next` when the step's control is
-pressed, and `Host.close` when the one that ends the tour is. The machine hands
-the presenter four closures in its constructor, so the presenter cannot reach
-anything else on the machine.
+pressed, `Host.close` when the one that ends the tour is, and `Host.searching`
+while the presenter is looking for an anchor that left the page. The machine
+hands the presenter five closures in its constructor, so the presenter cannot
+reach anything else on the machine.
+
+`Host.searching` is the one to read the argument for. It reports a wait nobody
+asked for, and the machine decides what `state` says about it, the same way it
+decides for a target that was missing when the step arrived.
 
 ## The six fields in the machine
 
@@ -208,7 +215,7 @@ disagreeing about where the tour was.
 | --- | --- |
 | `stories` | Every registered story. At most one runs |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling` or `ready` |
+| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling`, `searching` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
@@ -236,7 +243,7 @@ here, ask whether it is a third way of saying something two fields already say.
 
 ```ts
 private get accepting(): boolean {
-  return this.phase === 'ready' || this.phase === 'settling'
+  return this.phase === 'ready' || this.phase === 'settling' || this.phase === 'searching'
 }
 ```
 
@@ -244,15 +251,22 @@ Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, an `onValidationError`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. `reached`, `nextStep`, `start` and `setStory` all ask this
-first.
+nothing to check. `reached`, `nextStep`, `start`, `setStory` and `surfaceMoved`
+all ask this first.
+
+`settling` and `searching` are not those windows. A morph is a step that arrived
+and is still moving, and a search is a step that arrived and whose anchor has
+gone missing since. The machine is inside neither of them, so a call means what
+it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A tour nobody can turn off
-until an application's `onEnter` settles is worse than the race. The two
-`onEnter` continuations and `arrive` compare `this.position` against the object
-they started with, because a `stop()` can have thrown their arrival away while
-they were gone. Those three comparisons are all that is left of a counter that
-used to be checked in thirteen places.
+until an application's `onEnter` settles is worse than the race. So the story's
+`onEnter` continuation, `arrive`, `draw` and `failed` compare `this.position`
+against the object they started with, because a `stop()` can have thrown their
+arrival away while they were gone. Five comparisons, and they are all that is
+left of a counter that used to be checked in thirteen places. `errorUtils` holds
+a sixth for a different job: a `setError` that answers after the tour has moved
+on.
 
 ## The two constraints, and the line that keeps each
 
@@ -283,16 +297,17 @@ nothing happens.
 Grep for the other half of it:
 
 ```bash
-grep -rn "addEventListener\|MutationObserver" \
+grep -rn "addEventListener\|new MutationObserver" \
   packages/leko/src packages/spotlight/src packages/machine/src | grep -v "\.test\."
 ```
 
-Four lines come back. One of them is a field declaration. The other three are
-every listener the library installs, and none of them advances a step.
+Five lines come back. They are every listener the library installs, and none of
+them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Starts a search, and reports `Host.lost` only if it gives up |
+| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement |
+| `presenter.ts` `search` | The same observer, re-armed on a target that is not back yet. Reports `Host.searching` while it runs and `Host.lost` if it gives up |
 | `presenter.ts` `watchViewport` | A `resize` listener. Reports `Host.moved` |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 | `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |
