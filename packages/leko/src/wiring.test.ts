@@ -162,17 +162,50 @@ test('a target replaced by an identical one is found again, and nothing ends', a
   seen.length = 0
 
   // What a framework does when it renders over the step: the old node is
-  // disconnected and an identical one takes its place. Ending the tour here
-  // would be punishing an application for working normally.
+  // disconnected and an identical one takes its place, both in the same batch
+  // of mutations. Ending the tour here would be punishing an application for
+  // working normally.
   target.remove()
   const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   fresh.id = 'anchor'
 
-  await vi.waitUntil(() => centre(fresh) === fresh, { timeout: 5000 })
+  // Long enough for the loss to be noticed and answered. The replacement is
+  // already on the page by then, so it is resolved on the spot: no curtain, and
+  // the two-second deadline never starts.
+  await new Promise((r) => setTimeout(r, 50))
 
+  expect(centre(fresh)).toBe(fresh)
   expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('doomed')
   // The machine was never told anything happened, so nothing was reported.
+  expect(seen).toEqual([])
+})
+
+test('a target that comes back late is picked up by the search', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'doomed', target: '#anchor' }] })
+
+  leko.start('story')
+  seen.length = 0
+
+  target.remove()
+  await new Promise((r) => setTimeout(r, 100))
+
+  // Nothing to resolve when the loss was noticed, so this one is a search. The
+  // curtain is up rather than a hole standing over the gap the target left, and
+  // the tour reads as being between things while it waits.
+  expect(scrim()).not.toBeNull()
+  expect(leko.state).toBe('transitioning')
+  expect(leko.step?.id).toBe('doomed')
+
+  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  fresh.id = 'anchor'
+
+  // A later batch, which is what the search's own observer is armed for.
+  await vi.waitUntil(() => centre(fresh) === fresh, { timeout: 2000 })
+
+  expect(leko.state).toBe('running')
   expect(seen).toEqual([])
 })
 

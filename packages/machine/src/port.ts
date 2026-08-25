@@ -89,7 +89,7 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
 }
 
 /**
- * What a presenter is allowed to tell the machine. Four things it noticed, and
+ * What a presenter is allowed to tell the machine. Five things it noticed, and
  * nothing to ask.
  *
  * The machine hands one of these to the factory that builds the presenter. It
@@ -125,4 +125,24 @@ export interface Host<S> {
    * puts within reach, and the presenter is what draws it.
    */
   close(): void
+  /**
+   * `step`'s anchor is not on the page, and the presenter has not given up on
+   * it yet. `yes` is `false` once it is back.
+   *
+   * **A report, not a request.** What the tour's `state` says while this is
+   * true is the machine's to decide, and it decides the same thing here as it
+   * does for a target that was missing when the step arrived. That one goes
+   * through {@link Presenter.show}, which hands a promise back, so the machine
+   * hears about it without being told. This one nobody asked for, so there is
+   * nothing to hand back and nothing else that could carry it.
+   *
+   * The alternative was writing down that `state` is about the machine rather
+   * than about the screen, and leaving a curtain on screen for two seconds
+   * while `state` read `running`. A host cannot act on a wait it cannot see,
+   * and `state` is about to be something a host can subscribe to.
+   *
+   * The give-up is {@link lost} rather than a `false` here. A run that is over
+   * has no wait left to end.
+   */
+  searching(step: S, yes: boolean): void
 }

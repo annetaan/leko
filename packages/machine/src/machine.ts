@@ -33,8 +33,12 @@ const isThenable = (value: unknown): value is Promise<void> =>
  *
  * `settling` and `ready` are both a step that arrived and is on screen. The
  * only difference is whether the presenter is still moving it.
+ *
+ * `searching` is a step that arrived and whose anchor has since left the page,
+ * with the presenter looking for it again. The step is still the one the tour
+ * is on. What is on screen is a curtain, which is why this is not `ready`.
  */
-type Phase = 'story' | 'step' | 'ending' | 'settling' | 'ready'
+type Phase = 'story' | 'step' | 'ending' | 'settling' | 'searching' | 'ready'
 
 /**
  * Which step a tour is on, and how it gets to the next one.
@@ -114,6 +118,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       moved: () => this.surfaceMoved(),
       next: () => this.nextStep(),
       close: () => this.stop(),
+      searching: (step, yes) => this.seek(step, yes),
     })
   }
 
@@ -136,7 +141,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * throws the arrival away rather than acting on it.
    */
   private get accepting(): boolean {
-    return this.phase === 'ready' || this.phase === 'settling'
+    return this.phase === 'ready' || this.phase === 'settling' || this.phase === 'searching'
   }
 
   /**
@@ -609,7 +614,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     void showing.then(() => {
       if (this.showing !== showing) return
       this.showing = undefined
-      this.phase = 'ready'
+      // Only the phase this promise put on the machine is its to take off. A
+      // target that left the page while the morph ran has written `searching`
+      // over it, and that wait ends when the presenter says it does.
+      if (this.phase === 'settling') this.phase = 'ready'
     })
   }
 
@@ -646,6 +654,32 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * reacting to it by starting a story of its own gets the last word, the way
    * it does from the ending `onStep`.
    */
+  /**
+   * The presenter is looking for an anchor that left the page, or has found it.
+   *
+   * The tour is on that step throughout, so this moves no position and reports
+   * nothing. All it does is decide what `state` answers while the wait runs,
+   * which is the same thing it answers for a target that was missing when the
+   * step arrived: the tour is between things.
+   *
+   * **A wait is only started for the step the tour is on.** A presenter can
+   * notice a loss after the tour has already gone somewhere else, the same way
+   * {@link lose} can be told about one.
+   *
+   * **Ending one asks nothing.** By then the tour may be on another step, and
+   * the phase the wait wrote is the phase that has to come off. Where it was
+   * written over in the meantime there is nothing left to do, which is what the
+   * check reads.
+   */
+  private seek(step: S, yes: boolean): void {
+    if (!yes) {
+      if (this.phase === 'searching') this.phase = 'ready'
+      return
+    }
+    if (this.step !== step) return
+    if (this.phase === 'ready' || this.phase === 'settling') this.phase = 'searching'
+  }
+
   private lose(step: S): void {
     const story = this.position?.story
     if (!story || this.step !== step) return

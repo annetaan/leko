@@ -612,7 +612,8 @@ export type LekoProblem =
 /**
  * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.
  * `running` — a step is currently displayed.
- * `transitioning` — between two steps, with nothing settled yet: a
- * {@link LekoStep.onEnter} that has not resolved, or a morph still running.
+ * `transitioning` — the tour is between things, with nothing settled: a
+ * {@link LekoStep.onEnter} that has not resolved, a morph still running, or a
+ * target that has left the page and is being looked for again.
  */
 export type LekoState = 'idle' | 'running' | 'transitioning'

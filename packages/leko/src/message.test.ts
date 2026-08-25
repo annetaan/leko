@@ -366,10 +366,11 @@ test('the message goes when the target does', async () => {
   target.remove()
   await frame()
 
-  // Still standing, because the target is being given time to come back. A
-  // search that begins after the step was drawn is the presenter's own, so
-  // `state` still reads `running` until it gives up.
-  expect(leko.state).toBe('running')
+  // Still standing, because the target is being given time to come back, and
+  // reading as a tour between things while that runs. The presenter began this
+  // search on its own and says so, so both searches answer the same way.
+  expect(leko.state).toBe('transitioning')
+  expect(leko.step?.id).toBe('one')
   // An anchored element whose anchor has left the page falls back to normal
   // positioning, which would drop the message somewhere arbitrary.
   expect(visible()).toBe(false)

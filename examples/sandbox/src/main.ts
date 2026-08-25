@@ -72,13 +72,16 @@ function report(): void {
   // usually still on screen waiting for the signal that got dropped.
   noteOut.textContent = [where, problem].filter(Boolean).join('  ⟵  ')
 
-  // `state` has no hook of its own, on purpose: it changes when a morph starts
-  // and again when it lands, while the step does not move either time. So the
-  // chip follows it for the length of one morph and stops.
-  if (state !== 'transitioning' || following) return
+  // `state` has no hook of its own, so the chip has to go and look. It changes
+  // when a morph starts and again when it lands, and again when a target leaves
+  // the page and the tour waits for it, and the step does not move on any of
+  // them. The last of those is announced by nothing at all, so this follows for
+  // as long as a story runs rather than for the length of one morph. Polling is
+  // what a host is left with today, and it is the whole of #51.
+  if (state === 'idle' || following) return
   following = true
   const tick = (): void => {
-    following = (leko?.state ?? 'idle') === 'transitioning'
+    following = (leko?.state ?? 'idle') !== 'idle'
     report()
     if (following) requestAnimationFrame(tick)
   }

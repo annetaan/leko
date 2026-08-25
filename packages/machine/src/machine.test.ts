@@ -113,6 +113,22 @@ class Fake implements Presenter<Anchor, Step, Story> {
     this.host.lost(step)
   }
 
+  /**
+   * The target left the page and this is looking for it, which is the half of
+   * the real presenter that nobody asked for. `lose` is what it says two
+   * seconds later, if it comes to that.
+   */
+  hunt(step: Step): void {
+    this.page.delete(step.target)
+    this.host.searching(step, true)
+  }
+
+  /** It came back, and the step is drawn again without the machine moving. */
+  found(step: Step): void {
+    this.page.add(step.target)
+    this.host.searching(step, false)
+  }
+
   /** The surface moved under the tour, the way a resize would. */
   resize(): void {
     this.host.moved()
@@ -686,6 +702,61 @@ describe('what the tour says it is doing', () => {
     expect(problems).toEqual([
       { kind: 'target-lost', step: { id: 'b', target: 'second' }, storyId: 'story' },
     ])
+  })
+
+  test('a target lost after its step was drawn reads as transitioning', () => {
+    const only: Step = { id: 'a', target: 'first' }
+    const { tour, seen } = watched({ id: 'story', steps: [only] })
+    tour.start('story')
+
+    expect(tour.state).toBe('running')
+
+    drawing().hunt(only)
+
+    // The same window as a target missing when the step arrived, which reads
+    // this way already. What is on screen is a curtain either way, and a host
+    // that cannot see the wait cannot stand back for it.
+    expect(tour.state).toBe('transitioning')
+    // Nothing moved. The tour is on the step it was on, and no report was made
+    // about a wait that may yet come to nothing.
+    expect(tour.step?.id).toBe('a')
+    expect(seen).toEqual([['a', undefined]])
+
+    drawing().found(only)
+
+    expect(tour.state).toBe('running')
+    expect(seen).toEqual([['a', undefined]])
+  })
+
+  test('a signal is still acted on while a lost target is being looked for', () => {
+    const first: Step = { id: 'a', target: 'first', awaits: 'saved' }
+    const tour = start([first, { id: 'b', target: 'second' }])
+    drawing().hunt(first)
+
+    // A search is not a call into the application, so it is not a moment the
+    // gate closes for. The application knows what it knows, and the step it was
+    // waiting on is the one the user has been through.
+    tour.reached('saved')
+
+    expect(tour.step?.id).toBe('b')
+    expect(tour.state).toBe('running')
+  })
+
+  test('a wait the tour has already left leaves nothing behind', () => {
+    const first: Step = { id: 'a', target: 'first' }
+    const tour = start([first, { id: 'b', target: 'second' }])
+    drawing().hunt(first)
+    tour.nextStep()
+
+    expect(tour.step?.id).toBe('b')
+    expect(tour.state).toBe('running')
+
+    // The presenter drops a search it no longer needs, and says so about the
+    // step it was armed on rather than the one showing. Reading it as anything
+    // about the current step would strand the tour on `transitioning`.
+    drawing().found(first)
+
+    expect(tour.state).toBe('running')
   })
 
   test('a target lost while its step was still being built ends the run too', async () => {

@@ -213,6 +213,12 @@ two seconds is the state the wait exists to avoid showing anybody. It covers a
 target missing when the step arrives as well as one lost after it was drawn,
 because a user cannot tell those apart.
 
+**A replacement that arrives with the removal is not a wait at all.** A
+framework swaps the node in one batch of mutations, and an observer armed after
+that batch hears nothing about what is already in it. So the selector is run the
+moment the loss is noticed, and a re-render over the step costs a morph. The two
+seconds are for a target that is not back yet.
+
 **A `target` given as an element cannot be recovered**, since there is no
 selector to run again. That is the first real reason to prefer a string. The
 ending is reported as `target-lost` through `onDiagnostic`. See
@@ -437,6 +443,17 @@ replaced rather than edited on every move, so holding the object is holding the
 step occurrence. `phase` is how far along the machine is with what it is doing,
 and it is the same field the gate above reads.
 
+**`transitioning` means the tour is between things, and a wait the presenter
+started on its own counts.** A target missing when the step arrives goes through
+`show`, which hands a promise back, so the machine hears about that one without
+being told. A target lost after the step was drawn is noticed by the presenter
+and nobody asked for the search, so it is reported through `Host.searching` and
+the phase says `searching` while it runs. The two waits put the same curtain on
+the same screen, and answering them differently would leave a host unable to
+stand back for one of them. That is the reading `state` is about the machine and
+not about the screen would have allowed, and the cost of it is a fifth member on
+`Host`.
+
 **Nothing can forget to write an answer that nobody stores.** Before adding a
 field here, check whether it is a third way of saying what two fields already
 say.
@@ -636,7 +653,7 @@ is filled in by the machine, derived from `awaits`. The second constraint
 depends on that rule, and a presenter free to decide it would be a way to
 configure the rule back off.
 
-**The presenter is told, and never asks back.** None of `Host`'s three members
+**The presenter is told, and never asks back.** None of `Host`'s five members
 returns anything. The story is a parameter of `show`, `place` and `retell`, so
 the drawing half never reaches into the state half to answer a drawing question.
 

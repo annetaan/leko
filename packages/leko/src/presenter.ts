@@ -98,6 +98,8 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   private drawn: { story: LekoStory; step: LekoStep; content: Content } | undefined
   /** The deadline on a target that has left the page, while one is running. */
   private searching: ReturnType<typeof setTimeout> | undefined
+  /** The step that deadline is about, so a search the tour left can be told. */
+  private sought: LekoStep | undefined
   /** Ends the promise a search hands back, whichever way the search went. */
   private settled: (() => void) | undefined
 
@@ -312,6 +314,14 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     content: Content,
     animate: boolean,
   ): Promise<void> | void {
+    // A search armed on a step the tour has left. Dropping it here is what
+    // keeps a target that comes back late from being drawn over the step now
+    // showing, and it is where the machine is told that wait is over.
+    if (this.sought !== undefined && this.sought !== step) {
+      const stale = this.sought
+      this.endSearch()
+      this.host.searching(stale, false)
+    }
     // Not on the page yet, which a step whose target renders a moment after its
     // `onEnter` settled is as much as one whose target has gone.
     if (!anchor) return this.search(story, step, content)
@@ -450,7 +460,16 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     this.watcher = new MutationObserver(() => {
       if (action.isConnected) return
       const held = this.drawn
-      if (held) this.search(held.story, held.step, held.content)
+      if (!held) return
+      // The batch that disconnected this node usually carries its replacement,
+      // and that is the whole of a framework rendering over the step. A search
+      // started now would never see it: the mutation that added it has already
+      // been delivered, and an observer hears nothing about the past. So the
+      // selector is run here, and a re-render costs a morph rather than two
+      // seconds of curtain and an ending.
+      const back = this.resolve(held.step)
+      if (back) return void this.show(held.story, held.step, back, held.content, true)
+      this.search(held.story, held.step, held.content)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
   }
@@ -471,8 +490,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    *
    * The search rides the same `MutationObserver` that noticed the loss, so it
    * costs no polling: every change to the page is another chance. Found in
-   * time, the step is drawn again and the machine is never told. Not found,
-   * `Host.lost` means what it has always meant.
+   * time, the step is drawn again and nothing about the tour has changed. Not
+   * found, `Host.lost` means what it has always meant.
+   *
+   * Either way the machine is told the wait began, through `Host.searching`,
+   * because a wait it did not ask for is one it cannot otherwise see.
    */
   private search(story: LekoStory, step: LekoStep, content: Content): Promise<void> | void {
     if (this.searching !== undefined) return
@@ -486,24 +508,31 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
       const found = this.resolve(step)
       if (!found) return
       this.endSearch()
+      this.host.searching(step, false)
       void this.show(story, step, found, content, true)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
-    // Handed back so the machine reads `transitioning` while this runs. A tour
-    // waiting for a target to turn up is between things in the same way a tour
-    // waiting for a morph is, and a host should be able to tell.
-    return new Promise<void>((settled) => {
+    // Handed back, so an arrival that came in here has something to wait on. A
+    // tour waiting for a target to turn up is between things in the same way a
+    // tour waiting for a morph is.
+    const waiting = new Promise<void>((settled) => {
       this.settled = settled
       this.searching = setTimeout(() => {
         this.endSearch()
         this.host.lost(step)
       }, SEARCH)
     })
+    // Said whichever way this search was reached, and said last, so the search
+    // is fully armed before the machine hears about it.
+    this.sought = step
+    this.host.searching(step, true)
+    return waiting
   }
 
   private endSearch(): void {
     clearTimeout(this.searching)
     this.searching = undefined
+    this.sought = undefined
     this.watcher?.disconnect()
     this.watcher = undefined
     this.settled?.()
