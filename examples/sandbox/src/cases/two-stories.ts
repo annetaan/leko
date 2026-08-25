@@ -53,7 +53,7 @@ export const twoStories: Case = {
           {
             id: 'quantity',
             target: at('input[name="quantity"]'),
-            message: 'How many you want. Change it if you like, then press nextStep().',
+            message: 'How many you want. Change it if you like, then press Next.',
           },
           {
             id: 'place',

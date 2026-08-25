@@ -61,8 +61,7 @@ export type MachineState = 'idle' | 'running' | 'transitioning'
  *
  * What is deliberately not here is the silence. A `reached()` naming something
  * no step waits for stays silent, permanently, because instrumentation has to
- * be free to leave in. So does `nextStep()` while idle, because a button that
- * sits there is allowed to be pressed.
+ * be free to leave in.
  *
  * `@annetaan/leko` declares this shape again for its users rather than
  * re-exporting it, for the reason {@link ErrorUtils} does.
@@ -78,8 +77,14 @@ export type Problem<S> =
    * waiting for something the application has already been through.
    */
   | { kind: 'signal-dropped'; name: string; step: S }
-  /** A call that arrived while the machine was inside the application. */
-  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
+  /**
+   * A call that arrived while the machine was inside the application.
+   *
+   * Every mover a host has is here except `stop()`, which asks nothing. A press
+   * on the control the presenter drew is not, because it is not a call a host
+   * made and there is nothing a host could do about one.
+   */
+  | { kind: 'call-refused'; call: 'start' | 'setStory' }
   /**
    * A step's target was not on the page and did not come back, so the run
    * stopped. Pointing a spotlight at nothing is worse than not running at all.

@@ -39,7 +39,7 @@ watch process and no stale `dist/` to debug.
 Fifteen cases sit in the left rail. Take them in this order on the first day.
 
 1. **stepping**. Six targets of different shapes and no validation in the way.
-   Press `nextStep()` in the footer and watch the hole morph. This is the case
+   Press the control on the message and watch the hole morph. This is the case
    to leave open while working on rendering.
 2. **scrollable-target**. Put the pointer over the highlighted panel and use
    the wheel. It scrolls. That one interaction is the reason the scrim blocks
@@ -257,8 +257,8 @@ Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, an `onValidationError`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. `reached`, `nextStep`, `start`, `setStory` and `surfaceMoved`
-all ask this first.
+nothing to check. `reached`, `start`, `setStory`, a press on the next control
+and `surfaceMoved` all ask this first.
 
 `settling` and `searching` are not those windows. A morph is a step that arrived
 and is still moving, and a search is a step that arrived and whose anchor has

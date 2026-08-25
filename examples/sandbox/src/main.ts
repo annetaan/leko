@@ -27,7 +27,6 @@ app.append(
       </main>
       <footer class="controls">
         <span class="starts" data-starts></span>
-        <button type="button" data-action="next">nextStep()</button>
         <button type="button" data-action="stop">stop()</button>
         <span class="state" data-state>idle</span>
         <span class="note" data-note>No tour running.</span>
@@ -149,8 +148,11 @@ for (const item of cases) {
   )
 }
 
+// There is no `next` here, and there is nowhere for one to go. Advancing a step
+// without naming a signal is the next control on the message, and that control
+// only exists on a step that declares no `awaits`. A button in this footer would
+// be one that ignores that.
 const actions: Record<string, () => void> = {
-  next: () => leko?.nextStep(),
   stop: () => leko?.stop(),
 }
 

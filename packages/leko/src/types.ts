@@ -372,10 +372,10 @@ export interface LekoStory {
    * it settles** — not its own `onEnter`, and not resolving its target. Entry
    * runs outermost first: this, then the step's, then the page is measured.
    *
-   * Nothing the host calls moves the tour in that window either. `nextStep()`,
-   * `reached()`, `start()` and `setStory()` are all dropped, because every step
-   * is waiting on this handler and none of them is readier than another.
-   * `stop()` is the exception and always takes, and {@link onLeave} runs.
+   * Nothing the host calls moves the tour in that window either. `reached()`,
+   * `start()` and `setStory()` are all dropped, because every step is waiting on
+   * this handler and none of them is readier than another. `stop()` is the
+   * exception and always takes, and {@link onLeave} runs.
    *
    * **A rejection stops the tour** and the reason is thrown again, exactly as a
    * step's does. {@link onLeave} still runs, because a handler that failed
@@ -571,7 +571,7 @@ export interface LekoOptions {
    *
    * `stop` rather than the instance, for the reason the presenter is handed
    * closures rather than the machine: the only thing this control may do is end
-   * the tour. A `nextStep()` reachable from here would be a second next
+   * the tour. Anything here that advanced a step would be a second next
    * control, off to the side of the step that decides whether there is one.
    */
   renderClose?: (root: HTMLElement, stop: () => void) => (() => void) | void
@@ -584,12 +584,10 @@ export interface LekoOptions {
  * made at a moment nothing could act on. Neither has any other symptom. The
  * tour does not move, and nothing anywhere says why.
  *
- * Two things stay silent on purpose and are not here. A {@link Leko.reached}
- * naming something no step waits for, because instrumentation is meant to stay
- * in the source permanently and something free to leave in cannot complain
- * about being left in. And {@link Leko.nextStep} while idle, because a button
- * that sits there is allowed to be pressed. A caller doing everything right
- * ends up in both.
+ * One thing stays silent on purpose and is not here: a {@link Leko.reached}
+ * naming something no step waits for. Instrumentation is meant to stay in the
+ * source permanently, and something free to leave in cannot complain about
+ * being left in. A caller doing everything right ends up there.
  */
 export type LekoProblem =
   /** {@link Leko.start} was given an id nothing is registered under. */
@@ -611,8 +609,12 @@ export type LekoProblem =
    * built has been built, so there is nothing there to act on.
    *
    * `stop()` is never here. It is the one call that asks nothing.
+   *
+   * Neither is the next control. Leko takes it off the screen for the whole of
+   * an arrival, and a press is not a call a host made, so there is nobody to
+   * tell and nothing for them to do about it.
    */
-  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
+  | { kind: 'call-refused'; call: 'start' | 'setStory' }
   /**
    * A step's target was not on the page and did not come back within two
    * seconds, so the run stopped.
@@ -626,7 +628,7 @@ export type LekoProblem =
   | { kind: 'target-lost'; step: LekoStep; storyId: string }
 
 /**
- * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.
+ * `idle` — no story running. `reached()` is a no-op.
  * `running` — a step is currently displayed.
  * `transitioning` — the tour is between things, with nothing settled: a
  * {@link LekoStep.onEnter} that has not resolved, a morph still running, or a

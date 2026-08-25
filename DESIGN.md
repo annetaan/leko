@@ -31,10 +31,10 @@ thing happened, after its API call resolved, after its own validation passed.
 
 ## Signals and steps
 
-A call site names the event. It never names a step. `nextStep()` would mean
-"advance whatever is showing", which forces the call site to know where in the
-tour it sits. Insert a step and an existing call fires at the wrong moment. So
-the step declares what it waits for, and the two are matched.
+A call site names the event. It never names a step. "Advance whatever is
+showing" would force the call site to know where in the tour it sits, so that
+inserting a step makes an existing call fire at the wrong moment. There is no
+such call. The step declares what it waits for, and the two are matched.
 
 ```ts
 { id: 'save', target: 'button[type=submit]', awaits: 'order-saved' }
@@ -52,8 +52,14 @@ Three properties follow. All three are the point rather than side effects.
   on screen has established nothing about the user.
 - **It is a no-op while nothing runs**, so callers never write a guard.
 
-`nextStep()` survives for a control the host puts on screen. An application
-reporting its own state uses `reached()`.
+**The only thing that advances a step without naming a signal is the next
+control Leko draws, and nothing else can reach it.** Which steps have a control
+is derived from `awaits`, and that derivation says nothing at all unless the
+presser is the same thing that decides whether there is a control. A public
+"advance" would stand outside it: a host puts its own button in its own chrome,
+beside a step waiting for `order-saved`, and the user is past the work that step
+exists to make them do. An application reporting its own state uses
+`reached()`.
 
 The instance holds every story and matches the signal against the one running.
 A call site reports once, however many stories pass through that screen.
@@ -68,6 +74,12 @@ them do. One button defeats the second constraint.
 
 **Which steps have a control is derived from `awaits`, and a story cannot
 configure it.** `LekoOptions.nextLabel` only says what the control reads.
+
+**And pressing it is the only way anything advances a step without naming a
+signal.** The derivation above is worth nothing on its own: a second mover, in
+public or reachable from `renderClose`, is a control on a step that was never
+given one. So the presser is the thing that decides whether there is a control,
+`Host.next` is how it says so, and no method sits beside it.
 
 Without a control, two actions have to share one step. "Type 3, then place the
 order." The interface got coarser because the application had nothing to report.
@@ -89,11 +101,11 @@ control away was an option to build a page somebody cannot leave, which is the
 trap this whole control exists to close. What a host may change is what the
 control says and what it is made of, never whether it is there.
 
-**It is the only control Leko draws outside the message.** `prevStep()` does not
-exist, and a next control belongs to a step and is derived from `awaits`. Ending
-is the one call the gate below never refuses, so it is the one thing worth
-putting on the page unconditionally. A control that sometimes did nothing would
-be worse than no control.
+**It is the only control Leko draws outside the message.** There is no back
+control, and a next control belongs to a step and is derived from `awaits`.
+Ending is the one call the gate below never refuses, so it is the one thing
+worth putting on the page unconditionally. A control that sometimes did nothing
+would be worse than no control.
 
 **This is not the next control's rule again.** A step that declares `awaits` has
 no next control, because a button beside the instruction is a way past the work
@@ -110,9 +122,9 @@ covered one wins, because something still has to be pressable.
 
 **Leko owns where it goes and a host may own what is in it.** `renderClose` is
 handed a positioned root and `stop`, and hands back its own teardown. It is not
-given the instance: the only thing this control may do is end the tour, and a
-`nextStep()` reachable from here would be a second next control standing outside
-the step that decides whether there is one.
+given the instance: the only thing this control may do is end the tour, and
+anything reachable from here that advanced a step would be a second next control
+standing outside the step that decides whether there is one.
 
 ## A failed attempt
 
@@ -399,8 +411,8 @@ step has been handed to whatever draws it, and `onEnter` is inside it whether it
 answers in the turn or hands back a promise that lands half a second later. A
 teardown is another: `onLeave` is running and the run is half taken apart.
 
-Inside either, `reached()`, `nextStep()`, `start()` and `setStory()` all do
-nothing. Nothing that step assumes has been built, its
+Inside either, `reached()`, `start()` and `setStory()` all do nothing, and so
+does a press on the next control. Nothing that step assumes has been built, its
 target has not been looked for, and it has never been on screen, so there is no
 step there to act on. The call is dropped where it stands rather than saved for
 when the arrival lands, because a signal saved over is a step advancing on
@@ -424,16 +436,13 @@ one of them was always about to be forgotten.
 
 ## Saying that a call did nothing
 
-Four calls do nothing. Two of them stay silent and two do not, and the line is
+Three calls do nothing. One stays silent and two do not, and the line is
 whether a caller doing everything right can end up there.
 
-Silent: `reached()` with a name nothing waits for, and `nextStep()` while idle.
-A next button calls `nextStep()` whether or not a tour is running, and
-`reached()` is the stronger case of the two. Instrumentation is meant to stay in
-the source permanently, including in builds where no tour ever runs, so
+Silent: `reached()` with a name nothing waits for. Instrumentation is meant to
+stay in the source permanently, including in builds where no tour ever runs, so
 something that must be free to leave in cannot complain about being left in.
-**Those two must never speak**, and nothing should be added here that makes
-them.
+**It must never speak**, and nothing should be added here that makes it.
 
 Reported through `onDiagnostic`: a `start()` naming a story or a step that is
 not there, and any call refused by the gate above. There is no version of
@@ -441,6 +450,11 @@ not there, and any call refused by the gate above. There is no version of
 came from an application doing everything right at a moment nothing could be
 done with it. Neither has any other symptom. The tour does not move, and nothing
 anywhere says why.
+
+A press the gate turns down is in neither list. Every other refusal is reported
+because a host made a call and nothing happened; the control is a button Leko
+takes off the screen for the whole of an arrival, so there is no caller to tell
+and nothing for one to do about it.
 
 **A `reached()` that matched and was dropped is reported**, and that is the
 split worth holding on to. A name nobody waits for is normal. A name the step

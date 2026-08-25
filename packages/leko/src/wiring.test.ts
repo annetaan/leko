@@ -5,8 +5,11 @@ import {
   box,
   centre,
   closer,
+  control,
+  frame,
   held,
   pair,
+  press,
   register,
   scrim,
   start,
@@ -37,16 +40,16 @@ test('a selector matching several elements takes the first', () => {
   expect(absorbed(second)).toBe(true)
 })
 
-test('nextStep does nothing while idle, so callers need no guard', () => {
+test('nothing draws a next control while idle, so there is nothing to press', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
 
-  expect(() => leko.nextStep()).not.toThrow()
+  expect(control()).toBeNull()
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
 })
 
-test('a step does not advance until the application says it succeeded', () => {
+test('a step does not advance until the application says it succeeded', async () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
   let ready = false
@@ -57,13 +60,16 @@ test('a step does not advance until the application says it succeeded', () => {
     { id: 'second', target: second },
   ])
 
-  leko.nextStep()
+  press()
   expect(leko.step?.id).toBe('first')
   expect(onValidationError).toHaveBeenCalledOnce()
   expect(onValidationError.mock.calls[0]?.[0]).toBe(first)
 
   ready = true
-  leko.nextStep()
+  // A frame first: everything reaching the control inside one is the same
+  // press, and a second real attempt is further away than that.
+  await frame()
+  press()
   expect(leko.step?.id).toBe('second')
   expect(centre(second)).toBe(second)
 })
@@ -82,11 +88,11 @@ test('validate is handed the action target, never a related one', () => {
   const related = box('related', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const validate = vi.fn(() => true)
 
-  const leko = start([
+  start([
     { id: 'a', target: [target], related: [related], validate },
     { id: 'b', target },
   ])
-  leko.nextStep()
+  press()
 
   expect(validate).toHaveBeenCalledWith(target)
 })
@@ -95,7 +101,7 @@ test('the last step ends the tour', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = start([{ id: 'only', target }])
 
-  leko.nextStep()
+  press()
 
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
@@ -282,7 +288,7 @@ test('moving on to a target that has gone waits, then reports the ending', async
   leko.start('story')
   second.remove()
   seen.length = 0
-  leko.nextStep()
+  press()
 
   // `b` is where the tour is, under a curtain, while its target is given time
   // to turn up.
@@ -354,7 +360,7 @@ test('a resize stands back while a step is being built, and lands once it is dra
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
   second.style.top = '500px'
   window.dispatchEvent(new Event('resize'))
 
@@ -388,7 +394,7 @@ test('a story started from inside onLeave is refused, and the step that was arri
   leko.setStory({ id: 'elsewhere', steps: [{ id: 'c', target: third }] })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   // Leaving is a call into the application, and a story started from inside one
   // would be drawn over by the step this move was already on its way to.
@@ -437,7 +443,7 @@ test('a story waiting on its onEnter does not let a step be moved past either', 
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   // Every step of this story is waiting on the same handler, so there is no
   // step here to move away from.
@@ -468,7 +474,7 @@ test('moving on works again once the story has settled', async () => {
   leko.start('story')
   settle()
   await promise
-  leko.nextStep()
+  press()
 
   expect(leko.step?.id).toBe('b')
   expect(centre(second)).toBe(second)
@@ -503,7 +509,7 @@ test('a diagnostic reaches the host, with the step the signal was for', async ()
   )
 
   leko.start('story')
-  leko.nextStep()
+  press()
   leko.reached('saved')
 
   expect(problems).toEqual([{ kind: 'signal-dropped', name: 'saved', step }])
@@ -523,9 +529,9 @@ test('a tour draws a way out of itself, and using it ends the tour', () => {
   expect(closer()).toBeNull()
   leko.start('story')
 
-  const control = closer()!.querySelector('button')!
-  expect(control.textContent).toBe('End tour')
-  control.click()
+  const out = closer()!.querySelector('button')!
+  expect(out.textContent).toBe('End tour')
+  out.click()
 
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
@@ -545,7 +551,7 @@ test('the way out is there while a step is still being built', async () => {
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   // The message went with the step that is over, and the page is still dimmed
   // and still blocked. This is the moment somebody most wants out.
@@ -629,7 +635,7 @@ test('an arrival that lasts draws a curtain, and the page goes under it', async 
   leko.start('story')
   expect(centre(first)).toBe(first)
 
-  leko.nextStep()
+  press()
 
   // `curtain: true` is a step saying it already knows it is slow, so there is
   // no delay to wait out. Nothing is reachable now, including the step the tour
@@ -655,11 +661,11 @@ test('the curtain leaves the way out reachable', () => {
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
-  const control = closer()!.querySelector('button')!
-  expect(centre(control)).toBe(control)
-  control.click()
+  const out = closer()!.querySelector('button')!
+  expect(centre(out)).toBe(out)
+  out.click()
 
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
@@ -705,7 +711,7 @@ test('a curtain says what a host gave it to say, and docks', () => {
   )
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   expect(said()).toBe('Fetching the receipt')
   // There is no hole to sit beside, so it goes where a message goes when it
@@ -736,7 +742,7 @@ test('the step arriving says what its own wait is, over anything more general', 
   )
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   // Step, then story, then instance. The step is where the handler being waited
   // for is written, so it is the one that knows what the wait is about.
@@ -798,7 +804,7 @@ test('curtain false leaves the window exactly as it was', () => {
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   // The hole is still where the tour was, which is the thing the curtain is
   // there to stop, kept available for a host that wants it.
@@ -823,7 +829,7 @@ test('a curtain that was seen stays for its minimum', async () => {
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   await vi.waitUntil(() => absorbed(second), { timeout: 1000 })
   // The handler is long done and the step is still under the curtain.
@@ -846,7 +852,7 @@ test('a curtain nobody could have seen owes nothing', async () => {
   })
 
   leko.start('story')
-  leko.nextStep()
+  press()
 
   expect(centre(second)).toBe(second)
 })

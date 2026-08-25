@@ -126,11 +126,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * way to close that loop without leaving a window where one exists and the
    * other does not.
    *
-   * What goes to the factory is four closures rather than `this`. Handing
+   * What goes to the factory is five closures rather than `this`. Handing
    * `this` over made `lost`, `moved` and `next` public members of the machine,
-   * so anything holding a tour could call them, and `next` sat beside
-   * `nextStep` meaning the same thing. A presenter cannot reach anything here
-   * it was not given.
+   * so anything holding a tour could call them. A presenter cannot reach
+   * anything here it was not given, and nothing else can reach {@link pressed}
+   * at all.
    */
   constructor(
     options: MachineOptions<A, S, St>,
@@ -140,7 +140,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     this.presenter = presenter({
       lost: (step) => this.lose(step),
       moved: () => this.surfaceMoved(),
-      next: () => this.nextStep(),
+      next: () => this.pressed(),
       close: () => this.stop(),
       searching: (step, yes) => this.seek(step, yes),
     })
@@ -304,8 +304,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Show `storyId`, from its first step.
    *
    * There is no way to begin anywhere else. A story runs from the top forward
-   * or it does not run, which is the same line {@link nextStep} is the only
-   * mover under: a step that declares `awaits` cannot be arrived at twice,
+   * or it does not run, which is the same line the movers below are the only
+   * ones under: a step that declares `awaits` cannot be arrived at twice,
    * because the application reported that name once and will not report it
    * again. A tour somebody wants to redo is a shorter story.
    *
@@ -424,17 +424,22 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * Advance whatever step is showing, without naming it.
+   * The next control the presenter drew was pressed.
    *
-   * A no-op while idle, so callers never have to guard.
+   * **Private, and reachable only through {@link Host.next}.** A step that
+   * declares `awaits` never gets a control, because the control would be a way
+   * past the work that step exists to make somebody do. That rule is worth
+   * nothing if anything holding a tour can advance a step without one, so the
+   * only presser is the thing that decides whether there is a control at all.
+   *
+   * There is no diagnostic for a press the gate turns down. Every other refusal
+   * is reported because a host made a call and nothing happened; this one is a
+   * button the presenter takes off the screen for the whole of an arrival, so
+   * there is neither a caller to tell nor anything for one to do about it.
    */
-  nextStep(): void {
+  private pressed(): void {
     const step = this.step
-    if (!step) return
-    if (!this.accepting) {
-      this.refuse('nextStep')
-      return
-    }
+    if (!step || !this.accepting) return
     this.advance(step)
   }
 

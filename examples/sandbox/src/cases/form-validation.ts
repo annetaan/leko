@@ -23,7 +23,7 @@ export const formValidation: Case = {
     form.addEventListener('submit', (event) => {
       event.preventDefault()
       const hint = form.querySelector<HTMLElement>('[data-hint]')
-      if (hint) hint.textContent = 'Submitted. In a real app this is where nextStep() goes.'
+      if (hint) hint.textContent = 'Submitted. In a real app this is where reached() goes.'
     })
     root.append(form)
     return () => form.remove()

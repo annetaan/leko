@@ -129,21 +129,6 @@ export class Leko {
   }
 
   /**
-   * Advance whatever step is showing, without naming it.
-   *
-   * This is for a control on screen: the one Leko puts on the message of a step
-   * that declares no signal, or one the host puts in its own chrome — the
-   * sandbox's footer. Instrumentation spread through application code wants
-   * {@link reached} instead: a bare "advance" has to know the shape of the tour
-   * to be written in the right place.
-   *
-   * A no-op while idle, so callers never have to guard.
-   */
-  nextStep(): void {
-    this.machine.nextStep()
-  }
-
-  /**
    * Be told when {@link state} changes, and get back the way to stop.
    *
    * ```ts

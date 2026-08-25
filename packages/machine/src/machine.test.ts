@@ -133,10 +133,25 @@ class Fake implements Presenter<Anchor, Step, Story> {
   resize(): void {
     this.host.moved()
   }
+
+  /**
+   * The next control this drew was pressed.
+   *
+   * The only way anything advances a step without naming a signal, which is why
+   * a test has to come through the presenter to do it. The machine has no
+   * method for this and deliberately does not: a step that declares `awaits`
+   * gets no control, and that rule is worth nothing if a caller can press one
+   * that was never drawn.
+   */
+  press(): void {
+    this.host.next()
+  }
 }
 
 const instances: Machine<Anchor, Step, Story>[] = []
 const fakes: Fake[] = []
+/** The presenter each instance was built with, so a test can press its control. */
+const drawnFor = new WeakMap<Machine<Anchor, Step, Story>, Fake>()
 
 afterEach(() => {
   for (const tour of instances.splice(0)) tour.stop()
@@ -157,8 +172,12 @@ function machine(options: Options = {}) {
     return fake
   })
   instances.push(tour)
+  drawnFor.set(tour, fakes.at(-1)!)
   return tour
 }
+
+/** Press the next control on whatever `tour` is showing. */
+const press = (tour: Machine<Anchor, Step, Story>): void => void drawnFor.get(tour)!.press()
 
 function register(story: Story, options: Options = {}) {
   const tour = machine(options)
@@ -207,7 +226,7 @@ function held(): { promise: Promise<void>; settle: () => void } {
 /**
  * A step that fails every attempt, and hands back what the attempt was given.
  * `use()` is what `onValidationError` was called with, so it is only good after
- * a `nextStep()` that the step turned down.
+ * a press that the step turned down.
  */
 function failing(id: string, target: string, message?: string) {
   let given: ErrorUtils | undefined
@@ -308,26 +327,20 @@ describe('a signal, and the step waiting for it', () => {
     expect(onValidationError).not.toHaveBeenCalled()
   })
 
-  test('the guard is about the step, not about the call that advanced it', () => {
-    const onValidationError = vi.fn()
-
+  test('a step that declares a signal is offered no control to press', () => {
     const tour = start([
-      {
-        id: 'first',
-        target: 'first',
-        awaits: 'never-sent',
-        validate: () => false,
-        onValidationError,
-      },
+      { id: 'first', target: 'first', awaits: 'order-saved' },
       { id: 'second', target: 'second' },
     ])
 
-    // A host with a next control of its own, on a step that declares a signal.
-    // The step has no guard, so this is the same move the signal would make.
-    tour.nextStep()
+    // The whole of what keeps a press off a step waiting for a signal, now that
+    // the presenter is the only presser. It presses the control it was given,
+    // and on this step it was given none.
+    expect(drawing().content?.next).toBeUndefined()
 
-    expect(tour.step?.id).toBe('second')
-    expect(onValidationError).not.toHaveBeenCalled()
+    tour.reached('order-saved')
+
+    expect(drawing().content?.next).toBe('Next')
   })
 
   test('a signal reported before its step is showing is not saved up', () => {
@@ -338,7 +351,7 @@ describe('a signal, and the step waiting for it', () => {
 
     // The user did the thing early, before the tour asked for it.
     tour.reached('order-saved')
-    tour.nextStep()
+    press(tour)
 
     // Arriving at the step does not consume that: a buffered signal would advance
     // a step nobody performed while it was showing.
@@ -381,7 +394,7 @@ describe('what a failed attempt can do about itself', () => {
     const { step, use } = failing('one', 'first')
     const tour = start([step, { id: 'two', target: 'second' }])
 
-    tour.nextStep()
+    press(tour)
     use().shake()
 
     expect(drawing().rejected).toBe(1)
@@ -392,7 +405,7 @@ describe('what a failed attempt can do about itself', () => {
     const { step, use } = failing('one', 'first', 'Type your postcode.')
     const tour = start([step, { id: 'two', target: 'second' }])
 
-    tour.nextStep()
+    press(tour)
     use().setError('That is not a postcode.')
 
     // Under the instruction rather than over it. Somebody who has just been
@@ -424,15 +437,15 @@ describe('what a failed attempt can do about itself', () => {
     const { step, use } = failing('one', 'first', 'Type your postcode.')
     const tour = start([{ id: 'zero', target: 'second' }, step])
 
-    tour.nextStep()
-    tour.nextStep()
+    press(tour)
+    press(tour)
     use().setError('That is not a postcode.')
     expect(drawing().content?.error).toBe('That is not a postcode.')
 
     // Running the story again is the only way back to a step, and it is a
     // fresh attempt at it.
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     expect(drawing().content?.error).toBeUndefined()
     expect(drawing().content?.text).toBe('Type your postcode.')
@@ -442,9 +455,9 @@ describe('what a failed attempt can do about itself', () => {
     const { step, use } = failing('one', 'first')
     const tour = start([step, { id: 'two', target: 'second' }])
 
-    tour.nextStep()
+    press(tour)
     const first = use()
-    tour.nextStep()
+    press(tour)
 
     // Failing does not move the tour, so nothing has happened to the step these
     // belong to. Only an arrival or a stop ends an attempt.
@@ -466,9 +479,9 @@ describe('what a failed attempt can do about itself', () => {
       { id: 'two', target: 'second', message: 'The second step.' },
     ])
 
-    tour.nextStep()
+    press(tour)
     ready = true
-    tour.nextStep()
+    press(tour)
     expect(tour.step?.id).toBe('two')
 
     const fake = drawing()
@@ -490,7 +503,7 @@ describe('what a failed attempt can do about itself', () => {
     const { step, use } = failing('one', 'first')
     const tour = start([step, { id: 'two', target: 'second' }])
 
-    tour.nextStep()
+    press(tour)
     const kept = use()
     tour.stop()
 
@@ -517,7 +530,7 @@ describe('registering a story, and starting one', () => {
       ],
     })
     tour.start('onboarding')
-    tour.nextStep()
+    press(tour)
     expect(tour.step?.id).toBe('b')
 
     // Running it again puts somebody back at the top, which is the only place
@@ -542,7 +555,7 @@ describe('registering a story, and starting one', () => {
   test('re-registering the story that is running does nothing at all', () => {
     const tour = register({ id: 'onboarding', steps: twoSteps('before') })
     tour.start('onboarding')
-    tour.nextStep()
+    press(tour)
 
     // A component that registers on every render hands the same story back with
     // fresh objects in it. Registering is how `start` finds a story, and never a
@@ -572,7 +585,7 @@ describe('registering a story, and starting one', () => {
     expect(tour.setStory({ id: 'onboarding', steps: twoSteps('after') })).toBe(true)
 
     tour.start('onboarding')
-    tour.nextStep()
+    press(tour)
     expect(tour.step?.message).toBe('after')
   })
 
@@ -653,10 +666,10 @@ describe('registering a story, and starting one', () => {
       review,
     ])
 
-    tour.nextStep()
+    press(tour)
     expect(tour.index).toBe(1)
-    tour.nextStep()
-    tour.nextStep()
+    press(tour)
+    press(tour)
     expect(tour.step).toBe(review)
     expect(tour.index).toBe(3)
   })
@@ -683,7 +696,7 @@ describe('what the tour says it is doing', () => {
     drawing().slow = true
 
     tour.start('story')
-    tour.nextStep() // while the first step is still on its way
+    press(tour) // while the first step is still on its way
     await Promise.resolve()
 
     // The interrupted one settles too, and used to hand 'running' to a step that
@@ -705,7 +718,7 @@ describe('what the tour says it is doing', () => {
     )
     tour.start('story')
     drawing().page.delete('second')
-    tour.nextStep()
+    press(tour)
 
     // No hook decides otherwise. The presenter has already given the target
     // time to come back by the time the machine hears about it, so there is
@@ -854,7 +867,7 @@ describe('what the tour says it is doing', () => {
     const first: Step = { id: 'a', target: 'first' }
     const tour = start([first, { id: 'b', target: 'second' }])
     drawing().hunt(first)
-    tour.nextStep()
+    press(tour)
 
     expect(tour.step?.id).toBe('b')
     expect(tour.state).toBe('running')
@@ -877,7 +890,7 @@ describe('what the tour says it is doing', () => {
       ],
     })
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     // Waiting on `onEnter`, which is what `transitioning` says here.
     expect(tour.state).toBe('transitioning')
     seen.length = 0
@@ -918,7 +931,7 @@ describe('what the tour says it is doing', () => {
       ],
     })
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     // Both are calls into the application, made with `b` not built, not
     // measured and never drawn. Only a handler that returned a promise used to
@@ -955,7 +968,7 @@ describe('what the tour says it is doing', () => {
     expect(tour.index).toBeUndefined()
     tour.start('story')
     expect(tour.index).toBe(0)
-    tour.nextStep()
+    press(tour)
     expect(tour.index).toBe(1)
     tour.stop()
     expect(tour.index).toBeUndefined()
@@ -977,7 +990,7 @@ describe('saying where the tour got to', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     tour.reached('saved')
 
     expect(seen).toEqual([
@@ -1001,7 +1014,7 @@ describe('saying where the tour got to', () => {
     const tour = register(story, { onStep: () => seen.push(tour.step?.id) })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     expect(seen).toEqual(['a', 'b'])
   })
@@ -1028,7 +1041,7 @@ describe('saying where the tour got to', () => {
 
     tour.start('story')
     seen.length = 0
-    tour.nextStep()
+    press(tour)
 
     expect(seen).toEqual([])
   })
@@ -1068,7 +1081,7 @@ describe('saying where the tour got to', () => {
 
     tour.start('story')
     seen.length = 0
-    tour.nextStep()
+    press(tour)
 
     // A progress readout that heard about `b` here would be naming a step the
     // user cannot see yet.
@@ -1157,7 +1170,7 @@ describe('saying where the tour got to', () => {
 
     tour.start('story')
     seen.length = 0
-    tour.nextStep()
+    press(tour)
 
     // The ending leaves from `a`, which is the step a readout is still showing.
     // `gone` was never drawn and so was never announced, and naming it would be
@@ -1182,13 +1195,13 @@ describe('what a step assumes', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     expect(tour.state).toBe('transitioning')
 
     // `b` has built nothing and has never been on screen, so there is nothing
     // here to advance away from.
-    tour.nextStep()
-    tour.nextStep()
+    press(tour)
+    press(tour)
 
     settle()
     await promise
@@ -1221,7 +1234,7 @@ describe('what a step assumes', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     // The same call from inside an `async` handler was dropped and this one
     // advanced, so which step a signal moved depended on how the handler above
@@ -1241,10 +1254,10 @@ describe('what a step assumes', () => {
       { id: 'b', target: 'second', onLeave },
     ])
 
-    tour.nextStep()
+    press(tour)
     expect(left).toEqual([['a', 'b']])
 
-    tour.nextStep() // past the last step, so there is nowhere to be going
+    press(tour) // past the last step, so there is nowhere to be going
     expect(left).toEqual([
       ['a', 'b'],
       ['b', undefined],
@@ -1269,7 +1282,7 @@ describe('what a step assumes', () => {
       },
     ])
 
-    tour.nextStep()
+    press(tour)
     await Promise.resolve()
     await Promise.resolve()
 
@@ -1296,7 +1309,7 @@ describe('what a step assumes', () => {
       { id: 'c', target: 'first' },
     ])
 
-    tour.nextStep()
+    press(tour)
     tour.stop() // the tour is dropped while `b` is still entering
     settle()
     await promise
@@ -1337,7 +1350,7 @@ describe('what a step assumes', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     tour.reached('saved')
 
     expect(tour.state).toBe('transitioning')
@@ -1387,7 +1400,7 @@ describe('what a step assumes', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     expect(leaving).toEqual([undefined])
     expect(tour.state).toBe('idle')
@@ -1456,7 +1469,7 @@ describe('what a step assumes', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
     // Every step of this story is waiting on the same handler, so there is no
     // step here to move away from.
@@ -1487,7 +1500,7 @@ describe('what a step assumes', () => {
     settle()
     await promise
 
-    tour.nextStep()
+    press(tour)
 
     // The guard is about the handler being in flight and nothing else.
     expect(tour.step?.id).toBe('b')
@@ -1517,7 +1530,7 @@ describe('a call that arrives while the machine is inside the application', () =
     })
     tour.setStory({ id: 'other', steps: [{ id: 'x', target: 'third' }] })
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     return { tour, promise, settle }
   }
 
@@ -1526,7 +1539,7 @@ describe('a call that arrives while the machine is inside the application', () =
     expect(tour.state).toBe('transitioning')
 
     tour.reached('ready')
-    tour.nextStep()
+    press(tour)
     expect(tour.start('other')).toBe(false)
     expect(tour.setStory({ id: 'fresh', steps: [{ id: 'z', target: 'third' }] })).toBe(false)
 
@@ -1590,7 +1603,7 @@ describe('a call that arrives while the machine is inside the application', () =
     // Drawn, on screen, and still moving. Dropping a call here would be the
     // library deciding the user did not mean the button they pressed.
     expect(tour.state).toBe('transitioning')
-    tour.nextStep()
+    press(tour)
 
     expect(tour.step?.id).toBe('b')
     expect(drawing().shown).toEqual(['a', 'b'])
@@ -1634,7 +1647,7 @@ describe('saying that a call did nothing', () => {
     })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
     tour.reached('ready')
 
     // The one a correct application hits. The user did the thing, the code
@@ -1659,7 +1672,7 @@ describe('saying that a call did nothing', () => {
     tour.reached('anything') // idle
     tour.start('story')
     tour.reached('anything') // running, and no step waits for it
-    tour.nextStep()
+    press(tour)
     tour.reached('anything') // arriving
 
     // Instrumentation is meant to stay in the source permanently, including in
@@ -1682,17 +1695,18 @@ describe('saying that a call did nothing', () => {
     tour.setStory({ id: 'other', steps: [{ id: 'x', target: 'third' }] })
 
     tour.start('story')
-    tour.nextStep()
+    press(tour)
 
-    tour.nextStep()
+    press(tour)
     tour.start('other')
     tour.setStory({ id: 'fresh', steps: [{ id: 'z', target: 'third' }] })
     tour.stop()
 
     // `stop` is not among them. It is the one call that asks nothing, so there
-    // is never anything to report about it.
+    // is never anything to report about it. Nor is the press: the control is
+    // not a call a host made, and the presenter takes it off the screen for the
+    // whole of an arrival anyway.
     expect(problems).toEqual([
-      { kind: 'call-refused', call: 'nextStep' },
       { kind: 'call-refused', call: 'start' },
       { kind: 'call-refused', call: 'setStory' },
     ])
@@ -1700,15 +1714,16 @@ describe('saying that a call did nothing', () => {
     await promise
   })
 
-  test('a button that sits there is allowed to be pressed', () => {
+  test('re-registering the story the tour is on is not a mistake', () => {
     const { tour, problems } = heard({
       id: 'story',
       steps: [{ id: 'a', target: 'first' }],
     })
 
-    tour.nextStep() // idle, which is where a next button spends most of its life
     tour.start('story')
-    // And re-registering the running story, which a re-render does every time.
+    // Which a re-rendering component does on every render. The call answers
+    // `false` and the tour keeps the object it entered, and neither of those is
+    // something to be told about.
     tour.setStory({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
 
     expect(problems).toEqual([])

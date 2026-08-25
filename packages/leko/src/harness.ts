@@ -77,6 +77,27 @@ export const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
 export const closer = () => document.querySelector<HTMLElement>('.leko-close')
 
 /**
+ * The next control on the message, or `null` where the step showing has none.
+ *
+ * A step that declares `awaits` never gets one, which is the whole of what
+ * keeps a press off a step waiting for a signal now that pressing this is the
+ * only way to advance one without naming a signal.
+ */
+export const control = () => document.querySelector<HTMLButtonElement>('.leko-message-next')
+
+/** Press the next control. Nothing happens where the step showing has none. */
+export const press = (): void => control()?.click()
+
+/**
+ * Let a frame go by, which is what separates two presses.
+ *
+ * Everything reaching the control inside one frame is the same press, so a test
+ * advancing twice in a row waits here in between.
+ */
+export const frame = (): Promise<void> =>
+  new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+
+/**
  * Whether the tour absorbed a hit at the centre of `el`, rather than the page
  * underneath receiving it. Asked this way round because the scrim paints and its
  * rectangles catch, so naming one element would be pinning down the mechanism

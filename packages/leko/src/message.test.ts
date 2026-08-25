@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-import { box, keep, start } from './harness.js'
+import { box, control, frame, keep, press, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -10,7 +10,6 @@ import { box, keep, start } from './harness.js'
 const message = () => document.querySelector<HTMLElement>('.leko-message')
 const words = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent
 const error = () => document.querySelector<HTMLElement>('.leko-message-error')
-const control = () => document.querySelector<HTMLButtonElement>('.leko-message-next')
 /**
  * On screen at all, rather than in the DOM: an empty part is `hidden`, and the
  * whole box is transparent while it is away, which the parts inherit.
@@ -25,9 +24,6 @@ const rect = (el: Element) => el.getBoundingClientRect()
 
 const overlaps = (a: DOMRect, b: DOMRect): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-
-const frame = (): Promise<void> =>
-  new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 
 /**
  * Wait for the box to actually be on screen.
@@ -128,7 +124,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
 
 test('an error is written into the box that is already there', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([
+  start([
     {
       id: 'one',
       target,
@@ -140,7 +136,7 @@ test('an error is written into the box that is already there', () => {
   ])
 
   const before = rect(message()!)
-  leko.nextStep()
+  press()
 
   expect(words()).toBe('Type your name.')
   expect(error()?.textContent).toBe('A name, not a number.')
@@ -160,7 +156,7 @@ test('a step that declares no signal is given a way out of it', () => {
   ])
 
   expect(control()?.textContent).toBe('Next')
-  control()?.click()
+  press()
 
   expect(leko.step?.id).toBe('two')
 })
@@ -193,7 +189,7 @@ test('a step with no message still gets the control, and nothing else', async ()
   // along with the rest and push the box off the side that had room for it.
   expect(on(document.querySelector<HTMLElement>('.leko-message-text'))).toBe(false)
 
-  control()?.click()
+  press()
   expect(leko.step?.id).toBe('two')
 })
 
@@ -230,9 +226,9 @@ test('a press after the frame is over is a second press', async () => {
     { id: 'three', target },
   ])
 
-  control()?.click()
+  press()
   await frame()
-  control()?.click()
+  press()
 
   expect(leko.step?.id).toBe('three')
 })
@@ -251,7 +247,7 @@ test('the control goes through validate, and a failed press stays where it is', 
     { id: 'two', target, message: 'Now place the order.' },
   ])
 
-  control()?.click()
+  press()
   expect(leko.step?.id).toBe('one')
   // The instruction survives the complaint: a second failed attempt must not
   // leave the user with an error and nothing to act on.
@@ -260,7 +256,7 @@ test('the control goes through validate, and a failed press stays where it is', 
 
   typed = true
   await frame()
-  control()?.click()
+  press()
 
   expect(leko.step?.id).toBe('two')
   expect(words()).toBe('Now place the order.')
@@ -268,7 +264,7 @@ test('the control goes through validate, and a failed press stays where it is', 
   expect(on(error())).toBe(false)
 })
 
-test('an error is about the attempt, so leaving the step takes it away', () => {
+test('an error is about the attempt, so leaving the step takes it away', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
     { id: 'one', target, message: 'First.' },
@@ -281,8 +277,11 @@ test('an error is about the attempt, so leaving the step takes it away', () => {
     },
   ])
 
-  leko.nextStep()
-  control()?.click()
+  press()
+  // Two presses inside a frame are one press, and these are two: the first
+  // leaves step one, the second is the attempt step two turns down.
+  await frame()
+  press()
   expect(error()?.textContent).toBe('Not yet.')
 
   // Running the story again is the only way back to a step, and the complaint
@@ -294,7 +293,7 @@ test('an error is about the attempt, so leaving the step takes it away', () => {
 
 test('a step with only an error to show gets a box for it', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([
+  start([
     {
       id: 'one',
       target,
@@ -307,7 +306,7 @@ test('a step with only an error to show gets a box for it', async () => {
   expect(words()).toBe('')
   expect(on(error())).toBe(false)
 
-  leko.nextStep()
+  press()
 
   expect(error()?.textContent).toBe('The total is still zero.')
   expect(on(error())).toBe(true)
@@ -315,7 +314,7 @@ test('a step with only an error to show gets a box for it', async () => {
 
 test('a refusal during the opening morph does not take the message with it', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start(
+  start(
     [
       {
         id: 'one',
@@ -333,7 +332,7 @@ test('a refusal during the opening morph does not take the message with it', asy
   // The box waits for the cutout to land, because which side of the hole it
   // goes on is a fact about where the hole ends up.
   expect(visible()).toBe(false)
-  leko.nextStep()
+  press()
 
   // A shake used to halt the morph, and a morph that ends unfinished is how the
   // presenter knows an arrival was interrupted — so the message was never said,

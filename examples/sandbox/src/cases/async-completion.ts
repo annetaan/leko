@@ -22,7 +22,7 @@ export const asyncCompletion: Case = {
       button.disabled = true
       status.textContent = 'Saving…'
       await new Promise((resolve) => setTimeout(resolve, 1200))
-      status.textContent = 'Saved. nextStep() belongs here, not on the click.'
+      status.textContent = 'Saved. reached() belongs here, not on the click.'
       button.disabled = false
     })
     root.append(panel)

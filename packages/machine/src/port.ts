@@ -91,10 +91,9 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
  * What a presenter is allowed to tell the machine. Five things it noticed, and
  * nothing to ask.
  *
- * The machine hands one of these to the factory that builds the presenter. It
- * used to hand itself, which made every method here part of the machine's own
- * public API and gave `Machine` a `next()` beside its `nextStep()` that did the
- * same thing.
+ * The machine hands one of these to the factory that builds the presenter,
+ * rather than handing itself. Every method here would otherwise be part of the
+ * machine's own public API, and {@link next} is one that must not be.
  *
  * There was a fourth member, `story`, and it was the only reason this interface
  * needed to know what a story is. A presenter read it to find the `padding` the
@@ -113,7 +112,16 @@ export interface Host<S> {
   lost(step: S): void
   /** The surface moved under the tour, and nothing about the tour changed. */
   moved(): void
-  /** A control the presenter drew was used. Means what `nextStep` means. */
+  /**
+   * The next control the presenter drew was used. Advances the step showing.
+   *
+   * **The only way anything advances a step without naming a signal.** A step
+   * that declares `awaits` never gets a control, because the control would be a
+   * way past the work that step exists to make somebody do. Deriving the
+   * control from `awaits` says nothing at all unless the presser is the same
+   * thing that decides whether there is one, so there is no public method
+   * beside this.
+   */
   next(): void
   /**
    * The control that ends the tour was used. Means what `stop` means.

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { absorbed, box, centre, keep, register, scrim, start } from './harness.js'
+import { absorbed, box, centre, keep, press, register, scrim, start } from './harness.js'
 
 // Claims about layout the browser actually performed: where a hole ended up,
 // what hit-testing returns at a point, which element a scrim was mounted in.
@@ -189,7 +189,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   let utils: import('./types.js').ErrorUtils | undefined
-  const leko = start([
+  start([
     {
       id: 'one',
       target,
@@ -200,7 +200,7 @@ test('shaking moves the cutouts, not the scrim', () => {
     },
   ])
 
-  leko.nextStep()
+  press()
   utils?.shake()
 
   // Translating the scrim would slide the dimming off the edge of the page.
