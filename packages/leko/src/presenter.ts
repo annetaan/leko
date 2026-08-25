@@ -1,5 +1,6 @@
 import type { Content, Host, Presenter } from '@annetaan/leko-machine'
 import {
+  Close,
   type Cutout,
   findScrollContainer,
   grow,
@@ -51,6 +52,14 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    * happens.
    */
   private message: Message | undefined
+  /**
+   * The way out of the tour, made with the first thing drawn and destroyed with
+   * the last. It outlives the scrims and the message for the reason the message
+   * outlives the scrims, and more so: it is the one thing that must never
+   * blink, because it is what somebody reaches for when the page stops
+   * behaving.
+   */
+  private close: Close | undefined
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
 
@@ -114,14 +123,37 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    * through every scroll that follows.
    */
   private say(story: LekoStory, step: LekoStep, action: HTMLElement, content: Content): void {
+    const onScreen = this.cutouts(story, step, (el) => el.getBoundingClientRect())
+    this.showClose(onScreen?.cutouts ?? [])
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       return
     }
     this.message ??= new Message(() => this.host.next())
-    const onScreen = this.cutouts(story, step, (el) => el.getBoundingClientRect())
     const gap = this.setting(story, step, 'padding')
     this.message.show(content, action, onScreen?.cutouts ?? [], gap)
+  }
+
+  /**
+   * Put the way out where no cutout covers it.
+   *
+   * Made the first time anything is drawn rather than when the run starts,
+   * because until something is drawn nothing is blocked and there is nothing to
+   * get out of. Placed again on every step and every resize, so a hole that
+   * moves into the corner it was in pushes it to another.
+   *
+   * `close: false` is a host saying it has its own way out. Nothing is drawn
+   * then, and the scrim goes on blocking the page, which is that host's to
+   * answer for.
+   */
+  private showClose(cutouts: readonly Rect[]): void {
+    if (this.options.close === false) return
+    this.close ??= new Close(
+      () => this.host.close(),
+      this.options.closeLabel,
+      this.options.renderClose,
+    )
+    this.close.place(cutouts)
   }
 
   /**
@@ -183,6 +215,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     }
 
     this.watchTarget(step, anchor)
+
+    // Before the morph, not after it. The scrim blocks the page from the moment
+    // it is set, and a page that is blocked with no way out of it is the thing
+    // this control exists to prevent, even for the length of one morph.
+    this.showClose(this.cutouts(story, step, (el) => el.getBoundingClientRect())?.cutouts ?? [])
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
@@ -288,5 +325,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
     this.destroyLayers()
     this.message?.destroy()
     this.message = undefined
+    this.close?.destroy()
+    this.close = undefined
   }
 }

@@ -64,7 +64,7 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
 }
 
 /**
- * What a presenter is allowed to tell the machine. Three things it noticed, and
+ * What a presenter is allowed to tell the machine. Four things it noticed, and
  * nothing to ask.
  *
  * The machine hands one of these to the factory that builds the presenter. It
@@ -91,4 +91,13 @@ export interface Host<S> {
   moved(): void
   /** A control the presenter drew was used. Means what `nextStep` means. */
   next(): void
+  /**
+   * The control that ends the tour was used. Means what `stop` means.
+   *
+   * The fourth member, and the last one that will be added lightly. Three was
+   * the point of this interface. This one earns its place because the scrim
+   * blocks the page, so the way out of a tour has to be something Leko itself
+   * puts within reach, and the presenter is what draws it.
+   */
+  close(): void
 }

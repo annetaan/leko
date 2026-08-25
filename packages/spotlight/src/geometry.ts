@@ -68,6 +68,65 @@ const clamp = (value: number, max: number): number => Math.min(max, Math.max(0, 
 const ascending = <T>(list: readonly T[], by: (item: T) => number): T[] =>
   list.toSorted((a, b) => by(a) - by(b))
 
+/**
+ * The corners a box that has to stay out of the way can sit in, in preference
+ * order. Top right first, because that is where a control that ends something
+ * is looked for, and reading order puts it last.
+ */
+export const CORNERS = ['top-right', 'top-left', 'bottom-right', 'bottom-left'] as const
+export type Corner = (typeof CORNERS)[number]
+
+const overlap = (a: Rect, b: Rect): number => {
+  const width = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
+  const height = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+  return width > 0 && height > 0 ? width * height : 0
+}
+
+/** Where a box of `size` would sit if it took `corner`, `gap` in from the edges. */
+export function cornerRect(
+  width: number,
+  height: number,
+  size: { width: number; height: number },
+  corner: Corner,
+  gap: number,
+): Rect {
+  const [vertical, horizontal] = corner.split('-')
+  return {
+    x: horizontal === 'left' ? gap : width - size.width - gap,
+    y: vertical === 'top' ? gap : height - size.height - gap,
+    ...size,
+  }
+}
+
+/**
+ * Which corner of the viewport a box can take without covering a hole.
+ *
+ * A cutout is a hole because the user has to reach what is under it, so a box
+ * put on top of one takes that back. This is the same job {@link Message} does
+ * with `chooseSide`, one size down: four candidates rather than four sides, and
+ * an answer that is always one of them.
+ *
+ * **Where every corner is covered the least covered one wins.** A step that
+ * cuts a full-width header and a full-width footer leaves no corner free, and
+ * something still has to be pressable. Ties go to the earlier corner, so the
+ * answer is the same every time it is asked.
+ */
+export function freeCorner(
+  width: number,
+  height: number,
+  size: { width: number; height: number },
+  holes: readonly Rect[],
+  gap: number,
+): Corner {
+  const covered = (corner: Corner): number => {
+    const box = cornerRect(width, height, size, corner, gap)
+    return holes.reduce((total, hole) => total + overlap(box, hole), 0)
+  }
+  const free = CORNERS.find((corner) => covered(corner) === 0)
+  if (free) return free
+  return ascending([...CORNERS], covered)[0] ?? 'top-right'
+}
+
 export function roundedRectPath(cutout: Cutout): string {
   const { x, y, width: w, height: h } = cutout
   const r = round(Math.max(0, Math.min(cutout.radius, w / 2, h / 2)))

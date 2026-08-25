@@ -7,8 +7,12 @@
  */
 export {
   collapse,
+  type Corner,
+  CORNERS,
+  cornerRect,
   type Cutout,
   complementRects,
+  freeCorner,
   grow,
   lerpPath,
   padCutouts,
@@ -21,6 +25,7 @@ export {
   type Target,
   union,
 } from './geometry.js'
+export { Close } from './close.js'
 export { Message, type MessageContent } from './message.js'
 export {
   findScrollContainer,

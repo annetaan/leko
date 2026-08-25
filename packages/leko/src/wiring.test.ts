@@ -1,6 +1,17 @@
 import { expect, test, vi } from 'vitest'
 
-import { absorbed, box, centre, held, pair, register, scrim, start, watched } from './harness.js'
+import {
+  absorbed,
+  box,
+  centre,
+  closer,
+  held,
+  pair,
+  register,
+  scrim,
+  start,
+  watched,
+} from './harness.js'
 import type { LekoProblem, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
@@ -418,4 +429,110 @@ test('a diagnostic reaches the host, with the step the signal was for', async ()
   settle()
   await promise
   expect(leko.step?.id).toBe('b')
+})
+
+// The way out of the tour. The scrim blocks the page with rectangles, so a host
+// that never thought about an escape hatch has built a trap, and these are
+// about the trap not being what you get by default.
+
+test('a tour draws a way out of itself, and using it ends the tour', () => {
+  const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
+  const leko = register({ id: 'story', steps: [{ id: 'one', target }] })
+
+  expect(closer()).toBeNull()
+  leko.start('story')
+
+  const control = closer()!.querySelector('button')!
+  expect(control.textContent).toBe('End tour')
+  control.click()
+
+  expect(leko.state).toBe('idle')
+  expect(scrim()).toBeNull()
+  expect(closer()).toBeNull()
+  expect(centre(target)).toBe(target)
+})
+
+test('the way out is there while a step is still being built', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  // The message went with the step that is over, and the page is still dimmed
+  // and still blocked. This is the moment somebody most wants out.
+  expect(leko.state).toBe('transitioning')
+  expect(closer()).not.toBeNull()
+
+  settle()
+  await promise
+  expect(closer()).not.toBeNull()
+})
+
+test('the way out gives up the corner a cutout wants', () => {
+  const corner = box('corner', {
+    right: '20px',
+    top: '20px',
+    left: 'auto',
+    width: '160px',
+    height: '48px',
+  })
+  const leko = register({ id: 'story', steps: [{ id: 'one', target: corner }] })
+
+  leko.start('story')
+
+  // A target in the top right is an account menu, which is exactly what sits
+  // there on a real page. Leaving the control on top of it would take back the
+  // interaction the cutout exists to allow.
+  expect(centre(corner)).toBe(corner)
+  const at = closer()!.getBoundingClientRect()
+  expect(at.left).toBeLessThan(window.innerWidth / 2)
+})
+
+test('close false draws nothing, and the scrim goes on blocking', () => {
+  const [first, second] = pair()
+  const leko = register({ id: 'story', steps: [{ id: 'one', target: first }] }, { close: false })
+
+  leko.start('story')
+
+  expect(closer()).toBeNull()
+  expect(absorbed(second)).toBe(true)
+  expect(leko.state).toBe('running')
+})
+
+test('renderClose fills a root Leko positions, and its teardown runs at the end', () => {
+  const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
+  const undone: string[] = []
+  const leko = register(
+    { id: 'story', steps: [{ id: 'one', target }] },
+    {
+      renderClose: (root, stop) => {
+        const own = document.createElement('button')
+        own.className = 'my-skip'
+        own.textContent = 'Skip'
+        own.addEventListener('click', stop)
+        root.append(own)
+        return () => undone.push('unmounted')
+      },
+    },
+  )
+
+  leko.start('story')
+
+  const own = closer()!.querySelector<HTMLElement>('.my-skip')!
+  expect(closer()!.querySelector('.leko-close-control')).toBeNull()
+  // Leko put the box somewhere. What is in it was never Leko's business.
+  expect(closer()!.getBoundingClientRect().width).toBe(own.getBoundingClientRect().width)
+
+  own.click()
+
+  expect(leko.state).toBe('idle')
+  expect(undone).toEqual(['unmounted'])
 })

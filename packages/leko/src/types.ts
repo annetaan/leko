@@ -462,6 +462,63 @@ export interface LekoOptions {
    * ```
    */
   onDiagnostic?: (problem: LekoProblem) => void
+
+  /**
+   * Whether Leko draws the control that ends the tour. On by default.
+   *
+   * The scrim blocks the page with rectangles, so a host's own way out is under
+   * one unless that host thought about it, and a project that did not think
+   * about it has built a trap. Drawing one by default is what stops the trap
+   * being what you get for free.
+   *
+   * **It is the only control Leko draws outside the message, and it will stay
+   * that way.** {@link prevStep} does not exist and a next control belongs to a
+   * step. Ending is the one call that always works, so it is the one thing
+   * worth putting on the page unconditionally.
+   *
+   * Ending the tour is not a way past the work a step exists to make somebody
+   * do, so {@link LekoStep.awaits} says nothing about this. That rule is about
+   * the next control and about nothing else.
+   *
+   * Set `false` where the application has its own way out and would rather
+   * Leko stayed off the corners. The scrim goes on blocking the page, and
+   * reaching that way out is then the host's problem to solve.
+   */
+  close?: boolean
+
+  /**
+   * The words on the control that ends the tour.
+   *
+   * A word rather than a symbol by default, because an icon with no accessible
+   * name is worse than a wide button. Restyle it with the `--leko-close-*`
+   * custom properties, the way the message takes `--leko-message-*`.
+   */
+  closeLabel?: string
+
+  /**
+   * Draw the control that ends the tour yourself.
+   *
+   * Leko positions `root` in a corner no cutout covers and puts nothing in it.
+   * Staying off the holes is the part that needs the geometry, so Leko keeps
+   * that, and what the control looks like is yours. Hand back a function to
+   * undo whatever you did, and it runs when the tour ends.
+   *
+   * ```tsx
+   * createLeko({
+   *   renderClose: (root, stop) => {
+   *     const app = createRoot(root)
+   *     app.render(<SkipTour onClick={stop} />)
+   *     return () => app.unmount()
+   *   },
+   * })
+   * ```
+   *
+   * `stop` rather than the instance, for the reason the presenter is handed
+   * closures rather than the machine: the only thing this control may do is end
+   * the tour. A `nextStep()` reachable from here would be a second next
+   * control, off to the side of the step that decides whether there is one.
+   */
+  renderClose?: (root: HTMLElement, stop: () => void) => (() => void) | void
 }
 
 /**

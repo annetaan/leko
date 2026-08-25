@@ -71,6 +71,9 @@ export const centre = (el: HTMLElement) => {
 
 export const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
 
+/** The box holding the way out of the tour, or `null` while none is drawn. */
+export const closer = () => document.querySelector<HTMLElement>('.leko-close')
+
 /**
  * Whether the tour absorbed a hit at the centre of `el`, rather than the page
  * underneath receiving it. Asked this way round because the scrim paints and its

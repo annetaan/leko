@@ -3,7 +3,9 @@ import { expect, test } from 'vitest'
 import {
   collapse,
   complementRects,
+  cornerRect,
   type Cutout,
+  freeCorner,
   grow,
   lerpPath,
   padCutouts,
@@ -186,4 +188,66 @@ test('the blocking rectangles cover everything the holes do not', () => {
 
 test('a hole larger than the surface leaves nothing to block with', () => {
   expect(complementRects(600, 500, [{ x: -100, y: -100, width: 900, height: 800 }])).toEqual([])
+})
+
+// `freeCorner` is what keeps the close control off a hole. A control on top of
+// a cutout takes back the interaction the cutout exists to allow, which is the
+// first constraint, so this has to answer with a corner that is clear whenever
+// one is.
+
+const SIZE = { width: 120, height: 40 }
+const band = (y: number): Rect => ({ x: 0, y, width: 1000, height: 80 })
+
+test('the top right corner is taken when nothing is in the way', () => {
+  expect(freeCorner(1000, 800, SIZE, [], 16)).toBe('top-right')
+})
+
+test('a hole under the preferred corner sends the box to the next one', () => {
+  // An account menu, which is exactly what sits in that corner on a real page.
+  const menu = { x: 840, y: 8, width: 150, height: 48 }
+
+  expect(freeCorner(1000, 800, SIZE, [menu], 16)).toBe('top-left')
+})
+
+test('the order is top right, top left, bottom right, bottom left', () => {
+  expect(freeCorner(1000, 800, SIZE, [band(0)], 16)).toBe('bottom-right')
+  expect(
+    freeCorner(1000, 800, SIZE, [band(0), { x: 500, y: 720, width: 500, height: 80 }], 16),
+  ).toBe('bottom-left')
+})
+
+test('a corner is only taken when the box clears the hole, not the corner point', () => {
+  // The hole misses the very corner and still covers where the box would go.
+  const near = { x: 900, y: 40, width: 60, height: 30 }
+
+  expect(freeCorner(1000, 800, SIZE, [near], 16)).toBe('top-left')
+})
+
+test('every corner covered gives the least covered one, and gives it every time', () => {
+  // A full-width header and a full-width footer leave no corner clear, and
+  // something still has to be pressable.
+  const holes = [
+    { x: 0, y: 0, width: 1000, height: 60 },
+    { x: 0, y: 700, width: 1000, height: 100 },
+  ]
+
+  // The header is shallower than the footer, so the top corners are covered
+  // less. Ties go to the earlier corner, which makes the answer repeatable.
+  expect(freeCorner(1000, 800, SIZE, holes, 16)).toBe('top-right')
+  expect(freeCorner(1000, 800, SIZE, holes, 16)).toBe('top-right')
+})
+
+test('a corner rect sits inside the viewport, gap in from both edges', () => {
+  expect(cornerRect(1000, 800, SIZE, 'top-right', 16)).toEqual({
+    x: 1000 - 120 - 16,
+    y: 16,
+    width: 120,
+    height: 40,
+  })
+  expect(cornerRect(1000, 800, SIZE, 'bottom-left', 16)).toEqual({
+    x: 16,
+    y: 800 - 40 - 16,
+    width: 120,
+    height: 40,
+  })
 })

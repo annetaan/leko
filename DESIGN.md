@@ -74,6 +74,41 @@ order." The interface got coarser because the application had nothing to report.
 Everything reaching the control inside one frame is the same press. See
 `next-control.ts`.
 
+## The way out
+
+The scrim blocks the page with rectangles. A host's own "skip the tour" button
+is under one of them unless that host thought about it, so a project that never
+thought about it has built a trap, and the trap is what it got for free.
+
+**So Leko draws a control that ends the tour, and it is on screen for as long as
+the tour is drawn.** `close: false` takes it away, for a host that has its own
+and would rather Leko stayed off the corners.
+
+**It is the only control Leko draws outside the message.** `prevStep()` does not
+exist, and a next control belongs to a step and is derived from `awaits`. Ending
+is the one call the gate below never refuses, so it is the one thing worth
+putting on the page unconditionally. A control that sometimes did nothing would
+be worse than no control.
+
+**This is not the next control's rule again.** A step that declares `awaits` has
+no next control, because a button beside the instruction is a way past the work
+that step exists to make somebody do. Ending the tour is not a way past the
+work. So `awaits` decides one and says nothing about the other.
+
+**It goes in a corner no cutout covers.** Top right first, because that is where
+a control that ends something is looked for. A target in that corner is an
+account menu or a notification bell, which is not rare, and a box left on top of
+one takes back the interaction the hole exists to allow. `freeCorner` is the
+same job `chooseSide` does for the message, one size down: four candidates and
+an answer that is always one of them. Where every corner is covered the least
+covered one wins, because something still has to be pressable.
+
+**Leko owns where it goes and a host may own what is in it.** `renderClose` is
+handed a positioned root and `stop`, and hands back its own teardown. It is not
+given the instance: the only thing this control may do is end the tour, and a
+`nextStep()` reachable from here would be a second next control standing outside
+the step that decides whether there is one.
+
 ## A failed attempt
 
 **`validate` guards the control, and only the control.** Pressing it claims the

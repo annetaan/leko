@@ -118,6 +118,16 @@ body {
   background: var(--surface);
 }
 
+/*
+ * An account menu, where a real page puts one. The step that points at it is
+ * there to show the End tour control giving that corner up.
+ */
+.corner {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+}
+
 .panel h2 {
   margin: 0 0 14px;
   font-size: 16px;

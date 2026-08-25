@@ -41,4 +41,17 @@
    * is not beside its cutout at all.
    */
   --leko-message-dock: 24px;
+
+  /*
+   * The control that ends the tour. It sits in whichever corner of the viewport
+   * no cutout covers, so it has no side of its own to style.
+   */
+  --leko-close-bg: #fff;
+  --leko-close-color: #16181d;
+  --leko-close-font: 600 13px/1.5 system-ui, sans-serif;
+  --leko-close-padding: 6px 14px;
+  --leko-close-radius: 6px;
+  --leko-close-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+  /* Above the message, so a box landing on top still leaves the way out. */
+  --leko-close-z: 10001;
 }

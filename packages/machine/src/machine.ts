@@ -98,7 +98,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * way to close that loop without leaving a window where one exists and the
    * other does not.
    *
-   * What goes to the factory is three closures rather than `this`. Handing
+   * What goes to the factory is four closures rather than `this`. Handing
    * `this` over made `lost`, `moved` and `next` public members of the machine,
    * so anything holding a tour could call them, and `next` sat beside
    * `nextStep` meaning the same thing. A presenter cannot reach anything here
@@ -113,6 +113,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       lost: (step) => this.lose(step),
       moved: () => this.surfaceMoved(),
       next: () => this.nextStep(),
+      close: () => this.stop(),
     })
   }
 
