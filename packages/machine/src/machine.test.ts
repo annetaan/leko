@@ -91,6 +91,14 @@ class Fake implements Presenter<Anchor, Step, Story> {
     this.hidden += 1
   }
 
+  /** Every arrival it was told about, as `story/step` or `story/-` for a story. */
+  readonly held: string[] = []
+
+  hold(story: Story, step: Step | undefined): void {
+    this.held.push(`${story.id}/${step?.id ?? '-'}`)
+    this.hidden += 1
+  }
+
   teardown(): void {
     this.torn += 1
   }

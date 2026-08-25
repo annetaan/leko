@@ -15,7 +15,16 @@ import {
 } from '@annetaan/leko-spotlight'
 import type { LekoOptions, LekoStep, LekoStory, LekoTarget } from './types.js'
 
-const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
+const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
+
+/**
+ * How long the curtain stays once it is down, whatever the arrival does.
+ *
+ * A threshold has a band just above it: cross at 250ms with an arrival that
+ * ends at 300ms and the curtain is up for 50ms, which reads as a fault rather
+ * than as waiting. An arrival landing inside this waits it out.
+ */
+const CURTAIN_MINIMUM = 400
 
 const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
   Array.isArray(value) ? value : [value]
@@ -62,6 +71,18 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   private close: Close | undefined
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
+  /** The arrival that has not become a curtain yet, if one is waiting. */
+  private waiting: ReturnType<typeof setTimeout> | undefined
+  /** The frame the curtain is waiting to be painted in, if it is. */
+  private painting: number | undefined
+  /**
+   * When the curtain was first painted, which is when the minimum starts.
+   *
+   * Not when it was set. A step that declares `curtain: true` and hands back
+   * nothing has its curtain set and replaced inside one task, so no frame ever
+   * carries it, and there is nothing for a minimum to protect anybody from.
+   */
+  private since: number | undefined
 
   constructor(options: LekoOptions, host: Host<LekoStep>) {
     this.options = options
@@ -77,6 +98,97 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
    */
   private setting(story: LekoStory, step: LekoStep, key: 'padding' | 'radius'): number {
     return step[key] ?? story[key] ?? this.options[key] ?? DEFAULTS[key]
+  }
+
+  /**
+   * How long an arrival has to last before the curtain comes down, or `false`
+   * where it never does.
+   *
+   * The same near-to-far read as {@link setting}, with `??` rather than `||` so
+   * that a step writing `false` beats an instance writing a number instead of
+   * falling through it. A story's own arrival has no step to ask.
+   */
+  private curtainAfter(story: LekoStory, step: LekoStep | undefined): number | false {
+    const said = step?.curtain ?? story.curtain ?? this.options.curtain ?? DEFAULTS.curtain
+    if (said === false) return false
+    return said === true ? 0 : said
+  }
+
+  /**
+   * {@link Presenter.hold}. The step being left is over, so its message goes,
+   * and the curtain is set going if this arrival is the kind that gets one.
+   *
+   * Already down stays down. Two arrivals in a row are one window as far as
+   * somebody watching is concerned, and dropping it between them would be a
+   * flash of the page they are not meant to be using yet.
+   */
+  hold(story: LekoStory, step: LekoStep | undefined): void {
+    this.message?.hide()
+    if (this.since !== undefined || this.painting !== undefined) return
+    const after = this.curtainAfter(story, step)
+    if (after === false) return
+    clearTimeout(this.waiting)
+    // Straight through where nothing is being waited for. `setTimeout(fn, 0)`
+    // is still a task away, and a step that says it is slow should not spend
+    // one of those with the page open.
+    if (after === 0) return this.drawCurtain(story)
+    this.waiting = setTimeout(() => this.drawCurtain(story), after)
+  }
+
+  /**
+   * Everything, with no hole in it.
+   *
+   * `complementRects` with no holes is one rectangle over the whole surface, so
+   * this is the empty case of what the scrim does every day rather than a
+   * second way of covering things. A story's own arrival has no scrim yet,
+   * which is the case where this builds one: `start()` on a story with a slow
+   * `onEnter` used to draw nothing at all, so somebody pressed Start, watched
+   * nothing happen, and pressed it again.
+   */
+  private drawCurtain(story: LekoStory): void {
+    this.waiting = undefined
+    if (this.layers.length === 0) {
+      this.layers = [new Scrim(null)]
+      this.watchViewport()
+    }
+    // Cut rather than morphed. The curtain only appears for an arrival already
+    // slow enough to have crossed the delay, and spending another 320ms closing
+    // the hole would add to a wait that is the problem in the first place.
+    this.layers[0]?.set([])
+    for (const layer of this.layers.slice(1)) layer.set([])
+    this.painting = requestAnimationFrame(() => {
+      this.painting = undefined
+      this.since = performance.now()
+    })
+    this.showClose([])
+    if (this.options.curtainLabel !== undefined) {
+      this.message ??= new Message(() => this.host.next())
+      this.message.show(
+        { text: this.options.curtainLabel, error: undefined, next: undefined },
+        undefined,
+        [],
+        this.setting(story, story.steps[0]!, 'padding'),
+      )
+    }
+  }
+
+  /**
+   * How long the curtain still owes the viewer, and the end of it either way.
+   *
+   * Called once per arrival, from {@link show}, because it clears the mark it
+   * measures against.
+   */
+  private lift(): number {
+    clearTimeout(this.waiting)
+    this.waiting = undefined
+    if (this.painting !== undefined) {
+      cancelAnimationFrame(this.painting)
+      this.painting = undefined
+    }
+    if (this.since === undefined) return 0
+    const left = CURTAIN_MINIMUM - (performance.now() - this.since)
+    this.since = undefined
+    return Math.max(0, left)
   }
 
   resolve(step: LekoStep): HTMLElement | null {
@@ -177,6 +289,25 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   }
 
   show(
+    story: LekoStory,
+    step: LekoStep,
+    anchor: HTMLElement,
+    content: Content,
+    animate: boolean,
+  ): Promise<void> | void {
+    // The curtain is what the hole opens out of when there was one. Blowing the
+    // scrim up to a hole larger than the page first, which is how a tour that
+    // has drawn nothing opens, would flash the whole page clear on the way.
+    const covered = this.since !== undefined || this.painting !== undefined
+    const owed = this.lift()
+    if (owed === 0) return this.reveal(story, step, anchor, content, animate || covered)
+    return new Promise<void>((settle) => setTimeout(settle, owed)).then(() =>
+      this.reveal(story, step, anchor, content, true),
+    )
+  }
+
+  /** Draw the step. Called once the curtain, if there was one, has paid its dues. */
+  private reveal(
     story: LekoStory,
     step: LekoStep,
     anchor: HTMLElement,
@@ -322,6 +453,11 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   }
 
   teardown(): void {
+    clearTimeout(this.waiting)
+    this.waiting = undefined
+    if (this.painting !== undefined) cancelAnimationFrame(this.painting)
+    this.painting = undefined
+    this.since = undefined
     this.destroyLayers()
     this.message?.destroy()
     this.message = undefined

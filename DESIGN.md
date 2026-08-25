@@ -293,6 +293,53 @@ stories as a project has, and `start(id)` replays one from the top. What a
 project chooses is how much to put in each one, and Leko's answer is: less than
 you were going to.
 
+## The curtain
+
+An arrival is a window where Leko acts on nothing a host calls. The page used to
+look exactly as it had a moment before: the hole still on the step the tour had
+left, the message gone, and everything outside the hole still clickable. Three
+things were wrong with that, and they are the same thing three times over.
+
+Nothing said the gate was refusing calls. The hole pointed at a step the tour
+had finished with, with nothing beside it to explain why. And `start()` on a
+story with a slow `onEnter` drew nothing at all, so somebody pressed Start,
+watched nothing happen, and pressed it again.
+
+**So the scrim covers everything, with no hole in it, while an arrival is in
+flight.** `complementRects` with no holes is one rectangle over the whole
+surface, which makes the curtain the empty case of what the scrim does every day
+rather than a second way of covering things. The control from **The way out** is
+above it and reachable through it.
+
+**`curtain` is declared, never called.** `true` puts it down at once, a number
+is how long an arrival has to last first, and `false` is never. It reads step,
+then story, then instance, the way `padding` and `radius` do, with `??` rather
+than `||` so a step writing `false` beats an instance writing a number.
+
+A handler cannot ask for it. Nothing is known inside `onEnter` that is not known
+where the step is written, the runtime case is already covered by the delay, and
+a call made from in there is a call made while the gate is closed.
+
+**It is on by default, at 250ms.** The window is confusing in every project
+rather than only the ones that noticed, and a developer who has not noticed is
+the one who will not set a flag.
+
+**A curtain that was seen stays for a minimum.** A threshold has a band just
+above it, and a curtain up for 40ms reads as a fault rather than as waiting. The
+minimum is measured from the frame the curtain was first painted in, so a step
+that declares `curtain: true` and hands back nothing owes nothing: it was set
+and replaced inside one task and no frame ever carried it.
+
+**Leko puts no words on it.** `curtainLabel` is there for a host that knows what
+is being waited for. Leko does not, and a library that guesses at that is the
+guessing this one exists to avoid. The box docks, because there is no hole to
+sit beside.
+
+**It narrows the race and does not close it.** A request already in flight comes
+back inside the window whatever is on screen, and its signal is dropped. See
+`signal-too-early.ts`, where the reply lands 400ms into a 900ms arrival. That is
+what `onDiagnostic` reports and why it stays.
+
 ## One gate, and what it refuses
 
 **Leko never acts on a call while it is inside a call into the application.**

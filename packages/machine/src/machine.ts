@@ -276,6 +276,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private enterStory(story: St): void {
     const here = this.position
+    // Nothing of this story is on screen and nothing will be until its first
+    // step is drawn, which is the widest this window gets.
+    this.presenter.hold(story, undefined)
     // Nothing of this story is settled and nothing is drawn, which is what
     // `transitioning` says about the gap between two steps and says as well
     // about this one. Set before `onEnter` is called rather than after, so that
@@ -534,8 +537,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // had never been given.
     this.phase = 'step'
     // The step being left is over, and the hole is not where it was. There is
-    // no honest place for the message until the new cutout has arrived.
-    this.presenter.hide()
+    // no honest place for the message until the new cutout has arrived, and
+    // nothing about the step ahead has been built, so there is nothing honest
+    // to draw either.
+    this.presenter.hold(story, step)
     leaving?.onLeave?.(leaving, step)
 
     let entering: unknown

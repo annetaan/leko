@@ -171,6 +171,37 @@ export interface LekoStep {
   /** Message shown alongside the cutout. */
   message?: string
 
+  /**
+   * Cover the whole page, with no hole in it, while this step is arriving.
+   *
+   * An arrival is {@link onEnter} in flight. Nothing this step assumes has been
+   * built, its target has not been looked for, and Leko acts on nothing a host
+   * calls until it lands. The page meanwhile looks the way it did a moment ago:
+   * the hole is still on the step the tour has left, the message is gone, and
+   * everything the scrim does not cover is still clickable. The curtain makes
+   * that window look like what it is.
+   *
+   * | | |
+   * | --- | --- |
+   * | `true` | down the moment the arrival begins |
+   * | a number | down once the arrival has been in flight that many ms |
+   * | `false` | never |
+   *
+   * A number is the anti-flash delay every spinner has. `true` is for a step
+   * whose `onEnter` is known to be slow, where waiting out a delay only spends
+   * that time with the page unblocked and unexplained.
+   *
+   * Once down it stays down for a minimum, and an arrival landing inside that
+   * minimum waits for it. A curtain on screen for 40ms is worse than none.
+   *
+   * **It does not stop a request already in flight from coming back.** Somebody
+   * who pressed a button before the arrival began has already set that going,
+   * its reply lands inside the window, and it is dropped.
+   * {@link LekoOptions.onDiagnostic} reports that as `signal-dropped`. The
+   * curtain narrows the race rather than closing it.
+   */
+  curtain?: boolean | number
+
   /** Space between the target's border box and the cutout edge, in px. */
   padding?: number
 
@@ -288,6 +319,12 @@ export interface LekoStory {
 
   steps: LekoStep[]
 
+  /**
+   * Whether steps of this story that do not say draw a curtain while they
+   * arrive. See {@link LekoStep.curtain}.
+   */
+  curtain?: boolean | number
+
   /** Default padding for steps of this story that do not set their own. */
   padding?: number
 
@@ -381,11 +418,31 @@ export interface LekoStory {
 }
 
 /**
- * Defaults for every story on the instance. A story may override `padding`,
- * `radius` and `duration`, and a step may override the first two again: the
- * nearest one that says anything wins.
+ * Defaults for every story on the instance. A story may override `curtain`,
+ * `padding`, `radius` and `duration`, and a step may override the first three
+ * again: the nearest one that says anything wins.
  */
 export interface LekoOptions {
+  /**
+   * Whether an arrival draws a curtain, and after how long. See
+   * {@link LekoStep.curtain}. Defaults to `250`.
+   *
+   * On rather than off, because the window it covers is confusing in every
+   * project rather than only in the ones that noticed, and a developer who has
+   * not noticed is the one who will not set a flag. `false` turns it off
+   * everywhere.
+   */
+  curtain?: boolean | number
+
+  /**
+   * What the curtain says while it is down. Nothing by default.
+   *
+   * Leko does not know what an `onEnter` is doing, so it puts no words of its
+   * own there. A host that knows can say so, and the box docks at the foot of
+   * the viewport, because under a curtain there is no hole to sit beside.
+   */
+  curtainLabel?: string
+
   /** Space between a target's border box and the cutout edge. Defaults to `8`. */
   padding?: number
 

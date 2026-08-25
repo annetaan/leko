@@ -41,6 +41,20 @@ export interface Presenter<A, S extends StepBase<A, S>, St extends StoryBase<A, 
    */
   show(story: St, step: S, anchor: A, content: Content, animate: boolean): Promise<void> | void
   /**
+   * An arrival began, and nothing about the step it is heading for has been
+   * built, looked for or drawn.
+   *
+   * The step is the one being entered, and `undefined` while a story's own
+   * `onEnter` runs, because no step has been entered yet. Both are windows
+   * where the machine acts on nothing a host calls, so both are windows a
+   * presenter may want to say something about.
+   *
+   * Whatever this puts on screen is released by the next {@link show} or
+   * {@link teardown}. Nothing here is told when the arrival ends by any other
+   * route, because there is no other route.
+   */
+  hold(story: St, step: S | undefined): void
+  /**
    * Put it where it belongs now, without animating. For a surface that moved
    * under the tour rather than a tour that moved.
    *

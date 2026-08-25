@@ -85,6 +85,9 @@ export const signalTooEarly: Case = {
               'call landed at 400ms, inside that window, and was dropped. ' +
               'Press the button to make the same call again.',
             awaits: 'order-sent',
+            // Declared, because 900ms is known here rather than guessed at.
+            // The instance default would wait 250ms of it out first.
+            curtain: true,
 
             // Whatever the application really does here. What matters is that
             // it takes longer than the thing the user already set going.

@@ -102,6 +102,10 @@ function show(next: Case): void {
   // given it — an application exports its instance and reports to that, rather
   // than being handed a tour once one starts.
   leko = createLeko({
+    // Leko puts no words of its own on the curtain, because it cannot know what
+    // an onEnter is doing. This one can: every slow handler in these cases is
+    // standing in for a request.
+    curtainLabel: 'Setting the step up…',
     onTargetLost: (step, story) => {
       lost = `Target for “${story} / ${step.id}” is gone. The tour stopped rather than point at nothing.`
       leko?.stop()

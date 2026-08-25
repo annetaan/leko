@@ -25,11 +25,13 @@ afterEach(() => {
 })
 
 /**
- * Duration 0 unless a test says otherwise: these are about what ends up on
- * screen, not about how long it took to get there.
+ * Duration 0 and no curtain unless a test says otherwise. These are about what
+ * ends up on screen rather than how long it took to get there, and a curtain
+ * that came down because a machine was busy for 250ms would put a scrim into
+ * assertions that are not about one.
  */
 export function register(story: LekoStory, options: LekoOptions = {}) {
-  const leko = createLeko({ duration: 0, ...options })
+  const leko = createLeko({ duration: 0, curtain: false, ...options })
   instances.push(leko)
   leko.setStory(story)
   return leko

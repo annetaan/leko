@@ -536,3 +536,169 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
   expect(leko.state).toBe('idle')
   expect(undone).toEqual(['unmounted'])
 })
+
+// The curtain. An arrival is a window where Leko acts on nothing a host calls,
+// and the page used to look exactly as it had a moment before: the hole still
+// on the step the tour had left, and everything outside it still clickable.
+
+test('an arrival that lasts draws a curtain, and the page goes under it', async () => {
+  const [first, second] = pair()
+  const { promise, settle } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, curtain: true, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  expect(centre(first)).toBe(first)
+
+  leko.nextStep()
+
+  // `curtain: true` is a step saying it already knows it is slow, so there is
+  // no delay to wait out. Nothing is reachable now, including the step the tour
+  // has left.
+  expect(absorbed(first)).toBe(true)
+  expect(absorbed(second)).toBe(true)
+  expect(scrim()).not.toBeNull()
+
+  settle()
+  await vi.waitUntil(() => centre(second) === second)
+  expect(absorbed(first)).toBe(true)
+})
+
+test('the curtain leaves the way out reachable', () => {
+  const [first, second] = pair()
+  const { promise } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, curtain: true, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  const control = closer()!.querySelector('button')!
+  expect(centre(control)).toBe(control)
+  control.click()
+
+  expect(leko.state).toBe('idle')
+  expect(scrim()).toBeNull()
+})
+
+test('a story setting its own scene draws a curtain over a page with no scrim yet', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const { promise, settle } = held()
+  const leko = register({
+    id: 'story',
+    curtain: true,
+    onEnter: () => promise,
+    steps: [{ id: 'one', target }],
+  })
+
+  expect(scrim()).toBeNull()
+  leko.start('story')
+
+  // `start()` on a story with a slow onEnter used to draw nothing at all, so
+  // somebody pressed Start, watched nothing happen, and pressed it again.
+  expect(scrim()).not.toBeNull()
+  expect(absorbed(target)).toBe(true)
+
+  settle()
+  await vi.waitUntil(() => centre(target) === target)
+})
+
+test('a curtain says what a host gave it to say, and docks', () => {
+  const [first, second] = pair()
+  const { promise } = held()
+  const leko = register(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', target: first },
+        { id: 'b', target: second, curtain: true, onEnter: () => promise },
+      ],
+    },
+    { curtainLabel: 'Fetching the receipt' },
+  )
+
+  leko.start('story')
+  leko.nextStep()
+
+  const words = document.querySelector<HTMLElement>('.leko-message-text')
+  expect(words?.textContent).toBe('Fetching the receipt')
+  // There is no hole to sit beside, so it goes where a message goes when it
+  // cannot be anchored at all.
+  const at = words!.getBoundingClientRect()
+  expect(at.top).toBeGreaterThan(window.innerHeight / 2)
+})
+
+test('curtain false leaves the window exactly as it was', () => {
+  const [first, second] = pair()
+  const { promise } = held()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      { id: 'b', target: second, curtain: false, onEnter: () => promise },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  // The hole is still where the tour was, which is the thing the curtain is
+  // there to stop, kept available for a host that wants it.
+  expect(centre(first)).toBe(first)
+})
+
+test('a curtain that was seen stays for its minimum', async () => {
+  const [first, second] = pair()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      {
+        id: 'b',
+        target: second,
+        curtain: true,
+        // Long enough to be painted, far short of the minimum. Without one this
+        // would be a black page for three frames, which reads as a fault.
+        onEnter: () => new Promise<void>((settle) => setTimeout(settle, 50)),
+      },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  await vi.waitUntil(() => absorbed(second), { timeout: 1000 })
+  // The handler is long done and the step is still under the curtain.
+  await new Promise((r) => setTimeout(r, 150))
+  expect(absorbed(second)).toBe(true)
+
+  await vi.waitUntil(() => centre(second) === second, { timeout: 2000 })
+})
+
+test('a curtain nobody could have seen owes nothing', async () => {
+  const [first, second] = pair()
+  const leko = register({
+    id: 'story',
+    steps: [
+      { id: 'a', target: first },
+      // Declared slow and answering in the turn, so the curtain is set and
+      // replaced inside one task and no frame ever carries it.
+      { id: 'b', target: second, curtain: true },
+    ],
+  })
+
+  leko.start('story')
+  leko.nextStep()
+
+  expect(centre(second)).toBe(second)
+})

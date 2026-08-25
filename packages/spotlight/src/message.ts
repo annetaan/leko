@@ -206,14 +206,20 @@ export class Message {
   /**
    * Show `text` beside `cutouts`, which are in viewport coordinates.
    *
-   * `anchor` is the element the browser tracks — the step's action target. The
-   * cutouts are what the message has to stay clear of, and they are a wider
+   * `anchor` is the element the browser tracks — the step's action target, and
+   * `undefined` where there is no step to point at. The cutouts are what the
+   * message has to stay clear of, and they are a wider
    * thing than the anchor: a union of several targets, plus any `related` holes.
    * The gap between the two is turned into a margin here, once, and stays right
    * for as long as the two move together — which they do, being cut from the
    * same scrim.
    */
-  show(content: MessageContent, anchor: HTMLElement, cutouts: Rect[], gap: number): void {
+  show(
+    content: MessageContent,
+    anchor: HTMLElement | undefined,
+    cutouts: Rect[],
+    gap: number,
+  ): void {
     this.fill(content)
     if (!this.element.isConnected) document.body.append(this.element)
     if (!this.open) {
@@ -222,7 +228,8 @@ export class Message {
       this.element.showPopover?.()
       this.open = true
     }
-    this.hold(anchor)
+    if (anchor) this.hold(anchor)
+    else this.release()
     this.place(anchor, cutouts, gap)
     Object.assign(this.element.style, {
       transition: prefersReducedMotion() ? '' : `opacity ${FADE}ms`,
@@ -306,10 +313,12 @@ export class Message {
     this.restore = undefined
   }
 
-  private place(anchor: HTMLElement, cutouts: Rect[], gap: number): void {
+  private place(anchor: HTMLElement | undefined, cutouts: Rect[], gap: number): void {
     const style = this.element.style
     const box = union(cutouts)
-    if (!this.anchored || !box) return this.dock()
+    // No anchor and no cutouts is the curtain: there is no hole to sit beside,
+    // so the box goes where it goes when the browser cannot track one either.
+    if (!this.anchored || !box || !anchor) return this.dock()
 
     for (const margin of MARGINS) style[margin] = '0px'
     for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''
