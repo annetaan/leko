@@ -28,7 +28,6 @@ app.append(
       <footer class="controls">
         <span class="starts" data-starts></span>
         <button type="button" data-action="next">nextStep()</button>
-        <button type="button" data-action="prev">prevStep()</button>
         <button type="button" data-action="stop">stop()</button>
         <span class="state" data-state>idle</span>
         <span class="note" data-note>No tour running.</span>
@@ -148,7 +147,6 @@ for (const item of cases) {
 
 const actions: Record<string, () => void> = {
   next: () => leko?.nextStep(),
-  prev: () => leko?.prevStep(),
   stop: () => leko?.stop(),
 }
 

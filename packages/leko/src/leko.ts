@@ -139,16 +139,6 @@ export class Leko {
   }
 
   /**
-   * Step back. Never validates: going back is not a claim of success.
-   *
-   * It reports through {@link LekoStory.onStep} like anything else. The hook
-   * says where the story is, and not why it went there.
-   */
-  prevStep(): void {
-    this.machine.prevStep()
-  }
-
-  /**
    * Reports the ending through {@link LekoStory.onStep} before returning, with
    * `step` as `undefined`. The host that called this knows already, and
    * whatever draws the progress is written somewhere else and does not.

@@ -268,7 +268,7 @@ test('the control goes through validate, and a failed press stays where it is', 
   expect(on(error())).toBe(false)
 })
 
-test('an error is about the attempt, so going back leaves it behind', () => {
+test('an error is about the attempt, so leaving the step takes it away', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
     { id: 'one', target, message: 'First.' },
@@ -285,8 +285,11 @@ test('an error is about the attempt, so going back leaves it behind', () => {
   control()?.click()
   expect(error()?.textContent).toBe('Not yet.')
 
-  leko.prevStep()
+  // Running the story again is the only way back to a step, and the complaint
+  // belonged to one attempt at the step that is now behind.
+  leko.start('story')
   expect(on(error())).toBe(false)
+  expect(words()).toBe('First.')
 })
 
 test('a step with only an error to show gets a box for it', async () => {

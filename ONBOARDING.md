@@ -61,7 +61,7 @@ drive the case.
 pnpm test
 ```
 
-253 test runs across 17 files. It takes about 5 seconds on a laptop once the
+250 test runs across 17 files. It takes about 5 seconds on a laptop once the
 browsers are installed. Five Vitest projects, three of them in real browsers.
 
 ## The shape of the code
@@ -100,20 +100,20 @@ it.
 
 | File | Lines | What it holds |
 | --- | --- | --- |
-| `packages/leko/src/types.ts` | 443 | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | 167 | The public class. Four getters and six methods |
+| `packages/leko/src/types.ts` | 505 | Every public type, and most of the reasoning, in JSDoc |
+| `packages/leko/src/leko.ts` | 155 | The public class. Four getters and five methods |
 | `packages/leko/src/presenter.ts` | 292 | `DomPresenter`: the two halves, wired |
-| `packages/machine/src/machine.ts` | 615 | Which step the tour is on |
+| `packages/machine/src/machine.ts` | 641 | Which step the tour is on |
 | `packages/machine/src/port.ts` | 94 | `Presenter` and `Host`. The seam |
-| `packages/machine/src/types.ts` | 58 | `StepBase`, `StoryBase`, `ErrorUtils` |
+| `packages/machine/src/types.ts` | 92 | `StepBase`, `StoryBase`, `ErrorUtils`, `Problem` |
 | `packages/spotlight/src/geometry.ts` | 221 | Pure functions. Numbers in, numbers out |
-| `packages/spotlight/src/scrim.ts` | 295 | The overlay element and its morph loop |
+| `packages/spotlight/src/scrim.ts` | 329 | The overlay element and its morph loop |
 | `packages/spotlight/src/message.ts` | 364 | The box beside the hole |
 | `packages/codegen/src/scan.ts` | 165 | Every name a `reached()` call reports |
 
 ## Read the files in this order
 
-**1. `packages/leko/src/types.ts`** (443 lines)
+**1. `packages/leko/src/types.ts`** (505 lines)
 
 Start with the biggest file. Almost none of it is code. It is the public API
 with the argument for each option written next to it, and reading it gives you
@@ -132,7 +132,7 @@ Read it twice. Three rules live here and DESIGN.md states each under
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
-**3. `packages/machine/src/machine.ts`** (615 lines)
+**3. `packages/machine/src/machine.ts`** (641 lines)
 
 The hard file. Budget an hour. Read the field declarations at the top first,
 then the section below on what each field means, then the methods.
@@ -143,7 +143,7 @@ Relief after the machine. Every function takes numbers and returns numbers.
 `complementRects` is the one to understand. It is what the scrim blocks with,
 and it is what makes constraint 1 true by construction.
 
-**5. `packages/spotlight/src/scrim.ts`** (295 lines)
+**5. `packages/spotlight/src/scrim.ts`** (329 lines)
 
 The overlay element. `morph` and `run` are the animation. `block` puts the
 rectangles from `complementRects` on the page.
@@ -158,9 +158,9 @@ line 65.
 Now the wiring makes sense. `DomPresenter` implements the `Presenter` interface
 from step 2 using the three files from steps 4 to 6.
 
-**8. `packages/leko/src/leko.ts`** (167 lines)
+**8. `packages/leko/src/leko.ts`** (155 lines)
 
-Four getters and six methods, each one delegating to the machine. It is thin
+Four getters and five methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
 **9. `packages/codegen/`** (572 lines, optional)
@@ -198,7 +198,7 @@ The other direction is three calls. `Host.lost` when a target leaves the page,
 machine hands the presenter three closures in its constructor, so the presenter
 cannot reach anything else on the machine.
 
-## The five fields in the machine
+## The six fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
@@ -243,8 +243,8 @@ Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, an `onValidationError`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. `reached`, `nextStep`, `prevStep`, `start` and `setStory` all
-ask this first.
+nothing to check. `reached`, `nextStep`, `start` and `setStory` all ask this
+first.
 
 `stop()` does not ask, and that is the one exception. A tour nobody can turn off
 until an application's `onEnter` settles is worse than the race. The two

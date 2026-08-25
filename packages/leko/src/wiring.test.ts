@@ -143,7 +143,7 @@ test('a target that leaves the page while its step is showing does not go unnoti
   expect(onTargetLost.mock.calls[0]?.[0]?.id).toBe('doomed')
 })
 
-test('going back to a target that has gone reports the ending and nothing after it', () => {
+test('moving on to a target that has gone reports the ending and nothing after it', () => {
   const [first, second] = pair()
   const { leko, seen } = watched({
     id: 'story',
@@ -154,13 +154,12 @@ test('going back to a target that has gone reports the ending and nothing after 
   })
 
   leko.start('story')
-  leko.nextStep()
-  first.remove()
+  second.remove()
   seen.length = 0
-  leko.prevStep()
+  leko.nextStep()
 
-  // `b` is where the tour was and `a` is where it never arrived.
-  expect(seen).toEqual([[undefined, 'b']])
+  // `a` is where the tour was and `b` is where it never arrived.
+  expect(seen).toEqual([[undefined, 'a']])
 })
 
 test('onEnter builds the state the step assumes, before the target is looked for', () => {
@@ -310,7 +309,7 @@ test('a promise from a story onEnter holds back the first step entirely', async 
   expect(centre(target)).toBe(target)
 })
 
-test('a story waiting on its onEnter does not let a step be gone back to either', async () => {
+test('a story waiting on its onEnter does not let a step be moved past either', async () => {
   const [first, second] = pair()
   const { promise, settle } = held()
   const entered: string[] = []
@@ -323,12 +322,12 @@ test('a story waiting on its onEnter does not let a step be gone back to either'
     ],
   })
 
-  leko.start('story', 1)
-  leko.prevStep()
+  leko.start('story')
+  leko.nextStep()
 
-  // Walking out of a step in flight is a step's own business. Every step of
-  // this story is waiting on the same handler, so `a` is no readier than `b`.
-  expect(leko.index).toBe(1)
+  // Every step of this story is waiting on the same handler, so there is no
+  // step here to move away from.
+  expect(leko.index).toBe(0)
   expect(leko.state).toBe('transitioning')
   expect(scrim()).toBeNull()
   expect(entered).toEqual([])
@@ -336,11 +335,11 @@ test('a story waiting on its onEnter does not let a step be gone back to either'
   settle()
   await promise
 
-  expect(leko.step?.id).toBe('b')
-  expect(centre(second)).toBe(second)
+  expect(leko.step?.id).toBe('a')
+  expect(centre(first)).toBe(first)
 })
 
-test('going back works again once the story has settled', async () => {
+test('moving on works again once the story has settled', async () => {
   const [first, second] = pair()
   const { promise, settle } = held()
   const leko = register({
@@ -352,13 +351,13 @@ test('going back works again once the story has settled', async () => {
     ],
   })
 
-  leko.start('story', 1)
+  leko.start('story')
   settle()
   await promise
-  leko.prevStep()
+  leko.nextStep()
 
-  expect(leko.step?.id).toBe('a')
-  expect(centre(first)).toBe(first)
+  expect(leko.step?.id).toBe('b')
+  expect(centre(second)).toBe(second)
 })
 
 test('meta is carried and never read', () => {

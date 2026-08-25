@@ -63,8 +63,8 @@ export type MachineState = 'idle' | 'running' | 'transitioning'
  *
  * What is deliberately not here is the silence. A `reached()` naming something
  * no step waits for stays silent, permanently, because instrumentation has to
- * be free to leave in. So does `nextStep()` while idle, and `prevStep()` on the
- * first step, because a button that sits there is allowed to be pressed.
+ * be free to leave in. So does `nextStep()` while idle, because a button that
+ * sits there is allowed to be pressed.
  *
  * `@annetaan/leko` declares this shape again for its users rather than
  * re-exporting it, for the reason {@link ErrorUtils} does.
@@ -81,7 +81,7 @@ export type Problem<S> =
    */
   | { kind: 'signal-dropped'; name: string; step: S }
   /** A call that arrived while the machine was inside the application. */
-  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'prevStep' | 'setStory' }
+  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
 
 export interface MachineOptions<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
   /** The words on the next control, where a step gets one. */

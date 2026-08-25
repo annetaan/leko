@@ -373,29 +373,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * Step back. Never validates: going back is not a claim of success.
-   *
-   * A back button under a dimmed page is what someone reaches for while a slow
-   * step loads, and this used to walk out of a step's `onEnter` for that
-   * reason. It does not any more. Nothing that step assumes has been built and
-   * the step behind it is no readier than the step ahead, which was already the
-   * answer for a story's `onEnter` and is now the answer for both.
-   */
-  prevStep(): void {
-    const here = this.position
-    // A back button sits there on the first step and is allowed to be pressed,
-    // so that is silence rather than a refusal.
-    if (!here || here.index === 0) return
-    if (!this.accepting) {
-      this.refuse('prevStep')
-      return
-    }
-    const leaving = this.step
-    this.position = { ...here, index: here.index - 1 }
-    this.enter(true, leaving)
-  }
-
-  /**
    * Reports the ending through the story's `onStep` before returning, with
    * `step` as `undefined`. The host that called this knows already, and
    * whatever draws the progress is written somewhere else and does not.

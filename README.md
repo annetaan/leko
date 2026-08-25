@@ -103,6 +103,22 @@ thinking about it. Register as many stories as you have — `leko.setStory(...)`
 again, with another id — and the signal moves the one that is running, if its
 current step declared that name, and nothing otherwise.
 
+### Write several short stories, not one long one
+
+There is no back button, and there is no way to start a story part-way through.
+A story runs from its first step forward, or it stops.
+
+That sounds like a missing feature and it is a position. A step usually waits
+for something the application reports, and once the order is saved nothing will
+report it a second time, so a tour standing on that step again waits for ever.
+Leko cannot tell which signals can happen twice. Neither can most applications
+undo the state a step left behind.
+
+So a story of four steps is the shape to aim for. Running it again costs a few
+seconds, which is what somebody who misread step 3 should pay. A story of twenty
+is where a back button starts to feel necessary, and that is the signal to split
+it. [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
+
 ### Write the call, get the name back
 
 Both sides of a signal are a string, and a string is easy to mistype. Nothing

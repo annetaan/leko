@@ -53,9 +53,13 @@ DESIGN.md. Do not do any of them without reading that page first.
   different way, and DESIGN.md argues all three.
 - **Letting one call through while an arrival is in flight.** Leko acts on
   nothing while it is inside a call into the application, and `stop()` is the
-  only exception. That rule is what pays for a state core of five fields with no
+  only exception. That rule is what pays for a state core of six fields with no
   run counter in it, and every exception puts a "did the world move" check back
   into a callback. DESIGN.md argues it.
+- **Adding a back control, or a way to start a story part-way through.** A step
+  that declares `awaits` cannot be returned to: the signal fired once and will
+  not fire again, so the tour waits for ever. A story is atomic, and the answer
+  to a tour somebody wants to redo is a shorter story. DESIGN.md argues it.
 
 ## Writing code here
 

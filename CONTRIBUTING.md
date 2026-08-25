@@ -156,11 +156,16 @@ page, not just the rule.
   step advanced by something that happened while it was not on screen has
   established nothing.
 - **Letting a call through while an arrival is in flight, "just this one".**
-  The gate is what pays for the state core being five fields with no run
+  The gate is what pays for the state core being six fields with no run
   counter. Every exception puts back a callback that has to ask afterwards
   whether the world moved while it ran.
   [DESIGN.md](DESIGN.md#one-gate-and-what-it-refuses) states it, along with the
   one exception there is and why `stop()` gets to be it.
+- **Adding a back control, or a way to start a story part-way through.** A step
+  that declares `awaits` cannot be returned to: the application reported that
+  name once and will not report it again, so the tour waits for ever. The answer
+  to a tour somebody wants to redo is a shorter story.
+  [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
 
 ## Adding a spike
 

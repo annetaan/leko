@@ -312,9 +312,9 @@ export interface LekoStory {
    * runs outermost first: this, then the step's, then the page is measured.
    *
    * Nothing the host calls moves the tour in that window either. `nextStep()`,
-   * `reached()` and `prevStep()` are all dropped, because every step is waiting
-   * on this handler and none of them is readier than another. `start()` and
-   * `stop()` still take the tour somewhere else, and {@link onLeave} runs.
+   * `reached()`, `start()` and `setStory()` are all dropped, because every step
+   * is waiting on this handler and none of them is readier than another.
+   * `stop()` is the exception and always takes, and {@link onLeave} runs.
    *
    * **A rejection stops the tour** and the reason is thrown again, exactly as a
    * step's does. {@link onLeave} still runs, because a handler that failed
@@ -466,12 +466,12 @@ export interface LekoOptions {
  * made at a moment nothing could act on. Neither has any other symptom. The
  * tour does not move, and nothing anywhere says why.
  *
- * Three things stay silent on purpose and are not here. A {@link Leko.reached}
+ * Two things stay silent on purpose and are not here. A {@link Leko.reached}
  * naming something no step waits for, because instrumentation is meant to stay
  * in the source permanently and something free to leave in cannot complain
- * about being left in. {@link Leko.nextStep} while idle, and
- * {@link Leko.prevStep} on the first step, because a button that sits there is
- * allowed to be pressed. A caller doing everything right ends up in all three.
+ * about being left in. And {@link Leko.nextStep} while idle, because a button
+ * that sits there is allowed to be pressed. A caller doing everything right
+ * ends up in both.
  */
 export type LekoProblem =
   /** {@link Leko.start} was given an id nothing is registered under. */
@@ -494,7 +494,7 @@ export type LekoProblem =
    *
    * `stop()` is never here. It is the one call that asks nothing.
    */
-  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'prevStep' | 'setStory' }
+  | { kind: 'call-refused'; call: 'start' | 'nextStep' | 'setStory' }
 
 /**
  * `idle` — no story running. Both `reached()` and `nextStep()` are no-ops.

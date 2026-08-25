@@ -205,6 +205,39 @@ that is not ready. There is no hook for that failure. The rejection came from
 the application's own code, and the place with the context to do something about
 it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
 
+## A story is atomic, and stories are short
+
+**Leko offers no way back.** There is no `prevStep()`, and there never was a
+good one.
+
+A step that declares `awaits` cannot be returned to. Step 2 says "save the
+order" and waits for `order-saved`. Somebody saves it, the tour moves on, and a
+back button puts them on step 2 again, waiting for `order-saved` against an
+order that is already saved. Nothing will report it a second time. The tour
+hangs and nothing says why, which is the failure `onDiagnostic` exists for,
+arrived at by a road that carries no diagnostic because nothing was dropped.
+
+Leko cannot fix that. Whether a signal can be reported twice is a fact about the
+application and there is no way to ask. Refusing to go back onto a step that
+declares `awaits` would work, and it would make a control that works on some
+steps and not others, which is worse than no control. Application state does not
+run backwards. `onLeave` and `onEnter` can close a panel again. They cannot
+unsave an order.
+
+**So the answer to "I need to go back" is a shorter story.** Write several. A
+story of four steps costs a few seconds to run again, and somebody who misread
+step 3 loses those seconds. A story of twenty does not, and twenty is where a
+back button starts to feel necessary.
+
+This is easier on the application as well. Plenty of applications cannot undo
+the state a step left behind, and a tour that pretends otherwise puts bugs in
+code that was never written for it.
+
+Nothing in the API is needed to work this way. `setStory` registers as many
+stories as a project has, and `start(id)` replays one from the top. What a
+project chooses is how much to put in each one, and Leko's answer is: less than
+you were going to.
+
 ## One gate, and what it refuses
 
 **Leko never acts on a call while it is inside a call into the application.**
@@ -214,8 +247,8 @@ step has been handed to whatever draws it, and `onEnter` is inside it whether it
 answers in the turn or hands back a promise that lands half a second later. A
 teardown is another: `onLeave` is running and the run is half taken apart.
 
-Inside either, `reached()`, `nextStep()`, `prevStep()`, `start()` and
-`setStory()` all do nothing. Nothing that step assumes has been built, its
+Inside either, `reached()`, `nextStep()`, `start()` and `setStory()` all do
+nothing. Nothing that step assumes has been built, its
 target has not been looked for, and it has never been on screen, so there is no
 step there to act on. The call is dropped where it stands rather than saved for
 when the arrival lands, because a signal saved over is a step advancing on
@@ -239,16 +272,16 @@ one of them was always about to be forgotten.
 
 ## Saying that a call did nothing
 
-Five calls do nothing. Three of them stay silent and two do not, and the line is
+Four calls do nothing. Two of them stay silent and two do not, and the line is
 whether a caller doing everything right can end up there.
 
-Silent: `reached()` with a name nothing waits for, `nextStep()` while idle, and
-`prevStep()` on the first step. A next button calls `nextStep()` whether or not
-a tour is running, a back button sits there on the first step, and `reached()`
-is the strongest case of all. Instrumentation is meant to stay in the source
-permanently, including in builds where no tour ever runs, so something that must
-be free to leave in cannot complain about being left in. **Those three must
-never speak**, and nothing should be added here that makes them.
+Silent: `reached()` with a name nothing waits for, and `nextStep()` while idle.
+A next button calls `nextStep()` whether or not a tour is running, and
+`reached()` is the stronger case of the two. Instrumentation is meant to stay in
+the source permanently, including in builds where no tour ever runs, so
+something that must be free to leave in cannot complain about being left in.
+**Those two must never speak**, and nothing should be added here that makes
+them.
 
 Reported through `onDiagnostic`: a `start()` naming a story or a step that is
 not there, and any call refused by the gate above. There is no version of

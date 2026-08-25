@@ -389,7 +389,9 @@ describe('what a failed attempt can do about itself', () => {
     use().setError('That is not a postcode.')
     expect(drawing().content?.error).toBe('That is not a postcode.')
 
-    tour.prevStep()
+    // Running the story again is the only way back to a step, and it is a
+    // fresh attempt at it.
+    tour.start('story')
     tour.nextStep()
 
     expect(drawing().content?.error).toBeUndefined()
@@ -747,8 +749,6 @@ describe('what the tour says it is doing', () => {
     expect(tour.index).toBe(0)
     tour.nextStep()
     expect(tour.index).toBe(1)
-    tour.prevStep()
-    expect(tour.index).toBe(0)
     tour.stop()
     expect(tour.index).toBeUndefined()
   })
@@ -797,23 +797,6 @@ describe('saying where the tour got to', () => {
     tour.nextStep()
 
     expect(seen).toEqual(['a', 'b'])
-  })
-
-  test('going back reports too, because the hook says where the story is', () => {
-    const { tour, seen } = watched({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second' },
-      ],
-    })
-
-    tour.start('story')
-    tour.nextStep()
-    seen.length = 0
-    tour.prevStep()
-
-    expect(seen).toEqual([['a', 'b']])
   })
 
   test('stopping reports the ending once, however many times it is called', () => {
@@ -1070,35 +1053,6 @@ describe('what a step assumes', () => {
     ])
   })
 
-  test('going back is refused while the step ahead is still being built', async () => {
-    const { promise, settle } = held()
-    const tour = register({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', onEnter: () => promise },
-      ],
-    })
-
-    tour.start('story')
-    tour.nextStep()
-    expect(tour.state).toBe('transitioning')
-
-    // A back button under a dimmed page is what someone reaches for while a
-    // slow step loads, and this used to walk out of `b`. Nothing `b` assumes
-    // has been built, so `a` is no readier than `b` is.
-    tour.prevStep()
-    expect(tour.step?.id).toBe('b')
-
-    settle()
-    await promise
-    expect(tour.state).toBe('running')
-
-    // And the button works the moment the step it was pressed on is standing.
-    tour.prevStep()
-    expect(tour.step?.id).toBe('a')
-  })
-
   test('onLeave says where the tour is going, and says nothing where it is ending', () => {
     const left: [string, string | undefined][] = []
     const onLeave = (step: Step, next: Step | undefined) => left.push([step.id, next?.id])
@@ -1114,30 +1068,6 @@ describe('what a step assumes', () => {
     expect(left).toEqual([
       ['a', 'b'],
       ['b', undefined],
-    ])
-  })
-
-  test('going back enters the step again, because it assumes the same state as before', () => {
-    const entered: string[] = []
-    const left: [string, string | undefined][] = []
-    const steps: Step[] = [
-      { id: 'a', target: 'first' },
-      { id: 'b', target: 'second' },
-    ].map((step) => ({
-      ...step,
-      onEnter: (s: Step) => void entered.push(s.id),
-      onLeave: (s: Step, next: Step | undefined) => left.push([s.id, next?.id]),
-    }))
-    const tour = start(steps)
-
-    tour.nextStep()
-    tour.prevStep()
-
-    expect(entered).toEqual(['a', 'b', 'a'])
-    // `next` is where the tour is going, which going back is as much as anything.
-    expect(left).toEqual([
-      ['a', 'b'],
-      ['b', 'a'],
     ])
   })
 
@@ -1333,7 +1263,7 @@ describe('what a step assumes', () => {
     expect(tour.state).toBe('idle')
   })
 
-  test('a story waiting on its onEnter does not let a step be gone back to either', async () => {
+  test('a story waiting on its onEnter does not let a step be moved past either', async () => {
     const { promise, settle } = held()
     const entered: string[] = []
     const tour = register({
@@ -1345,12 +1275,12 @@ describe('what a step assumes', () => {
       ],
     })
 
-    tour.start('story', 1)
-    tour.prevStep()
+    tour.start('story')
+    tour.nextStep()
 
-    // Walking out of a step in flight is a step's own business. Every step of
-    // this story is waiting on the same handler, so `a` is no readier than `b`.
-    expect(tour.index).toBe(1)
+    // Every step of this story is waiting on the same handler, so there is no
+    // step here to move away from.
+    expect(tour.index).toBe(0)
     expect(tour.state).toBe('transitioning')
     expect(drawing().shown).toEqual([])
     expect(entered).toEqual([])
@@ -1358,11 +1288,11 @@ describe('what a step assumes', () => {
     settle()
     await promise
 
-    expect(tour.step?.id).toBe('b')
-    expect(drawing().shown).toEqual(['b'])
+    expect(tour.step?.id).toBe('a')
+    expect(drawing().shown).toEqual(['a'])
   })
 
-  test('going back works again once the story has settled', async () => {
+  test('moving on works again once the story has settled', async () => {
     const { promise, settle } = held()
     const tour = register({
       id: 'story',
@@ -1373,15 +1303,15 @@ describe('what a step assumes', () => {
       ],
     })
 
-    tour.start('story', 1)
+    tour.start('story')
     settle()
     await promise
 
-    tour.prevStep()
+    tour.nextStep()
 
     // The guard is about the handler being in flight and nothing else.
-    expect(tour.step?.id).toBe('a')
-    expect(drawing().shown).toEqual(['b', 'a'])
+    expect(tour.step?.id).toBe('b')
+    expect(drawing().shown).toEqual(['a', 'b'])
   })
 })
 
@@ -1417,7 +1347,6 @@ describe('a call that arrives while the machine is inside the application', () =
 
     tour.reached('ready')
     tour.nextStep()
-    tour.prevStep()
     expect(tour.start('other')).toBe(false)
     expect(tour.setStory({ id: 'fresh', steps: [{ id: 'z', target: 'third' }] })).toBe(false)
 
@@ -1427,7 +1356,7 @@ describe('a call that arrives while the machine is inside the application', () =
 
     expect(tour.state).toBe('running')
     expect(tour.step?.id).toBe('b')
-    // Five calls and one draw. Nothing was queued and replayed either, which is
+    // Four calls and one draw. Nothing was queued and replayed either, which is
     // the other way to get this wrong: a signal saved over is a step advancing
     // on something that happened before it began.
     expect(drawing().shown).toEqual(['a', 'b'])
@@ -1577,7 +1506,6 @@ describe('saying that a call did nothing', () => {
     tour.nextStep()
 
     tour.nextStep()
-    tour.prevStep()
     tour.start('other')
     tour.setStory({ id: 'fresh', steps: [{ id: 'z', target: 'third' }] })
     tour.stop()
@@ -1586,7 +1514,6 @@ describe('saying that a call did nothing', () => {
     // is never anything to report about it.
     expect(problems).toEqual([
       { kind: 'call-refused', call: 'nextStep' },
-      { kind: 'call-refused', call: 'prevStep' },
       { kind: 'call-refused', call: 'start' },
       { kind: 'call-refused', call: 'setStory' },
     ])
@@ -1600,10 +1527,8 @@ describe('saying that a call did nothing', () => {
       steps: [{ id: 'a', target: 'first' }],
     })
 
-    tour.nextStep() // idle
-    tour.prevStep() // idle
+    tour.nextStep() // idle, which is where a next button spends most of its life
     tour.start('story')
-    tour.prevStep() // the first step, where a back button still sits
     // And re-registering the running story, which a re-render does every time.
     tour.setStory({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
 
