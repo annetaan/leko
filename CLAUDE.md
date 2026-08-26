@@ -64,8 +64,11 @@ DESIGN.md. Do not do any of them without reading that page first.
 ## Writing code here
 
 Functional core, thin imperative shell — DESIGN.md says why. Geometry goes in
-`packages/spotlight/src/geometry.ts` as pure functions with tests of their own;
-DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
+`packages/spotlight/src/geometry.ts` as pure functions with tests of their own,
+and the curtain's lifetime is `packages/leko/src/curtain.ts` the same way; DOM
+work stays in `scrim.ts`, `message.ts`, `presenter.ts` and `leko.ts` and stays
+small. A handle a timer or a frame hands back is data about what is running, so
+it belongs in the state that names it rather than in a field of its own.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
 a `document` in it is a compile error. It is the same split again inside:

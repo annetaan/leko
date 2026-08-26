@@ -13,18 +13,10 @@ import {
   Scrim,
   union,
 } from '@annetaan/leko-spotlight'
+import { type Curtain, covering, DOWN, onset, owed } from './curtain.js'
 import type { LekoOptions, LekoStep, LekoStory, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
-
-/**
- * How long the curtain stays once it is down, whatever the arrival does.
- *
- * A threshold has a band just above it: cross at 250ms with an arrival that
- * ends at 300ms and the curtain is up for 50ms, which reads as a fault rather
- * than as waiting. An arrival landing inside this waits it out.
- */
-const CURTAIN_MINIMUM = 400
 
 /**
  * How long a target that has left the page is given to come back.
@@ -79,20 +71,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private close: Close | undefined
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
-  /** The arrival that has not become a curtain yet, if one is waiting. */
-  private waiting: ReturnType<typeof setTimeout> | undefined
-  /** The frame the curtain is waiting to be painted in, if it is. */
-  private painting: number | undefined
+  /** Where the curtain is. `curtain.ts` says what each state means. */
+  private curtain: Curtain = DOWN
   /** The rest of the minimum a curtain still owes, while a step waits it out. */
   private owing: ReturnType<typeof setTimeout> | undefined
-  /**
-   * When the curtain was first painted, which is when the minimum starts.
-   *
-   * Not when it was set. A step that declares `curtain: true` and hands back
-   * nothing has its curtain set and replaced inside one task, so no frame ever
-   * carries it, and there is nothing for a minimum to protect anybody from.
-   */
-  private since: number | undefined
   /**
    * The last step handed over, kept so that a target which comes back can be
    * drawn again without the machine being told anything happened.
@@ -145,15 +127,22 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   hold(story: LekoStory, step: LekoStep | undefined): void {
     this.message?.hide()
-    if (this.since !== undefined || this.painting !== undefined) return
-    const after = this.curtainAfter(story, step)
-    if (after === false) return
-    clearTimeout(this.waiting)
-    // Straight through where nothing is being waited for. `setTimeout(fn, 0)`
-    // is still a task away, and a step that says it is slow should not spend
-    // one of those with the page open.
-    if (after === 0) return this.drawCurtain(story, step)
-    this.waiting = setTimeout(() => this.drawCurtain(story, step), after)
+    const asked = onset(this.curtain, this.curtainAfter(story, step))
+    if (asked.do === 'nothing') return
+    if (asked.do === 'paint') return this.drawCurtain(story, step)
+    this.lower()
+    this.curtain = {
+      kind: 'waiting',
+      timer: setTimeout(() => this.drawCurtain(story, step), asked.after),
+    }
+  }
+
+  /** Stop whatever the curtain has running. Which way is the state's to say. */
+  private lower(): void {
+    const curtain = this.curtain
+    if (curtain.kind === 'waiting') clearTimeout(curtain.timer)
+    if (curtain.kind === 'painting') cancelAnimationFrame(curtain.frame)
+    this.curtain = DOWN
   }
 
   /**
@@ -179,7 +168,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * nothing happen, and pressed it again.
    */
   private drawCurtain(story: LekoStory, step: LekoStep | undefined): void {
-    this.waiting = undefined
+    // A delay that has already fired is stopped again for nothing, and one that
+    // has not is a second curtain this one would leak.
+    this.lower()
     if (this.layers.length === 0) {
       this.layers = [new Scrim(null)]
       this.watchViewport()
@@ -189,10 +180,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // the hole would add to a wait that is the problem in the first place.
     this.layers[0]?.set([])
     for (const layer of this.layers.slice(1)) layer.set([])
-    this.painting = requestAnimationFrame(() => {
-      this.painting = undefined
-      this.since = performance.now()
-    })
+    this.curtain = {
+      kind: 'painting',
+      frame: requestAnimationFrame(() => {
+        this.curtain = { kind: 'up', since: performance.now() }
+      }),
+    }
     this.showClose([])
     const text = this.curtainLabel(story, step)
     if (text !== undefined) {
@@ -212,21 +205,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * measures against.
    */
   private lift(): number {
-    clearTimeout(this.waiting)
-    this.waiting = undefined
+    const left = owed(this.curtain, performance.now())
+    this.lower()
     // A step still waiting out the last curtain is a step nothing is heading
     // for any more. Left running, its timer draws it over whatever this
     // arrival is about to put on screen.
     clearTimeout(this.owing)
     this.owing = undefined
-    if (this.painting !== undefined) {
-      cancelAnimationFrame(this.painting)
-      this.painting = undefined
-    }
-    if (this.since === undefined) return 0
-    const left = CURTAIN_MINIMUM - (performance.now() - this.since)
-    this.since = undefined
-    return Math.max(0, left)
+    return left
   }
 
   resolve(step: LekoStep): HTMLElement | null {
@@ -346,11 +332,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The curtain is what the hole opens out of when there was one. Blowing the
     // scrim up to a hole larger than the page first, which is how a tour that
     // has drawn nothing opens, would flash the whole page clear on the way.
-    const covered = this.since !== undefined || this.painting !== undefined
-    const owed = this.lift()
-    if (owed === 0) return this.reveal(story, step, anchor, content, animate || covered)
+    const covered = covering(this.curtain)
+    const left = this.lift()
+    if (left === 0) return this.reveal(story, step, anchor, content, animate || covered)
     return new Promise<void>((settle) => {
-      this.owing = setTimeout(settle, owed)
+      this.owing = setTimeout(settle, left)
     }).then(() => this.reveal(story, step, anchor, content, true))
   }
 
@@ -582,16 +568,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   teardown(): void {
-    clearTimeout(this.waiting)
-    this.waiting = undefined
     // Every timer this owns goes, including the one a step was waiting out. A
     // tour that has been stopped drawing itself back onto the page 300ms later
     // is the worst of the lot, because nothing is left to take it away again.
+    this.lower()
     clearTimeout(this.owing)
     this.owing = undefined
-    if (this.painting !== undefined) cancelAnimationFrame(this.painting)
-    this.painting = undefined
-    this.since = undefined
     this.endSearch()
     this.drawn = undefined
     this.destroyLayers()

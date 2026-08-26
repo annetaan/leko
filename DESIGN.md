@@ -373,6 +373,15 @@ minimum is measured from the frame the curtain was first painted in, so a step
 that declares `curtain: true` and hands back nothing owes nothing: it was set
 and replaced inside one task and no frame ever carried it.
 
+**Its lifetime is one value.** `Curtain` in `packages/leko/src/curtain.ts` is
+down, waiting, painting or up, and each state carries the handle it has running,
+so which way to stop it is a question the compiler answers rather than one the
+presenter remembers. What used to say this was four fields, three of them
+handles, and any two of them set at once was a state with no name. The decisions
+taken off it — whether the page is covered, what an arrival asks for, what a
+lift still owes — are pure functions with a test of their own, and no browser
+can get any of them wrong.
+
 **Leko puts no words on it, and a step usually should.** Leko does not know what
 an `onEnter` is doing, and a library that guesses at that is the guessing this
 one exists to avoid. The step does know. That handler is written on the step, so
@@ -555,6 +564,16 @@ An event stops where the machine hands control over. `end` is two of them,
 because the curtain goes up between the last `onLeave` and the report where
 nothing follows that report. There are eight such windows and an event apiece,
 which is what keeps one reduction from spanning one.
+
+**`dispatch` is re-entrant, and that is load-bearing.** A call made from inside
+an effect runs down the stack rather than joining a queue. `setStory()` and
+`start()` both answer whether the call took, and they read that answer off the
+state once the event has run. Queue the call and there is no answer to give:
+`start()` from inside an `onStep` says `false` and then starts the story a
+moment later, which is what `branching.ts` does and what the test named *start
+from inside onStep runs there, and answers truthfully* pins down. A queue is
+tidier to reason about and it costs two booleans the API cannot express any
+other way.
 
 ## Watching `state`
 

@@ -379,6 +379,35 @@ describe('what a failed attempt can do about itself', () => {
   })
 })
 
+describe('a call made from inside a report', () => {
+  // `branching.ts` in the sandbox rejoins a shared story this way: the `onStep`
+  // that says the first one ended starts the second.
+  //
+  // **This is what `dispatch` being re-entrant pays for.** `start()` answers
+  // whether the story it named is the one now running, and a call queued behind
+  // the event that is running cannot answer that yet: it would say `false` and
+  // then start the story anyway. Anything that puts a queue in front of
+  // `dispatch` fails here, which is the whole reason this test is written down.
+  test('start from inside onStep runs there, and answers truthfully', () => {
+    const second: Story = { id: 'second', steps: [{ id: 'b', target: 'second' }] }
+    let answered: boolean | undefined
+    const tour = machine({
+      onStep: (step) => {
+        if (step === undefined && answered === undefined) answered = tour.start('second')
+      },
+    })
+    tour.setStory({ id: 'first', steps: [{ id: 'a', target: 'first' }] })
+    tour.setStory(second)
+    tour.start('first')
+
+    tour.stop()
+
+    expect(answered).toBe(true)
+    expect(tour.story?.id).toBe('second')
+    expect(tour.step?.id).toBe('b')
+  })
+})
+
 describe('registering a story, and starting one', () => {
   // What `setStory` and `start` do to a machine that is already running
   // something, and what they refuse to do.
