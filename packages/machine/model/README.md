@@ -23,7 +23,44 @@ pnpm test           # among other things, replay the corpus
 
 `pnpm model` takes about 7 seconds here and runs in CI. It needs no JVM. Quint's
 Rust backend is the default and comes with the npm package, and only
-`quint verify` wants Apalache and a Java runtime. I have not tried `verify`.
+`quint verify` wants Apalache and a Java runtime.
+
+## Verifying it
+
+`pnpm model` samples 200,000 runs and reports that none of them broke an
+invariant. A bug deeper than the sample reached is still a bug it never saw.
+`quint verify` answers the other question, up to a depth you pick. It hands the
+model to [Apalache](https://apalache.informal.systems/), which asks Z3 whether
+an invariant can be broken at all.
+
+I ran it once, by hand, on 2026-08-26:
+
+```bash
+brew install openjdk@21
+JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
+  PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH" \
+  ./node_modules/.bin/quint verify packages/machine/model/machine.qnt \
+    --invariants runningIsDrawn idleIsClean --max-steps=8
+```
+
+```
+The outcome is: NoError
+[ok] No violation found (756724ms).
+```
+
+12 minutes 36 seconds. Nothing within 8 calls of `init` breaks either invariant,
+and that is a proof over the whole depth rather than a sample of it. Quint
+downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
+`openjdk@21` is keg-only, so the system `java` stays as it was.
+
+`step` offers 12 actions. Count the `nondet` picks and it is 38 branches from
+most states, so 8 steps is around 38^8, or 4.3 trillion paths. Apalache walks
+none of them. The picks stay as variables in the SMT problem and it asks about
+all 38 at once, which is the whole reason 8 steps finishes at all.
+
+Do not put it in CI. The log shows one invariant check taking a few seconds
+early on and 30 seconds at step 8, so the cost climbs steeply with depth.
+`pnpm model:traces` searches 24 steps, and that is out of reach here.
 
 ## What is checked, and where
 
@@ -186,10 +223,17 @@ does. One of them is wrong. Read the state in the `.itf.json` alongside the
 method in `machine.ts` that the model definition is named after. Every pure
 function in `machine.qnt` carries the name of the method it stands for.
 
+Some of them name a function in `core.ts` instead. `torn` is one. The moves that
+only change the machine's own five fields live there, written as pure functions
+of the same shape the model uses.
+
 ## What this does not cover
 
-- `quint verify`. Exhaustive checking wants Apalache and a JVM, and I have not
-  tried it. Everything here is random simulation.
+- `quint verify` past 8 steps, and the deep relation at any depth. I ran the
+  wide one. `initRunning`/`stepInside` has never been through Apalache.
+- Any depth at all, in the sense of a finished search. `park` increments
+  `nextToken` and nothing resets it, so the state space is infinite and no
+  exhaustive walk of it can stop. A bound is the only thing on offer.
 - A deferred `onValidationError`. `errorUtils` holds the position so that a
   handler answering a second late is dropped, and the model calls the handler
   synchronously. This is the next thing I would add.

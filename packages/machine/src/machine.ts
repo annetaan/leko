@@ -1,3 +1,21 @@
+import {
+  accepting,
+  arrivedAt,
+  type Core,
+  failing,
+  found,
+  heldForStep,
+  heldForStory,
+  idle,
+  movedTo,
+  opened,
+  seeking,
+  settled,
+  settling,
+  stateOf,
+  stepOf,
+  torn,
+} from './core.js'
 import type { Content, Host, Presenter } from './port.js'
 import type {
   ErrorUtils,
@@ -21,26 +39,6 @@ const isThenable = (value: unknown): value is Promise<void> =>
   typeof (value as Promise<void> | undefined)?.then === 'function'
 
 /**
- * How far along the machine is with whatever it is doing, and the one thing
- * that decides whether a call from the application is acted on.
- *
- * `story` and `step` are the arrival. Nothing is drawn in either, the anchor
- * has not been looked for, and the application is inside `onEnter` or about to
- * be. They are two rather than one because the step's `onLeave` is owed in the
- * second and not in the first.
- *
- * `ending` is a run being torn down, with `onLeave` running.
- *
- * `settling` and `ready` are both a step that arrived and is on screen. The
- * only difference is whether the presenter is still moving it.
- *
- * `searching` is a step that arrived and whose anchor has since left the page,
- * with the presenter looking for it again. The step is still the one the tour
- * is on. What is on screen is a curtain, which is why this is not `ready`.
- */
-type Phase = 'story' | 'step' | 'ending' | 'settling' | 'searching' | 'ready'
-
-/**
  * Which step a tour is on, and how it gets to the next one.
  *
  * Nothing here knows what an element is. Whatever draws the tour arrives
@@ -57,60 +55,17 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private readonly stories = new Map<string, St>()
   /**
-   * Which story is running and where in it the tour is, or `undefined` while
-   * nothing is running.
-   *
-   * One field, because the two are one fact. Being idle is this being
-   * `undefined`, so there is one way to say it.
-   *
-   * The object is replaced rather than edited on every move, and never on
-   * anything else, so its identity is the step occurrence the tour is standing
-   * on. {@link errorUtils} is built on that.
+   * Where the tour is, as one value. What each field holds is written down on
+   * {@link Core}, and every write to any of them goes through {@link commit}.
    */
-  #position: { story: St; index: number } | undefined
-  private get position(): { story: St; index: number } | undefined {
-    return this.#position
-  }
-  private set position(next: { story: St; index: number } | undefined) {
-    if (next === this.#position) return
-    this.announce()
-    this.#position = next
-  }
+  #core: Core<S, St> = idle()
   /**
-   * The one field a call from the application is answered against, and half of
-   * what {@link state} is read from.
+   * The field the rest of this class reads most, and the only one worth a
+   * shorthand. Every other read goes to {@link Machine.#core} by name.
    */
-  #phase: Phase = 'ready'
-  private get phase(): Phase {
-    return this.#phase
+  private get position(): { readonly story: St; readonly index: number } | undefined {
+    return this.#core.position
   }
-  private set phase(next: Phase) {
-    if (next === this.#phase) return
-    this.announce()
-    this.#phase = next
-  }
-  /**
-   * What the last attempt at the current step was told was wrong with it, set
-   * through {@link ErrorUtils.setError}. Held here rather than on the step: it
-   * is about one attempt, not about the tour, and the step object belongs to
-   * the application.
-   */
-  private error: string | undefined
-  /**
-   * The step `onStep` was last told the tour is on, which is not {@link step}: a
-   * step whose `onEnter` is still running is where the tour is heading and
-   * nowhere a host has heard of. Every `previous` is read from here, so the
-   * calls chain — each one leaves from where the last one arrived — and a run
-   * that ends before it draws says it came from nowhere.
-   */
-  private announced: S | undefined
-  /**
-   * Whatever {@link Presenter.show} last handed back, so that a morph settling
-   * after it was interrupted can tell. The morph is the one thing here a fresh
-   * arrival is allowed to cut short, which is why it is the one thing that
-   * needs this.
-   */
-  private showing: Promise<void> | undefined
   /** Everything watching {@link state}, and nothing else is told about it. */
   private readonly watchers = new Set<(state: MachineState) => void>()
   /**
@@ -119,6 +74,25 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * is also what stops one turn queueing six.
    */
   private before: MachineState | undefined
+
+  /**
+   * The one place the machine's state changes.
+   *
+   * Every move is a pure function in `core.ts`, and every one of them lands
+   * here. What used to be five fields written a statement at a time is one
+   * replacement that cannot land half done: `end` clearing four of them is
+   * {@link torn}, and there is no version of it that forgets one.
+   *
+   * {@link announce} used to sit on the setters of the two fields {@link state}
+   * is read from. It sits on the one write there is instead. That is the same
+   * bargain those setters struck, over a smaller thing to remember.
+   */
+  private commit(next: Core<S, St>): void {
+    const now = this.#core
+    if (next === now) return
+    if (next.position !== now.position || next.phase !== now.phase) this.announce()
+    this.#core = next
+  }
 
   /**
    * The presenter is built here rather than handed in, because it needs a
@@ -146,26 +120,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     })
   }
 
-  /**
-   * Whether a call from the application is acted on at all.
-   *
-   * **The machine never accepts a call while it is inside a call into the
-   * application.** An `onEnter` in flight is inside one, whether it answered
-   * synchronously or handed back a promise that lands half a second later. So
-   * is an `onLeave` running as a tour is torn down.
-   *
-   * A step that is drawn and still moving is the other thing. It has been
-   * through the whole arrival and the user is looking at it, so a call about it
-   * means what it says and goes through.
-   *
-   * **{@link stop} does not ask.** A tour that cannot be turned off until an
-   * `onEnter` somebody else wrote decides to settle is worse than any race this
-   * keeps out, and a component unmounting mid-arrival has nowhere else to go.
-   * Ending a run is also the one thing that needs nothing of the arrival: it
-   * throws the arrival away rather than acting on it.
-   */
+  /** `accepting` in `core.ts`, which is where the rule it keeps is argued. */
   private get accepting(): boolean {
-    return this.phase === 'ready' || this.phase === 'settling' || this.phase === 'searching'
+    return accepting(this.#core)
   }
 
   /**
@@ -178,18 +135,13 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   }
 
   /**
-   * Derived, never stored.
+   * Whether a tour is running, and whether it is between things while it does.
    *
-   * It used to be a field, written at each of the handful of places that knew
-   * it had changed. One of them did not know: a target found missing after a
-   * slow `onEnter` left `transitioning` on a tour that had finished settling
-   * and was never going to settle again, so a host could not tell a slow step
-   * from a stuck one. The fix is not another assignment. Two fields hold the
-   * whole answer, and reading it off them is a thing that cannot be forgotten.
+   * Derived from two fields and never stored. `stateOf` in `core.ts` says what
+   * that buys and what it cost to learn.
    */
   get state(): MachineState {
-    if (!this.position) return 'idle'
-    return this.phase === 'ready' ? 'running' : 'transitioning'
+    return stateOf(this.#core)
   }
 
   /**
@@ -215,14 +167,15 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   /**
    * Say that `state` changed, once the turn that changed it is over.
    *
-   * Called from the setters of the two fields `state` is read from, before the
-   * write, so what it holds on to is the answer as it stood. **Every write goes
-   * through those setters, so this cannot be forgotten** — which is the same
-   * bargain `state` being derived struck, one level up.
+   * Called from {@link commit}, before the write, so what it holds on to is the
+   * answer as it stood. **Every write goes through there, so this cannot be
+   * forgotten** — which is the same bargain `state` being derived struck, one
+   * level up.
    *
    * **A turn, not a write.** `enter` writes `phase` twice before the step is on
-   * screen and `end` empties two fields in a row. A watcher told about each of
-   * those would see a flicker that never existed for the user, so the answer is
+   * screen, and a `start` displacing a running story commits three times before
+   * the new one is up. A watcher told about each of those would see a flicker
+   * that never existed for the user, so the answer is
    * compared with what it was at the start of the turn and reported only if the
    * two differ. A run that starts and settles inside one turn says `running`
    * once, and a call that changed nothing says nothing at all.
@@ -260,8 +213,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
   /** The step being shown, or `undefined` while idle. */
   get step(): S | undefined {
-    const here = this.position
-    return here && here.story.steps[here.index]
+    return stepOf(this.#core)
   }
 
   /**
@@ -344,7 +296,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // through the whole of it, including the report. So nothing gets between
     // the two halves and `next` is a promise this call keeps.
     this.end(story)
-    this.position = { story, index: 0 }
+    this.commit(movedTo(this.#core, story, 0))
     this.enterStory(story)
     // Asked after the fact rather than assumed, because a story's `onEnter` can
     // throw and end the run before this returns.
@@ -368,7 +320,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // about this one. Set before `onEnter` is called rather than after, so that
     // a handler answering synchronously is inside the window too. No step has
     // been entered yet, and this phase is how {@link end} knows.
-    this.phase = 'story'
+    this.commit(heldForStory(this.#core))
     let entering: unknown
     try {
       entering = story.onEnter?.(story)
@@ -474,7 +426,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     }
 
     if (index >= story.steps.length - 1) return this.end(undefined)
-    this.position = { story, index: index + 1 }
+    this.commit(movedTo(this.#core, story, index + 1))
     this.enter(true, step)
   }
 
@@ -511,25 +463,21 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     const here = this.position
     if (!here) return
     const { story } = here
-    const previous = this.announced
+    const previous = this.#core.announced
     // The step's `onLeave` is owed unless the story's own setup never got as
     // far as entering one.
-    const step = this.phase === 'story' ? undefined : this.step
+    const step = this.#core.phase === 'story' ? undefined : this.step
     // Closed for the whole teardown. `onLeave` is a call into the application,
     // and a story started from inside one would be torn down by the lines after
     // it. Opened again below, before the report, which is the one handler that
     // has nothing running after it.
-    this.phase = 'ending'
-    this.position = undefined
-    this.error = undefined
-    this.announced = undefined
-    this.showing = undefined
+    this.commit(torn())
     this.presenter.teardown()
     // The step's own cleanup, then the story's: innermost first, the mirror of
     // the order they were entered in.
     step?.onLeave?.(step, undefined)
     story.onLeave?.(story, next)
-    if (!next) this.phase = 'ready'
+    if (!next) this.commit(opened(this.#core))
     this.report(story, undefined, previous)
   }
 
@@ -562,7 +510,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
       },
       setError: (message) => {
         if (stale()) return
-        this.error = message
+        this.commit(failing(this.#core, message))
         this.presenter.retell(story, step, anchor, this.content(step))
       },
     }
@@ -570,7 +518,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
 
   /** Everything the box beside the cutout should be showing for this step. */
   private content(step: S): Content {
-    return { text: step.message, error: this.error, next: this.nextLabel(step) }
+    return { text: step.message, error: this.#core.error, next: this.nextLabel(step) }
   }
 
   /**
@@ -619,18 +567,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     if (!here || !step) return this.end(undefined)
     const story = here.story
 
-    // Whatever was wrong with an attempt at the step being left is not an
-    // attempt at this one, which is why `setError` has no counterpart to call.
-    this.error = undefined
-    // Whatever the presenter was moving is not this step's arrival. A morph
-    // settling after this reads a promise nothing is holding any more.
-    this.showing = undefined
     // The arrival begins here rather than at the `await` below, so that the
     // synchronous part of it is inside the window too: `onLeave`, `onEnter` and
     // the draw are all calls the application can be inside, and through every
     // one of them `state` used to answer `running` about a step the presenter
     // had never been given.
-    this.phase = 'step'
+    this.commit(heldForStep(this.#core))
     // The step being left is over, and the hole is not where it was. There is
     // no honest place for the message until the new cutout has arrived, and
     // nothing about the step ahead has been built, so there is nothing honest
@@ -668,13 +610,13 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // `draw` rather than after, because a step whose anchor turns out to be
     // missing can end the run from inside `draw`, and the `onStep` that reports
     // that ending has to find a machine a host may call into.
-    this.phase = 'ready'
+    this.commit(opened(this.#core))
     this.draw(story, step, animate)
     // Which is why this asks. `draw` can end the run through a lost anchor, and
     // a host holding one is free to start a story of its own instead.
     if (this.position !== here) return
-    const previous = this.announced
-    this.announced = step
+    const previous = this.#core.announced
+    this.commit(arrivedAt(this.#core, step))
     this.report(story, step, previous)
   }
 
@@ -684,8 +626,8 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * `show` handing back nothing means it is already there, and the step is
    * settled in this turn. Where it hands back a promise, only the morph nothing
    * has replaced may call the step settled: a fresh arrival cuts this one short
-   * and its promise resolves a moment later, which without {@link showing}
-   * would mark the *new* step as done before it had moved.
+   * and its promise resolves a moment later, which without `showing` would mark
+   * the *new* step as done before it had moved.
    */
   private draw(story: St, step: S, animate: boolean): void {
     const here = this.position
@@ -699,15 +641,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
     // returns. Calling the step settled after that would put `running` back on
     // a tour that is over.
     if (this.position !== here || !isThenable(showing)) return
-    this.phase = 'settling'
-    this.showing = showing
+    this.commit(settling(this.#core, showing))
     void showing.then(() => {
-      if (this.showing !== showing) return
-      this.showing = undefined
-      // Only the phase this promise put on the machine is its to take off. A
-      // target that left the page while the morph ran has written `searching`
-      // over it, and that wait ends when the presenter says it does.
-      if (this.phase === 'settling') this.phase = 'ready'
+      if (this.#core.showing !== showing) return
+      this.commit(settled(this.#core))
     })
   }
 
@@ -752,22 +689,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * which is the same thing it answers for a target that was missing when the
    * step arrived: the tour is between things.
    *
-   * **A wait is only started for the step the tour is on.** A presenter can
-   * notice a loss after the tour has already gone somewhere else, the same way
-   * {@link lose} can be told about one.
-   *
-   * **Ending one asks nothing.** By then the tour may be on another step, and
-   * the phase the wait wrote is the phase that has to come off. Where it was
-   * written over in the meantime there is nothing left to do, which is what the
-   * check reads.
+   * Which waits may be started and which may be ended is argued on `seeking`
+   * and `found` in `core.ts`.
    */
   private seek(step: S, yes: boolean): void {
-    if (!yes) {
-      if (this.phase === 'searching') this.phase = 'ready'
-      return
-    }
-    if (this.step !== step) return
-    if (this.phase === 'ready' || this.phase === 'settling') this.phase = 'searching'
+    this.commit(yes ? seeking(this.#core, step) : found(this.#core))
   }
 
   private lose(step: S): void {

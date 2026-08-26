@@ -29,3 +29,5 @@ spike/**/shots-*/
 
 # Astro's generated types and content store, rewritten on every build
 docs/.astro/
+
+_apalache-out/

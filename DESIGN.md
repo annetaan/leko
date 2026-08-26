@@ -477,9 +477,9 @@ the host wants done about it.
 read off them.
 
 ```ts
-get state(): MachineState {
-  if (!this.position) return 'idle'
-  return this.phase === 'ready' ? 'running' : 'transitioning'
+export const stateOf = <S, St>(core: Core<S, St>): MachineState => {
+  if (core.position === undefined) return 'idle'
+  return core.phase === 'ready' ? 'running' : 'transitioning'
 }
 ```
 
@@ -504,6 +504,12 @@ not about the screen would have allowed, and the cost of it is a fifth member on
 field here, check whether it is a third way of saying what two fields already
 say.
 
+**The five fields are one value.** They live in `core.ts` as `Core`, and every
+move the machine makes is a pure function from one `Core` to the next. `end`
+used to clear four of them in four statements. It calls `torn()` now, and there
+is no longer a version of that clearing which forgets one. The class holds one
+`#core` and one `commit` that writes it.
+
 ## Watching `state`
 
 `watch(listener)` says when `state` changed and hands back the way to stop. With
@@ -519,7 +525,8 @@ to `ready` is a crossing a watcher should hear. `story` to `step` is not, and
 neither is a call that wrote a field the answer does not depend on.
 
 **One call per turn.** `enter` writes the phase twice on its way to a step that
-is not on screen yet, and `end` empties two fields in a row. A watcher told
+is not on screen yet, and a `start` that displaces a running story commits three
+times before the new story is up. A watcher told
 about each write would see a flicker that never existed for anybody, so the
 answer is compared with what it was when the turn started and reported only if
 the two differ. A run that starts and settles inside one turn says `running`
