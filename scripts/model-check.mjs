@@ -36,6 +36,10 @@ const WITNESSES = [
   'morphUnderSearch',
   'refused',
   'staleReport',
+  'staleUtils',
+  'lateError',
+  'lateShake',
+  'shook',
   'reachedLastStep',
 ]
 

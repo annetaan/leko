@@ -7,7 +7,7 @@ import type { Anchor, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
 import { Machine } from './machine.js'
 import type { Content } from './port.js'
-import type { Problem } from './types.js'
+import type { ErrorUtils, Problem } from './types.js'
 
 // Every trace under `../model/traces/` driven into the real machine, call by
 // call, with the model's own state as the oracle at each one.
@@ -73,6 +73,8 @@ interface Snapshot {
   presenterUp: boolean
   /** Every outstanding `onEnter`, by the token the model gave it. */
   entering: Map<number, Pos>
+  /** Every `ErrorUtils` a handler has not answered with yet, by its token. */
+  holding: Map<number, Pos>
   slow: boolean
   registered: string[]
   /** Which way the action went. See `mark` in the model. */
@@ -86,6 +88,11 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     if (tag(callback) === 'Morph') continue
     const body = payload(callback) as { token: Itf; at: Itf }
     entering.set(int(body.token), pos(body.at))
+  }
+  const holding = new Map<number, Pos>()
+  for (const utils of set(m['holding'])) {
+    const body = utils as { token: Itf; at: Itf }
+    holding.set(int(body.token), pos(body.at))
   }
   const picks = (raw['mbt::nondetPicks'] ?? {}) as Record<string, Itf>
   return {
@@ -104,6 +111,7 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     drawn: maybe(m['drawn'], pos),
     presenterUp: m['presenterUp'] as boolean,
     entering,
+    holding,
     slow: m['slow'] as boolean,
     registered: set(m['registered']).map(str),
     mark: m['mark'] as string,
@@ -148,9 +156,18 @@ interface Run {
   made: Deferred[]
   /** Bound to a model token once the trace says which one it got. */
   pending: Map<number, Deferred>
-  /** What `validate` answers, and what `onValidationError` does about a no. */
+  /** What `validate` answers. */
   guardOk: boolean
-  setsError: boolean
+  /**
+   * Every `ErrorUtils` the machine has handed over and the trace has not said
+   * what to do with yet.
+   *
+   * `onValidationError` returns `void`, so a handler is free to look something
+   * up and answer a second later. Holding them here is what lets the trace say
+   * `doSetError` several calls after the attempt that made them.
+   */
+  madeUtils: ErrorUtils[]
+  heldUtils: Map<number, ErrorUtils>
   /** Every `onStep`, as the pair it was called with. */
   reports: { step: string | undefined; previous: string | undefined }[]
   /** `onEnter` and `onLeave`, in order, as `story:a` or `step:a1`. */
@@ -236,9 +253,9 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
         }
         if (shape.hasGuard) {
           step.validate = () => run().guardOk
-          step.onValidationError = (_anchor, utils) => {
-            if (run().setsError) utils.setError('not yet')
-          }
+          // Kept rather than answered. What the handler does with these, and
+          // when, is an action of its own in the model.
+          step.onValidationError = (_anchor, utils) => void run().madeUtils.push(utils)
         }
         return step
       }),
@@ -301,8 +318,13 @@ async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void
       break
     case 'doPress':
       run.guardOk = picks['guardOk'] as boolean
-      run.setsError = picks['setsError'] as boolean
       run.fake.press()
+      break
+    case 'doSetError':
+      answer(run, picks['errorPick']!).setError('not yet')
+      break
+    case 'doShake':
+      answer(run, picks['shakePick']!).shake()
       break
     case 'doResize':
       run.fake.resize()
@@ -329,6 +351,20 @@ async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void
       throw new Error(`no call for ${now.action}`)
   }
   await turn()
+}
+
+/**
+ * The `ErrorUtils` the trace's pick names, taken out of the run as it is spent.
+ *
+ * The machine hands these to `onValidationError` and never mentions them again,
+ * so the token the model gave one is the only way back to it.
+ */
+function answer(run: Run, pick: Itf): ErrorUtils {
+  const token = int((pick as { token: Itf }).token)
+  const utils = run.heldUtils.get(token)
+  expect(utils, `no ErrorUtils is held for token ${token}`).toBeDefined()
+  run.heldUtils.delete(token)
+  return utils!
 }
 
 function settle(run: Run, callback: Itf, before: Snapshot, fails: boolean): void {
@@ -366,6 +402,16 @@ function bind(run: Run, before: Snapshot, now: Snapshot): void {
   run.made.length = 0
   for (const token of before.entering.keys()) {
     if (!now.entering.has(token)) run.pending.delete(token)
+  }
+
+  const handed = [...now.holding.keys()].filter((token) => !before.holding.has(token))
+  expect(run.madeUtils.length, `the model handed over ${handed.length} ErrorUtils`).toBe(
+    handed.length,
+  )
+  for (const [index, token] of handed.entries()) run.heldUtils.set(token, run.madeUtils[index]!)
+  run.madeUtils.length = 0
+  for (const token of before.holding.keys()) {
+    if (!now.holding.has(token)) run.heldUtils.delete(token)
   }
 }
 
@@ -484,7 +530,8 @@ describe('every trace the model found', () => {
         made: [],
         pending: new Map(),
         guardOk: true,
-        setsError: false,
+        madeUtils: [],
+        heldUtils: new Map(),
         reports,
         handlers: [],
         problems,
@@ -522,6 +569,8 @@ describe('every trace the model found', () => {
         const where = `state ${index + 1}, after ${now.action} (${now.mark})`
         const seenBefore = observe(run)
         const problemsBefore = run.problems.length
+        const retoldBefore = run.fake.retold.length
+        const rejectedBefore = run.fake.rejected
         const wasAt = before.position
 
         await dispatch(run, now, before)
@@ -551,6 +600,36 @@ describe('every trace the model found', () => {
             seenBefore,
           )
           expect(run.problems.length, `${where}: and said something about it`).toBe(problemsBefore)
+        }
+        // 8. A failed attempt writes its words on the attempt they were about.
+        //    `errorUtils` closes over the position, so a handler that looked
+        //    something up and answered a second later writes nothing anywhere.
+        if (now.mark === 'set-error') {
+          expect(run.fake.retold.length, `${where}: the message never reached the presenter`).toBe(
+            retoldBefore + 1,
+          )
+          expect(
+            run.fake.retold.at(-1)?.content.error,
+            `${where}: and it went without the words`,
+          ).toBe('not yet')
+        }
+        if (now.mark === 'set-error-stale') {
+          expect(
+            run.fake.retold.length,
+            `${where}: a late answer rewrote a step the tour had left`,
+          ).toBe(retoldBefore)
+          expect(observe(run), `${where}: a late answer moved the tour`).toEqual(seenBefore)
+        }
+        if (now.mark === 'shake') {
+          expect(run.fake.rejected, `${where}: the presenter was never told to reject`).toBe(
+            rejectedBefore + 1,
+          )
+        }
+        if (now.mark === 'shake-stale') {
+          expect(
+            run.fake.rejected,
+            `${where}: a late shake rejected a step the tour had left`,
+          ).toBe(rejectedBefore)
         }
         // 5. No signal advances a step the presenter has not been given.
         if (['doReached', 'doPress'].includes(now.action) && !same(wasAt, now.position)) {

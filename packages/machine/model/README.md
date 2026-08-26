@@ -88,9 +88,18 @@ being asked is the real class:
 | 5 | no signal advances a step the presenter has never been given |
 | 6 | a callback settling for a position the tour has left changes nothing |
 | 7 | while the phase is closed no call from the application changes anything |
+| 8 | a failed attempt answering late writes nothing, in words or in a shake |
 
-The model's job for those five is to reach the state where the question can be
-asked, and then to say what the answer should be.
+The model's job for those is to reach the state where the question can be asked,
+and then to say what the answer should be.
+
+Number 8 arrived after the other five. `onValidationError` returns `void`, so a
+handler can look something up and call `setError` a second later, by which time
+the tour may be somewhere else. `errorUtils` closes over the position for
+exactly that reason. The model hands the utils over in `advance` and keeps them
+in `holding`, and `doSetError` and `doShake` are what a handler eventually does
+with them. Both may fire any number of calls after the attempt that made them,
+which is the whole point.
 
 ## What it found
 
@@ -234,13 +243,16 @@ of the same shape the model uses.
 - Any depth at all, in the sense of a finished search. `park` increments
   `nextToken` and nothing resets it, so the state space is infinite and no
   exhaustive walk of it can stop. A bound is the only thing on offer.
-- A deferred `onValidationError`. `errorUtils` holds the position so that a
-  handler answering a second late is dropped, and the model calls the handler
-  synchronously. This is the next thing I would add.
+- The `ending` phase. `end` is one `pure def` here, so the model rests either
+  side of a teardown and never inside one. Ask it directly and it says so:
+  `--invariant='m.phase != Ending'` finds no violation in 200,000 traces, on
+  both relations. In `machine.ts` that phase is `onLeave` running, which is
+  application code that can call back in, and `machine.test.ts` covers that by
+  hand. The search does not reach it.
 - `watch()` and the microtask that carries it. No watchers are attached in the
   replay.
 - The `animate` flag, the words on a step, the diagnostic payloads. Only the
   count of diagnostics is checked.
 - A misconception shared by the model and the code. Nothing can catch that. The
-  model is 675 lines and small enough to read, and that is the whole of the
+  model is 740 lines and small enough to read, and that is the whole of the
   defence.

@@ -1,6 +1,6 @@
 {
-  "target": "morphUnderSearch",
-  "seed": "0x8",
+  "target": "shook",
+  "seed": "0xd",
   "states": [
     {
       "#meta": {
@@ -446,9 +446,9 @@
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "1"
+              "#bigint": "0"
             },
-            "story": "a"
+            "story": "c"
           }
         },
         "guardOk": {
@@ -525,7 +525,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "unmatched",
         "nextToken": {
           "#bigint": "0"
         },
@@ -676,7 +676,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doResize",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
         "errorPick": {
           "tag": "None",
@@ -727,10 +727,8 @@
           }
         },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "saved"
         },
         "slowPick": {
           "tag": "None",
@@ -955,7 +953,7 @@
         },
         "guardOk": {
           "tag": "Some",
-          "value": false
+          "value": true
         },
         "huntPick": {
           "tag": "None",
@@ -1004,1295 +1002,6 @@
           "tag": "Just",
           "value": {
             "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStep",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "0"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "lose-stale",
-        "nextToken": {
-          "#bigint": "1"
-        },
-        "page": {
-          "#set": ["second", "target", "third"]
-        },
-        "phase": {
-          "tag": "Step",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doLose",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 5
-      },
-      "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStep",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "0"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "hunt-stale",
-        "nextToken": {
-          "#bigint": "1"
-        },
-        "page": {
-          "#set": ["second", "third"]
-        },
-        "phase": {
-          "tag": "Step",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doHunt",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "b"
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 6
-      },
-      "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStep",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "0"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "slow",
-        "nextToken": {
-          "#bigint": "1"
-        },
-        "page": {
-          "#set": ["second", "third"]
-        },
-        "phase": {
-          "tag": "Step",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doSetSlow",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "Some",
-          "value": true
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 7
-      },
-      "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStep",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "0"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "resize-ignored",
-        "nextToken": {
-          "#bigint": "1"
-        },
-        "page": {
-          "#set": ["second", "third"]
-        },
-        "phase": {
-          "tag": "Step",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doResize",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 8
-      },
-      "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStep",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "0"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "resize-ignored",
-        "nextToken": {
-          "#bigint": "1"
-        },
-        "page": {
-          "#set": ["second", "third"]
-        },
-        "phase": {
-          "tag": "Step",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doResize",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 9
-      },
-      "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
               "#bigint": "1"
             },
             "story": "a"
@@ -2312,32 +1021,17 @@
           "#set": []
         },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "settle-step",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "1"
         },
         "page": {
-          "#set": ["second", "third"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
-          "tag": "Settling",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -2356,12 +1050,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "1"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -2557,7 +1251,498 @@
     },
     {
       "#meta": {
-        "index": 10
+        "index": 5
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": []
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "lose-stale",
+        "nextToken": {
+          "#bigint": "1"
+        },
+        "page": {
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doLose",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "Some",
+          "value": {
+            "index": {
+              "#bigint": "0"
+            },
+            "story": "c"
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 6
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": []
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "unmatched",
+        "nextToken": {
+          "#bigint": "1"
+        },
+        "page": {
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doReached",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "Some",
+          "value": "none"
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 7
       },
       "m": {
         "announced": {
@@ -2583,46 +1768,17 @@
           "#set": []
         },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            },
-            {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "2"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "2"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "reached",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "1"
         },
         "page": {
-          "#set": ["second", "third"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
-          "tag": "Settling",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -2641,12 +1797,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "2"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -2829,7 +1985,7 @@
     },
     {
       "#meta": {
-        "index": 11
+        "index": 8
       },
       "m": {
         "announced": {
@@ -2855,46 +2011,17 @@
           "#set": []
         },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            },
-            {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "2"
-                  },
-                  "story": "a"
-                },
-                "token": {
-                  "#bigint": "2"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "lose-stale",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "1"
         },
         "page": {
-          "#set": ["second", "third"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
-          "tag": "Settling",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -2913,12 +2040,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "2"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3076,6 +2203,795 @@
               "#bigint": "1"
             },
             "story": "b"
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 9
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
+              }
+            }
+          ]
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "press",
+        "nextToken": {
+          "#bigint": "2"
+        },
+        "page": {
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doPress",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "Some",
+          "value": false
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 10
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            }
+          ]
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "press",
+        "nextToken": {
+          "#bigint": "3"
+        },
+        "page": {
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doPress",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "Some",
+          "value": false
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 11
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            }
+          ]
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "resize",
+        "nextToken": {
+          "#bigint": "3"
+        },
+        "page": {
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doResize",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
           }
         },
         "settlePick": {
@@ -3129,49 +3045,43 @@
         },
         "hasError": false,
         "holding": {
-          "#set": []
-        },
-        "inflight": {
           "#set": [
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
+              "at": {
+                "index": {
+                  "#bigint": "2"
                 },
-                "token": {
-                  "#bigint": "1"
-                }
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
               }
             },
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "2"
-                  },
-                  "story": "a"
-                },
-                "token": {
+              "at": {
+                "index": {
                   "#bigint": "2"
-                }
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
               }
             }
           ]
         },
-        "mark": "lose-stale",
+        "inflight": {
+          "#set": []
+        },
+        "mark": "resize",
         "nextToken": {
           "#bigint": "3"
         },
         "page": {
-          "#set": ["second", "third"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
-          "tag": "Settling",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -3190,12 +3100,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "2"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3314,7 +3224,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLose",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
         "errorPick": {
           "tag": "None",
@@ -3347,12 +3257,9 @@
           }
         },
         "losePick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "b"
+            "#tup": []
           }
         },
         "settlePick": {
@@ -3406,46 +3313,328 @@
         },
         "hasError": false,
         "holding": {
-          "#set": []
-        },
-        "inflight": {
           "#set": [
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
+              "at": {
+                "index": {
+                  "#bigint": "2"
                 },
-                "token": {
-                  "#bigint": "1"
-                }
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
               }
             },
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "2"
-                  },
-                  "story": "a"
-                },
-                "token": {
+              "at": {
+                "index": {
                   "#bigint": "2"
-                }
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "3"
               }
             }
           ]
         },
-        "mark": "hunt",
+        "inflight": {
+          "#set": []
+        },
+        "mark": "press",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "4"
         },
         "page": {
-          "#set": ["second"]
+          "#set": ["second", "target", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doPress",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "Some",
+          "value": false
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 14
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "holding": {
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "3"
+              }
+            }
+          ]
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "hunt",
+        "nextToken": {
+          "#bigint": "4"
+        },
+        "page": {
+          "#set": ["second", "target"]
         },
         "phase": {
           "tag": "Searching",
@@ -3467,12 +3656,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "2"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3660,7 +3849,7 @@
     },
     {
       "#meta": {
-        "index": 14
+        "index": 15
       },
       "m": {
         "announced": {
@@ -3683,46 +3872,51 @@
         },
         "hasError": false,
         "holding": {
-          "#set": []
-        },
-        "inflight": {
           "#set": [
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
+              "at": {
+                "index": {
+                  "#bigint": "2"
                 },
-                "token": {
-                  "#bigint": "1"
-                }
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "1"
               }
             },
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "2"
-                  },
-                  "story": "a"
-                },
-                "token": {
+              "at": {
+                "index": {
                   "#bigint": "2"
-                }
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "3"
               }
             }
           ]
         },
-        "mark": "lose-stale",
+        "inflight": {
+          "#set": []
+        },
+        "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "4"
         },
         "page": {
-          "#set": ["second"]
+          "#set": ["second", "target"]
         },
         "phase": {
           "tag": "Searching",
@@ -3744,12 +3938,12 @@
           "#set": ["a", "b", "c", "d"]
         },
         "showing": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "#bigint": "2"
+            "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3868,7 +4062,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLose",
+      "mbt::actionTaken": "doHunt",
       "mbt::nondetPicks": {
         "errorPick": {
           "tag": "None",
@@ -3895,18 +4089,18 @@
           }
         },
         "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
           "tag": "Some",
           "value": {
             "index": {
               "#bigint": "0"
             },
-            "story": "b"
+            "story": "a"
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
           }
         },
         "settlePick": {
@@ -3937,7 +4131,7 @@
     },
     {
       "#meta": {
-        "index": 15
+        "index": 16
       },
       "m": {
         "announced": {
@@ -3958,34 +4152,42 @@
             "story": "a"
           }
         },
-        "hasError": false,
+        "hasError": true,
         "holding": {
-          "#set": []
-        },
-        "inflight": {
           "#set": [
             {
-              "tag": "Morph",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "1"
-                  },
-                  "story": "a"
+              "at": {
+                "index": {
+                  "#bigint": "2"
                 },
-                "token": {
-                  "#bigint": "1"
-                }
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "3"
               }
             }
           ]
         },
-        "mark": "morph-under-search",
+        "inflight": {
+          "#set": []
+        },
+        "mark": "set-error",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "4"
         },
         "page": {
-          "#set": ["second"]
+          "#set": ["second", "target"]
         },
         "phase": {
           "tag": "Searching",
@@ -4012,7 +4214,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -4131,7 +4333,272 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSettle",
+      "mbt::actionTaken": "doSetError",
+      "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "Some",
+          "value": {
+            "at": {
+              "index": {
+                "#bigint": "2"
+              },
+              "story": "a"
+            },
+            "token": {
+              "#bigint": "1"
+            }
+          }
+        },
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 17
+      },
+      "m": {
+        "announced": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": true,
+        "holding": {
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "2"
+              }
+            }
+          ]
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "shake",
+        "nextToken": {
+          "#bigint": "4"
+        },
+        "page": {
+          "#set": ["second", "target"]
+        },
+        "phase": {
+          "tag": "Searching",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "registered": {
+          "#set": ["a", "b", "c", "d"]
+        },
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doShake",
       "mbt::nondetPicks": {
         "errorPick": {
           "tag": "None",
@@ -4170,26 +4637,23 @@
           }
         },
         "settlePick": {
-          "tag": "Some",
-          "value": {
-            "tag": "Morph",
-            "value": {
-              "at": {
-                "index": {
-                  "#bigint": "2"
-                },
-                "story": "a"
-              },
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
+          }
+        },
+        "shakePick": {
+          "tag": "Some",
+          "value": {
+            "at": {
+              "index": {
+                "#bigint": "2"
+              },
+              "story": "a"
+            },
+            "token": {
+              "#bigint": "3"
+            }
           }
         },
         "signalPick": {

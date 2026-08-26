@@ -49,6 +49,14 @@ module machine {
     | EnterStep({ token: int, at: Pos })
     | Morph({ token: int, at: Pos })
 
+  /// What `onValidationError` was handed, and has not answered with yet.
+  ///
+  /// `errorUtils` closes over the position the attempt was made at, and a
+  /// handler is free to look something up and call back afterwards. So the
+  /// utils outlive the call that made them, and the model has to hold them
+  /// somewhere rather than spending them where they were handed over.
+  type Utils = { token: int, at: Pos }
+
   /// Every field at once, so that the definitions below can be pure functions of
   /// the shape `M => M` and read like the methods they stand for.
   type M = {
@@ -70,6 +78,8 @@ module machine {
     // up, `teardown` takes it down.
     presenterUp: bool,
     inflight: Set[Callback],
+    // Every `ErrorUtils` handed to a handler that has not answered yet.
+    holding: Set[Utils],
     nextToken: int,
     // --- the world the tour runs in
     world: str -> StorySpec,
@@ -173,6 +183,13 @@ module machine {
 
   pure def park(s: M, mk: int => Callback): M =
     s.with("inflight", s.inflight.union(Set(mk(s.nextToken))))
+     .with("nextToken", s.nextToken + 1)
+
+  /// `Machine.errorUtils`, handed to `onValidationError` and kept until the
+  /// handler does something with it. The position is captured here, which is
+  /// what `stale()` reads a second later.
+  pure def handOver(s: M, at: Pos): M =
+    s.with("holding", s.holding.union(Set({ token: s.nextToken, at: at })))
      .with("nextToken", s.nextToken + 1)
 
   /// `Machine.end`. `next` is a story only where `start` is displacing this one.
@@ -283,13 +300,14 @@ module machine {
     else enter(s.with("position", Just({ story: at.story, index: at.index + 1 })))
   }
 
-  /// `Machine.advance`. `guardOk` is what `validate` answered and `setsError` is
-  /// what `onValidationError` did about it.
+  /// `Machine.advance`. `guardOk` is what `validate` answered. What
+  /// `onValidationError` does about a no is a separate action, because it may
+  /// answer later or never.
   ///
   /// A step that declares `awaits` is not guarded. The application has already
   /// said the thing happened, and reading the page to check would be a second
   /// source of truth for the same question.
-  pure def advance(s: M, at: Pos, guardOk: bool, setsError: bool): M = {
+  pure def advance(s: M, at: Pos, guardOk: bool): M = {
     val step = stepAt(s, at)
     if (not(step.hasGuard) or step.awaits != Nothing)
       moveOn(s, at)
@@ -298,13 +316,11 @@ module machine {
       lose(s, at)
     else if (guardOk)
       moveOn(s, at)
-    else if (setsError)
-      // `ErrorUtils.setError`, called while the attempt is still the current
-      // one, so `stale()` is false and the message lands.
-      s.with("hasError", true)
     else
-      // `shake()`, or a handler that did nothing at all.
-      s
+      // The guard said no. `onValidationError` is handed the utils here and
+      // what it does with them is {@link doSetError} and {@link doForget},
+      // because a handler is free to answer a second late.
+      handOver(s, at)
   }
 
   // ----------------------------------------------------------------- the calls
@@ -359,7 +375,7 @@ module machine {
           // Matched, and dropped anyway. The step goes on waiting for something
           // the application has already been through.
           else if (not(accepting(m))) m.with("mark", "refused")
-          else advance(m, at, true, false).with("mark", "reached")
+          else advance(m, at, true).with("mark", "reached")
         }
       },
   }
@@ -380,7 +396,7 @@ module machine {
   /// while an arrival is in flight. `drawn` being the step the tour is on is
   /// what says the second, and it is why the gate is a precondition here and
   /// sits in the body of the calls above.
-  action doPress(guardOk: bool, setsError: bool): bool = all {
+  action doPress(guardOk: bool): bool = all {
     match m.position {
       | Nothing => false
       | Just(at) => and {
@@ -391,7 +407,7 @@ module machine {
     m' =
       match m.position {
         | Nothing => m
-        | Just(at) => advance(m, at, guardOk, setsError).with("mark", "press")
+        | Just(at) => advance(m, at, guardOk).with("mark", "press")
       },
   }
 
@@ -447,6 +463,35 @@ module machine {
   /// Whether the presenter has a morph to run at all. `Fake.slow`.
   action doSetSlow(yes: bool): bool = all {
     m' = m.with("slow", yes).with("mark", "slow"),
+  }
+
+  // --- what a failed attempt says about itself
+
+  /// `ErrorUtils.setError`. The words belong on the attempt they were written
+  /// about, so a handler answering after the tour has moved writes nothing.
+  action doSetError(u: Utils): bool = all {
+    m.holding.contains(u),
+    m' = {
+      val done = m.with("holding", m.holding.exclude(Set(u)))
+      if (stillAt(done, u.at)) done.with("hasError", true).with("mark", "set-error")
+      else done.with("mark", "set-error-stale")
+    },
+  }
+
+  /// `ErrorUtils.shake()`. It writes no field, so the mark is the whole of what
+  /// this leaves behind, and `replay.test.ts` reads it to know whether the
+  /// presenter should have been told to reject.
+  ///
+  /// A handler that does nothing at all is not an action. It is utils that stay
+  /// in {@link M.holding} and are never answered with, which every trace that
+  /// ends with one in there already shows.
+  action doShake(u: Utils): bool = all {
+    m.holding.contains(u),
+    m' = {
+      val done = m.with("holding", m.holding.exclude(Set(u)))
+      if (stillAt(done, u.at)) done.with("mark", "shake")
+      else done.with("mark", "shake-stale")
+    },
   }
 
   // --- what lands late
@@ -509,6 +554,7 @@ module machine {
     drawn: Nothing,
     presenterUp: false,
     inflight: Set(),
+    holding: Set(),
     nextToken: 0,
     world: WORLD,
     page: TARGETS,
@@ -549,8 +595,7 @@ module machine {
     doReached(signalPick),
     doStop,
     nondet guardOk = Bool.oneOf()
-    nondet setsError = Bool.oneOf()
-    doPress(guardOk, setsError),
+    doPress(guardOk),
     doResize,
     nondet losePick = POSITIONS.oneOf()
     doLose(losePick),
@@ -564,6 +609,10 @@ module machine {
     doSettle(settlePick),
     nondet failPick = m.inflight.oneOf()
     doFail(failPick),
+    nondet errorPick = m.holding.oneOf()
+    doSetError(errorPick),
+    nondet shakePick = m.holding.oneOf()
+    doShake(shakePick),
   }
 
   /// The same actions with the three that restart the world taken out, paired
@@ -579,8 +628,7 @@ module machine {
     nondet signalPick = SIGNALS.oneOf()
     doReached(signalPick),
     nondet guardOk = Bool.oneOf()
-    nondet setsError = Bool.oneOf()
-    doPress(guardOk, setsError),
+    doPress(guardOk),
     doResize,
     nondet losePick = POSITIONS.oneOf()
     doLose(losePick),
@@ -594,6 +642,10 @@ module machine {
     doSettle(settlePick),
     nondet failPick = m.inflight.oneOf()
     doFail(failPick),
+    nondet errorPick = m.holding.oneOf()
+    doSetError(errorPick),
+    nondet shakePick = m.holding.oneOf()
+    doShake(shakePick),
   }
 
   // ---------------------------------------------------------------- invariants
@@ -658,6 +710,19 @@ module machine {
   /// the state before would stop the trace one call short of the call it exists
   /// to make. That is what {@link M.mark} is for.
   val morphUnderSearch: bool = m.mark == "morph-under-search"
+
+  /// A handler still holding utils for a step the tour has already left. The
+  /// answer it is about to give is the one that has to be dropped.
+  val staleUtils: bool = m.holding.exists((u) => not(stillAt(m, u.at)))
+
+  /// That answer, given and dropped.
+  val lateError: bool = m.mark == "set-error-stale"
+
+  /// The same second thoughts, said with `shake()` rather than with words.
+  val lateShake: bool = m.mark == "shake-stale"
+
+  /// A shake that landed, which is the other half of that pair.
+  val shook: bool = m.mark == "shake"
 
   /// A call the gate turned down.
   val refused: bool = m.mark == "refused"

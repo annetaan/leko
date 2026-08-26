@@ -34,6 +34,9 @@ const HARVEST = [
   { name: 'morph-under-search', target: 'morphUnderSearch', seed: '0x8', deep: true },
   { name: 'refused', target: 'refused', seed: '0x9' },
   { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },
+  { name: 'late-error', target: 'lateError', seed: '0xb', deep: true },
+  { name: 'late-shake', target: 'lateShake', seed: '0xc', deep: true },
+  { name: 'shook', target: 'shook', seed: '0xd', deep: true },
   { name: 'erroring', target: 'erroring', seed: '0x6', deep: true },
   { name: 'last-step', target: 'reachedLastStep', seed: '0x7', deep: true },
 ]
@@ -83,3 +86,9 @@ for (const { name, target, seed, deep } of HARVEST) {
 
 const written = readdirSync(out).filter((f) => f.endsWith('.itf.json'))
 if (written.length !== HARVEST.length) process.exitCode = 1
+
+// `JSON.stringify` puts every array member on its own line and oxfmt collapses
+// the short ones, so a freshly harvested corpus fails `pnpm format:check`. That
+// check runs in CI, and the failure it gives says nothing about traces. Run the
+// formatter here instead of leaving it to whoever regenerates next.
+execFileSync(join(root, 'node_modules/.bin/oxfmt'), ['--write', out], { stdio: 'inherit' })

@@ -26,6 +26,9 @@
           }
         },
         "hasError": false,
+        "holding": {
+          "#set": []
+        },
         "inflight": {
           "#set": []
         },
@@ -182,6 +185,12 @@
       },
       "mbt::actionTaken": "initRunning",
       "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -212,13 +221,13 @@
             "#tup": []
           }
         },
-        "setsError": {
+        "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
         },
-        "settlePick": {
+        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -262,10 +271,13 @@
           }
         },
         "hasError": false,
+        "holding": {
+          "#set": []
+        },
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "unmatched",
         "nextToken": {
           "#bigint": "0"
         },
@@ -416,8 +428,14 @@
           ]
         }
       },
-      "mbt::actionTaken": "doResize",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -448,23 +466,21 @@
             "#tup": []
           }
         },
-        "setsError": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
         },
-        "signalPick": {
+        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
+        },
+        "signalPick": {
+          "tag": "Some",
+          "value": "sent"
         },
         "slowPick": {
           "tag": "None",
@@ -498,6 +514,9 @@
           }
         },
         "hasError": false,
+        "holding": {
+          "#set": []
+        },
         "inflight": {
           "#set": []
         },
@@ -654,6 +673,12 @@
       },
       "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -664,7 +689,7 @@
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "1"
+              "#bigint": "0"
             },
             "story": "b"
           }
@@ -687,13 +712,13 @@
             "#tup": []
           }
         },
-        "setsError": {
+        "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
         },
-        "settlePick": {
+        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -737,6 +762,9 @@
           }
         },
         "hasError": false,
+        "holding": {
+          "#set": []
+        },
         "inflight": {
           "#set": []
         },
@@ -745,7 +773,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "target", "third"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -893,6 +921,12 @@
       },
       "mbt::actionTaken": "doLose",
       "mbt::nondetPicks": {
+        "errorPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -923,16 +957,16 @@
             "index": {
               "#bigint": "1"
             },
-            "story": "a"
+            "story": "b"
           }
         },
-        "setsError": {
+        "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
         },
-        "settlePick": {
+        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
