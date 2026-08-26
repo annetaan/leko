@@ -1,0 +1,24 @@
+/* The site's own tokens end here. Everything Leko draws reads `--leko-*`, which
+   `@annetaan/leko/leko.css` sets, and a page that runs a tour is free to
+   override them. Nothing in this file styles a tour. */
+
+:root {
+  --sl-font: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The control that starts a demo. It is a real button on a real page, because
+   that is what the tour points at. */
+.tour-start {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--sl-color-accent);
+  border-radius: 0.25rem;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  cursor: pointer;
+}
+
+.tour-start:hover {
+  background: var(--sl-color-accent);
+}

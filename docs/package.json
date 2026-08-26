@@ -1,0 +1,21 @@
+{
+  "name": "@leko-docs/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@annetaan/leko": "workspace:*",
+    "@astrojs/starlight": "^0.41.9",
+    "astro": "^7.2.6"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^5.9.3"
+  }
+}

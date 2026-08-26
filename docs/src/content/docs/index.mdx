@@ -1,0 +1,44 @@
+---
+title: What Leko is
+description: A product tour that cuts a hole in the overlay, so the user works the real element underneath.
+---
+
+import { LinkButton } from '@astrojs/starlight/components'
+import { href } from '../../lib/href.ts'
+
+Leko highlights an element by cutting a hole in an overlay. The element under
+the hole is the real one. Clicks reach it, focus reaches it, the keyboard
+reaches it, and scrolling under the pointer still scrolls.
+
+Two rules hold the library up, and everything else is negotiable.
+
+## Never place an element over the target
+
+Not even a transparent one. An overlay with a transparent patch over the button
+is still an overlay over the button, and the browser knows it even when the
+person does not.
+
+## Steps advance on application state, never on DOM events
+
+A call site names what happened.
+
+```ts
+leko.reached('order-saved')
+```
+
+A step names what it waits for.
+
+```ts
+{ id: 'save', target: '#submit', awaits: 'order-saved' }
+```
+
+There is no click listener anywhere that moves a tour along. A step that waits
+for a signal has no next control either, because the control would be a way past
+the work that step exists to make somebody do.
+
+## This site is a work in progress
+
+Leko is pre-release and nothing is published beyond a `0.0.0` placeholder. The
+demo below is the part that works today.
+
+<LinkButton href={href('demo/')}>A tour of this page</LinkButton>

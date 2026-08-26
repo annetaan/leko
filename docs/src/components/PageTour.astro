@@ -1,0 +1,116 @@
+---
+/**
+ * A Leko tour over this page.
+ *
+ * The point of it is what it points at. The sidebar and the code block below
+ * belong to the site, not to a demo widget, and the input inside the cutout is
+ * typed into while the scrim is up. A tour in an iframe could not show either.
+ */
+---
+
+<div class="tour-demo" data-tour-demo>
+  <button class="tour-start" type="button" data-tour-start>Start the tour</button>
+
+  <label class="tour-field">
+    Your name
+    <input type="text" data-tour-input placeholder="type anything" />
+  </label>
+
+  <p class="tour-status" data-tour-status>No tour running.</p>
+</div>
+
+<script>
+  import { createLeko } from '@annetaan/leko'
+  import '@annetaan/leko/leko.css'
+
+  const demo = document.querySelector<HTMLElement>('[data-tour-demo]')
+  if (demo) {
+    const status = demo.querySelector<HTMLElement>('[data-tour-status]')!
+    const input = demo.querySelector<HTMLInputElement>('[data-tour-input]')!
+
+    const leko = createLeko({
+      onStep: (step, _previous, story) => {
+        status.textContent = step
+          ? `${story.id}: “${step.id}”`
+          : 'The tour is over. Everything you did to the page stayed done.'
+      },
+    })
+
+    // The real element is the real element. This listener is the page's own,
+    // and it reports what happened rather than advancing anything itself.
+    input.addEventListener('input', () => {
+      if (input.value.trim() !== '') leko.reached('name-entered')
+    })
+
+    leko.setStory({
+      id: 'this-page',
+      steps: [
+        {
+          id: 'sidebar',
+          target: '#starlight__sidebar',
+          message:
+            'This is the site’s own sidebar, not a picture of one. Scroll it. ' +
+            'The hole hands over the wheel as well as clicks.',
+        },
+        {
+          id: 'source',
+          target: '[data-tour-source]',
+          message: 'The story running right now is the one written here.',
+        },
+        {
+          id: 'name',
+          target: '[data-tour-input]',
+          message:
+            'Type your name. Nothing here is listening for a keystroke to ' +
+            'move the tour on. The page decides the field is filled in and ' +
+            'says so, and this step is the one waiting to hear it.',
+          awaits: 'name-entered',
+        },
+        {
+          id: 'done',
+          target: '[data-tour-start]',
+          message: 'That is the whole idea. Start it again if you like.',
+        },
+      ],
+    })
+
+    demo.querySelector('[data-tour-start]')!.addEventListener('click', () => {
+      leko.start('this-page')
+    })
+  }
+</script>
+
+<style>
+  .tour-demo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-6);
+  }
+
+  .tour-field {
+    display: grid;
+    gap: 0.25rem;
+    font-size: var(--sl-text-sm);
+  }
+
+  .tour-field input {
+    font: inherit;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+  }
+
+  .tour-status {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

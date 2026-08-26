@@ -1,0 +1,51 @@
+---
+title: A tour of this page
+description: A Leko tour running over the documentation you are reading, pointing at the site's own sidebar and at a field you type into while the scrim is up.
+---
+
+import PageTour from '../../components/PageTour.astro'
+
+Everything below is this page. The tour points at the sidebar on the left, at
+the code block further down, and at a field you type into while the overlay is
+up. Nothing is in an iframe and nothing is a screenshot.
+
+<PageTour />
+
+## What the tour is doing
+
+Two of the four steps carry a next control. The third one does not, and there is
+no way to configure that: it declares `awaits`, so the only thing that moves it
+on is the page reporting that the field was filled in.
+
+<div data-tour-source>
+
+```ts
+leko.setStory({
+  id: 'this-page',
+  steps: [
+    { id: 'sidebar', target: '#starlight__sidebar', message: '…' },
+    { id: 'source', target: '[data-tour-source]', message: '…' },
+    {
+      id: 'name',
+      target: '[data-tour-input]',
+      message: '…',
+      awaits: 'name-entered',
+    },
+    { id: 'done', target: '[data-tour-start]', message: '…' },
+  ],
+})
+```
+
+</div>
+
+The listener on the field belongs to the page, and it reports rather than
+advances.
+
+```ts
+input.addEventListener('input', () => {
+  if (input.value.trim() !== '') leko.reached('name-entered')
+})
+```
+
+Delete that line and the tour stops at the third step for ever. That is the
+point of it. The tour moves because the application said something was true.
