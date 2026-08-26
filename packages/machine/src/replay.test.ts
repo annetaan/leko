@@ -75,6 +75,14 @@ interface Snapshot {
   entering: Map<number, Pos>
   /** Every `ErrorUtils` a handler has not answered with yet, by its token. */
   holding: Map<number, Pos>
+  /**
+   * Every teardown the model has begun and not finished, by token.
+   *
+   * `machine.ts` runs a whole teardown inside the call that began it, so these
+   * never outlive one `dispatch`. What they mark out is the run of trace states
+   * that happened *during* that call, which is the whole of why they are here.
+   */
+  leaving: Set<number>
   slow: boolean
   registered: string[]
   /** Which way the action went. See `mark` in the model. */
@@ -84,8 +92,13 @@ interface Snapshot {
 const snapshot = (raw: Record<string, Itf>): Snapshot => {
   const m = raw['m'] as Record<string, Itf>
   const entering = new Map<number, Pos>()
+  const leaving = new Set<number>()
   for (const callback of set(m['inflight'])) {
     if (tag(callback) === 'Morph') continue
+    if (tag(callback) === 'Leaving') {
+      leaving.add(int((payload(callback) as { token: Itf }).token))
+      continue
+    }
     const body = payload(callback) as { token: Itf; at: Itf }
     entering.set(int(body.token), pos(body.at))
   }
@@ -112,6 +125,7 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     presenterUp: m['presenterUp'] as boolean,
     entering,
     holding,
+    leaving,
     slow: m['slow'] as boolean,
     registered: set(m['registered']).map(str),
     mark: m['mark'] as string,
@@ -148,6 +162,23 @@ const defer = (): Deferred => {
 }
 
 /** What one run of one trace needs to hold on to while it drives the machine. */
+/**
+ * Every way the model says a call came to nothing because of the gate.
+ *
+ * `refused-signal` is the odd one: the call matched what the step was waiting
+ * for and was dropped all the same, so the diagnostic it raises says that
+ * rather than naming the call. Both are one diagnostic, which is what the
+ * counting below asks for.
+ */
+const REFUSALS = ['refused-start', 'refused-setStory', 'refused-signal']
+
+/** One call the trace says arrived while the machine was inside a teardown. */
+interface Windowed {
+  now: Snapshot
+  before: Snapshot
+  where: string
+}
+
 interface Run {
   tour: Machine<Anchor, Step, Story>
   fake: Recorder
@@ -173,6 +204,16 @@ interface Run {
   /** `onEnter` and `onLeave`, in order, as `story:a` or `step:a1`. */
   handlers: { kind: 'enter' | 'leave'; who: string }[]
   problems: Problem<Step>[]
+  /**
+   * Calls waiting for a handler to make them.
+   *
+   * `end` runs two `onLeave` calls and a report inside whatever call began it,
+   * and never goes back to the event loop in between. So a call the model makes
+   * during a teardown has no moment out in the driver where it could be made.
+   * These are queued before the call that opens the teardown and made from
+   * inside it. See {@link drain}.
+   */
+  window: Windowed[]
 }
 
 /**
@@ -302,6 +343,18 @@ const stepOf = (run: Run, at: Pos): Step => run.stories.get(at.story)!.steps[at.
 
 /** Make the call this state of the trace says was made. */
 async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void> {
+  makeCall(run, now, before)
+  await turn()
+}
+
+/**
+ * The call on its own, with no turn after it.
+ *
+ * {@link drain} makes calls from inside a handler, where there is no awaiting
+ * anything: the machine is part way through one of its own operations and the
+ * microtask queue does not run until it is finished.
+ */
+function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
   const { picks } = now
   switch (now.action) {
     case 'doSetStory':
@@ -347,10 +400,41 @@ async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void
     case 'doFail':
       settle(run, picks['failPick']!, before, true)
       break
+    case 'doLeave':
+      // Not a call at all. `end` runs its handlers and its report inside
+      // whichever call began it, so by the time the driver reads this state the
+      // machine has long since been through it.
+      break
     default:
       throw new Error(`no call for ${now.action}`)
   }
-  await turn()
+}
+
+/**
+ * Make every call the trace says arrived while the machine was inside a
+ * teardown, from wherever the machine has just handed control back.
+ *
+ * `onLeave` and the ending `onStep` are the only moments there are, and this
+ * runs from all of them. The first one to find the queue full empties it, which
+ * is faithful enough: every state in the window is the same state, with the
+ * position empty and the phase closed.
+ */
+function drain(run: Run): void {
+  // Only from inside a teardown. `end` empties the position before it calls
+  // anything, so a handler asking where the tour is gets `idle`; the `onLeave`
+  // of a step being walked away from gets `transitioning` and is not this.
+  if (run.window.length === 0 || run.tour.state !== 'idle') return
+  for (const { now, before, where } of run.window.splice(0)) {
+    const seen = observe(run)
+    const problems = run.problems.length
+    makeCall(run, now, before)
+    // Every one of them is refused, finds nothing to act on, or is a knob on
+    // the world. What has to be true is that not one of them moved anything.
+    expect(observe(run), `${where}: a call moved the machine during a teardown`).toEqual(seen)
+    if (REFUSALS.includes(now.mark)) {
+      expect(run.problems.length, `${where}: refused in silence`).toBe(problems + 1)
+    }
+  }
 }
 
 /**
@@ -476,6 +560,13 @@ interface Trace {
 // here. What keeps that from quietly meaning nothing is the first test below.
 const corpus = fileURLToPath(new URL('../model/traces/', import.meta.url))
 
+/**
+ * What the corpus as a whole got to. `drain` is a lot of machinery to have
+ * standing idle, and a corpus that stopped putting calls inside a teardown
+ * would leave every assertion in it green about nothing.
+ */
+const exercised = { teardownCalls: 0 }
+
 const named = readdirSync(corpus)
   .filter((file) => file.endsWith('.itf.json'))
   .toSorted()
@@ -514,7 +605,10 @@ describe('every trace the model found', () => {
       const stories = build(trace.states[0]!, () => run)
       const tour = new Machine<Anchor, Step, Story>(
         {
-          onStep: (step, previous) => void reports.push({ step: step?.id, previous: previous?.id }),
+          onStep: (step, previous) => {
+            reports.push({ step: step?.id, previous: previous?.id })
+            drain(run)
+          },
           onDiagnostic: (problem) => void problems.push(problem),
         },
         (host) => {
@@ -535,6 +629,7 @@ describe('every trace the model found', () => {
         reports,
         handlers: [],
         problems,
+        window: [],
       }
       for (const story of stories.values()) {
         const entered = story.onEnter!
@@ -542,14 +637,20 @@ describe('every trace the model found', () => {
           run.handlers.push({ kind: 'enter', who: `story:${self.id}` })
           return entered(self)
         }
-        story.onLeave = (self) => void run.handlers.push({ kind: 'leave', who: `story:${self.id}` })
+        story.onLeave = (self) => {
+          run.handlers.push({ kind: 'leave', who: `story:${self.id}` })
+          drain(run)
+        }
         for (const step of story.steps) {
           const opened = step.onEnter!
           step.onEnter = (self) => {
             run.handlers.push({ kind: 'enter', who: `step:${self.id}` })
             return opened(self)
           }
-          step.onLeave = (self) => void run.handlers.push({ kind: 'leave', who: `step:${self.id}` })
+          step.onLeave = (self) => {
+            run.handlers.push({ kind: 'leave', who: `step:${self.id}` })
+            drain(run)
+          }
         }
       }
 
@@ -563,17 +664,47 @@ describe('every trace the model found', () => {
 
       agrees(run, first, 'state 0')
 
+      const states = trace.states.map((raw) => snapshot(raw))
+      const nameOf = (at: number): string =>
+        `state ${at}, after ${states[at]!.action} (${states[at]!.mark})`
+
       let before = first
-      for (const [index, raw] of trace.states.slice(1).entries()) {
-        const now = snapshot(raw)
-        const where = `state ${index + 1}, after ${now.action} (${now.mark})`
+      let index = 1
+      while (index < states.length) {
+        const opening = states[index]!
         const seenBefore = observe(run)
         const problemsBefore = run.problems.length
         const retoldBefore = run.fake.retold.length
         const rejectedBefore = run.fake.rejected
         const wasAt = before.position
 
-        await dispatch(run, now, before)
+        // A teardown runs its handlers and its report inside the call that
+        // began it, so every trace state from here to the end of it happened
+        // during the one call about to be made. The calls among them go to the
+        // handlers; `doLeave` is the machine carrying on and is not a call.
+        let last = index
+        if (opening.leaving.size > 0 && before.leaving.size === 0) {
+          while (last + 1 < states.length && states[last]!.leaving.size > 0) {
+            last += 1
+            const inner = states[last]!
+            if (inner.action === 'doLeave') continue
+            run.window.push({ now: inner, before: states[last - 1]!, where: nameOf(last) })
+          }
+        }
+        const queued = run.window.length
+
+        await dispatch(run, opening, before)
+
+        expect(run.window, `${nameOf(index)}: the teardown ran no handler`).toHaveLength(0)
+        if (queued > 0) exercised.teardownCalls += queued
+
+        // A trace that stops part way through a teardown leaves nothing out
+        // here to hold the machine against: the real one finished the ending
+        // inside the call above, and the model is still in the middle of it.
+        // What those states claimed was checked in `drain`, as they were made.
+        const now = states[last]!
+        if (now.leaving.size > 0) break
+        const where = nameOf(last)
         bind(run, before, now)
         agrees(run, now, where)
 
@@ -581,7 +712,7 @@ describe('every trace the model found', () => {
         //    anything, and `stop()` is the one exception. The model says which
         //    calls the gate turned down; what has to be checked here is that the
         //    real one did nothing about them.
-        if (now.mark === 'refused') {
+        if (REFUSALS.includes(now.mark)) {
           expect(observe(run), `${where}: the gate was open`).toEqual(seenBefore)
           // And said so. A refusal has no other symptom: the tour simply does
           // not move, and without this nothing anywhere says why.
@@ -639,6 +770,7 @@ describe('every trace the model found', () => {
         }
 
         before = now
+        index = last + 1
       }
 
       balanced(run, 'the whole trace')

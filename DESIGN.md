@@ -500,6 +500,13 @@ stand back for one of them. That is the reading `state` is about the machine and
 not about the screen would have allowed, and the cost of it is a fifth member on
 `Host`.
 
+**A teardown says `idle`, and the gate is still shut.** `end` empties the
+position before it calls anything, so a handler reading `state` from inside its
+own `onLeave` is told the tour is over. That is the truth, and the ending
+`onStep` is written on top of it: the report finds a machine a host may call
+into. The phase underneath is still closed, which is what refuses a `start()`
+made from in there.
+
 **Nothing can forget to write an answer that nobody stores.** Before adding a
 field here, check whether it is a third way of saying what two fields already
 say.

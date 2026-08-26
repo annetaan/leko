@@ -883,6 +883,29 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('running')
   })
 
+  test('a tour being torn down says idle from inside its own onLeave', () => {
+    const seen: string[] = []
+    const tour = register({
+      id: 'story',
+      onLeave: () => void seen.push(`story:${tour.state}:${tour.story?.id}`),
+      steps: [
+        {
+          id: 'a',
+          target: 'first',
+          onLeave: () => void seen.push(`step:${tour.state}:${tour.step?.id}`),
+        },
+      ],
+    })
+    tour.start('story')
+    tour.stop()
+
+    // `end` empties the position before it calls anything, so a handler asking
+    // where the tour is gets the truth: nowhere. The phase is still closed
+    // underneath, and that is what refuses a `start()` made from in here. The
+    // two say different things on purpose, and only one of them is public.
+    expect(seen).toEqual(['step:idle:undefined', 'story:idle:undefined'])
+  })
+
   test('the index says how far into the story the step sits, and is empty while idle', () => {
     const tour = register({
       id: 'story',

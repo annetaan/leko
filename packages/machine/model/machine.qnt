@@ -48,6 +48,15 @@ module machine {
     | EnterStory({ token: int, at: Pos })
     | EnterStep({ token: int, at: Pos })
     | Morph({ token: int, at: Pos })
+    // A teardown that has emptied the machine and not yet run the handlers it
+    // owes. `machine.ts` does the whole of that inside one call and never
+    // returns to the event loop in the middle, so this is not a promise. It is
+    // a window: `onLeave` and the ending `onStep` are application code, and an
+    // application inside one can call straight back in.
+    //
+    // `into` is the story a `start` is displacing this one with. It decides
+    // whether the curtain goes up before the report, and what happens after.
+    | Leaving({ token: int, into: Maybe[str] })
 
   /// What `onValidationError` was handed, and has not answered with yet.
   ///
@@ -209,11 +218,9 @@ module machine {
            // teardown()
            .with("presenterUp", false)
            .with("drawn", Nothing)
-        // onLeave, innermost first, then report. Neither touches a field.
-        match into {
-          | Nothing => torn.with("phase", Ready)
-          | Just(_) => torn
-        }
+        // And there it stops. What is owed is two `onLeave` calls and a report,
+        // all of them application code, and {@link doLeave} is the rest of it.
+        park(torn, (t) => Leaving({ token: t, into: into }))
       }
     }
 
@@ -337,7 +344,7 @@ module machine {
 
   action doSetStory(id: str): bool = all {
     m' =
-      if (not(accepting(m))) m.with("mark", "refused")
+      if (not(accepting(m))) m.with("mark", "refused-setStory")
       // A call naming the story the tour is on does nothing, so a component
       // re-registering on every render cannot move the ground under a user.
       else
@@ -351,18 +358,23 @@ module machine {
 
   action doStart(id: str): bool = all {
     m' =
-      if (not(accepting(m))) m.with("mark", "refused")
+      if (not(accepting(m))) m.with("mark", "refused-start")
       else if (not(m.registered.contains(id)) or m.world.get(id).steps.length() == 0)
         // Nothing is torn down until the id is known to be good, so a typo
         // cannot end a tour someone is in the middle of.
         m.with("mark", "start-refused")
-      else {
-        // What is ending is told what is starting, and the phase stays closed
-        // through the whole of it, report included.
-        val ended = end(m, Just(id))
-        val moved = ended.with("position", Just({ story: id, index: 0 }))
-        enterStory(moved, { story: id, index: 0 }).with("mark", "start")
-      },
+      else
+        match m.position {
+          // Nothing to tear down, so the story goes up in this call.
+          | Nothing => {
+            val at = { story: id, index: 0 }
+            enterStory(m.with("position", Just(at)), at).with("mark", "start")
+          }
+          // What is ending is told what is starting, and the phase stays closed
+          // through the whole of it, report included. The second half of this
+          // call is in {@link doLeave}, which is where that report is made.
+          | Just(_) => end(m, Just(id)).with("mark", "start-displacing")
+        },
   }
 
   action doReached(name: str): bool = all {
@@ -374,7 +386,7 @@ module machine {
           if (step.awaits != Just(name)) m.with("mark", "unmatched")
           // Matched, and dropped anyway. The step goes on waiting for something
           // the application has already been through.
-          else if (not(accepting(m))) m.with("mark", "refused")
+          else if (not(accepting(m))) m.with("mark", "refused-signal")
           else advance(m, at, true).with("mark", "reached")
         }
       },
@@ -465,6 +477,51 @@ module machine {
     m' = m.with("slow", yes).with("mark", "slow"),
   }
 
+  // --- what a teardown owes
+
+  /// The rest of an ending: the two `onLeave` calls, the curtain where there is
+  /// nothing following the report, and the report.
+  ///
+  /// **The window is the state this leaves behind, not this action.** Between
+  /// {@link end} parking a `Leaving` and this taking it off, the machine is
+  /// emptied and the phase is closed, which is exactly where `machine.ts`
+  /// stands while it runs handlers. Every other action is offered there, and
+  /// what has to be true is that none of them moves anything.
+  ///
+  /// `machine.ts` runs the whole of this inside the call that began it, so a
+  /// model resting here is more permissive than the code. Nothing is lost by
+  /// that: with the position empty and the phase closed, every action either
+  /// is refused, finds nothing to act on, or is a knob on the world.
+  action doLeave(cb: Callback): bool = all {
+    m.inflight.contains(cb),
+    match cb {
+      | Leaving(_) => true
+      | EnterStory(_) => false
+      | EnterStep(_) => false
+      | Morph(_) => false
+    },
+    m' = {
+      val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
+      match cb {
+        | Leaving(c) =>
+          match c.into {
+            // Nothing follows the report, so a host is free to start a story
+            // from it and the curtain goes up first.
+            | Nothing => awake.with("phase", Ready).with("mark", "left")
+            // An ending with somewhere to go stays closed through its own
+            // report, and then the story that was named goes up.
+            | Just(id) => {
+              val at = { story: id, index: 0 }
+              enterStory(awake.with("position", Just(at)), at).with("mark", "left-into")
+            }
+          }
+        | EnterStory(_) => awake
+        | EnterStep(_) => awake
+        | Morph(_) => awake
+      }
+    },
+  }
+
   // --- what a failed attempt says about itself
 
   /// `ErrorUtils.setError`. The words belong on the attempt they were written
@@ -498,6 +555,12 @@ module machine {
 
   action doSettle(cb: Callback): bool = all {
     m.inflight.contains(cb),
+    match cb {
+      | Leaving(_) => false
+      | EnterStory(_) => true
+      | EnterStep(_) => true
+      | Morph(_) => true
+    },
     m' = {
       val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
       match cb {
@@ -507,6 +570,7 @@ module machine {
         | EnterStep(c) =>
           if (stillAt(awake, c.at)) arrive(awake, c.at).with("mark", "settle-step")
           else awake.with("mark", "settle-stale")
+        | Leaving(_) => awake
         | Morph(c) => {
           // Only the morph nothing has replaced may call the step settled.
           if (awake.showing != Just(c.token)) awake.with("mark", "morph-stale")
@@ -531,6 +595,7 @@ module machine {
       | EnterStory(_) => true
       | EnterStep(_) => true
       | Morph(_) => false
+      | Leaving(_) => false
     },
     m' = {
       val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
@@ -538,6 +603,7 @@ module machine {
         | EnterStory(c) => failed(awake, c.at).with("mark", "fail-story")
         | EnterStep(c) => failed(awake, c.at).with("mark", "fail-step")
         | Morph(_) => awake
+        | Leaving(_) => awake
       }
     },
   }
@@ -609,6 +675,8 @@ module machine {
     doSettle(settlePick),
     nondet failPick = m.inflight.oneOf()
     doFail(failPick),
+    nondet leavePick = m.inflight.oneOf()
+    doLeave(leavePick),
     nondet errorPick = m.holding.oneOf()
     doSetError(errorPick),
     nondet shakePick = m.holding.oneOf()
@@ -642,6 +710,8 @@ module machine {
     doSettle(settlePick),
     nondet failPick = m.inflight.oneOf()
     doFail(failPick),
+    nondet leavePick = m.inflight.oneOf()
+    doLeave(leavePick),
     nondet errorPick = m.holding.oneOf()
     doSetError(errorPick),
     nondet shakePick = m.holding.oneOf()
@@ -659,11 +729,18 @@ module machine {
   val runningIsDrawn: bool =
     stateOf(m) == "running" implies m.drawn == m.position
 
-  /// 2. `state == "idle"` implies the presenter has been torn down, `phase` is
-  ///    `ready`, and `position`, `error`, `announced` and `showing` are all empty.
+  /// 2. `state == "idle"` implies the presenter has been torn down, and
+  ///    `position`, `error`, `announced` and `showing` are all empty.
+  ///
+  /// This used to ask for `phase == Ready` as well, and it held because nothing
+  /// could reach a teardown from the outside. `end` empties the position before
+  /// it calls anything, so a handler reading `state` from inside an `onLeave`
+  /// is told `idle` while the phase underneath is still `Ending`. The two
+  /// answer different questions and only one of them is public;
+  /// `machine.test.ts` has the case that says so.
   val idleIsClean: bool =
     stateOf(m) == "idle" implies and {
-      m.phase == Ready,
+      m.phase == Ready or m.phase == Ending,
       not(m.presenterUp),
       not(m.hasError),
       m.announced == Nothing,
@@ -684,6 +761,7 @@ module machine {
         | Morph(c) => not(stillAt(m, c.at))
         | EnterStory(_) => false
         | EnterStep(_) => false
+        | Leaving(_) => false
       }
     )
 
@@ -724,8 +802,22 @@ module machine {
   /// A shake that landed, which is the other half of that pair.
   val shook: bool = m.mark == "shake"
 
+  /// The machine standing inside a teardown, with `onLeave` owed. The window
+  /// every call below has to come to nothing in.
+  val tearing: bool = m.phase == Ending
+
+  /// One per way into the machine, because a window with only `setStory` in it
+  /// is a window nobody has really looked into. `stop()` is here for the
+  /// opposite reason to the others: it is the one call the gate never turns
+  /// down, and what has to be true of it is that a second teardown is not one.
+  val startWhileTearing: bool = m.phase == Ending and m.mark == "refused-start"
+  val setStoryWhileTearing: bool = m.phase == Ending and m.mark == "refused-setStory"
+  val signalWhileTearing: bool = m.phase == Ending and m.mark == "unmatched"
+  val stoppedWhileTearing: bool = m.phase == Ending and m.mark == "stop"
+
   /// A call the gate turned down.
-  val refused: bool = m.mark == "refused"
+  val refused: bool =
+    m.mark == "refused-start" or m.mark == "refused-setStory" or m.mark == "refused-signal"
 
   /// The presenter reporting about a step the tour has already left, which it
   /// can do because it watches the step it was shown rather than the tour.

@@ -117,6 +117,7 @@ watched what caught it:
 | `draw`'s settle writes `ready` over a `searching` phase | **no** | yes |
 | `seek` accepts a search for a step the tour has left | **no** | yes |
 | `lose` accepts a loss for a step the tour has left | **no** | yes |
+| `end` runs a second teardown when one is already open | **no** | yes |
 
 The bottom three all need a presenter reporting about a step the tour has
 already walked away from. That is a real thing. `presenter.ts` watches the step
@@ -127,11 +128,65 @@ All three have one in `machine.test.ts` now, in the `what the tour says it is
 doing` group. A trace says a call went wrong at state 8. A named test says what
 the rule is. I want both, and the traces are what found the rule to name.
 
+The last row is the newest and it took the teardown window to reach. `stop()` is
+the one call the gate never turns down, and an application is free to make it
+from inside its own `onLeave`. `end` refuses that by returning early on an empty
+position. Take the early return out and 120 tests stay green, including all 76
+hand-written ones. `stop-tearing` is the only thing that says anything.
+
+Opening that window found one more thing, and this one was in the model.
+`idleIsClean` said that `state == "idle"` implies `phase == Ready`. It held for
+as long as nothing could reach a teardown from the outside. `end` empties the
+position before it calls anything, so a handler reading `state` from inside its
+own `onLeave` is told `idle` while the phase underneath is still `ending`. The
+search broke the old invariant in 30ms. I weakened it. The machine was right,
+and `machine.test.ts` has the case that says what a handler sees.
+
 Two of the three only became reachable after I changed the model. `doLose` and
 `doHunt` started out asking `m.position == Just(at)` first, so the search never
 made a report about a step nobody was standing on. That is the shape of the work
 here. The model is where I write down what can happen, and getting that list
 wrong is how this fails.
+
+## The teardown window
+
+`end` empties the machine, takes the presenter down, runs two `onLeave` calls
+and reports. Those three are application code, and an application inside one can
+call straight back in. `machine.ts` does the whole of it inside whichever call
+began it and never goes back to the event loop in the middle.
+
+The model used to do the whole of it in one `pure def`. So it rested either side
+of a teardown and never inside one. I asked it directly and it agreed:
+
+```
+--invariant='m.phase != Ending'
+[ok] No violation found (2447ms at 81733 traces/second)
+```
+
+200000 traces, 24 steps, and `ending` never once. Six phases in `machine.ts`,
+and the search could reach five.
+
+`end` parks a `Leaving` now, and `doLeave` is the rest of it. Between the two,
+the machine is emptied and the phase is closed, which is exactly where
+`machine.ts` stands while it runs handlers. All 15 actions are offered there.
+
+That is more permissive than the code. A real `onLeave` cannot receive a morph
+landing, and the model will offer one. Nothing is lost by it. With the position
+empty and the phase closed, every one of the 15 is refused, finds nothing to act
+on, or is a knob on the world, so none of them can make a state the code would
+never reach.
+
+Driving it took more work than modelling it. There is no moment out in the
+driver where a call made from inside `onLeave` could be made. So `replay.test.ts`
+reads ahead, queues the calls the trace puts in the window, and `drain` makes
+them from the handler. It knows it is in a teardown by asking `tour.state`,
+which answers `idle` there and `transitioning` in the `onLeave` of a step the
+tour is merely walking away from.
+
+Four of the traces put a call in the window, one per way into the machine. A
+window with only `setStory` in it is a window nobody has really looked into, and
+that is what the first version had: 5 window calls across the whole corpus, no
+`start`, no `stop`, no `reached`. There are 11 now and every entrance is used.
 
 ## The world, and how big it is
 
@@ -184,7 +239,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 10 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 17 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 
@@ -243,16 +298,10 @@ of the same shape the model uses.
 - Any depth at all, in the sense of a finished search. `park` increments
   `nextToken` and nothing resets it, so the state space is infinite and no
   exhaustive walk of it can stop. A bound is the only thing on offer.
-- The `ending` phase. `end` is one `pure def` here, so the model rests either
-  side of a teardown and never inside one. Ask it directly and it says so:
-  `--invariant='m.phase != Ending'` finds no violation in 200,000 traces, on
-  both relations. In `machine.ts` that phase is `onLeave` running, which is
-  application code that can call back in, and `machine.test.ts` covers that by
-  hand. The search does not reach it.
 - `watch()` and the microtask that carries it. No watchers are attached in the
   replay.
 - The `animate` flag, the words on a step, the diagnostic payloads. Only the
   count of diagnostics is checked.
 - A misconception shared by the model and the code. Nothing can catch that. The
-  model is 740 lines and small enough to read, and that is the whole of the
+  model is 832 lines and small enough to read, and that is the whole of the
   defence.
