@@ -1,30 +1,7 @@
-import {
-  accepting,
-  arrivedAt,
-  type Core,
-  failing,
-  found,
-  heldForStep,
-  heldForStory,
-  idle,
-  movedTo,
-  opened,
-  seeking,
-  settled,
-  settling,
-  stateOf,
-  stepOf,
-  torn,
-} from './core.js'
-import type { Content, Host, Presenter } from './port.js'
-import type {
-  ErrorUtils,
-  MachineOptions,
-  MachineState,
-  Problem,
-  StepBase,
-  StoryBase,
-} from './types.js'
+import { type Core, idle, type Position, stateOf, stepOf } from './core.js'
+import { type Effect, type Event, type Look, type Outcome, reduce } from './plan.js'
+import type { Host, Presenter } from './port.js'
+import type { ErrorUtils, MachineOptions, MachineState, StepBase, StoryBase } from './types.js'
 
 /** What the next control reads until an instance says otherwise. */
 const NEXT_LABEL = 'Next'
@@ -63,7 +40,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * The field the rest of this class reads most, and the only one worth a
    * shorthand. Every other read goes to {@link Machine.#core} by name.
    */
-  private get position(): { readonly story: St; readonly index: number } | undefined {
+  private get position(): Position<St> | undefined {
     return this.#core.position
   }
   /** Everything watching {@link state}, and nothing else is told about it. */
@@ -112,26 +89,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   ) {
     this.options = options
     this.presenter = presenter({
-      lost: (step) => this.lose(step),
-      moved: () => this.surfaceMoved(),
-      next: () => this.pressed(),
+      lost: (step) => void this.dispatch({ kind: 'lost', step }),
+      moved: () => void this.dispatch({ kind: 'moved' }),
+      next: () => void this.dispatch({ kind: 'pressed' }),
       close: () => this.stop(),
-      searching: (step, yes) => this.seek(step, yes),
+      searching: (step, yes) => void this.dispatch({ kind: 'searching', step, yes }),
     })
-  }
-
-  /** `accepting` in `core.ts`, which is where the rule it keeps is argued. */
-  private get accepting(): boolean {
-    return accepting(this.#core)
-  }
-
-  /**
-   * Say that a call arrived at a moment nothing could be done with it, and
-   * answer `false` so that a caller reading the answer gets the same news.
-   */
-  private refuse(call: Extract<Problem<S>, { kind: 'call-refused' }>['call']): false {
-    this.options.onDiagnostic?.({ kind: 'call-refused', call })
-    return false
   }
 
   /**
@@ -243,13 +206,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Answers whether the story was registered.
    */
   setStory(story: St): boolean {
-    if (!this.accepting) return this.refuse('setStory')
-    // Not a diagnostic. A component re-registering on every render lands here
-    // on every render while a tour runs, and that is the case the rule is
-    // written for rather than a mistake to be told about.
-    if (this.position?.story.id === story.id) return false
-    this.stories.set(story.id, story)
-    return true
+    // A `register` effect is what registering looks like from out here, and the
+    // two ways there is none are the two ways this answers `false`.
+    return this.dispatch({ kind: 'setStory', story }).effects.some(
+      (effect) => effect.kind === 'register',
+    )
   }
 
   /**
@@ -277,80 +238,11 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * and nothing anywhere says why.
    */
   start(storyId: string): boolean {
-    if (!this.accepting) return this.refuse('start')
     const story = this.stories.get(storyId)
-    if (!story) {
-      this.options.onDiagnostic?.({ kind: 'story-not-found', storyId })
-      return false
-    }
-    // A story with nothing in it used to be caught by the bounds check on `at`,
-    // because `0 >= 0`. Without one it would enter, find no step, and report a
-    // run that began and ended in the same turn.
-    if (story.steps.length === 0) {
-      this.options.onDiagnostic?.({ kind: 'story-empty', storyId })
-      return false
-    }
-    // What is ending is told what is starting, so teardown a branch and the
-    // story it rejoins both need can be skipped. Displacing one story with
-    // another is one operation from out here, and `end` keeps the phase closed
-    // through the whole of it, including the report. So nothing gets between
-    // the two halves and `next` is a promise this call keeps.
-    this.end(story)
-    this.commit(movedTo(this.#core, story, 0))
-    this.enterStory(story)
+    this.dispatch({ kind: 'start', storyId })
     // Asked after the fact rather than assumed, because a story's `onEnter` can
     // throw and end the run before this returns.
-    return this.position?.story === story
-  }
-
-  /**
-   * Outermost first: whatever the whole story assumes is built before anything
-   * about its first step is, including that step's own `onEnter`.
-   *
-   * A handler that hands back nothing costs nothing, exactly as a step's does —
-   * the first step is entered in the same turn `start()` was called in.
-   */
-  private enterStory(story: St): void {
-    const here = this.position
-    // Nothing of this story is on screen and nothing will be until its first
-    // step is drawn, which is the widest this window gets.
-    this.presenter.hold(story, undefined)
-    // Nothing of this story is settled and nothing is drawn, which is what
-    // `transitioning` says about the gap between two steps and says as well
-    // about this one. Set before `onEnter` is called rather than after, so that
-    // a handler answering synchronously is inside the window too. No step has
-    // been entered yet, and this phase is how {@link end} knows.
-    this.commit(heldForStory(this.#core))
-    let entering: unknown
-    try {
-      entering = story.onEnter?.(story)
-    } catch (reason) {
-      return this.failed(reason, here)
-    }
-    // `stop()` walks out of an arrival, and this is a handler that can make the
-    // call. There is no first step to enter once it has.
-    const go = () => {
-      if (this.position === here) this.enter(false, undefined)
-    }
-    if (!isThenable(entering)) return go()
-
-    void entering.then(go, (reason: unknown) => this.failed(reason, here))
-  }
-
-  /**
-   * Where the tour got to, said once, to the one hook there is.
-   *
-   * A story used to carry a hook of its own and both fired, story first. The
-   * story's could say nothing this cannot — it was never told which story it
-   * was, so anything spanning two of them was written here anyway — and it cost
-   * an ordering promise that had to hold on every path out of this class.
-   *
-   * `step` is `undefined` where the run ended, and `previous` is read from
-   * {@link announced}, so the calls chain: each one leaves from where the last
-   * one arrived.
-   */
-  private report(story: St, step: S | undefined, previous: S | undefined): void {
-    this.options.onStep?.(step, previous, story)
+    return story !== undefined && this.position?.story === story
   }
 
   /**
@@ -363,71 +255,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * silent.
    */
   reached(name: string): void {
-    const step = this.step
-    if (step?.awaits !== name) return
-    // Matched, and dropped anyway. A step waiting for a name the application
-    // has already reported waits for ever, and this is the only place anything
-    // knows that happened.
-    if (!this.accepting) {
-      this.options.onDiagnostic?.({ kind: 'signal-dropped', name, step })
-      return
-    }
-    this.advance(step)
-  }
-
-  /**
-   * The next control the presenter drew was pressed.
-   *
-   * **Private, and reachable only through {@link Host.next}.** A step that
-   * declares `awaits` never gets a control, because the control would be a way
-   * past the work that step exists to make somebody do. That rule is worth
-   * nothing if anything holding a tour can advance a step without one, so the
-   * only presser is the thing that decides whether there is a control at all.
-   *
-   * There is no diagnostic for a press the gate turns down. Every other refusal
-   * is reported because a host made a call and nothing happened; this one is a
-   * button the presenter takes off the screen for the whole of an arrival, so
-   * there is neither a caller to tell nor anything for one to do about it.
-   */
-  private pressed(): void {
-    const step = this.step
-    if (!step || !this.accepting) return
-    this.advance(step)
-  }
-
-  /**
-   * It is *not* a no-op mid morph: silently dropping a call would be the
-   * library deciding the application did not mean it, which is the guessing it
-   * exists to avoid. A morph is a step that arrived and is still moving, and a
-   * call during one means what it says.
-   *
-   * A step still arriving is the other thing, and {@link accepting} is where
-   * that is decided. The call is dropped where it stands rather than held until
-   * the arrival lands: a signal saved over is a step advancing on something
-   * that happened before it began.
-   */
-  private advance(step: S): void {
-    const here = this.position
-    if (!here) return
-    const { story, index } = here
-
-    // A step that declares a signal is not guarded here. The application has
-    // already said the thing happened, and reading the page to check would be
-    // a second source of truth for the same question. See {@link nextLabel}:
-    // `awaits` decides whether the step has a control, and it decides whether
-    // it has a guard, for one reason.
-    if (step.validate && step.awaits === undefined) {
-      const anchor = this.presenter.resolve(step)
-      if (anchor === null) return this.lose(step)
-      if (!step.validate(anchor)) {
-        step.onValidationError?.(anchor, this.errorUtils(story, step, anchor))
-        return
-      }
-    }
-
-    if (index >= story.steps.length - 1) return this.end(undefined)
-    this.commit(movedTo(this.#core, story, index + 1))
-    this.enter(true, step)
+    this.dispatch({ kind: 'reached', name })
   }
 
   /**
@@ -437,269 +265,202 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    *
    * A no-op while idle, so it reports once however many times it is called.
    *
-   * The one call {@link accepting} does not stand in the way of. A step still
+   * The one call the phase gate does not stand in the way of. A step still
    * arriving is thrown away rather than waited for, and the `onEnter` settling
    * afterwards finds the tour standing somewhere else and does nothing.
    */
   stop(): void {
-    this.end(undefined)
+    this.dispatch({ kind: 'stop' })
+  }
+
+  // ------------------------------------------------------------- the shell
+  //
+  // Below here nothing decides anything. `plan.ts` says what an event does to
+  // the state and what the machine owes the world because of it, and these two
+  // do the owing.
+
+  /** The two things a reduction needs that this class holds rather than states. */
+  private get look(): Look<A, S, St> {
+    return {
+      story: (id) => this.stories.get(id),
+      nextLabel: this.options.nextLabel ?? NEXT_LABEL,
+    }
   }
 
   /**
-   * Ending a run, told where the tour is going next so that the story's
-   * `onLeave` can be. `next` is a story only when {@link start} is displacing
-   * this one; every other ending has nowhere to name.
+   * Put one event through {@link reduce}, take the state it answers with, and
+   * do what it says is owed.
    *
-   * **An ending with somewhere to go stays closed through its own report.**
-   * The `start` that caused it has not put the new story up yet, and a story
-   * begun from that report would be overwritten by the one already on its way.
-   * That is also what makes `next` worth having: the story named there is the
-   * story that runs.
+   * **The state is committed before any of it runs.** Every effect below is a
+   * call out of the machine, and three of them are calls into the application,
+   * which is free to call straight back in. What such a call finds is the
+   * machine as the event left it. That ordering used to be a rule kept by hand
+   * at seven different places, each with a comment saying why the line above it
+   * came first.
    *
-   * An ending with nowhere to go opens first. Nothing follows the report, so a
-   * host is free to start a story from it, and `branching.ts` rejoins that way.
+   * `next` is the machine carrying on with something it began, and it goes last
+   * so that a reduction stops at a window rather than spanning one.
    */
-  private end(next: St | undefined): void {
-    const here = this.position
-    if (!here) return
-    const { story } = here
-    const previous = this.#core.announced
-    // The step's `onLeave` is owed unless the story's own setup never got as
-    // far as entering one.
-    const step = this.#core.phase === 'story' ? undefined : this.step
-    // Closed for the whole teardown. `onLeave` is a call into the application,
-    // and a story started from inside one would be torn down by the lines after
-    // it. Opened again below, before the report, which is the one handler that
-    // has nothing running after it.
-    this.commit(torn())
-    this.presenter.teardown()
-    // The step's own cleanup, then the story's: innermost first, the mirror of
-    // the order they were entered in.
-    step?.onLeave?.(step, undefined)
-    story.onLeave?.(story, next)
-    if (!next) this.commit(opened(this.#core))
-    this.report(story, undefined, previous)
+  private dispatch(event: Event<A, S, St>): Outcome<A, S, St> {
+    const outcome = reduce(this.#core, event, this.look)
+    this.commit(outcome.core)
+    for (const effect of outcome.effects) this.perform(effect)
+    if (outcome.next) this.dispatch(outcome.next)
+    return outcome
+  }
+
+  /**
+   * Make one call out of the machine.
+   *
+   * Where the call answers something the machine needs, the answer comes back
+   * as an event rather than as a return value, because acting on it is a
+   * decision and no decision is made here.
+   */
+  private perform(effect: Effect<A, S, St>): void {
+    switch (effect.kind) {
+      case 'register':
+        this.stories.set(effect.story.id, effect.story)
+        return
+
+      case 'hold':
+        this.presenter.hold(effect.story, effect.step)
+        return
+
+      case 'teardown':
+        this.presenter.teardown()
+        return
+
+      case 'draw': {
+        // A target that is not there is handed over all the same. Whether that
+        // is an ending or something to wait out is a drawing question, and the
+        // presenter says so through `lost` once it has decided.
+        const anchor = this.presenter.resolve(effect.step)
+        const showing = this.presenter.show(
+          effect.story,
+          effect.step,
+          anchor,
+          effect.content,
+          effect.animate,
+        )
+        if (!isThenable(showing)) return
+        this.dispatch({ kind: 'shown', at: effect.at, showing })
+        void showing.then(() => void this.dispatch({ kind: 'settled', showing }))
+        return
+      }
+
+      case 'place':
+        this.presenter.place(
+          effect.story,
+          effect.step,
+          this.presenter.resolve(effect.step),
+          effect.content,
+        )
+        return
+
+      case 'retell':
+        this.presenter.retell(effect.story, effect.step, effect.anchor, effect.content)
+        return
+
+      case 'reject':
+        this.presenter.reject()
+        return
+
+      case 'validate': {
+        const anchor = this.presenter.resolve(effect.step)
+        if (anchor === null) {
+          this.dispatch({ kind: 'lost', step: effect.step })
+          return
+        }
+        if (effect.step.validate?.(anchor)) {
+          this.dispatch({ kind: 'validated', at: effect.at })
+          return
+        }
+        effect.step.onValidationError?.(
+          anchor,
+          this.errorUtils(effect.at, effect.story, effect.step, anchor),
+        )
+        return
+      }
+
+      case 'callStoryEnter': {
+        let entering: unknown
+        try {
+          entering = effect.story.onEnter?.(effect.story)
+        } catch (reason) {
+          this.dispatch({ kind: 'entryFailed', at: effect.at, reason })
+          return
+        }
+        const done = (): void => void this.dispatch({ kind: 'storyEntered', at: effect.at })
+        // A handler that hands back nothing costs nothing at all.
+        if (!isThenable(entering)) return done()
+        void entering.then(done, (reason: unknown) =>
+          this.dispatch({ kind: 'entryFailed', at: effect.at, reason }),
+        )
+        return
+      }
+
+      case 'callStepEnter': {
+        let entering: unknown
+        try {
+          entering = effect.step.onEnter?.(effect.step)
+        } catch (reason) {
+          this.dispatch({ kind: 'entryFailed', at: effect.at, reason })
+          return
+        }
+        const done = (): void =>
+          void this.dispatch({ kind: 'stepEntered', at: effect.at, animate: effect.animate })
+        if (!isThenable(entering)) return done()
+        void entering.then(done, (reason: unknown) =>
+          this.dispatch({ kind: 'entryFailed', at: effect.at, reason }),
+        )
+        return
+      }
+
+      case 'callStepLeave':
+        effect.step.onLeave?.(effect.step, effect.next)
+        return
+
+      case 'callStoryLeave':
+        effect.story.onLeave?.(effect.story, effect.next)
+        return
+
+      case 'report':
+        this.options.onStep?.(effect.step, effect.previous, effect.story)
+        return
+
+      case 'diagnose':
+        this.options.onDiagnostic?.(effect.problem)
+        return
+
+      case 'rethrow':
+        // Thrown again on its own, because a library that quietly eats an
+        // application's exception is why the bug takes a day to find. Throwing
+        // it from here would land it on whichever call happened to start the
+        // step, which is rarely the code that went wrong.
+        queueMicrotask(() => {
+          throw effect.reason
+        })
+        return
+    }
   }
 
   /**
    * What one failed attempt at `step` is allowed to do about itself.
    *
    * `onValidationError` returns `void`, and a handler is free to look something
-   * up and call back afterwards. A handler that answers a second late is
-   * talking about a step the tour has left, and the words it wrote belong on
-   * that step or nowhere.
-   *
-   * {@link position} is replaced on every move and on nothing else, so holding
-   * the object is holding the step occurrence this attempt was made at. A
-   * second failed attempt at the same step is the same occurrence, which is why
-   * a step keeps its own utils working for as long as it is the step being
-   * attempted.
+   * up and call back afterwards. `attempt` is the position the attempt was made
+   * at, and `plan.ts` is what compares it with where the tour has got to since.
    *
    * Nothing here writes to the step. The step object belongs to the
-   * application, and {@link content} reads `message` off it every time it
-   * draws, so an application that edits its own text is seen and Leko never
-   * has a copy to go stale.
+   * application, and the content is read off `message` every time the machine
+   * draws, so an application that edits its own text is seen and Leko never has
+   * a copy to go stale.
    */
-  private errorUtils(story: St, step: S, anchor: A): ErrorUtils {
-    const attempt = this.position
-    const stale = () => this.position !== attempt
+  private errorUtils(attempt: Position<St>, story: St, step: S, anchor: A): ErrorUtils {
     return {
-      shake: () => {
-        if (stale()) return
-        this.presenter.reject()
-      },
-      setError: (message) => {
-        if (stale()) return
-        this.commit(failing(this.#core, message))
-        this.presenter.retell(story, step, anchor, this.content(step))
-      },
+      shake: () => void this.dispatch({ kind: 'shake', attempt }),
+      setError: (message) =>
+        void this.dispatch({ kind: 'setError', attempt, story, step, anchor, message }),
     }
-  }
-
-  /** Everything the box beside the cutout should be showing for this step. */
-  private content(step: S): Content {
-    return { text: step.message, error: this.#core.error, next: this.nextLabel(step) }
-  }
-
-  /**
-   * The words on this step's next control, or `undefined` where it has none.
-   *
-   * A step that declares a signal never gets one, and that is the whole rule.
-   * The step is waiting for the user to do something the application will
-   * report, and a button next to the instruction is a way past it without
-   * doing that. So this is derived from `awaits` rather than configured per
-   * step: nothing a story can write turns the control back on where the second
-   * constraint took it away.
-   *
-   * A step declaring no signal has no other way to end. The control appears
-   * even where the step has no message, because a box with a button in it is
-   * the difference between a step the user can leave and one they cannot.
-   */
-  private nextLabel(step: S): string | undefined {
-    if (step.awaits !== undefined) return undefined
-    return this.options.nextLabel ?? NEXT_LABEL
-  }
-
-  /**
-   * {@link Host.moved}. Nothing about the tour changed, so the step is placed
-   * rather than replayed.
-   *
-   * Nothing of this step has been measured while it is still arriving, and
-   * measuring it here would be reading the anchor early by another route.
-   */
-  private surfaceMoved(): void {
-    if (!this.accepting) return
-    const here = this.position
-    const step = here && here.story.steps[here.index]
-    if (!here || !step) return
-    this.presenter.place(here.story, step, this.presenter.resolve(step), this.content(step))
-  }
-
-  /**
-   * Enter the step {@link position} now names, leaving whatever the tour was
-   * standing on.
-   *
-   * A handler that hands back nothing costs nothing at all.
-   */
-  private enter(animate: boolean, leaving: S | undefined): void {
-    const here = this.position
-    const step = here && here.story.steps[here.index]
-    if (!here || !step) return this.end(undefined)
-    const story = here.story
-
-    // The arrival begins here rather than at the `await` below, so that the
-    // synchronous part of it is inside the window too: `onLeave`, `onEnter` and
-    // the draw are all calls the application can be inside, and through every
-    // one of them `state` used to answer `running` about a step the presenter
-    // had never been given.
-    this.commit(heldForStep(this.#core))
-    // The step being left is over, and the hole is not where it was. There is
-    // no honest place for the message until the new cutout has arrived, and
-    // nothing about the step ahead has been built, so there is nothing honest
-    // to draw either.
-    this.presenter.hold(story, step)
-    leaving?.onLeave?.(leaving, step)
-
-    let entering: unknown
-    try {
-      entering = step.onEnter?.(step)
-    } catch (reason) {
-      return this.failed(reason, here)
-    }
-    if (!isThenable(entering)) return this.arrive(step, animate, story, here)
-
-    void entering.then(
-      () => this.arrive(step, animate, story, here),
-      (reason: unknown) => this.failed(reason, here),
-    )
-  }
-
-  /**
-   * Draw the step, then say the tour moved, in that order.
-   *
-   * `draw` hands a lost anchor to `lose`, and a host that handles it keeps the
-   * tour on this step, so that path reports the move like any other. A host
-   * with no handler gets the ending instead, which reports itself and leaves
-   * nothing here to report.
-   */
-  private arrive(step: S, animate: boolean, story: St, here: object): void {
-    // A `stop()` from inside `onEnter`, or one made while a slow one was in
-    // flight, left this arrival talking about a tour that is over.
-    if (this.position !== here) return
-    // The arrival is over and what is left is the drawing of it. Opened before
-    // `draw` rather than after, because a step whose anchor turns out to be
-    // missing can end the run from inside `draw`, and the `onStep` that reports
-    // that ending has to find a machine a host may call into.
-    this.commit(opened(this.#core))
-    this.draw(story, step, animate)
-    // Which is why this asks. `draw` can end the run through a lost anchor, and
-    // a host holding one is free to start a story of its own instead.
-    if (this.position !== here) return
-    const previous = this.#core.announced
-    this.commit(arrivedAt(this.#core, step))
-    this.report(story, step, previous)
-  }
-
-  /**
-   * Hand the step to the presenter and wait for it to arrive.
-   *
-   * `show` handing back nothing means it is already there, and the step is
-   * settled in this turn. Where it hands back a promise, only the morph nothing
-   * has replaced may call the step settled: a fresh arrival cuts this one short
-   * and its promise resolves a moment later, which without `showing` would mark
-   * the *new* step as done before it had moved.
-   */
-  private draw(story: St, step: S, animate: boolean): void {
-    const here = this.position
-    // A target that is not there is handed over all the same. Whether that is
-    // an ending or something to wait out is a drawing question, and the
-    // presenter says so through `lost` once it has decided.
-    const anchor = this.presenter.resolve(step)
-    const showing = this.presenter.show(story, step, anchor, this.content(step), animate)
-    // `show` is a call into the presenter, and a presenter that cannot find
-    // what it needs says so through `lost`, which can end the run before this
-    // returns. Calling the step settled after that would put `running` back on
-    // a tour that is over.
-    if (this.position !== here || !isThenable(showing)) return
-    this.commit(settling(this.#core, showing))
-    void showing.then(() => {
-      if (this.#core.showing !== showing) return
-      this.commit(settled(this.#core))
-    })
-  }
-
-  /**
-   * An `onEnter` that failed leaves a step assuming a state nobody built, so
-   * the tour stops rather than pointing the user at something that is not
-   * ready. That is what `lose` decides about an anchor that is not there.
-   *
-   * The reason is thrown again on its own, because a library that quietly eats
-   * an application's exception is why the bug takes a day to find. Throwing it
-   * from here instead would land it on whichever call happened to start the
-   * step, which is rarely the code that went wrong.
-   */
-  private failed(reason: unknown, here: object | undefined): void {
-    if (this.position === here) this.end(undefined)
-    queueMicrotask(() => {
-      throw reason
-    })
-  }
-
-  /**
-   * A step whose target is not there and is not coming back.
-   *
-   * The presenter has already given it time and looked for it again, so by the
-   * time this is called there is nothing left to wait for. Pointing a spotlight
-   * at nothing is worse than not running at all, so the run ends and there is
-   * no hook that can decide otherwise.
-   *
-   * The step is handed in rather than read from {@link position} so that a
-   * watcher still armed on the step before can be told apart from one reporting
-   * the step the tour is on. Only the second is about anything.
-   *
-   * The report goes after the ending rather than before it, so that a host
-   * reacting to it by starting a story of its own gets the last word, the way
-   * it does from the ending `onStep`.
-   */
-  /**
-   * The presenter is looking for an anchor that left the page, or has found it.
-   *
-   * The tour is on that step throughout, so this moves no position and reports
-   * nothing. All it does is decide what `state` answers while the wait runs,
-   * which is the same thing it answers for a target that was missing when the
-   * step arrived: the tour is between things.
-   *
-   * Which waits may be started and which may be ended is argued on `seeking`
-   * and `found` in `core.ts`.
-   */
-  private seek(step: S, yes: boolean): void {
-    this.commit(yes ? seeking(this.#core, step) : found(this.#core))
-  }
-
-  private lose(step: S): void {
-    const story = this.position?.story
-    if (!story || this.step !== step) return
-    this.end(undefined)
-    this.options.onDiagnostic?.({ kind: 'target-lost', step, storyId: story.id })
   }
 }

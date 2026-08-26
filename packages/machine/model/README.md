@@ -287,9 +287,15 @@ does. One of them is wrong. Read the state in the `.itf.json` alongside the
 method in `machine.ts` that the model definition is named after. Every pure
 function in `machine.qnt` carries the name of the method it stands for.
 
-Some of them name a function in `core.ts` instead. `torn` is one. The moves that
-only change the machine's own five fields live there, written as pure functions
-of the same shape the model uses.
+Some of them name a function somewhere else. `torn` is in `core.ts`, where the
+moves that only change the machine's own five fields live. The rest are in
+`plan.ts`: `end`, `enter`, `arrive`, `advance` and `moveOn` are all there, as
+pure functions answering with the next state and the calls the machine owes.
+
+That file is the closest thing to this model that TypeScript holds. Both take an
+event and a state and answer with a state, and both stop where the machine hands
+control to the application. `doLeave` here and the `left` event there are the
+same boundary.
 
 ## What this does not cover
 

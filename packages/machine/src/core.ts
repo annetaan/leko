@@ -36,20 +36,27 @@ export type Phase = 'story' | 'step' | 'ending' | 'settling' | 'searching' | 're
  * `packages/machine/model/machine.qnt` and carry the same names where the model
  * has one. A search walks the model. A reader can see which function it walked.
  */
+/**
+ * Which story a tour is on and where in it, as one object.
+ *
+ * The object is replaced rather than edited on every move, and never on
+ * anything else, so its identity is the step occurrence the tour is standing
+ * on. Every late callback in the machine compares against it.
+ */
+export interface Position<St> {
+  readonly story: St
+  readonly index: number
+}
+
 export interface Core<S, St> {
   /**
-   * Which story is running and where in it the tour is, or `undefined` while
-   * nothing is running.
+   * Where the tour is, or `undefined` while nothing is running.
    *
-   * One field, because the two are one fact. Being idle is this being
-   * `undefined`, so there is one way to say it.
-   *
-   * The object is replaced rather than edited on every move, and never on
-   * anything else, so its identity is the step occurrence the tour is standing
-   * on. Every late callback in the machine compares against it, and
-   * `errorUtils` is built on it.
+   * One field, because the two things it holds are one fact. Being idle is this
+   * being `undefined`, so there is one way to say it. {@link Position} says what
+   * its identity is worth.
    */
-  readonly position: { readonly story: St; readonly index: number } | undefined
+  readonly position: Position<St> | undefined
   readonly phase: Phase
   /**
    * What the last attempt at the current step was told was wrong with it, set
@@ -180,6 +187,10 @@ export const movedTo = <S, St>(core: Core<S, St>, story: St, index: number): Cor
   ...core,
   position: { story, index },
 })
+
+/** Whether `at` still names the step the tour is standing on. */
+export const stillAt = <S, St>(core: Core<S, St>, at: Position<St> | undefined): boolean =>
+  core.position === at
 
 /** `onStep` has been told where the tour got to. */
 export const arrivedAt = <S, St>(core: Core<S, St>, step: S): Core<S, St> => ({

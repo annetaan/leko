@@ -68,7 +68,10 @@ Functional core, thin imperative shell — DESIGN.md says why. Geometry goes in
 DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
-a `document` in it is a compile error. `packages/spotlight` draws and knows
+a `document` in it is a compile error. It is the same split again inside:
+`core.ts` is the state, `plan.ts` says what an event does to it and what the
+machine owes the world, and both are pure. `machine.ts` makes the calls and
+decides nothing. A decision that lands in `machine.ts` is in the wrong file. `packages/spotlight` draws and knows
 nothing about steps. `packages/leko` wires the two together, owns the public
 types, and is the only package that publishes. What each half may ask of the
 other is `packages/machine/src/port.ts`, and DESIGN.md argues the two rules that

@@ -517,6 +517,19 @@ used to clear four of them in four statements. It calls `torn()` now, and there
 is no longer a version of that clearing which forgets one. The class holds one
 `#core` and one `commit` that writes it.
 
+**The calls out are a value too.** `plan.ts` answers an event with the next
+`Core` and a list of the calls the machine owes: hold, teardown, draw, the
+handlers, the report. `machine.ts` commits the state and then makes them, in
+that order and no other. Three of those calls are into the application, which is
+free to call straight back in, and what such a call finds is the machine as the
+event left it. That used to be a rule kept by hand at seven places, each with a
+comment saying why the line above it came first.
+
+An event stops where the machine hands control over. `end` is two of them,
+because the curtain goes up between the last `onLeave` and the report where
+nothing follows that report. There are eight such windows and an event apiece,
+which is what keeps one reduction from spanning one.
+
 ## Watching `state`
 
 `watch(listener)` says when `state` changed and hands back the way to stop. With
