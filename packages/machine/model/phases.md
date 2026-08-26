@@ -1,9 +1,11 @@
 # The phases, drawn
 
-`machine.ts` has six phases and two mutable fields. This file is the picture of
-them. [`README.md`](README.md) beside it says how the model is searched, and
+The machine has six phases and one state value with five fields in it. This file
+is the picture of them. `core.ts` holds the phases and the state, `plan.ts` says
+what each event does to them, and `machine.ts` makes the calls that follow.
+[`README.md`](README.md) beside this says how the model is searched, and
 `machine.qnt` is the same graph written down in a form a search can walk. When
-the three disagree, `machine.ts` is the one that is right.
+they disagree, the code is the one that is right.
 
 I drew this after the model was already green. Six phase names read off a union
 type told me nothing about which of them a call from the application survives,
@@ -21,9 +23,15 @@ There is no stored `state`. It is read off these every time it is asked.
 `state` is `idle` when there is no position. Otherwise it is `running` if the
 phase is `ready`, and `transitioning` for the other five.
 
+Read that carefully around `ending`. A teardown empties the position before it
+calls a single handler, so a handler asking `state` from inside its own
+`onLeave` is told `idle`. The phase underneath is still shut, and that is what
+refuses a `start()` made from in there. The two answer different questions.
+
 `position` is replaced on every move and on nothing else. That is what makes its
-identity the step occurrence the tour is standing on. Every late callback in the
-class compares against it.
+identity the step occurrence the tour is standing on. Every event that can land
+late carries the position it was planned at, and `plan.ts` asks `stillAt` before
+it acts on one. There are eight of those asks.
 
 ## The phase machine
 
@@ -78,14 +86,14 @@ once instead of nine times.
 | `settling` | `transitioning` | the step arrived and is drawn. The presenter is still moving it |
 | `searching` | `transitioning` | the step arrived, and its anchor has since left the page. The tour is still on that step. What is on screen is a curtain |
 | `ready` | `running` | the step is drawn and still. The only phase `state` calls `running` |
-| `ending` | `transitioning` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined` |
+| `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
 
 ## The gate
 
-`accepting` is one line and it decides everything above.
+`accepting` in `core.ts` is one line and it decides everything above.
 
 ```ts
-this.phase === 'ready' || this.phase === 'settling' || this.phase === 'searching'
+core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
 ```
 
 `idle` is open too. Its phase is `ready` and it has no position.
@@ -122,7 +130,7 @@ flowchart TD
   A["reached(step.awaits), or Host.next()"] --> V{"a validate,<br>and no awaits?"}
   V -- "no guard, or awaits declared" --> B{"the last step?"}
   V -- "the guard passed" --> B
-  V -- "the anchor is gone" --> Z["end(), phase: ending"]
+  V -- "the anchor is gone" --> Z["the ending. phase: ending"]
   V -- "the guard failed" --> S["onValidationError(anchor, utils)<br>shake() or setError()<br>the tour stays put"]
   B -- "yes" --> Z
   B -- "no" --> C["position = index + 1<br>phase: step"]
@@ -131,7 +139,7 @@ flowchart TD
   E --> F["step.onEnter(step)"]
   F -- "threw" --> Z
   F -- "a promise" --> G["wait. The gate stays shut"]
-  F -- "nothing" --> H["arrive()"]
+  F -- "nothing" --> H["the stepEntered event"]
   G --> H
   H --> I{"still on this position?"}
   I -- "no. stop(), or a fresh start()" --> X["dropped"]
@@ -152,9 +160,11 @@ flowchart TD
 A handler that hands back nothing costs no turn. The whole path can run inside
 the call that started it.
 
-`phase` goes to `ready` before `draw` rather than after. A step whose anchor
-turns out to be missing can end the run from inside `draw`, and the `onStep`
-that reports that ending has to find a machine a host may call into.
+`phase` goes to `ready` before the draw rather than after. A step whose anchor
+turns out to be missing can end the run from inside `show`, and the `onStep`
+that reports that ending has to find a machine a host may call into. In
+`plan.ts` that is the `stepEntered` event committing `opened` and owing a
+`draw`, in that order, and there is no way to write it the other way round.
 
 ## What lands late
 
@@ -165,7 +175,7 @@ tour standing somewhere else, and each one checks a different thing.
 | --- | --- |
 | a slow `onEnter`, story or step | the captured `position` object against the current one |
 | a morph | the token in `showing`, because two arrivals at the same position are two occurrences |
-| an `onValidationError` that answers late | the `position` object `errorUtils` closed over |
+| an `onValidationError` that answers late | the `position` object the utils were made against, carried on the `setError` and `shake` events |
 
 The morph has one more check after that. It may only write `ready` if the phase
 is still `settling`. A target that left the page mid morph has written
@@ -213,7 +223,7 @@ Worth knowing before trusting the table above.
 
 ## Redrawing this
 
-Nothing generates these diagrams. They are read off `machine.ts` and
+Nothing generates these diagrams. They are read off `core.ts`, `plan.ts` and
 `machine.qnt` by hand, which means they can go stale. If you change a phase
 transition, change the first diagram in the same commit.
 

@@ -71,11 +71,12 @@ DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
 a `document` in it is a compile error. It is the same split again inside:
 `core.ts` is the state, `plan.ts` says what an event does to it and what the
 machine owes the world, and both are pure. `machine.ts` makes the calls and
-decides nothing. A decision that lands in `machine.ts` is in the wrong file. `packages/spotlight` draws and knows
-nothing about steps. `packages/leko` wires the two together, owns the public
-types, and is the only package that publishes. What each half may ask of the
-other is `packages/machine/src/port.ts`, and DESIGN.md argues the two rules that
-interface exists to keep.
+decides nothing. A decision that lands in `machine.ts` is in the wrong file.
+
+`packages/spotlight` draws and knows nothing about steps. `packages/leko` wires
+the two together, owns the public types, and is the only package that publishes.
+What each half may ask of the other is `packages/machine/src/port.ts`, and
+DESIGN.md argues the two rules that interface exists to keep.
 
 New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a

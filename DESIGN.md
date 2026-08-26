@@ -561,8 +561,8 @@ microtask, which is after the operation and still before the next task.
 before it. A watcher carrying both would be one hook doing two jobs, and a
 listener could not tell which of them woke it.
 
-The notify has one place to live. `position` and `phase` are written through
-setters and the setters are what call it, so a new write cannot forget to
+The notify has one place to live. Every field the machine holds is replaced
+through `commit`, and `commit` is what calls it, so a new write cannot forget to
 announce itself. That is the same bargain `state` being derived struck, one
 level up.
 

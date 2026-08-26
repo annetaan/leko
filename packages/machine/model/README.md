@@ -1,14 +1,19 @@
 # A model of the machine
 
-`machine.qnt` is `packages/machine/src/machine.ts` written down as a state
-machine, in [Quint](https://quint.sh/). A search walks it looking for a state
-that breaks one of its invariants, and the traces it finds are replayed against
-the real class. [`phases.md`](phases.md) is the same machine as a picture.
+`machine.qnt` is `packages/machine/src/plan.ts` written down as a state machine,
+in [Quint](https://quint.sh/). A search walks it looking for a state that breaks
+one of its invariants, and the traces it finds are replayed against the real
+class. [`phases.md`](phases.md) is the same machine as a picture.
+
+It was written against `machine.ts`, when that file held the state, the
+decisions and the calls all at once. The two have grown closer since. `plan.ts`
+takes an event and a state and answers with a state, which is the shape this
+model was always in.
 
 I wrote it because `machine.test.ts` had grown to 1901 lines and every one of
-them was an example I had thought of. It is 1828 now, because the presenter the
+them was an example I had thought of. It is 1851 now, because the presenter the
 tests drive moved to `src/fake.ts` so the replay could share it and because
-three of the searches came back with something. Four bugs
+the searches keep coming back with something. Four bugs
 turned up in one week that I had not thought of. All four were reachable in
 under five calls. Reading does not scale past about 700 lines, so I wanted
 something that searches.
@@ -105,10 +110,11 @@ which is the whole point.
 
 Nothing in `machine.ts`. All 87 tests were green the first time the replay ran.
 
-What it found was three holes in the tests. I broke `machine.ts` on purpose and
-watched what caught it:
+What it found was three holes in the tests. I broke the machine on purpose and
+watched what caught it. The hand-written column was 76 tests when the top rows
+were measured and 80 when the last one was:
 
-| What I broke | 76 hand-written tests, before | A replayed trace |
+| What I broke | The hand-written tests, before | A replayed trace |
 | --- | --- | --- |
 | `accepting` returns true during an arrival | yes | yes |
 | `draw` drops the `this.showing !== showing` check | yes | yes |
@@ -163,8 +169,8 @@ of a teardown and never inside one. I asked it directly and it agreed:
 [ok] No violation found (2447ms at 81733 traces/second)
 ```
 
-200000 traces, 24 steps, and `ending` never once. Six phases in `machine.ts`,
-and the search could reach five.
+200000 traces, 24 steps, and `ending` never once. Six phases in `core.ts`, and
+the search could reach five.
 
 `end` parks a `Leaving` now, and `doLeave` is the rest of it. Between the two,
 the machine is emptied and the phase is closed, which is exactly where
@@ -177,11 +183,11 @@ on, or is a knob on the world, so none of them can make a state the code would
 never reach.
 
 Driving it took more work than modelling it. There is no moment out in the
-driver where a call made from inside `onLeave` could be made. So `replay.test.ts`
-reads ahead, queues the calls the trace puts in the window, and `drain` makes
-them from the handler. It knows it is in a teardown by asking `tour.state`,
-which answers `idle` there and `transitioning` in the `onLeave` of a step the
-tour is merely walking away from.
+driver where a call made from inside `onLeave` could be made. So
+`replay.test.ts` reads ahead, queues the calls the trace puts in the window, and
+`drain` makes them from the handler. It knows it is in a teardown by asking
+`tour.state`, which answers `idle` there and `transitioning` in the `onLeave` of
+a step the tour is merely walking away from.
 
 Four of the traces put a call in the window, one per way into the machine. A
 window with only `setStory` in it is a window nobody has really looked into, and
@@ -284,15 +290,14 @@ model.
 The failure names the state and the call: `state 8, after doSettle
 (morph-under-search)`. The model and the code disagree about what that call
 does. One of them is wrong. Read the state in the `.itf.json` alongside the
-method in `machine.ts` that the model definition is named after. Every pure
-function in `machine.qnt` carries the name of the method it stands for.
+definition it is named after. Every pure function in `machine.qnt` carries the
+name of the thing it stands for, and there are two places to look.
 
-Some of them name a function somewhere else. `torn` is in `core.ts`, where the
-moves that only change the machine's own five fields live. The rest are in
-`plan.ts`: `end`, `enter`, `arrive`, `advance` and `moveOn` are all there, as
-pure functions answering with the next state and the calls the machine owes.
+`torn` and the other moves that only change the five fields are in `core.ts`.
+`end`, `enter`, `arrive`, `advance` and `moveOn` are in `plan.ts`, as pure
+functions answering with the next state and the calls the machine owes.
 
-That file is the closest thing to this model that TypeScript holds. Both take an
+`plan.ts` is the closest thing to this model that TypeScript holds. Both take an
 event and a state and answer with a state, and both stop where the machine hands
 control to the application. `doLeave` here and the `left` event there are the
 same boundary.

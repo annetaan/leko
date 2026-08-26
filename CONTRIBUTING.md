@@ -62,7 +62,7 @@ pnpm model:traces   # regenerate the traces that search replays against
 ```
 
 `pnpm model` walks [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt),
-which is `machine.ts` written down as a state machine, looking for a state that
+which is `plan.ts` written down as a state machine, looking for a state that
 breaks one of its invariants. The traces it finds are committed and replayed
 against the real class by `packages/machine/src/replay.test.ts`. It takes about
 7 seconds, needs no JVM, and runs in CI. Its seeds are fresh every run, so a

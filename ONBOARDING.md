@@ -106,7 +106,9 @@ it.
 | `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
 | `packages/leko/src/leko.ts` | The public class. Four getters and six methods |
 | `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired |
-| `packages/machine/src/machine.ts` | Which step the tour is on |
+| `packages/machine/src/core.ts` | The five fields the tour is, and the pure moves between them |
+| `packages/machine/src/plan.ts` | What each event does to those fields, and what the machine owes the world |
+| `packages/machine/src/machine.ts` | The shell. It makes the calls and decides nothing |
 | `packages/machine/src/port.ts` | `Presenter` and `Host`. The seam |
 | `packages/machine/src/types.ts` | `StepBase`, `StoryBase`, `ErrorUtils`, `Problem` |
 | `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
@@ -135,10 +137,21 @@ Read it twice. Three rules live here and DESIGN.md states each under
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
-**3. `packages/machine/src/machine.ts`**
+**3. `packages/machine/src/core.ts`, then `plan.ts`, then `machine.ts`**
 
-The hard one, and the long one. Budget an hour. Read the field declarations at the top first,
-then the section below on what each field means, then the methods.
+The hard part, and three files rather than one. Budget an hour.
+
+`core.ts` is where the tour is: five fields as one value, and a pure function
+per move between them. Read it and the section below on what each field means.
+
+`plan.ts` is every decision the machine makes. `reduce` takes the state and one
+event and answers with the next state, the calls the machine owes as data, and
+the event it will carry on with. It imports nothing that can be called, so a
+decision cannot make one.
+
+`machine.ts` commits the state and then makes those calls, in that order. Read
+`dispatch` and `perform` and you have read all of it. A decision you find in
+here is in the wrong file.
 
 **4. `packages/spotlight/src/geometry.ts`**
 
@@ -177,11 +190,11 @@ This is the trace worth walking with the files open. The application calls
 | | Where | What happens |
 | --- | --- | --- |
 | 1 | `leko.ts` `Leko.reached` | Hands the name straight to the machine |
-| 2 | `machine.ts` `reached` | Reads the current step. If `step.awaits !== name` it returns, silently. Most calls end here. A name that matched and arrived while the phase was closed is dropped and reported |
-| 3 | `machine.ts` `advance` | Runs `validate` if the step has one. A failed `validate` calls `onValidationError` and stops |
-| 4 | `machine.ts` `enter` | Clears the error, closes the phase, tells the presenter to `hold`, runs the last step's `onLeave`, then this step's `onEnter` |
-| 5 | `machine.ts` `arrive` | Opens the phase, draws, then reports. In that order |
-| 6 | `machine.ts` `draw` | Resolves the anchor and calls `presenter.show` |
+| 2 | `machine.ts` `reached` | Hands the name to `dispatch` and does nothing else |
+| 3 | `plan.ts` the `reached` event | Reads the current step. If `step.awaits !== name` it answers with nothing whatsoever, silently. Most calls end here. A name that matched and arrived while the phase was closed is dropped and reported |
+| 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the `hold`, the last step's `onLeave` and this step's `onEnter` |
+| 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
+| 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
 | 7 | `presenter.ts` `show`, then `reveal` | Pays out whatever the curtain still owes, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
@@ -189,11 +202,12 @@ This is the trace worth walking with the files open. The application calls
 | 11 | `presenter.ts` `say` | Runs after the morph settles, and only if it finished |
 | 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
 | 13 | `message.ts` `place` | Picks a side from viewport measurements and writes `position-area` |
-| 14 | `machine.ts` `report` | Calls the instance's `onStep`, told which story |
+| 14 | `plan.ts` the `drawn` event, then `machine.ts` `perform` | Owes the report and makes it. The instance's `onStep`, told which story |
 
-Step 5 is the one to hold on to. The move is reported after it survived being
-drawn. A progress readout that heard about a step while its `onEnter` was still
-running would be naming something the user cannot see.
+Steps 5 and 14 are the pair to hold on to. The move is reported after it
+survived being drawn. A progress readout that heard about a step while its
+`onEnter` was still running would be naming something the user cannot see. In
+`plan.ts` those are two events, so nothing can quietly put the report first.
 
 The other direction is five calls. `Host.lost` when a target has gone and is not
 coming back, `Host.moved` on a resize, `Host.next` when the step's control is
@@ -220,6 +234,10 @@ disagreeing about where the tour was.
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
+`stories` is a registry and sits on the class. The other five are `Core` in
+`core.ts`, replaced together rather than written one at a time, and `commit` in
+`machine.ts` is the only thing that writes one.
+
 These six and the six values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
@@ -231,16 +249,16 @@ no model.
 
 `watch` adds two more, and they are about telling somebody rather than about the
 tour: `watchers` holds the listeners, and `before` holds what `state` read when
-this turn first wrote to `position` or `phase`. Those two fields are the only
-ones written through setters, and the setters are what raise the notification,
-so no write can forget to announce itself.
+this turn first wrote to `position` or `phase`. `commit` is the only thing that
+writes the core, and `commit` is what raises the notification, so no write can
+forget to announce itself.
 
 `state` is derived rather than stored.
 
 ```ts
-get state(): MachineState {
-  if (!this.position) return 'idle'
-  return this.phase === 'ready' ? 'running' : 'transitioning'
+export const stateOf = <S, St>(core: Core<S, St>): MachineState => {
+  if (core.position === undefined) return 'idle'
+  return core.phase === 'ready' ? 'running' : 'transitioning'
 }
 ```
 
@@ -254,20 +272,19 @@ happen.
 Nothing can forget to write an answer that nobody stores. If you add a field
 here, ask whether it is a third way of saying something two fields already say.
 
-`accepting` is the pattern to learn.
+`accepting` is the pattern to learn. It is in `core.ts` beside `stateOf`.
 
 ```ts
-private get accepting(): boolean {
-  return this.phase === 'ready' || this.phase === 'settling' || this.phase === 'searching'
-}
+export const accepting = <S, St>(core: Core<S, St>): boolean =>
+  core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
 ```
 
 Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, an `onValidationError`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. `reached`, `start`, `setStory`, a press on the next control
-and `surfaceMoved` all ask this first.
+nothing to check. The `reached`, `start`, `setStory`, `pressed` and `moved`
+events all ask this first, in `plan.ts`.
 
 `settling` and `searching` are not those windows. A morph is a step that arrived
 and is still moving, and a search is a step that arrived and whose anchor has
@@ -275,13 +292,15 @@ gone missing since. The machine is inside neither of them, so a call means what
 it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A tour nobody can turn off
-until an application's `onEnter` settles is worse than the race. So the story's
-`onEnter` continuation, `arrive`, `draw` and `failed` compare `this.position`
-against the object they started with, because a `stop()` can have thrown their
-arrival away while they were gone. Five comparisons, and they are all that is
-left of a counter that used to be checked in thirteen places. `errorUtils` holds
-a sixth for a different job: a `setError` that answers after the tour has moved
-on.
+until an application's `onEnter` settles is worse than the race. So every event
+that can land after a window carries the position it was planned at, and
+`plan.ts` asks `stillAt` before acting on one. A `stop()` can have thrown that
+arrival away while the machine was gone.
+
+There are eight of those asks. Six are about a position an arrival began at, and
+the last two are a different job: a `setError` or a `shake` that answers after
+the tour has moved on. All eight are what is left of a counter that used to be
+checked in thirteen places.
 
 ## The two constraints, and the line that keeps each
 
@@ -362,7 +381,7 @@ DESIGN.md says so under
 | --- | --- |
 | A new option on a step or story | `leko/src/types.ts`, then `machine/src/types.ts` if the machine reads it |
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
-| When a step advances | `machine/src/machine.ts` only |
+| When a step advances | `machine/src/plan.ts` only |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What the machine may ask of the presenter | `machine/src/port.ts`, then both implementations |
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
