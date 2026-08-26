@@ -28,14 +28,14 @@ export const linkedRegions: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => [
+  stories: [
     {
       id: 'linked-regions',
       steps: [
         {
           id: 'winning-amount',
-          target: root.querySelector<HTMLElement>('[data-row]')!,
-          related: [root.querySelector<HTMLElement>('[data-summary]')!],
+          target: '[data-row]',
+          related: ['[data-summary]'],
           message: 'This row is where the figure above comes from.',
         },
       ],

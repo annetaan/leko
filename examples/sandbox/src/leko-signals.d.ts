@@ -5,12 +5,12 @@
 
 declare module '@annetaan/leko' {
   interface LekoSignals {
-    /** src/cases/branching.ts:59 */
+    /** src/cases/branching.ts:147 */
     'lines-checked': true
     /** src/cases/signal-too-early.ts:39 */
     /** src/cases/two-stories.ts:40 */
     'order-placed': true
-    /** src/cases/branching.ts:68 */
+    /** src/cases/branching.ts:156 */
     /** src/cases/signal-too-early.ts:44 */
     /** src/cases/signal-too-early.ts:51 */
     'order-sent': true

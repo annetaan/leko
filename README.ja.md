@@ -38,12 +38,14 @@ Lekoはまだnpmには登録されていません。
 以下は簡単なLekoの導入例です。
 
 ```ts
-import { createLeko } from '@annetaan/leko'
+import { createLeko, type LekoStory } from '@annetaan/leko'
 import '@annetaan/leko/leko.css'
 
 export const leko = createLeko()
 
-leko.setStory({
+// 型注釈ではなく `satisfies`。公開型に対して検査しつつ `awaits` は書いた
+// リテラルのまま残るので、打ち間違いはその行で報告されます。
+export const firstOrder = {
   id: 'first-order',
   steps: [
     {
@@ -74,9 +76,9 @@ leko.setStory({
       message: '注文完了です。お疲れ様でした🎉',
     },
   ],
-})
+} satisfies LekoStory
 
-leko.start('first-order')
+leko.start(firstOrder)
 ```
 
 このストーリーの`save`ステップは `order-saved` を待っています。
@@ -90,14 +92,14 @@ async function onOrderSubmit() {
 ```
 
 この 1 行は「操作完了の証跡として使えそうな場所」へ先に書いておけます。
-ストーリーは `leko.setStory(...)` で好きなだけ登録でき、走っているストーリーの
-現在ステップがその名前を宣言していれば進み、していなければ何も起きません。
-呼び出し側がどのストーリーから使われるかを意識する必要はありません。
+ストーリーは好きなだけ書けて、走っているストーリーの現在ステップがその名前を
+宣言していれば進み、していなければ何も起きません。呼び出し側がどのストーリー
+から使われるかを意識する必要はありません。
 
 ### 長い 1 本より、短いストーリーを何本か
 
-戻るボタンはありません。`start()` はストーリー id だけを取ります。ストーリーは
-最初のステップから前へ進むか、止まるかのどちらかです。
+戻るボタンはありません。`start()` はストーリーそのものだけを取ります。
+ストーリーは最初のステップから前へ進むか、止まるかのどちらかです。
 
 機能不足に見えますが、これは選択です。ステップはたいていアプリが報告する何かを
 待っていて、注文が保存された後に「保存された」ともう一度報告されることはないので、

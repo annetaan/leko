@@ -34,7 +34,6 @@ const HARVEST = [
   { name: 'morph-under-search', target: 'morphUnderSearch', seed: '0x8', deep: true },
   { name: 'refused', target: 'refused', seed: '0x9' },
   { name: 'start-tearing', target: 'startWhileTearing', seed: '0xe' },
-  { name: 'set-story-tearing', target: 'setStoryWhileTearing', seed: '0xf' },
   { name: 'signal-tearing', target: 'signalWhileTearing', seed: '0x10' },
   { name: 'stop-tearing', target: 'stoppedWhileTearing', seed: '0x11' },
   { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },

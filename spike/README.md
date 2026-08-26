@@ -15,6 +15,7 @@ tell you what you are allowed to assume.
 | [`cutout-techniques/`](cutout-techniques/) | Which of the ways to cut a hole in an overlay actually work, and can the geometry come from CSS alone? |
 | [`waapi-clip-path/`](waapi-clip-path/) | Does a `clip-path` animation render correctly when it runs on the compositor? |
 | [`wheel-through-a-hole/`](wheel-through-a-hole/) | Does a wheel reach the element under a hole, the way a click does? |
+| [`anchor-across-shadow/`](anchor-across-shadow/) | Can a message anchor itself to a target inside a shadow root? |
 
 ## Reading them
 

@@ -62,11 +62,10 @@ export type MachineState = 'idle' | 'running' | 'transitioning'
  * the line under **Saying that a call did nothing**.
  */
 export type Problem<W extends World> =
-  | { kind: 'story-not-found'; storyId: string }
-  | { kind: 'story-empty'; storyId: string }
+  | { kind: 'story-empty'; story: W['story'] }
   | { kind: 'signal-dropped'; name: string; step: W['step'] }
-  | { kind: 'call-refused'; call: 'start' | 'setStory' }
-  | { kind: 'target-lost'; step: W['step']; storyId: string }
+  | { kind: 'call-refused' }
+  | { kind: 'target-lost'; step: W['step']; story: W['story'] }
 
 export interface MachineOptions<W extends World> {
   /** The words on a next control, where a step gets one. */

@@ -2,8 +2,8 @@
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// The names here are the names in `plan.ts`. `registered`, `position`, `phase`,
-// `hasError`, `announced` and `showing` are the six fields of its `Core`.
+// The names here are the names in `plan.ts`. `position`, `phase`, `hasError`,
+// `announced` and `showing` are the five fields of its `Core`.
 // `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
 // a model has to say out loud. Where a definition mirrors one in `plan.ts`, it
 // carries that name.
@@ -71,8 +71,6 @@ module machine {
   /// the shape `M => M` and read like the methods they stand for.
   type M = {
     // --- what `Core` in `plan.ts` holds
-    // `Core.stories`. The keys are what `setStory` has registered.
-    registered: Set[str],
     position: Maybe[Pos],
     phase: Phase,
     // `error`, as a bit. Nothing reads the string.
@@ -343,26 +341,12 @@ module machine {
   // true of it is that nothing moved — which is not something a search can look
   // for in a call it never makes.
 
-  action doSetStory(id: str): bool = all {
-    m' =
-      if (not(accepting(m))) m.with("mark", "refused-setStory")
-      // A call naming the story the tour is on does nothing, so a component
-      // re-registering on every render cannot move the ground under a user.
-      else
-        match m.position {
-          | Just(at) =>
-            if (at.story == id) m.with("mark", "setStory-running")
-            else m.with("registered", m.registered.union(Set(id))).with("mark", "setStory")
-          | Nothing => m.with("registered", m.registered.union(Set(id))).with("mark", "setStory")
-        },
-  }
-
   action doStart(id: str): bool = all {
     m' =
       if (not(accepting(m))) m.with("mark", "refused-start")
-      else if (not(m.registered.contains(id)) or m.world.get(id).steps.length() == 0)
-        // Nothing is torn down until the id is known to be good, so a typo
-        // cannot end a tour someone is in the middle of.
+      else if (m.world.get(id).steps.length() == 0)
+        // Nothing is torn down until the story is known to be runnable, so an
+        // empty one cannot end a tour someone is in the middle of.
         m.with("mark", "start-refused")
       else
         match m.position {
@@ -612,7 +596,6 @@ module machine {
   // ------------------------------------------------------------------ stepping
 
   pure val FRESH: M = {
-    registered: Set(),
     position: Nothing,
     phase: Ready,
     hasError: false,
@@ -629,19 +612,18 @@ module machine {
     mark: "init",
   }
 
-  /// Nothing registered and nothing running, which is where a host starts.
+  /// Nothing running, which is where a host starts.
   action init = all {
     m' = FRESH,
   }
 
-  /// Every story registered and `"a"` already running, for the deep search
-  /// described beside {@link stepInside}. It is one `setStory` per story and one
-  /// `start`, taken in the turn rather than searched for.
+  /// `"a"` already running, for the deep search described beside
+  /// {@link stepInside}. It is one `start`, taken in the turn rather than
+  /// searched for.
   action initRunning = all {
     m' = {
-      val ready = FRESH.with("registered", WORLD.keys())
       val at = { story: "a", index: 0 }
-      enterStory(ready.with("position", Just(at)), at)
+      enterStory(FRESH.with("position", Just(at)), at)
     },
   }
 
@@ -654,9 +636,7 @@ module machine {
     ).flatten()
 
   action step = any {
-    nondet storyPick = WORLD.keys().oneOf()
-    doSetStory(storyPick),
-    nondet startPick = WORLD.keys().union(Set("nope")).oneOf()
+    nondet startPick = WORLD.keys().oneOf()
     doStart(startPick),
     nondet signalPick = SIGNALS.oneOf()
     doReached(signalPick),
@@ -807,18 +787,16 @@ module machine {
   /// every call below has to come to nothing in.
   val tearing: bool = m.phase == Ending
 
-  /// One per way into the machine, because a window with only `setStory` in it
-  /// is a window nobody has really looked into. `stop()` is here for the
-  /// opposite reason to the others: it is the one call the gate never turns
+  /// One per way into the machine, because a window only one call has been
+  /// tried in is a window nobody has really looked into. `stop()` is here for
+  /// the opposite reason to the others: it is the one call the gate never turns
   /// down, and what has to be true of it is that a second teardown is not one.
   val startWhileTearing: bool = m.phase == Ending and m.mark == "refused-start"
-  val setStoryWhileTearing: bool = m.phase == Ending and m.mark == "refused-setStory"
   val signalWhileTearing: bool = m.phase == Ending and m.mark == "unmatched"
   val stoppedWhileTearing: bool = m.phase == Ending and m.mark == "stop"
 
   /// A call the gate turned down.
-  val refused: bool =
-    m.mark == "refused-start" or m.mark == "refused-setStory" or m.mark == "refused-signal"
+  val refused: bool = m.mark == "refused-start" or m.mark == "refused-signal"
 
   /// The presenter reporting about a step the tour has already left, which it
   /// can do because it watches the step it was shown rather than the tour.

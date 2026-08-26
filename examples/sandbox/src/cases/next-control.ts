@@ -40,43 +40,40 @@ export const nextControl: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-    return [
-      {
-        id: 'next-control',
-        steps: [
-          {
-            id: 'name',
-            target: at('input[name="name"]'),
-            message: 'Give the project a name of your own, then press Next.',
-            // Pressing the control claims the moment has come and claims
-            // nothing about the state behind it, which is why a step with a
-            // control is the kind of step that can want a guard.
-            validate: (el) => {
-              const value = (el as HTMLInputElement).value.trim()
-              return value !== '' && value !== 'Untitled'
-            },
-            onValidationError: (_el, utils) => {
-              utils.shake()
-              // Beside the instruction, not instead of it: a second failed
-              // attempt must still say what the step is asking for.
-              utils.setError('Still “Untitled”. Type something else first.')
-            },
+  stories: [
+    {
+      id: 'next-control',
+      steps: [
+        {
+          id: 'name',
+          target: 'input[name="name"]',
+          message: 'Give the project a name of your own, then press Next.',
+          // Pressing the control claims the moment has come and claims
+          // nothing about the state behind it, which is why a step with a
+          // control is the kind of step that can want a guard.
+          validate: (el) => {
+            const value = (el as HTMLInputElement).value.trim()
+            return value !== '' && value !== 'Untitled'
           },
-          {
-            id: 'save',
-            target: at('[data-save]'),
-            message: 'Now save it. No control on this one, and no guard. The save ends it.',
-            awaits: 'project-renamed',
+          onValidationError: (_el, utils) => {
+            utils.shake()
+            // Beside the instruction, not instead of it: a second failed
+            // attempt must still say what the step is asking for.
+            utils.setError('Still “Untitled”. Type something else first.')
           },
-          {
-            id: 'saved',
-            target: at('[data-status]'),
-            message: 'The request came back, and that is what moved the story on.',
-          },
-        ],
-      },
-    ]
-  },
+        },
+        {
+          id: 'save',
+          target: '[data-save]',
+          message: 'Now save it. No control on this one, and no guard. The save ends it.',
+          awaits: 'project-renamed',
+        },
+        {
+          id: 'saved',
+          target: '[data-status]',
+          message: 'The request came back, and that is what moved the story on.',
+        },
+      ],
+    },
+  ],
 }

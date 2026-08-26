@@ -1,4 +1,4 @@
-import { type Case, html } from '../case.js'
+import { at, html, type Case } from '../case.js'
 
 /**
  * Which chapter each step of this story belongs to. A plain table, keyed by
@@ -17,6 +17,12 @@ const CHAPTERS: Record<string, string> = {
 // that decides where it goes: a story's `onLeave` runs when the run ends, and
 // the first step's runs the moment the tour reaches the second, with the rows
 // still in use.
+const EMPTY = '<tr><td colspan="2" class="hint">No draft loaded.</td></tr>'
+const DRAFT = `
+  <tr><td>Enclosure, 2U</td><td>4</td></tr>
+  <tr><td>Rail kit</td><td>4</td></tr>
+`
+
 export const storySetup: Case = {
   id: 'story-setup',
   title: 'A story that sets its own scene',
@@ -47,64 +53,52 @@ export const storySetup: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-    const rows = () => at('[data-rows]')
-    const caption = () => at('[data-chapter]')
+  stories: [
+    {
+      id: 'story-setup',
 
-    const empty = '<tr><td colspan="2" class="hint">No draft loaded.</td></tr>'
-    const draft = `
-      <tr><td>Enclosure, 2U</td><td>4</td></tr>
-      <tr><td>Rail kit</td><td>4</td></tr>
-    `
-
-    return [
-      {
-        id: 'story-setup',
-
-        // Nothing below runs until this settles — not the first step's own
-        // onEnter, and not resolving its target. The 600ms is whatever the
-        // application really does: a fetch, a seed, a session.
-        onEnter: async () => {
-          await new Promise((resolve) => setTimeout(resolve, 600))
-          rows().innerHTML = draft
-        },
-
-        // The matching half, and the reason it is worth having one place for
-        // this: the draft outlives every step, so no step could own taking it
-        // away. `next` is the story about to start, and undefined when the
-        // tour is simply over — teardown a following story needs is teardown
-        // a handler can skip on.
-        onLeave: (_story, next) => {
-          caption().textContent = '—'
-          if (!next) rows().innerHTML = empty
-        },
-
-        steps: [
-          {
-            id: 'lines',
-            // Both rows, as one cutout. The sentence below says rows, and a
-            // selector matching several takes the first, so naming the two
-            // corners is what makes the screen agree with the message.
-            target: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'],
-            message:
-              'These rows did not exist when Start was pressed. The story ' +
-              'loaded them and waited before anything was measured.',
-          },
-          {
-            id: 'quantity',
-            target: 'input[name="quantity"]',
-            message: 'Same chapter, worked out from the step id by the page rather than by Leko.',
-          },
-          {
-            id: 'submit',
-            target: at('[data-submit]'),
-            message: 'A new chapter. Press Next once more and the draft is cleared.',
-          },
-        ],
+      // Nothing below runs until this settles — not the first step's own
+      // onEnter, and not resolving its target. The 600ms is whatever the
+      // application really does: a fetch, a seed, a session.
+      onEnter: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        at('[data-rows]').innerHTML = DRAFT
       },
-    ]
-  },
+
+      // The matching half, and the reason it is worth having one place for
+      // this: the draft outlives every step, so no step could own taking it
+      // away. `next` is the story about to start, and undefined when the
+      // tour is simply over — teardown a following story needs is teardown
+      // a handler can skip on.
+      onLeave: (_story, next) => {
+        at('[data-chapter]').textContent = '—'
+        if (!next) at('[data-rows]').innerHTML = EMPTY
+      },
+
+      steps: [
+        {
+          id: 'lines',
+          // Both rows, as one cutout. The sentence below says rows, and a
+          // selector matching several takes the first, so naming the two
+          // corners is what makes the screen agree with the message.
+          target: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'],
+          message:
+            'These rows did not exist when Start was pressed. The story ' +
+            'loaded them and waited before anything was measured.',
+        },
+        {
+          id: 'quantity',
+          target: 'input[name="quantity"]',
+          message: 'Same chapter, worked out from the step id by the page rather than by Leko.',
+        },
+        {
+          id: 'submit',
+          target: '[data-submit]',
+          message: 'A new chapter. Press Next once more and the draft is cleared.',
+        },
+      ],
+    },
+  ],
 
   // Chapters, entirely in application code: a table from step id to the name of
   // the group it belongs to, read where the caption is drawn. Leko grows no

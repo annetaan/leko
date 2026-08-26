@@ -61,9 +61,9 @@ beside a step waiting for `order-saved`, and the user is past the work that step
 exists to make them do. An application reporting its own state uses
 `reached()`.
 
-The instance holds every story and matches the signal against the one running.
-A call site reports once, however many stories pass through that screen.
-See `two-stories.ts`.
+The signal is matched against the story running, and only that one. A call site
+reports once, however many stories pass through that screen. See
+`two-stories.ts`.
 
 ## The next control
 
@@ -126,6 +126,41 @@ given the instance: the only thing this control may do is end the tour, and
 anything reachable from here that advanced a step would be a second next control
 standing outside the step that decides whether there is one.
 
+## A target is a question
+
+A step says what it points at with a selector or with a function, and **both are
+a question rather than an answer**. Leko asks again every time it needs the box:
+at the step boundary, when the viewport changes, and on every mutation while a
+target that went missing is being looked for. It never holds an element.
+
+This is the same rule as `step.message` being read on every draw rather than
+copied when the story was written. An element written into a story is a
+lookup somebody did earlier, and the page has moved on since — a framework
+swapping a node for an identical one is the ordinary case, not the exotic one.
+So there is no element form of `LekoTarget`. `() => el` says the same thing for
+a host that really does mean one node and no other, and the shape of it is the
+shape that invites `() => ref.current` instead.
+
+The two forms differ in who answers. A selector is a question Leko runs, which
+is the short way to say it and the way most steps should. A function is one the
+host runs, and it is the only form for a target a selector cannot name: inside a
+shadow root, where `document.querySelector` does not reach; a framework ref,
+where there is no stable class or attribute to match; a row picked out of a list
+by something only the application knows. See `inside-shadow-dom.ts`.
+
+**A function must be cheap and must not do anything.** It is called far more
+often than once, and it is called during layout work. It may answer `null`,
+which is not a failure: a target that is not there yet is what the search for a
+lost target is for, and `null` is how a host says so.
+
+**The message cannot always sit beside a target it does not own.** An
+`anchor-name` is scoped to the tree the element is in, so a target inside a
+shadow root cannot be anchored to from the document, and the browser says
+nothing — the box lands wherever its containing block leaves it, which is
+sometimes on top of the target. That would break the first constraint, so the
+message asks which root the target is in and docks where the answer is not its
+own. See `spike/anchor-across-shadow/`.
+
 ## A failed attempt
 
 **`validate` guards the control, and only the control.** Pressing it claims the
@@ -153,28 +188,38 @@ See `late-reason.ts`.
 Leko does not hold the instruction. `step.message` is read every time it draws,
 and `StepBase.message` is `readonly` to say so.
 
-## Registering a story
+## Starting a story
 
-`setStory(story)` puts a story in the map under its id, replacing whatever was
-there. A component that registers on every render does not accumulate copies of
-itself, which is the only reason it replaces rather than adds. The map is a
-field of `Core` like any other, for the reason **`state` is derived** gives.
+`start(story)` is handed the story itself, and it is the only way a story is
+ever put up.
 
-That is all it is for. The instrumentation goes into an application first, and
-the stories come later, so `setStory` exists to let a story appear at any point
-before something calls `start()` with its id.
+**There is no registry.** A host already holds its stories — they are objects it
+wrote — and a map from a name to one of them would be Leko holding a second
+copy of something the application is better placed to keep. It would also make
+`start` two operations, a lookup and a run, with a failure of its own for the
+lookup: a name nothing answers to. Handing the object over deletes that failure
+rather than reporting it, because the compiler will not let a name that does not
+exist be written down in the first place.
 
-**A `setStory` naming the story the tour is on does nothing, and answers
-`false`.** It is never a way to change a tour while somebody is walking through
-it. Swap the object and the steps move under the position the tour is holding.
-A story shorter than the tour has gone leaves it standing nowhere. The
-re-rendering component is the case that matters, and refusing serves it: the
-tour keeps the object it entered.
+What a host loses is starting a story it has no reference to. That was worth
+paying for. A story a screen can start is a story that screen can import, and
+where it genuinely cannot — a branch decided in one module and defined in
+another — the answer is the same import, or the handler that already knows both.
+`branching.ts` is four stories in one file for exactly that reason.
 
-There is no `deleteStory`. Registering by id is a development-time convenience,
-and the map only grows where ids are themselves dynamic, which nothing has asked
-for. A pair to `setStory` also lets a registration call end a tour as a side
-effect, and nothing else in the API does that.
+**`id` is still required, and Leko still never reads it.** It is the name a
+story goes by outside Leko: in a diagnostic, in whatever `onStep` reports to,
+in a log. `LekoStep.id` has been that and nothing else from the beginning, and
+the two are now the same thing. Nothing enforces that two stories differ in it,
+the same way nothing enforces it of two steps, because nothing in here is
+keyed by it.
+
+**The story the tour is on starts again.** There is one meaning to this call and
+it is "put this up": the run standing there ends, reports its ending, and a new
+one begins at the first step of the object just handed over. A component that
+rebuilds its story on every render and starts it on every render gets a tour
+that restarts, which is a bug it can see. What it never gets is steps changing
+underneath a position somebody is standing on, which is a bug nobody can see.
 
 ## Saying where the tour got to
 
@@ -191,11 +236,12 @@ value is never read.** Something that could block a transition would be
 moved.** A story used to carry one as well and both fired, story first. The
 story's could say nothing the instance's cannot: it was never told which story
 it was, so anything spanning two of them was written on the instance anyway,
-and a readout that lived on the story stopped reporting the moment somebody
-added a story and forgot to register it again. What it cost was an ordering
-promise that had to hold on every path out of the machine. A handler that cares
-about one story asks `story.id`; a host whose stories live in several modules
-writes one handler and routes it, which is what `main.ts` in the sandbox does.
+and a readout that lived on the story stopped reporting for anything that
+spanned two of them. What it cost was an ordering promise that had to hold on
+every path out of the machine. A handler that cares about one story compares it
+— the object it gets is the object it started — and one that only wants to log
+asks `story.id`. A host whose stories live in several modules writes one handler
+and routes it, which is what `main.ts` in the sandbox does.
 
 `stop()` reports the ending with no step, and so does running past the last one.
 A hook that could not say "nowhere" would leave a progress readout showing the
@@ -213,12 +259,13 @@ refused, like every other call made while Leko is inside the application. That
 refusal is what makes `next` worth having: the story `onLeave` is told about is
 the story that runs.
 
-**`start()` answers whether the story it named is the one now running.
+**`start()` answers whether the story it was given is the one now running.
 `reached()` still does not.** A `reached()` call is instrumentation, and most of
-the time no step waits for it. `start()` is the host giving an order, and a
-story id it got wrong has no symptom at all. A name is checked where somebody
-meant it as a name, and left alone where it is a report about the world. That is
-the asymmetry `awaits` and `reached()` already have, one layer down.
+the time no step waits for it. `start()` is the host giving an order, and an
+order that came to nothing has no symptom at all: a story with no steps in it, a
+call made mid-arrival, an `onEnter` that threw. A call meant as an order is
+answered, and one that is a report about the world is left alone. That is the
+asymmetry `awaits` and `reached()` already have, one layer down.
 
 `previous` is the step a host was last **told about**, not the step the tour came
 from. `index` is there so a host never searches `story.steps`. A step is a plain
@@ -282,8 +329,8 @@ about a step while its `onEnter` still runs is naming something the user cannot
 see. A handler that returns nothing costs no turn.
 
 **Every `onEnter` gets its `onLeave`.** It runs where the handler failed
-halfway, and where a `stop()` walked out of it, because a handler that
-registered something before it fell over is owed one. `onLeave` is given where
+halfway, and where a `stop()` walked out of it, because a handler that set
+something up before it fell over is owed one. `onLeave` is given where
 the tour is going, since a panel that two steps use in turn is worth leaving
 open. Starting another story counts as ending.
 
@@ -296,7 +343,7 @@ it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
 ## A story is atomic, and stories are short
 
 **Leko offers no way back, and no way in other than the beginning.** There is no
-`prevStep()`, and `start()` takes a story id and nothing else.
+`prevStep()`, and `start()` takes a story and nothing else.
 
 A step that declares `awaits` cannot be returned to. Step 2 says "save the
 order" and waits for `order-saved`. Somebody saves it, the tour moves on, and a
@@ -331,10 +378,10 @@ code that was never written for it.
 branches finish by starting. Neither branch has to know how many steps came
 before it.
 
-Nothing in the API is needed to work this way. `setStory` registers as many
-stories as a project has, and `start(id)` replays one from the top. What a
-project chooses is how much to put in each one, and Leko's answer is: less than
-you were going to.
+Nothing in the API is needed to work this way. A project writes as many stories
+as it has, and `start(story)` replays one from the top. What a project chooses
+is how much to put in each one, and Leko's answer is: less than you were going
+to.
 
 ## The curtain
 
@@ -421,8 +468,8 @@ step has been handed to whatever draws it, and `onEnter` is inside it whether it
 answers in the turn or hands back a promise that lands half a second later. A
 teardown is another: `onLeave` is running and the run is half taken apart.
 
-Inside either, `reached()`, `start()` and `setStory()` all do nothing, and so
-does a press on the next control. Nothing that step assumes has been built, its
+Inside either, `reached()` and `start()` both do nothing, and so does a press on
+the next control. Nothing that step assumes has been built, its
 target has not been looked for, and it has never been on screen, so there is no
 step there to act on. The call is dropped where it stands rather than saved for
 when the arrival lands, because a signal saved over is a step advancing on
@@ -454,11 +501,10 @@ stay in the source permanently, including in builds where no tour ever runs, so
 something that must be free to leave in cannot complain about being left in.
 **It must never speak**, and nothing should be added here that makes it.
 
-Reported through `onDiagnostic`: a `start()` naming a story or a step that is
-not there, and any call refused by the gate above. There is no version of
-`start('typo-id')` a working application meant, and a call refused mid-arrival
-came from an application doing everything right at a moment nothing could be
-done with it. Neither has any other symptom. The tour does not move, and nothing
+Reported through `onDiagnostic`: a `start()` given a story with no steps in it,
+and any call refused by the gate above. There is no version of starting an empty
+story a working application meant, and a call refused mid-arrival came from an
+application doing everything right at a moment nothing could be done with it. Neither has any other symptom. The tour does not move, and nothing
 anywhere says why.
 
 A press the gate turns down is in neither list. Every other refusal is reported
@@ -521,19 +567,16 @@ made from in there.
 field here, check whether it is a third way of saying what two fields already
 say.
 
-**Everything the machine knows is one value.** Six fields in `plan.ts` as
-`Core`: the stories registered, where the tour is, the phase, the words of the
-last failed attempt, the step `onStep` was told about, and the morph the
-presenter is running. The class holds one `#core` and one `commit` that writes
-it, and every event is answered with the whole of the next `Core` rather than
-with a field to set.
+**Everything the machine knows is one value.** Five fields in `plan.ts` as
+`Core`: where the tour is, the phase, the words of the last failed attempt, the
+step `onStep` was told about, and the morph the presenter is running. The class
+holds one `#core` and one `commit` that writes it, and every event is answered
+with the whole of the next `Core` rather than with a field to set.
 
-**The stories registered are one of those six.** `setStory` writes them and
-`start` reads them, and both of those are decisions. A map held beside the state
-is a second state the reducer cannot see, and then `setStory` has to work out
-its own answer by reading the list of calls it just asked for. `registered` in
-`packages/machine/model/machine.qnt` is the same field. The model had it in the
-state record from the beginning.
+**None of the five is a list of stories.** `start` is handed the one it is to
+run, so there is nothing to look up and nothing to keep between runs. The state
+is what a tour is doing, and the stories a project happens to have written are
+not that. `packages/machine/model/machine.qnt` has the same five.
 
 **A move is written where it is decided.** `plan.ts` holds the shape, the
 readings taken off it, and then one spread per case. Giving each of those a name
@@ -566,9 +609,9 @@ nothing follows that report. There are eight such windows and an event apiece,
 which is what keeps one reduction from spanning one.
 
 **`dispatch` is re-entrant, and that is load-bearing.** A call made from inside
-an effect runs down the stack rather than joining a queue. `setStory()` and
-`start()` both answer whether the call took, and they read that answer off the
-state once the event has run. Queue the call and there is no answer to give:
+an effect runs down the stack rather than joining a queue. `start()` answers
+whether the call took, and it reads that answer off the state once the event has
+run. Queue the call and there is no answer to give:
 `start()` from inside an `onStep` says `false` and then starts the story a
 moment later, which is what `branching.ts` does and what the test named *start
 from inside onStep runs there, and answers truthfully* pins down. A queue is
@@ -678,7 +721,7 @@ application is free to drive the real elements while a step is showing.**
 
 **A story that is not running observes nothing.** Progress recorded while nobody
 was shown a step is not evidence that the user followed it. Starting one is
-`start(storyId)`, which the application asks for on purpose. A signal cannot
+`start(story)`, which the application asks for on purpose. A signal cannot
 start a story for the same reason. **Time passing does not advance a step
 either.** A step that ends after five seconds has established nothing about
 whether the user did anything.

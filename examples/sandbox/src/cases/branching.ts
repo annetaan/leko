@@ -1,4 +1,5 @@
-import { type Case, html } from '../case.js'
+import { at, type Case, html } from '../case.js'
+import type { LekoStory } from '@annetaan/leko'
 
 // Four short stories rather than one long one with a jump in it. An intro, two
 // branches out of it, and a summary both branches hand the tour to. A story is
@@ -8,6 +9,93 @@ import { type Case, html } from '../case.js'
 // The footer is half the case: the counter restarts at 1/1 when the summary
 // begins, because Leko counts within one story and never across a tour.
 // “Step 4 of 6” is the application's arithmetic.
+// What a branch assumes: nothing sent yet, and nothing read yet. Both are the
+// page's own state rather than a variable this file keeps, which is also what
+// the rejoin asks about.
+const fresh = (): void => {
+  ;(at('[data-checked]') as HTMLInputElement).checked = false
+  const status = at('[data-status]')
+  status.textContent = 'Nothing sent yet.'
+  status.dataset['sent'] = 'no'
+}
+
+const intro = {
+  id: 'intro',
+  steps: [
+    {
+      id: 'total',
+      target: '[data-total]',
+      message: 'Where every path starts. Press Next.',
+    },
+    {
+      id: 'choose',
+      target: ['[data-careful]', '[data-quick]'],
+      message:
+        'Two ways on. Each button starts a story of its own, so watch ' +
+        'the footer: the switch cuts rather than morphs, because two ' +
+        'unrelated stories interpolating into each other would be a ' +
+        'strange thing to watch.',
+    },
+  ],
+} satisfies LekoStory
+
+const summary = {
+  // Where the paths meet. This used to be the last step of `intro`, and
+  // both branches jumped to it by name. A story cannot be entered part
+  // way through, so what two branches share is a story rather than a
+  // step, and it says what it needs in its own `onEnter`.
+  id: 'summary',
+  steps: [
+    {
+      id: 'summary',
+      target: '[data-status]',
+      message:
+        'The rejoin, and a story of its own. Both branches finished by ' +
+        'calling start(‘summary’), so neither of them had to know how ' +
+        'many steps came before it.',
+    },
+  ],
+} satisfies LekoStory
+
+const careful = {
+  id: 'careful',
+  onEnter: fresh,
+  steps: [
+    {
+      id: 'lines',
+      // The box is the target, because ticking it is the work. The rows
+      // it is a claim about get a cutout of their own rather than joining
+      // the union, so the space between the two stays dimmed and stays
+      // blocked.
+      target: '[data-check]',
+      related: ['[data-lines]'],
+      message:
+        'careful 1/2 in the footer. A branch counts from one, because ' +
+        'the count belongs to the story that is running.',
+      awaits: 'lines-checked',
+    },
+    {
+      id: 'send',
+      target: '[data-send]',
+      message: 'Send it. That ends this branch, and the page hands the tour back.',
+      awaits: 'order-sent',
+    },
+  ],
+} satisfies LekoStory
+
+const quick = {
+  id: 'quick',
+  onEnter: fresh,
+  steps: [
+    {
+      id: 'send',
+      target: '[data-send]',
+      message: 'quick 1/1. Same button, same signal, same rejoin, one step to get there.',
+      awaits: 'order-sent',
+    },
+  ],
+} satisfies LekoStory
+
 export const branching: Case = {
   id: 'branching',
   title: 'A tour that branches',
@@ -49,10 +137,10 @@ export const branching: Case = {
     // pressed and which flow that opens, and Leko is told the same way a host
     // starts any story.
     panel.querySelector('[data-careful]')!.addEventListener('click', () => {
-      leko.start('careful')
+      leko.start(careful)
     })
     panel.querySelector('[data-quick]')!.addEventListener('click', () => {
-      leko.start('quick')
+      leko.start(quick)
     })
 
     checkbox.addEventListener('change', () => {
@@ -72,96 +160,7 @@ export const branching: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-    const checkbox = at('[data-checked]') as HTMLInputElement
-    const status = at('[data-status]')
-
-    // What a branch assumes: nothing sent yet, and nothing read yet. Both are
-    // the page's own state rather than a variable this file keeps, which is
-    // also what the rejoin asks about.
-    const fresh = (): void => {
-      checkbox.checked = false
-      status.textContent = 'Nothing sent yet.'
-      status.dataset['sent'] = 'no'
-    }
-
-    return [
-      {
-        id: 'intro',
-        steps: [
-          {
-            id: 'total',
-            target: at('[data-total]'),
-            message: 'Where every path starts. Press Next.',
-          },
-          {
-            id: 'choose',
-            target: [at('[data-careful]'), at('[data-quick]')],
-            message:
-              'Two ways on. Each button starts a story of its own, so watch ' +
-              'the footer: the switch cuts rather than morphs, because two ' +
-              'unrelated stories interpolating into each other would be a ' +
-              'strange thing to watch.',
-          },
-        ],
-      },
-      {
-        // Where the paths meet. This used to be the last step of `intro`, and
-        // both branches jumped to it by name. A story cannot be entered part
-        // way through, so what two branches share is a story rather than a
-        // step, and it says what it needs in its own `onEnter`.
-        id: 'summary',
-        steps: [
-          {
-            id: 'summary',
-            target: at('[data-status]'),
-            message:
-              'The rejoin, and a story of its own. Both branches finished by ' +
-              'calling start(‘summary’), so neither of them had to know how ' +
-              'many steps came before it.',
-          },
-        ],
-      },
-      {
-        id: 'careful',
-        onEnter: fresh,
-        steps: [
-          {
-            id: 'lines',
-            // The box is the target, because ticking it is the work. The rows
-            // it is a claim about get a cutout of their own rather than joining
-            // the union, so the space between the two stays dimmed and stays
-            // blocked.
-            target: at('[data-check]'),
-            related: [at('[data-lines]')],
-            message:
-              'careful 1/2 in the footer. A branch counts from one, because ' +
-              'the count belongs to the story that is running.',
-            awaits: 'lines-checked',
-          },
-          {
-            id: 'send',
-            target: at('[data-send]'),
-            message: 'Send it. That ends this branch, and the page hands the tour back.',
-            awaits: 'order-sent',
-          },
-        ],
-      },
-      {
-        id: 'quick',
-        onEnter: fresh,
-        steps: [
-          {
-            id: 'send',
-            target: at('[data-send]'),
-            message: 'quick 1/1. Same button, same signal, same rejoin, one step to get there.',
-            awaits: 'order-sent',
-          },
-        ],
-      },
-    ]
-  },
+  stories: [intro, summary, careful, quick],
 
   // The branch is over and the order really went, so the tour starts the story
   // the paths meet at. `stop()` from the footer arrives here as well, which is
@@ -175,7 +174,7 @@ export const branching: Case = {
     const sent = root.querySelector<HTMLElement>('[data-status]')!
     return (step, previous) => {
       if (step || previous?.id !== 'send' || sent.dataset['sent'] !== 'yes') return
-      leko.start('summary')
+      leko.start(summary)
     }
   },
 }

@@ -30,8 +30,6 @@ export interface Position<W extends World> {
  * **`state` is derived**.
  */
 export interface Core<W extends World> {
-  /** Every story registered, by id, of which at most one is ever running. */
-  readonly stories: ReadonlyMap<string, W['story']>
   /** Where the tour is. Being idle is this being `undefined`. */
   readonly position: Position<W> | undefined
   readonly phase: Phase
@@ -52,9 +50,8 @@ export interface Config {
   readonly nextLabel: string
 }
 
-/** Nothing running, nothing registered, and nothing left over from anything that ran. */
+/** Nothing running, and nothing left over from anything that ran. */
 export const idle = <W extends World>(): Core<W> => ({
-  stories: new Map(),
   position: undefined,
   phase: 'ready',
   error: undefined,
@@ -109,14 +106,13 @@ export type Effect<W extends World> =
   | { kind: 'rethrow'; reason: unknown }
 
 /**
- * Everything that happens to the machine, as data. The first eight are calls a
+ * Everything that happens to the machine, as data. The first seven are calls a
  * host or a presenter makes. The rest are the machine carrying on, one for every
  * window where a call into the application sits between two writes.
  */
 export type Event<W extends World> =
   // --- what a host calls, and what a presenter reports
-  | { kind: 'setStory'; story: Story<W> }
-  | { kind: 'start'; storyId: string }
+  | { kind: 'start'; story: Story<W> }
   | { kind: 'reached'; name: string }
   | { kind: 'stop' }
   | { kind: 'pressed' }
@@ -176,8 +172,8 @@ const content = <W extends World>(core: Core<W>, step: W['step'], config: Config
 
 /**
  * `end`. Empty the machine and take the presenter down, and owe the handlers.
- * The registry is not part of a run and is the one thing carried over. `after`
- * is what a lost target and a handler that threw want done after the report.
+ * `after` is what a lost target and a handler that threw want done after the
+ * report.
  */
 const ending = <W extends World>(
   core: Core<W>,
@@ -194,7 +190,7 @@ const ending = <W extends World>(
   if (step) effects.push({ kind: 'callStepLeave', step, next: undefined })
   effects.push({ kind: 'callStoryLeave', story: here.story, next: into })
   return {
-    core: { ...idle<W>(), stories: core.stories, phase: 'ending' },
+    core: { ...idle<W>(), phase: 'ending' },
     effects,
     next: { kind: 'left', story: here.story, previous: core.announced, into, after },
   }
@@ -261,25 +257,15 @@ export function reduce<W extends World>(
   switch (event.kind) {
     // --- what a host calls
 
-    case 'setStory': {
-      if (!accepting(core)) return diagnosing(core, { kind: 'call-refused', call: 'setStory' })
-      // Silent for the story the tour is on: that is the re-rendering component
-      // the rule is written for. DESIGN.md, **Registering a story**.
-      if (core.position?.story.id === event.story.id) return nothing(core)
-      // A fresh map every time, so its identity is the whole of the answer.
-      const stories = new Map(core.stories).set(event.story.id, event.story)
-      return nothing({ ...core, stories })
-    }
-
     case 'start': {
-      if (!accepting(core)) return diagnosing(core, { kind: 'call-refused', call: 'start' })
-      const story = core.stories.get(event.storyId)
-      // Nothing is torn down until the id is known to be good, so a typo cannot
-      // end a tour someone is in the middle of.
-      if (!story) return diagnosing(core, { kind: 'story-not-found', storyId: event.storyId })
-      if (story.steps.length === 0) {
-        return diagnosing(core, { kind: 'story-empty', storyId: event.storyId })
-      }
+      if (!accepting(core)) return diagnosing(core, { kind: 'call-refused' })
+      const story = event.story
+      // Nothing is torn down until the story is known to be runnable, so an
+      // empty one cannot end a tour someone is in the middle of.
+      if (story.steps.length === 0) return diagnosing(core, { kind: 'story-empty', story })
+      // A story the tour is already on starts again. There is one meaning here
+      // and it is "put this up", which is what makes the position it leaves
+      // behind a run that ended rather than an object swapped underneath one.
       // What is ending is told what is starting, so a teardown and the story it
       // rejoins are one operation from out here.
       return core.position ? ending(core, story, []) : opening(core, story)
@@ -330,7 +316,7 @@ export function reduce<W extends World>(
       return ending(core, undefined, [
         {
           kind: 'diagnose',
-          problem: { kind: 'target-lost', step: event.step, storyId: here.story.id },
+          problem: { kind: 'target-lost', step: event.step, story: here.story },
         },
       ])
     }

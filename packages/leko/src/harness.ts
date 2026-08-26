@@ -1,6 +1,6 @@
 import { afterEach, vi } from 'vitest'
 
-import { createLeko } from './leko.js'
+import { createLeko, type Leko } from './leko.js'
 import type { LekoOptions, LekoStep, LekoStory } from './types.js'
 
 /*
@@ -30,17 +30,36 @@ afterEach(() => {
  * that came down because a machine was busy for 250ms would put a scrim into
  * assertions that are not about one.
  */
-export function register(story: LekoStory, options: LekoOptions = {}) {
+export function instance(options: LekoOptions = {}) {
   const leko = createLeko({ duration: 0, curtain: false, ...options })
   instances.push(leko)
-  leko.setStory(story)
   return leko
 }
 
-/** One story, registered and started, which is what most of these want. */
+/**
+ * The stories a test has to hand, by name.
+ *
+ * Leko keeps no registry — `start` is handed the story itself — so the map from
+ * a name to a story belongs to whatever holds the stories, and in these files
+ * that is the test. None of them is about that map, which is why it lives here
+ * rather than in each of them.
+ */
+const staged = new WeakMap<Leko, Map<string, LekoStory>>()
+
+/** An instance with `story` to hand, which {@link begin} puts up by name. */
+export function holding(story: LekoStory, options: LekoOptions = {}) {
+  const leko = instance(options)
+  staged.set(leko, new Map([[story.id, story]]))
+  return leko
+}
+
+/** Put up the story `leko` is holding under `id`. */
+export const begin = (leko: Leko, id: string): boolean => leko.start(staged.get(leko)!.get(id)!)
+
+/** One story, started, which is what most of these want. */
 export function start(steps: LekoStep[], options: LekoOptions = {}) {
-  const leko = register({ id: 'story', steps }, options)
-  leko.start('story')
+  const leko = holding({ id: 'story', steps }, options)
+  begin(leko, 'story')
   return leko
 }
 
@@ -109,7 +128,7 @@ export const absorbed = (el: HTMLElement): boolean =>
 /** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
 export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {
   const seen: [string | undefined, string | undefined][] = []
-  const leko = register(story, {
+  const leko = holding(story, {
     ...options,
     onStep: (step, previous) => seen.push([step?.id, previous?.id]),
   })

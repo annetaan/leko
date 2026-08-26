@@ -83,7 +83,6 @@ interface Snapshot {
    */
   leaving: Set<number>
   slow: boolean
-  registered: string[]
   /** Which way the action went. See `mark` in the model. */
   mark: string
 }
@@ -126,7 +125,6 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     holding,
     leaving,
     slow: m['slow'] as boolean,
-    registered: set(m['registered']).map(str),
     mark: m['mark'] as string,
   }
 }
@@ -169,7 +167,7 @@ const defer = (): Deferred => {
  * rather than naming the call. Both are one diagnostic, which is what the
  * counting below asks for.
  */
-const REFUSALS = ['refused-start', 'refused-setStory', 'refused-signal']
+const REFUSALS = ['refused-start', 'refused-signal']
 
 /** One call the trace says arrived while the machine was inside a teardown. */
 interface Windowed {
@@ -356,11 +354,8 @@ async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void
 function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
   const { picks } = now
   switch (now.action) {
-    case 'doSetStory':
-      run.tour.setStory(run.stories.get(str(picks['storyPick']!))!)
-      break
     case 'doStart':
-      run.tour.start(str(picks['startPick']!))
+      run.tour.start(run.stories.get(str(picks['startPick']!))!)
       break
     case 'doReached':
       run.tour.reached(str(picks['signalPick']!))
@@ -655,10 +650,9 @@ describe('every trace the model found', () => {
 
       // A trace harvested from `initRunning` opens with a story already running,
       // because the deep search starts there rather than spending its steps
-      // getting there. Registering and starting is the whole of that action, and
-      // `agrees` below is what says so.
-      for (const id of first.registered) run.tour.setStory(stories.get(id)!)
-      if (first.position) run.tour.start(first.position.story)
+      // getting there. Starting it is the whole of that action, and `agrees`
+      // below is what says so.
+      if (first.position) run.tour.start(stories.get(first.position.story)!)
       await turn()
 
       agrees(run, first, 'state 0')

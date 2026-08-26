@@ -31,11 +31,8 @@ const empty: Story = { id: 'empty', steps: [] }
 
 const config: Config = { nextLabel: 'Next' }
 
-/** The three stories registered, which is state and so lives in the core. */
-const stories = new Map([story, other, empty].map((one) => [one.id, one]))
-
-/** Nothing running, with everything registered. */
-const nothing = (): C => ({ ...idle<Fixture>(), stories })
+/** Nothing running. */
+const nothing = (): C => idle<Fixture>()
 
 const at = (index: number): Position<Fixture> => ({ story, index })
 
@@ -145,7 +142,7 @@ describe('an ending', () => {
   })
 
   test('stays closed through its report where a story is on its way', () => {
-    const torn = put(running(), { kind: 'start', storyId: 'other' })
+    const torn = put(running(), { kind: 'start', story: other })
     const outcome = put(torn.core, torn.next!)
 
     // A story begun from that report would be overwritten by the one already
@@ -161,19 +158,10 @@ describe('the window an ending leaves open', () => {
   const tearing = put(running(), { kind: 'stop' }).core
 
   test('turns down a start and says so', () => {
-    const outcome = put(tearing, { kind: 'start', storyId: 'other' })
+    const outcome = put(tearing, { kind: 'start', story: other })
 
     expect(outcome.core).toBe(tearing)
-    expect(outcome.effects).toEqual([
-      { kind: 'diagnose', problem: { kind: 'call-refused', call: 'start' } },
-    ])
-  })
-
-  test('turns down a setStory and registers nothing', () => {
-    const outcome = put(tearing, { kind: 'setStory', story: other })
-
-    expect(outcome.core).toBe(tearing)
-    expect(owed(outcome)).toEqual(['diagnose'])
+    expect(outcome.effects).toEqual([{ kind: 'diagnose', problem: { kind: 'call-refused' } }])
   })
 
   test('lets a signal through in silence, because no step is waiting', () => {
@@ -287,19 +275,17 @@ describe('a failed attempt', () => {
 })
 
 describe('starting', () => {
-  test('tears nothing down until the id is known to be good', () => {
+  test('tears nothing down until the story is known to be runnable', () => {
     const before = running()
 
-    for (const storyId of ['nope', 'empty']) {
-      const outcome = put(before, { kind: 'start', storyId })
+    const outcome = put(before, { kind: 'start', story: empty })
 
-      expect(outcome.core).toBe(before)
-      expect(owed(outcome)).toEqual(['diagnose'])
-    }
+    expect(outcome.core).toBe(before)
+    expect(owed(outcome)).toEqual(['diagnose'])
   })
 
   test('puts the position up before the curtain, and the curtain before onEnter', () => {
-    const outcome = put(nothing(), { kind: 'start', storyId: 'tour' })
+    const outcome = put(nothing(), { kind: 'start', story })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
     expect(outcome.effects).toEqual([{ kind: 'hold', story, step: undefined }])
@@ -309,37 +295,15 @@ describe('starting', () => {
     expect(owed(opened)).toEqual(['callStoryEnter'])
   })
 
-  test('registers a story, and does nothing for the one the tour is on', () => {
-    const fresh: Story = { id: 'fresh', steps: [first] }
+  test("a fresh object under the running story's name is a new run, not a swap", () => {
+    const fresh: Story = { ...story, steps: [second] }
 
-    // Registering is a write to the state, not a call out, so there is nothing
-    // owed and the registry itself is the answer.
-    const registered = put(nothing(), { kind: 'setStory', story: fresh })
-    expect(registered.effects).toEqual([])
-    expect(registered.core.stories.get('fresh')).toBe(fresh)
+    const started = put(running(), { kind: 'start', story: fresh })
 
-    // The story the tour is on is left alone, object and all, so a component
-    // re-registering on every render cannot move the ground under a user.
-    const refused = put(running(), { kind: 'setStory', story: { ...story, steps: [second] } })
-    expect(refused.core.stories).toBe(stories)
-    expect(refused.effects).toEqual([])
-  })
-
-  test('a story registered while the tour is elsewhere is what start then finds', () => {
-    const fresh: Story = { id: 'other', steps: [second] }
-    const registered = put(running(), { kind: 'setStory', story: fresh })
-
-    const started = put(registered.core, { kind: 'start', storyId: 'other' })
-
-    expect(started.core.stories.get('other')).toBe(fresh)
-    // A story is on, so this is a teardown that carries the new one with it.
+    // A teardown that carries the new one with it, the same as any other
+    // displacement. There is no case here for "the story the tour is on", so
+    // the steps never move under the position somebody is standing on.
     expect(started.next).toEqual({ kind: 'left', story, previous: first, into: fresh, after: [] })
-  })
-
-  test('a teardown keeps the registry, because registering is not part of a run', () => {
-    const torn = put(running(), { kind: 'stop' })
-
-    expect(torn.core.stories).toBe(stories)
   })
 })
 
@@ -347,8 +311,8 @@ describe('a position is the occurrence, not the place', () => {
   test('two arrivals at the same step are two objects', () => {
     // The identity is what every late callback in the machine compares against,
     // so the same story at the same index twice has to be two of them.
-    const once = put(nothing(), { kind: 'start', storyId: 'tour' }).core.position
-    const twice = put(nothing(), { kind: 'start', storyId: 'tour' }).core.position
+    const once = put(nothing(), { kind: 'start', story }).core.position
+    const twice = put(nothing(), { kind: 'start', story }).core.position
 
     expect(twice).toEqual(once)
     expect(twice).not.toBe(once)
@@ -386,7 +350,7 @@ describe('an arrival throws away what belonged to the step being left', () => {
   })
 
   test("a story's own arrival has no step, so there is neither to throw away", () => {
-    const outcome = put(nothing(), { kind: 'start', storyId: 'tour' })
+    const outcome = put(nothing(), { kind: 'start', story })
     const opened = put(outcome.core, outcome.next!)
 
     expect(opened.core).toEqual({ ...outcome.core, phase: 'story' })

@@ -39,32 +39,32 @@ export const stepping: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (name: string): HTMLElement =>
-      root.querySelector<HTMLElement>(`[data-step="${name}"]`)!
-    return [
-      {
-        id: 'stepping',
-        steps: [
-          { id: 'title', target: at('title'), message: 'A short, wide target.' },
-          { id: 'wide', target: at('wide'), message: 'A tall card, off to the left.' },
-          {
-            id: 'small',
-            target: at('small'),
-            message: 'Something small, so the corners have to hold up.',
-          },
-          { id: 'row', target: at('row'), message: 'A full-width row, back down the page.' },
-          { id: 'button', target: at('button'), message: 'And the button at the end.' },
-          {
-            id: 'corner',
-            target: at('corner'),
-            message:
-              'An account menu, in the corner the End tour control wants. A ' +
-              'control left on top of a cutout takes back the interaction the ' +
-              'hole exists to allow, so it gives the corner up.',
-          },
-        ],
-      },
-    ]
-  },
+  stories: [
+    {
+      id: 'stepping',
+      steps: [
+        { id: 'title', target: '[data-step="title"]', message: 'A short, wide target.' },
+        { id: 'wide', target: '[data-step="wide"]', message: 'A tall card, off to the left.' },
+        {
+          id: 'small',
+          target: '[data-step="small"]',
+          message: 'Something small, so the corners have to hold up.',
+        },
+        {
+          id: 'row',
+          target: '[data-step="row"]',
+          message: 'A full-width row, back down the page.',
+        },
+        { id: 'button', target: '[data-step="button"]', message: 'And the button at the end.' },
+        {
+          id: 'corner',
+          target: '[data-step="corner"]',
+          message:
+            'An account menu, in the corner the End tour control wants. A ' +
+            'control left on top of a cutout takes back the interaction the ' +
+            'hole exists to allow, so it gives the corner up.',
+        },
+      ],
+    },
+  ],
 }

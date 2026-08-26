@@ -51,25 +51,7 @@ export class Leko {
   }
 
   /**
-   * Register a story, replacing any story already registered under that id.
-   *
-   * Replacing rather than adding, so that a component re-registering on every
-   * render does not accumulate copies of itself.
-   *
-   * **A call naming the story the tour is on does nothing.** Registering is how
-   * a story becomes something {@link start} can find, and it is never a way to
-   * change a tour while somebody is walking through it. The re-rendering
-   * component is the case that rule is written for: the tour keeps the object
-   * it entered, and the steps stay where they were under the user's feet.
-   *
-   * Answers whether the story was registered.
-   */
-  setStory(story: LekoStory): boolean {
-    return this.machine.setStory(story)
-  }
-
-  /**
-   * Show `storyId`, from its first step.
+   * Show `story`, from its first step.
    *
    * Whatever was running stops, and reports its own ending first. One story at
    * a time is the whole design: two scrims would each block with rectangles
@@ -87,25 +69,30 @@ export class Leko {
    * A tour somebody wants to redo part of is a shorter story. See
    * [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md).
    *
-   * Nothing is torn down until the id is known to be good, so a typo cannot end
-   * a tour someone is in the middle of.
+   * **The story the tour is already on starts again.** There is one meaning
+   * here and it is "put this up", so the run standing there ends, reports its
+   * ending, and a new one begins at the first step. Nothing is ever swapped
+   * underneath a position somebody is holding.
    *
-   * **Answers whether the story named here is the one now running.** A typo
-   * gets `false`, and so does a story with no steps in it.
+   * Nothing is torn down until the story is known to be runnable, so an empty
+   * one cannot end a tour someone is in the middle of.
+   *
+   * **Answers whether this story is the one now running.** A story with no
+   * steps in it gets `false`.
    *
    * This is not the silence {@link reached} keeps, and the difference is the
    * point. A `reached()` call is instrumentation, written where a thing happens
    * and left in builds where no tour ever runs, so a name nobody awaits has to
-   * cost nothing and say nothing. `start()` is the host giving an order, and a
-   * story id it got wrong has no other symptom: nothing happens, and nothing
+   * cost nothing and say nothing. `start()` is the host giving an order, and an
+   * order that did nothing has no other symptom: nothing happens, and nothing
    * anywhere says why.
    *
-   * `false` also comes back where the id was good and the story's own `onEnter`
-   * threw, and where the call arrived while Leko was inside the application and
-   * could not act on anything.
+   * `false` also comes back where the story's own `onEnter` threw, and where
+   * the call arrived while Leko was inside the application and could not act on
+   * anything.
    */
-  start(storyId: string): boolean {
-    return this.machine.start(storyId)
+  start(story: LekoStory): boolean {
+    return this.machine.start(story)
   }
 
   /**

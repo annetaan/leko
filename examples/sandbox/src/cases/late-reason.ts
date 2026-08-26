@@ -54,36 +54,32 @@ export const lateReason: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-
-    return [
-      {
-        id: 'late-reason',
-        steps: [
-          {
-            id: 'coupon',
-            target: at('input[name="coupon"]'),
-            message: 'Enter a coupon code, then press Next.',
-            // The verdict is local and immediate. Only the reason costs a
-            // request, which is the shape `validate` being synchronous asks for.
-            validate: (el) => (el as HTMLInputElement).value.trim().toUpperCase() === 'AUTUMN',
-            onValidationError: async (el, utils) => {
-              const code = (el as HTMLInputElement).value.trim().toUpperCase() || 'that code'
-              utils.shake()
-              utils.setError('Checking…')
-              // Nothing waits for this, and nothing has to. The user is free to
-              // fix the field and go on while it is out.
-              utils.setError(await whyNot(code))
-            },
+  stories: [
+    {
+      id: 'late-reason',
+      steps: [
+        {
+          id: 'coupon',
+          target: 'input[name="coupon"]',
+          message: 'Enter a coupon code, then press Next.',
+          // The verdict is local and immediate. Only the reason costs a
+          // request, which is the shape `validate` being synchronous asks for.
+          validate: (el) => (el as HTMLInputElement).value.trim().toUpperCase() === 'AUTUMN',
+          onValidationError: async (el, utils) => {
+            const code = (el as HTMLInputElement).value.trim().toUpperCase() || 'that code'
+            utils.shake()
+            utils.setError('Checking…')
+            // Nothing waits for this, and nothing has to. The user is free to
+            // fix the field and go on while it is out.
+            utils.setError(await whyNot(code))
           },
-          {
-            id: 'place',
-            target: at('[data-place]'),
-            message: 'Now place the order.',
-          },
-        ],
-      },
-    ]
-  },
+        },
+        {
+          id: 'place',
+          target: '[data-place]',
+          message: 'Now place the order.',
+        },
+      ],
+    },
+  ],
 }

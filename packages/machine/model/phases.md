@@ -104,8 +104,7 @@ user is looking at it. A call about it means what it says, so `settling` and
 
 | Call | Accepted in | What it does |
 | --- | --- | --- |
-| `setStory(story)` | open | registers, replacing any story under that id. A call naming the story the tour is on does nothing |
-| `start(storyId)` | open | ends whatever runs, telling it where the tour is going, then enters at index 0. An unknown id or an empty story tears nothing down |
+| `start(story)` | open | ends whatever runs, telling it where the tour is going, then enters at index 0. The story the tour is already on starts again. An empty story tears nothing down |
 | `reached(name)` | open | advances only the step whose `awaits` is that name. Any other name is free and silent |
 | `stop()` | anywhere | the one call the gate does not stand in front of. A step still arriving is thrown away rather than waited for |
 | `Host.next()` | open | private, and reachable only through the presenter. A step declaring `awaits` never gets a control |
@@ -114,8 +113,7 @@ user is looking at it. A call about it means what it says, so `settling` and
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
 
-A refused `start()` or `setStory()` answers `false` and reports
-`call-refused`. A matched `reached()` reports `signal-dropped` and is thrown
+A refused `start()` answers `false` and reports `call-refused`. A matched `reached()` reports `signal-dropped` and is thrown
 away. Holding it over would advance a step on something that happened before
 that step began.
 

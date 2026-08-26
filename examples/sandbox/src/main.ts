@@ -94,6 +94,8 @@ let teardown: (() => void) | undefined
 let unwatch: (() => void) | undefined
 let leko: Leko | undefined
 let problem: string | undefined
+/** The case on screen, which is where the footer's start buttons find a story. */
+let showing: Case | undefined
 /** The showing case's own step handler, if it asked for one. */
 let caseStep: ReturnType<NonNullable<Case['onStep']>> | undefined
 
@@ -150,11 +152,11 @@ function show(next: Case): void {
       if (found.kind === 'signal-dropped') {
         problem = `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
       } else if (found.kind === 'target-lost') {
-        problem = `Target for “${found.storyId} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
+        problem = `Target for “${found.story.id} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
       } else if (found.kind === 'call-refused') {
-        problem = `${found.call}() arrived while Leko was inside the application, and was not acted on.`
+        problem = 'start() arrived while Leko was inside the application, and was not acted on.'
       } else {
-        problem = `${found.kind}: ${JSON.stringify(found)}`
+        problem = `start() was given “${found.story.id}”, which has no steps in it.`
       }
       note('problem', problem)
       report()
@@ -187,8 +189,8 @@ function show(next: Case): void {
   caseStep = next.onStep?.(stageRoot, leko)
 
   starts.replaceChildren()
-  for (const story of next.stories(stageRoot)) {
-    leko.setStory(story)
+  showing = next
+  for (const story of next.stories) {
     starts.append(
       html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),
     )
@@ -219,14 +221,15 @@ const actions: Record<string, () => void> = {
 
 pick('.controls').addEventListener('click', (event) => {
   const el = event.target as HTMLElement
-  const story = el.closest<HTMLElement>('[data-start]')?.dataset['start']
+  const id = el.closest<HTMLElement>('[data-start]')?.dataset['start']
+  const story = showing?.stories.find((one) => one.id === id)
   if (story) {
     problem = undefined
     // Logged before the call rather than after, so a start that displaces a
     // running story sits above the teardown it causes. There is no row for the
     // answer, because every `false` `start` returns has a diagnostic of its own
     // and that lands here too.
-    note('call', `start('${story}')`)
+    note('call', `start('${story.id}')`)
     leko?.start(story)
   } else {
     const action = el.closest<HTMLElement>('[data-action]')

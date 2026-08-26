@@ -20,7 +20,7 @@
 </div>
 
 <script>
-  import { createLeko } from '@annetaan/leko'
+  import { createLeko, type LekoStory } from '@annetaan/leko'
   import '@annetaan/leko/leko.css'
 
   const demo = document.querySelector<HTMLElement>('[data-tour-demo]')
@@ -42,7 +42,7 @@
       if (input.value.trim() !== '') leko.reached('name-entered')
     })
 
-    leko.setStory({
+    const thisPage = {
       id: 'this-page',
       steps: [
         {
@@ -72,10 +72,10 @@
           message: 'That is the whole idea. Start it again if you like.',
         },
       ],
-    })
+    } satisfies LekoStory
 
     demo.querySelector('[data-tour-start]')!.addEventListener('click', () => {
-      leko.start('this-page')
+      leko.start(thisPage)
     })
   }
 </script>

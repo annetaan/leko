@@ -93,33 +93,22 @@ export class Machine<W extends World> {
   // ----------------------------------------------------------- what a host calls
 
   /**
-   * Register a story under its id, and answer whether it took. **A call naming
-   * the story the tour is on does nothing.** DESIGN.md, **Registering a story**.
-   */
-  setStory(story: W['story']): boolean {
-    // The registry is replaced whenever a registration takes and left alone
-    // whenever it does not, so its identity is the whole answer.
-    const before = this.#core.stories
-    this.dispatch({ kind: 'setStory', story })
-    return this.#core.stories !== before
-  }
-
-  /**
-   * Show `storyId` from its first step, and answer whether it is the story now
+   * Show `story` from its first step, and answer whether it is the story now
    * running. There is no way to begin anywhere else and no way back: DESIGN.md
    * argues that under **A story is atomic, and stories are short**.
    *
-   * A typo gets `false`, and so does an empty story, a call made while the
-   * machine was inside the application, and a story whose `onEnter` threw. That
-   * is not the silence `reached()` keeps. DESIGN.md, **Saying that a call did
-   * nothing**.
+   * A story the tour is already on starts again, because there is one meaning
+   * here and it is "put this up".
+   *
+   * An empty story gets `false`, and so does a call made while the machine was
+   * inside the application, and a story whose `onEnter` threw. That is not the
+   * silence `reached()` keeps. DESIGN.md, **Saying that a call did nothing**.
    */
-  start(storyId: string): boolean {
-    const story = this.#core.stories.get(storyId)
-    this.dispatch({ kind: 'start', storyId })
+  start(story: W['story']): boolean {
+    this.dispatch({ kind: 'start', story })
     // Asked after the fact rather than assumed, because a story's `onEnter` can
     // throw and end the run before this returns.
-    return story !== undefined && this.#core.position?.story === story
+    return this.#core.position?.story === story
   }
 
   /**

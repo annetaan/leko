@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Does CSS anchor positioning cross a shadow boundary?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 20px 24px 40px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; font-family: ui-monospace, monospace; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+
+  .stage {
+    position: relative;
+    height: 200px;
+    border: 1px solid #8886;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+  }
+
+  .target {
+    font: inherit;
+    padding: 8px 18px;
+    border: 1px solid #2f6f4f;
+    border-radius: 8px;
+    background: #2f6f4f;
+    color: #fff;
+  }
+
+  /* The box a tour puts beside its target. Anchored the way Leko anchors one:
+     an `anchor-name` written onto the target element, and `position-anchor`
+     plus `position-area` on the box. Nothing else positions it, so where it
+     lands is entirely the browser's answer to whether the anchor resolved. */
+  .box {
+    position: absolute;
+    position-anchor: --spike-target;
+    position-area: bottom center;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #8882;
+    font-family: ui-monospace, monospace; font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .readout {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    background: #8881; padding: 8px 10px; border-radius: 6px; margin-top: 8px;
+    min-height: 38px;
+  }
+  .yes { color: #1a7f37; }
+  .no { color: #c0392b; }
+  @media (prefers-color-scheme: dark) { .yes { color: #4ac26b; } .no { color: #ff6b5a; } }
+</style>
+</head>
+<body>
+
+<h1>Does CSS anchor positioning cross a shadow boundary?</h1>
+<p>
+  A product tour puts a message beside the element it is pointing at. The cheap
+  way to keep the two together through every scroll is CSS anchor positioning:
+  write an <code>anchor-name</code> onto the target, and give the message
+  <code>position-anchor</code> with the same name. No JavaScript runs again
+  afterwards.
+</p>
+<p>
+  That works while both elements are in the same tree. The question here is what
+  happens when the target is inside a shadow root and the message is not — which
+  is every tour pointing at a web component, and there are a lot of those.
+</p>
+
+<div class="cases">
+  <div>
+    <h2>same tree</h2>
+    <div class="stage" id="light-stage">
+      <button class="target" id="light-target" type="button">Target</button>
+      <div class="box" id="light-box">the message</div>
+    </div>
+    <div class="readout" id="light-readout">…</div>
+  </div>
+
+  <div>
+    <h2>target inside a shadow root</h2>
+    <div class="stage" id="shadow-stage">
+      <shadow-host id="host"></shadow-host>
+      <div class="box" id="shadow-box">the message</div>
+    </div>
+    <div class="readout" id="shadow-readout">…</div>
+  </div>
+</div>
+
+<h2>what this settles</h2>
+<p id="verdict">…</p>
+
+<script>
+  const supported =
+    CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
+
+  class ShadowHost extends HTMLElement {
+    connectedCallback() {
+      const root = this.attachShadow({ mode: 'open' })
+      root.innerHTML = `
+        <style>
+          button {
+            font: inherit; padding: 8px 18px;
+            border: 1px solid #2f6f4f; border-radius: 8px;
+            background: #2f6f4f; color: #fff;
+          }
+        </style>
+        <button type="button">Target</button>
+      `
+    }
+    get button() { return this.shadowRoot.querySelector('button') }
+  }
+  customElements.define('shadow-host', ShadowHost)
+
+  // The same two lines in both cases. The only difference is which tree the
+  // element carrying the name lives in.
+  const lightTarget = document.getElementById('light-target')
+  const shadowTarget = document.getElementById('host').button
+  lightTarget.style.setProperty('anchor-name', '--spike-target')
+  shadowTarget.style.setProperty('anchor-name', '--spike-target')
+
+  /**
+   * Whether the box ended up beside its target.
+   *
+   * Asked by measuring rather than by reading style, because an unresolved
+   * anchor is not an error: the box simply lays out as though the properties
+   * were not there, and only its position says so.
+   */
+  function judge(target, box) {
+    const t = target.getBoundingClientRect()
+    const b = box.getBoundingClientRect()
+    const below = b.top >= t.bottom - 1
+    const centred = Math.abs((b.left + b.width / 2) - (t.left + t.width / 2)) < 12
+    return { anchored: below && centred, t, b }
+  }
+
+  function report(id, target, box) {
+    const { anchored, t, b } = judge(target, box)
+    const el = document.getElementById(id)
+    el.innerHTML = anchored
+      ? `<span class="yes">anchored</span> — box sits below and centred on the target`
+      : `<span class="no">not anchored</span> — box is at ${Math.round(b.left)},${Math.round(b.top)}; target is at ${Math.round(t.left)},${Math.round(t.top)}`
+    return anchored
+  }
+
+  requestAnimationFrame(() => {
+    if (!supported) {
+      document.getElementById('verdict').textContent =
+        'This browser has no anchor positioning, so it has no answer to give. Open the page in one that does.'
+      return
+    }
+    const light = report('light-readout', lightTarget, document.getElementById('light-box'))
+    const shadow = report('shadow-readout', shadowTarget, document.getElementById('shadow-box'))
+
+    const verdict = document.getElementById('verdict')
+    if (light && !shadow) {
+      verdict.innerHTML =
+        '<strong>An anchor name does not cross a shadow boundary.</strong> ' +
+        'The name is scoped to the tree the element is in, so a box in the document ' +
+        'cannot see a name written onto an element inside a shadow root. Nothing ' +
+        'reports this: the box lays out as though it had no anchor at all, which ' +
+        'puts it wherever its containing block happens to leave it. ' +
+        'Anything anchoring a message to a target it does not own has to ask which ' +
+        'root the target is in and position that one itself.'
+    } else if (light && shadow) {
+      verdict.innerHTML =
+        '<strong>The anchor resolved across the boundary.</strong> If this is what you ' +
+        'see, the rule this page was written to justify no longer holds and should be revisited.'
+    } else {
+      verdict.innerHTML =
+        '<strong>Neither case anchored.</strong> Something on this page is wrong rather ' +
+        'than something in the browser; the same-tree case is the control and it is meant to pass.'
+    }
+  })
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { type Case, html } from '../case.js'
+import { at, html, type Case } from '../case.js'
 
 // The race the gate exists for. The application reports something true while
 // the step waiting for that name is still being built, and Leko drops the call
@@ -55,51 +55,46 @@ export const signalTooEarly: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-    const send = at('[data-send]') as HTMLButtonElement
-    const status = at('[data-status]')
-
-    return [
-      {
-        id: 'receipt',
-        onEnter: () => {
-          send.disabled = false
-          status.textContent = 'Nothing sent yet.'
-          status.dataset['sent'] = 'no'
-        },
-        steps: [
-          {
-            id: 'send',
-            target: send,
-            message: 'Send it. The request behind this takes 400ms.',
-            awaits: 'order-placed',
-          },
-          {
-            id: 'receipt',
-            // Two adjacent elements as one cutout, so the button below the line
-            // is inside the hole and can still be pressed.
-            target: ['[data-status]', '[data-again]'],
-            message:
-              'This step spent 900ms fetching the receipt. The order-sent ' +
-              'call landed at 400ms, inside that window, and was dropped. ' +
-              'Press the button to make the same call again.',
-            awaits: 'order-sent',
-            // Declared, because 900ms is known here rather than guessed at.
-            // The instance default would wait 250ms of it out first.
-            curtain: true,
-
-            // Whatever the application really does here. What matters is that
-            // it takes longer than the thing the user already set going.
-            onEnter: () => new Promise<void>((resolve) => setTimeout(resolve, 900)),
-          },
-          {
-            id: 'done',
-            target: status,
-            message: 'The second call moved the story on, because this time the step was standing.',
-          },
-        ],
+  stories: [
+    {
+      id: 'receipt',
+      onEnter: () => {
+        const status = at('[data-status]')
+        ;(at('[data-send]') as HTMLButtonElement).disabled = false
+        status.textContent = 'Nothing sent yet.'
+        status.dataset['sent'] = 'no'
       },
-    ]
-  },
+      steps: [
+        {
+          id: 'send',
+          target: '[data-send]',
+          message: 'Send it. The request behind this takes 400ms.',
+          awaits: 'order-placed',
+        },
+        {
+          id: 'receipt',
+          // Two adjacent elements as one cutout, so the button below the line
+          // is inside the hole and can still be pressed.
+          target: ['[data-status]', '[data-again]'],
+          message:
+            'This step spent 900ms fetching the receipt. The order-sent ' +
+            'call landed at 400ms, inside that window, and was dropped. ' +
+            'Press the button to make the same call again.',
+          awaits: 'order-sent',
+          // Declared, because 900ms is known here rather than guessed at.
+          // The instance default would wait 250ms of it out first.
+          curtain: true,
+
+          // Whatever the application really does here. What matters is that
+          // it takes longer than the thing the user already set going.
+          onEnter: () => new Promise<void>((resolve) => setTimeout(resolve, 900)),
+        },
+        {
+          id: 'done',
+          target: '[data-status]',
+          message: 'The second call moved the story on, because this time the step was standing.',
+        },
+      ],
+    },
+  ],
 }

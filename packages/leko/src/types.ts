@@ -1,9 +1,33 @@
 /**
- * Anything a step can point at. A CSS selector is resolved when the step starts,
- * taking the **first** match — a selector is never read as "every element that
- * matches". Pass an array when you mean several.
+ * Anything a step can point at. **Both forms are a question, never an answer.**
+ *
+ * A CSS selector is a question Leko runs, taking the **first** match — a
+ * selector is never read as "every element that matches". A function is the
+ * same question where the host runs it: return the element now, or `null` where
+ * there is not one yet. Reach for it when a selector cannot say what you mean —
+ * a node inside a shadow root, which `document.querySelector` does not enter; a
+ * framework ref; a row your own code picks out of a list.
+ *
+ * **Whichever form, it is asked again every time anything needs the box** — at
+ * the step boundary, on a viewport change, and on every mutation while a lost
+ * target is being looked for. So a function must be cheap and must not have
+ * side effects, and the element it hands back is the answer for that moment
+ * only. A function that closes over a live reference recovers from a node being
+ * replaced; one that hands back a variable captured once does not, and that is
+ * the host's answer to give.
+ *
+ * There is no element form. An element is an answer somebody worked out when
+ * the story was written, and by the time the step runs the page has moved on.
+ *
+ * ```ts
+ * target: '#order-form'
+ * target: () => panel.shadowRoot?.querySelector('.send') ?? null
+ * target: () => sendRef.current
+ * ```
+ *
+ * Pass an array when you mean several.
  */
-export type LekoTarget = string | HTMLElement
+export type LekoTarget = string | (() => HTMLElement | null)
 
 /**
  * The signal names this project reports. **Empty on purpose.**
@@ -324,7 +348,16 @@ export interface LekoStep {
  * construction.
  */
 export interface LekoStory {
-  /** Stable identifier. What `start()` is given. */
+  /**
+   * Stable identifier. Leko never reads it, and it is required so that
+   * everything else can.
+   *
+   * It is the name a story goes by outside Leko: in the {@link LekoProblem} a
+   * diagnostic hands over, and in whatever {@link LekoOptions.onStep} reports
+   * to. A handler that cares about one story in particular can compare the
+   * object instead — it is the one that was passed to {@link Leko.start} — and
+   * the compiler checks that where it cannot check a string.
+   */
   id: string
 
   steps: LekoStep[]
@@ -372,14 +405,14 @@ export interface LekoStory {
    * it settles** — not its own `onEnter`, and not resolving its target. Entry
    * runs outermost first: this, then the step's, then the page is measured.
    *
-   * Nothing the host calls moves the tour in that window either. `reached()`,
-   * `start()` and `setStory()` are all dropped, because every step is waiting on
-   * this handler and none of them is readier than another. `stop()` is the
+   * Nothing the host calls moves the tour in that window either. `reached()`
+   * and `start()` are both dropped, because every step is waiting on this
+   * handler and none of them is readier than another. `stop()` is the
    * exception and always takes, and {@link onLeave} runs.
    *
    * **A rejection stops the tour** and the reason is thrown again, exactly as a
    * step's does. {@link onLeave} still runs, because a handler that failed
-   * halfway may already have registered something.
+   * halfway may already have set something up.
    */
   onEnter?: (story: LekoStory) => void | Promise<void>
 
@@ -604,10 +637,8 @@ export interface LekoOptions {
  * being left in. A caller doing everything right ends up there.
  */
 export type LekoProblem =
-  /** {@link Leko.start} was given an id nothing is registered under. */
-  | { kind: 'story-not-found'; storyId: string }
-  /** The story it named has no steps in it, so there is nothing to show. */
-  | { kind: 'story-empty'; storyId: string }
+  /** {@link Leko.start} was given a story with no steps in it, so there is nothing to show. */
+  | { kind: 'story-empty'; story: LekoStory }
   /**
    * A signal the step showing was waiting for, reported while that step was
    * still being built. It is dropped rather than saved for later, so the step
@@ -618,9 +649,12 @@ export type LekoProblem =
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
-   * A call that arrived while Leko was inside the application, which is an
-   * `onEnter` in flight or an `onLeave` running. Nothing of the step being
-   * built has been built, so there is nothing there to act on.
+   * A {@link Leko.start} that arrived while Leko was inside the application,
+   * which is an `onEnter` in flight or an `onLeave` running. Nothing of the
+   * step being built has been built, so there is nothing there to act on.
+   *
+   * `start` is the only call that lands here, which is why there is nothing
+   * else on this member to read.
    *
    * `stop()` is never here. It is the one call that asks nothing.
    *
@@ -628,18 +662,19 @@ export type LekoProblem =
    * an arrival, and a press is not a call a host made, so there is nobody to
    * tell and nothing for them to do about it.
    */
-  | { kind: 'call-refused'; call: 'start' | 'setStory' }
+  | { kind: 'call-refused' }
   /**
    * A step's target was not on the page and did not come back within two
    * seconds, so the run stopped.
    *
    * A loss is given that long because a framework replacing a node with an
    * identical one disconnects the old one, and the tour should not end because
-   * an application rendered normally. The target is resolved again during it,
-   * so a step written with a selector recovers and one written with an
-   * {@link LekoStep.target} element cannot: there is no selector to run again.
+   * an application rendered normally. The target is asked again throughout, so
+   * whether the step recovers is whether the answer changes: a selector finds
+   * the new node, and so does a function reading a live reference. A function
+   * handing back one variable captured when the story was written cannot.
    */
-  | { kind: 'target-lost'; step: LekoStep; storyId: string }
+  | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
 
 /**
  * `idle` — no story running. `reached()` is a no-op.

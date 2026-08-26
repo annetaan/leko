@@ -19,12 +19,14 @@ wheel all reach it — and the step advances only when your application says it
 actually succeeded.
 
 ```ts
-import { createLeko } from '@annetaan/leko'
+import { createLeko, type LekoStory } from '@annetaan/leko'
 import '@annetaan/leko/leko.css' // optional — just the --leko-* defaults
 
 export const leko = createLeko()
 
-leko.setStory({
+// `satisfies` rather than a type annotation: it checks the story against the
+// published types while leaving `awaits` as the literal you wrote.
+export const signUp = {
   id: 'sign-up',
   steps: [
     {
@@ -41,9 +43,9 @@ leko.setStory({
       awaits: 'account-created',
     },
   ],
-})
+} satisfies LekoStory
 
-leko.start('sign-up')
+leko.start(signUp)
 
 async function onSubmit() {
   await api.createAccount(form)

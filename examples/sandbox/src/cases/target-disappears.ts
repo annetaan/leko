@@ -70,14 +70,15 @@ export const targetDisappears: Case = {
     return () => panel.remove()
   },
 
-  stories: () => [
+  stories: [
     {
       id: 'target-disappears',
       steps: [
         {
           id: 'notice',
-          // A selector rather than the element. An element cannot be found
-          // again once a framework has replaced it, so this is the shape a step
+          // A selector, so the question is asked again while the node is gone.
+          // A function closing over one node captured up front cannot answer
+          // any differently the second time, so this is the shape a step
           // wants wherever a target might be re-rendered.
           target: '[data-notice]',
           message:

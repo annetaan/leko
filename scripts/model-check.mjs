@@ -38,7 +38,6 @@ const WITNESSES = [
   'staleReport',
   'tearing',
   'startWhileTearing',
-  'setStoryWhileTearing',
   'signalWhileTearing',
   'stoppedWhileTearing',
   'staleUtils',

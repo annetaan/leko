@@ -46,12 +46,15 @@ tour has to survive, and you drive each one yourself.
 Here is a story about ordering something.
 
 ```ts
-import { createLeko } from '@annetaan/leko'
+import { createLeko, type LekoStory } from '@annetaan/leko'
 import '@annetaan/leko/leko.css' // optional, just the --leko-* defaults
 
 export const leko = createLeko()
 
-leko.setStory({
+// `satisfies` rather than a type annotation: it checks the story against the
+// published types while leaving `awaits` as the literal you wrote, so a typo is
+// reported on the line that has it.
+export const firstOrder = {
   id: 'first-order',
   steps: [
     {
@@ -83,9 +86,9 @@ leko.setStory({
       message: 'Your order is in. Nice work 🎉',
     },
   ],
-})
+} satisfies LekoStory
 
-leko.start('first-order')
+leko.start(firstOrder)
 ```
 
 The `save` step is waiting for `order-saved`. What your code reports is that the
@@ -99,14 +102,14 @@ async function onOrderSubmit() {
 ```
 
 Write that line wherever something worth treating as evidence happens, and stop
-thinking about it. Register as many stories as you have — `leko.setStory(...)`
-again, with another id — and the signal moves the one that is running, if its
-current step declared that name, and nothing otherwise.
+thinking about it. Write as many stories as you have, and the signal moves the
+one that is running, if its current step declared that name, and nothing
+otherwise.
 
 ### Write several short stories, not one long one
 
-There is no back button, and `start()` takes a story id and nothing else. A
-story runs from its first step forward, or it stops.
+There is no back button, and `start()` takes a story and nothing else. A story
+runs from its first step forward, or it stops.
 
 That sounds like a missing feature and it is a position. A step usually waits
 for something the application reports, and once the order is saved nothing will

@@ -55,9 +55,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -306,9 +303,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -555,9 +549,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -809,9 +800,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1063,9 +1051,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1314,9 +1299,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1563,9 +1545,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1812,9 +1791,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2066,9 +2042,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2327,9 +2300,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2588,9 +2558,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2851,9 +2818,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -3112,9 +3076,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -3373,9 +3334,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -3642,9 +3600,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Just",
           "value": {
@@ -3919,9 +3874,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Just",
           "value": {
@@ -4188,9 +4140,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Just",
           "value": {
@@ -4457,9 +4406,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Just",
           "value": {
@@ -4726,9 +4672,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Just",
           "value": {
@@ -4980,9 +4923,6 @@
           }
         },
         "presenterUp": true,
-        "registered": {
-          "#set": ["a", "b", "c", "d"]
-        },
         "showing": {
           "tag": "Nothing",
           "value": {

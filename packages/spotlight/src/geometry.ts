@@ -2,8 +2,13 @@
  * Anything the spotlight can be pointed at. Declared here rather than imported,
  * because the package this one is drawn for is the package that depends on it.
  * `@annetaan/leko` names the same union `LekoTarget` for its users.
+ *
+ * **Both members are a question, never an answer.** A selector is one this file
+ * runs; a function is one the host runs. Neither is an element, because an
+ * element is an answer somebody worked out earlier, and the page has moved on
+ * since. DESIGN.md argues it under **A target is a question**.
  */
-export type Target = string | HTMLElement
+export type Target = string | (() => HTMLElement | null)
 
 export interface Rect {
   x: number
@@ -17,19 +22,23 @@ export interface Cutout extends Rect {
 }
 
 /**
- * Resolve a target to an element. Selectors take the first match; a selector is
+ * Ask a target where it is, now. Selectors take the first match; a selector is
  * never read as "all matches", because widening that later would silently
  * change what existing tours highlight.
+ *
+ * **Asked again every time anything needs the box**, so a host that answers
+ * from a live reference is answering about the page as it is rather than as it
+ * was. A function that hands back a node the document has let go of is treated
+ * as no answer at all, which is the same `null` a selector matching nothing
+ * gives and the same entrance to the search for a lost target.
  */
-export function resolveTarget(target: Target, scope: ParentNode = document): HTMLElement | null {
-  if (typeof target !== 'string') return target.isConnected ? target : null
-  return scope.querySelector<HTMLElement>(target)
+export function resolveTarget(target: Target): HTMLElement | null {
+  const el = typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target()
+  return el?.isConnected ? el : null
 }
 
-export function resolveTargets(targets: readonly Target[], scope?: ParentNode): HTMLElement[] {
-  return targets
-    .map((target) => resolveTarget(target, scope))
-    .filter((el): el is HTMLElement => el !== null)
+export function resolveTargets(targets: readonly Target[]): HTMLElement[] {
+  return targets.map(resolveTarget).filter((el): el is HTMLElement => el !== null)
 }
 
 /**

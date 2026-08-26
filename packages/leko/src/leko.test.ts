@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { absorbed, box, centre, keep, press, register, scrim, start } from './harness.js'
+import { absorbed, begin, box, centre, holding, keep, press, scrim, start } from './harness.js'
 
 // Claims about layout the browser actually performed: where a hole ended up,
 // what hit-testing returns at a point, which element a scrim was mounted in.
@@ -14,7 +14,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const other = box('other', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'one', target }])
+  start([{ id: 'one', target: () => target }])
 
   expect(centre(target)).toBe(target)
   expect(absorbed(other)).toBe(true)
@@ -22,7 +22,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
 
 test('stopping puts the page back', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([{ id: 'one', target }])
+  const leko = start([{ id: 'one', target: () => target }])
 
   expect(scrim()).not.toBeNull()
   leko.stop()
@@ -37,7 +37,7 @@ test('several targets become one cutout, and what sits between them opens up too
   const right = box('right', { left: '260px', top: '100px', width: '100px', height: '40px' })
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
-  start([{ id: 'columns', target: [left, right] }])
+  start([{ id: 'columns', target: [() => left, () => right] }])
 
   expect(centre(left)).toBe(left)
   expect(centre(right)).toBe(right)
@@ -50,7 +50,7 @@ test('related regions get their own cutouts rather than joining the union', () =
   const summary = box('summary', { left: '60px', top: '60px', width: '120px', height: '40px' })
   const between = box('between', { left: '60px', top: '230px', width: '120px', height: '40px' })
 
-  start([{ id: 'linked', target, related: [summary] }])
+  start([{ id: 'linked', target: () => target, related: [() => summary] }])
 
   expect(centre(target)).toBe(target)
   expect(centre(summary)).toBe(summary)
@@ -62,8 +62,11 @@ test('a story overrides the padding the instance was given', () => {
   const target = box('target', { left: '100px', top: '200px', width: '120px', height: '40px' })
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
-  const leko = register({ id: 'roomy', steps: [{ id: 'a', target }], padding: 40 }, { padding: 4 })
-  leko.start('roomy')
+  const leko = holding(
+    { id: 'roomy', steps: [{ id: 'a', target: () => target }], padding: 40 },
+    { padding: 4 },
+  )
+  begin(leko, 'roomy')
 
   // 20px above the target: outside the instance's padding, well inside the
   // story's, so the story is what decided the size of the hole.
@@ -95,7 +98,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', target }])
+  start([{ id: 'deep', target: () => target }])
 
   // Inside the scroller, so scrolling moves scrim and target together and no
   // position math has to run per frame.
@@ -132,7 +135,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
 
   const outside = box('outside', { left: '20px', top: '20px', width: '100px', height: '40px' })
 
-  start([{ id: 'deep', target }])
+  start([{ id: 'deep', target: () => target }])
 
   // One scrim inside the scroller so the cutout tracks its content for free,
   // and one outside so the rest of the page is not left bright and clickable.
@@ -168,7 +171,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', target }])
+  start([{ id: 'deep', target: () => target }])
 
   // The reason this is checked by geometry rather than by hit-testing: a
   // clip-path already takes the outer layer out of `elementFromPoint`, and an
@@ -192,7 +195,7 @@ test('shaking moves the cutouts, not the scrim', () => {
   start([
     {
       id: 'one',
-      target,
+      target: () => target,
       validate: () => false,
       onValidationError: (_el, u) => {
         utils = u
@@ -213,8 +216,11 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })
   // A real duration, because the bug this pins down was only visible while an
   // animation was running.
-  const leko = register({ id: 'story', steps: [{ id: 'one', target }] }, { duration: 200 })
-  leko.start('story')
+  const leko = holding(
+    { id: 'story', steps: [{ id: 'one', target: () => target }] },
+    { duration: 200 },
+  )
+  begin(leko, 'story')
   await new Promise((r) => setTimeout(r, 300))
 
   window.dispatchEvent(new Event('resize'))

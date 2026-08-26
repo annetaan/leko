@@ -29,13 +29,13 @@ export const formValidation: Case = {
     return () => form.remove()
   },
 
-  stories: (root) => [
+  stories: [
     {
       id: 'form-validation',
       steps: [
         {
           id: 'email',
-          target: root.querySelector<HTMLElement>('input[name="email"]')!,
+          target: 'input[name="email"]',
           message: 'Enter the address you want to sign in with.',
           validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
           onValidationError: (_el, utils) => {
@@ -47,13 +47,13 @@ export const formValidation: Case = {
         },
         {
           id: 'password',
-          target: root.querySelector<HTMLElement>('input[name="password"]')!,
+          target: 'input[name="password"]',
           message: 'Pick a password of at least eight characters.',
           validate: (el) => (el as HTMLInputElement).value.length >= 8,
         },
         {
           id: 'submit',
-          target: root.querySelector<HTMLElement>('button[type="submit"]')!,
+          target: 'button[type="submit"]',
           message: 'Now create the account.',
         },
       ],

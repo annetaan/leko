@@ -3,6 +3,7 @@ import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
 import { formValidation } from './form-validation.js'
+import { insideShadowDom } from './inside-shadow-dom.js'
 import { lateReason } from './late-reason.js'
 import { linkedRegions } from './linked-regions.js'
 import { nestedScroller } from './nested-scroller.js'
@@ -35,4 +36,5 @@ export const cases: Case[] = [
   nestedScroller,
   scrollableTarget,
   targetDisappears,
+  insideShadowDom,
 ]

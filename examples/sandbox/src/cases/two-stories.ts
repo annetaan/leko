@@ -44,48 +44,45 @@ export const twoStories: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => {
-    const at = (selector: string): HTMLElement => root.querySelector<HTMLElement>(selector)!
-    return [
-      {
-        id: 'first-order',
-        steps: [
-          {
-            id: 'quantity',
-            target: at('input[name="quantity"]'),
-            message: 'How many you want. Change it if you like, then press Next.',
-          },
-          {
-            id: 'place',
-            target: at('[data-place]'),
-            message: 'Place the order. This step is waiting for “order-placed”.',
-            awaits: 'order-placed',
-          },
-          {
-            id: 'receipt',
-            target: at('[data-status]'),
-            message: 'And the order went through. That is what ended the last step.',
-          },
-        ],
-      },
-      {
-        id: 'what-you-pay',
-        steps: [
-          {
-            id: 'tax',
-            target: at('[data-tax]'),
-            related: [at('[data-total]')],
-            message:
-              'Tax, worked out from the quantity. Press the button — this story ' +
-              'declares no signal, so “order-placed” does nothing here.',
-          },
-          {
-            id: 'total',
-            target: at('[data-total]'),
-            message: 'And this is what you actually pay.',
-          },
-        ],
-      },
-    ]
-  },
+  stories: [
+    {
+      id: 'first-order',
+      steps: [
+        {
+          id: 'quantity',
+          target: 'input[name="quantity"]',
+          message: 'How many you want. Change it if you like, then press Next.',
+        },
+        {
+          id: 'place',
+          target: '[data-place]',
+          message: 'Place the order. This step is waiting for “order-placed”.',
+          awaits: 'order-placed',
+        },
+        {
+          id: 'receipt',
+          target: '[data-status]',
+          message: 'And the order went through. That is what ended the last step.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-pay',
+      steps: [
+        {
+          id: 'tax',
+          target: '[data-tax]',
+          related: ['[data-total]'],
+          message:
+            'Tax, worked out from the quantity. Press the button — this story ' +
+            'declares no signal, so “order-placed” does nothing here.',
+        },
+        {
+          id: 'total',
+          target: '[data-total]',
+          message: 'And this is what you actually pay.',
+        },
+      ],
+    },
+  ],
 }

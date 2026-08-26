@@ -58,6 +58,21 @@ const canAnchor = (): boolean =>
   CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
 
 /**
+ * Whether an `anchor-name` written onto `target` is a name this message can see.
+ *
+ * **An anchor name does not cross a shadow boundary.** It is scoped to the tree
+ * the element is in, so a target inside a shadow root cannot be pointed at from
+ * the document, and nothing says so: the box lays out as though it carried no
+ * anchor at all and lands wherever its containing block leaves it — which in
+ * the case that matters is on top of the target, and putting anything over the
+ * target is the one thing this library exists not to do. So the side is chosen
+ * and written here instead, the same way it is for a browser with no anchor
+ * positioning at all. See `spike/anchor-across-shadow/`.
+ */
+const sameTree = (target: HTMLElement, message: HTMLElement): boolean =>
+  target.getRootNode() === message.getRootNode()
+
+/**
  * The side with room for the message, given how much of the viewport the cutouts
  * already take up. Falls back to `bottom` when nothing fits, which is when the
  * browser's own fallbacks — where it has them — get their turn.
@@ -297,7 +312,7 @@ export class Message {
   }
 
   private hold(el: HTMLElement): void {
-    if (!this.anchored || this.anchor === el) return
+    if (!this.anchored || !sameTree(el, this.element) || this.anchor === el) return
     this.release()
     this.restore = el.style.getPropertyValue('anchor-name')
     el.style.setProperty('anchor-name', ANCHOR_NAME)
@@ -318,7 +333,9 @@ export class Message {
     const box = union(cutouts)
     // No anchor and no cutouts is the curtain: there is no hole to sit beside,
     // so the box goes where it goes when the browser cannot track one either.
-    if (!this.anchored || !box || !anchor) return this.dock()
+    if (!this.anchored || !box || !anchor || !sameTree(anchor, this.element)) {
+      return this.dock()
+    }
 
     for (const margin of MARGINS) style[margin] = '0px'
     for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''

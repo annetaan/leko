@@ -189,10 +189,10 @@ driver where a call made from inside `onLeave` could be made. So
 `tour.state`, which answers `idle` there and `transitioning` in the `onLeave` of
 a step the tour is merely walking away from.
 
-Four of the traces put a call in the window, one per way into the machine. A
-window with only `setStory` in it is a window nobody has really looked into, and
-that is what the first version had: 5 window calls across the whole corpus, no
-`start`, no `stop`, no `reached`. There are 11 now and every entrance is used.
+Three of the traces put a call in the window, one per way into the machine. A
+window only one call has been tried in is a window nobody has really looked
+into, and the corpus is written so that every entrance — `start`, `stop`,
+`reached` — is used at least once.
 
 ## The world, and how big it is
 
@@ -227,8 +227,8 @@ So there are two.
   where the four bugs the issue was opened for would have been. All four were
   reachable in under five calls.
 - `initRunning` with `stepInside` starts with story `a` already running and
-  leaves out `setStory`, `start` and `stop`. Under this one the same state came
-  up 1422 times in 100000.
+  leaves out `start` and `stop`. Under this one the same state came up 1422
+  times in 100000.
 
 `pnpm model` runs both. Neither is enough on its own.
 

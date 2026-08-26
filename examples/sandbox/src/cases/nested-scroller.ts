@@ -28,13 +28,13 @@ export const nestedScroller: Case = {
     return () => panel.remove()
   },
 
-  stories: (root) => [
+  stories: [
     {
       id: 'nested-scroller',
       steps: [
         {
           id: 'deep-row',
-          target: root.querySelector<HTMLElement>('[data-deep]')!,
+          target: '[data-deep]',
           message: 'Scroll the list. The cutout should stay on this row.',
         },
       ],

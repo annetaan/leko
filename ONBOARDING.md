@@ -44,10 +44,10 @@ Fifteen cases sit in the left rail. Take them in this order on the first day.
 2. **scrollable-target**. Put the pointer over the highlighted panel and use
    the wheel. It scrolls. That one interaction is the reason the scrim blocks
    with rectangles instead of with itself, and it is the thing that broke.
-3. **two-stories**. One `reached('order-placed')` call, two stories registered,
-   and only the one that declared that name moves.
-4. **branching**. Three stories, and a `start('summary')` at the end of either
-   path that hands the tour on to where they meet. `start` takes a story id and
+3. **two-stories**. One `reached('order-placed')` call, two stories on the same
+   screen, and only the one that declared that name moves.
+4. **branching**. Three stories, and a `start(summary)` at the end of either
+   path that hands the tour on to where they meet. `start` takes a story and
    nothing else, so the shared part is a story rather than a step two paths
    point at. Watch the footer counter.
 5. **signal-too-early**. Press Send and read the footer. The application
@@ -141,7 +141,7 @@ is a next control. The presenter is told and never asks back.
 
 The hard part. Budget an hour.
 
-`plan.ts` opens with where the tour is: six fields as one `Core`, and the four
+`plan.ts` opens with where the tour is: five fields as one `Core`, and the four
 readings taken off it. Read that and the section below on what each field means.
 
 The rest of `plan.ts` is every decision the machine makes. `reduce` takes the state and one
@@ -220,25 +220,25 @@ reach anything else on the machine.
 asked for, and the machine decides what `state` says about it, the same way it
 decides for a target that was missing when the step arrived.
 
-## The six fields in the machine
+## The five fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
 
 | Field | Holds |
 | --- | --- |
-| `stories` | Every registered story. At most one runs |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
 | `phase` | How far along the machine is. `story`, `step`, `ending`, `settling`, `searching` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
 | `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
-`stories` is a registry and sits on the class. The other five are `Core` in
-`plan.ts`, replaced together rather than written one at a time, and `commit` in
-`machine.ts` is the only thing that writes one.
+All five are `Core` in `plan.ts`, replaced together rather than written one at a
+time, and `commit` in `machine.ts` is the only thing that writes one. There is
+no list of stories among them: `start` is handed the one it is to run, so there
+is nothing to look up and nothing to keep between runs.
 
-These six and the six values of `phase` are written down again, as a state
+These five and the six values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
@@ -283,8 +283,8 @@ Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, an `onValidationError`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. The `reached`, `start`, `setStory`, `pressed` and `moved`
-events all ask this first, in `plan.ts`.
+nothing to check. The `reached`, `start`, `pressed` and `moved` events all ask
+this first, in `plan.ts`.
 
 `settling` and `searching` are not those windows. A morph is a step that arrived
 and is still moving, and a search is a step that arrived and whose anchor has
