@@ -1,21 +1,4 @@
-import {
-  arrivedAt,
-  accepting,
-  type Core,
-  failing,
-  found,
-  heldForStep,
-  heldForStory,
-  movedTo,
-  opened,
-  type Position,
-  seeking,
-  settled,
-  settling,
-  stepOf,
-  stillAt,
-  torn,
-} from './core.js'
+import { accepting, type Core, type Position, stepOf, stillAt, torn, withStory } from './core.js'
 import type { Content } from './port.js'
 import type { Problem, StepBase, StoryBase } from './types.js'
 
@@ -27,14 +10,17 @@ import type { Problem, StepBase, StoryBase } from './types.js'
  * one.** {@link reduce} says which are owed and in what order, and the shell in
  * `machine.ts` is the only thing that calls anything.
  *
- * Three of them are more than one call, because the machine has never wanted
+ * Registering a story is not here, because it is not a call out. It is a write
+ * to {@link Core.stories}, and it happens where it is decided like every other
+ * write.
+ *
+ * Three of these are more than one call, because the machine has never wanted
  * the pieces apart. `draw` resolves the anchor and hands it to `show` in the
  * same breath, and `validate` resolves, asks and tells the handler. Splitting
  * them would mean an anchor travelling back through here, and an anchor is
  * resolved, used and dropped.
  */
 export type Effect<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> =
-  | { kind: 'register'; story: St }
   | { kind: 'hold'; story: St; step: S | undefined }
   | { kind: 'teardown' }
   /** `resolve` then `show`. Answers with `shown`, or with `lost` where there is no anchor. */
@@ -112,10 +98,15 @@ export interface Outcome<A, S extends StepBase<A, S>, St extends StoryBase<A, S,
   readonly next?: Event<A, S, St>
 }
 
-/** The two things a reduction needs that are not state. */
-export interface Look<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>> {
-  /** What `setStory` has registered, by id. */
-  story(id: string): St | undefined
+/**
+ * The one thing a reduction needs that is not state.
+ *
+ * A setting the host wrote once, rather than a fact about the tour. Everything
+ * that changes while a tour runs — the stories registered included — is in
+ * {@link Core}, so that a reduction is a function of the state and the event
+ * and nothing else.
+ */
+export interface Config {
   /** The words on a next control, where a step gets one. */
   readonly nextLabel: string
 }
@@ -126,27 +117,42 @@ const nothing = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   core: Core<S, St>,
 ): Outcome<A, S, St> => ({ core, effects: [] })
 
-/** Everything the box beside the cutout should be showing for this step. */
-const content = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
+/** A call a host made while the machine was inside a call into the application. */
+const refused = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
+  core: Core<S, St>,
+  call: 'start' | 'setStory',
+): Outcome<A, S, St> => ({
+  core,
+  effects: [{ kind: 'diagnose', problem: { kind: 'call-refused', call } }],
+})
+
+/**
+ * Everything the box beside the cutout should be showing for this step.
+ *
+ * A step is asked for its words and for whether it declares a signal, which is
+ * the whole of what this needs one to be.
+ */
+const content = <S extends { message?: string; awaits?: string }, St>(
   core: Core<S, St>,
   step: S,
-  look: Look<A, S, St>,
+  config: Config,
 ): Content => ({
   text: step.message,
   error: core.error,
   // A step that declares a signal never gets a control, and that is the whole
   // rule. Nothing a story can write turns it back on.
-  next: step.awaits === undefined ? look.nextLabel : undefined,
+  next: step.awaits === undefined ? config.nextLabel : undefined,
 })
 
 // ------------------------------------------------------------- the machinery
 //
-// One per method in `machine.ts`, in the order the calls nest, and each one
-// stopping where the machine hands control to the application.
+// The moves that more than one event makes, in the order the calls nest, and
+// each one stopping where the machine hands control to the application. Each
+// stands for the `pure def` named at the top of its doc, in
+// `packages/machine/model/machine.qnt`.
 
 /**
- * `Machine.end`. Empty the machine and take the presenter down, and owe the
- * handlers.
+ * `end`. Empty the machine and take the presenter down, and owe the handlers.
  *
  * `after` is what the caller wants done once the report has gone out. Only two
  * things ever want that: a lost target says so through `onDiagnostic`, and a
@@ -170,13 +176,21 @@ const ending = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   if (step) effects.push({ kind: 'callStepLeave', step, next: undefined })
   effects.push({ kind: 'callStoryLeave', story: here.story, next: into })
   return {
-    core: torn(),
+    core: torn(core),
     effects,
     next: { kind: 'left', story: here.story, previous, into, after },
   }
 }
 
-/** `Machine.enter`. Enter the step `position` now names. */
+/**
+ * `enter`. Enter the step `position` now names.
+ *
+ * The phase says the arrival has begun before any handler is called. Whatever
+ * was wrong with an attempt at the step being left is not an attempt at this
+ * one, and whatever the presenter was moving is not this step's arrival, so
+ * both are dropped here: a morph settling after this reads a promise nothing
+ * is holding any more.
+ */
 const entering = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   core: Core<S, St>,
   at: Position<St>,
@@ -188,26 +202,34 @@ const entering = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   const effects: Effect<A, S, St>[] = [{ kind: 'hold', story: at.story, step }]
   if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
   effects.push({ kind: 'callStepEnter', at, step, animate })
-  return { core: heldForStep(core), effects }
+  return {
+    core: { ...core, phase: 'step', error: undefined, showing: undefined },
+    effects,
+  }
 }
 
-/** The half of `Machine.advance` after the guard. */
+/**
+ * `moveOn`. The half of advancing that happens once the guard has answered.
+ *
+ * The position is a fresh object every time, which is what every late callback
+ * in the machine compares itself against.
+ */
 const moveOn = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   core: Core<S, St>,
   here: Position<St>,
   step: S,
 ): Outcome<A, S, St> => {
   if (here.index >= here.story.steps.length - 1) return ending(core, undefined, [])
-  const moved = movedTo(core, here.story, here.index + 1)
+  const at: Position<St> = { story: here.story, index: here.index + 1 }
   return {
-    core: moved,
+    core: { ...core, position: at },
     effects: [],
-    next: { kind: 'entering', at: moved.position!, leaving: step, animate: true },
+    next: { kind: 'entering', at, leaving: step, animate: true },
   }
 }
 
 /**
- * `Machine.advance`.
+ * `advance`.
  *
  * A step that declares a signal is not guarded. The application has already
  * said the thing happened, and reading the page to check would be a second
@@ -225,16 +247,16 @@ const advance = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   return moveOn(core, here, step)
 }
 
-/** The story goes up: the position first, then the curtain. */
+/** `enterStory`. The story goes up: the position first, then the curtain. */
 const opening = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   core: Core<S, St>,
   story: St,
 ): Outcome<A, S, St> => {
-  const moved = movedTo(core, story, 0)
+  const at: Position<St> = { story, index: 0 }
   return {
-    core: moved,
+    core: { ...core, position: at },
     effects: [{ kind: 'hold', story, step: undefined }],
-    next: { kind: 'openStory', at: moved.position! },
+    next: { kind: 'openStory', at },
   }
 }
 
@@ -252,33 +274,25 @@ const opening = <A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
 export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>>(
   core: Core<S, St>,
   event: Event<A, S, St>,
-  look: Look<A, S, St>,
+  config: Config,
 ): Outcome<A, S, St> {
   switch (event.kind) {
     // --- what a host calls
 
     case 'setStory': {
-      if (!accepting(core)) {
-        return {
-          core,
-          effects: [{ kind: 'diagnose', problem: { kind: 'call-refused', call: 'setStory' } }],
-        }
-      }
+      if (!accepting(core)) return refused(core, 'setStory')
       // A call naming the story the tour is on does nothing, so a component
       // re-registering on every render cannot move the ground under a user.
       // Not a diagnostic either: that render is the case the rule is for.
       if (core.position?.story.id === event.story.id) return nothing(core)
-      return { core, effects: [{ kind: 'register', story: event.story }] }
+      // A write, and not a call out. What `machine.ts` answers the host with is
+      // whether the registry it holds is the one it held a moment ago.
+      return { core: withStory(core, event.story), effects: [] }
     }
 
     case 'start': {
-      if (!accepting(core)) {
-        return {
-          core,
-          effects: [{ kind: 'diagnose', problem: { kind: 'call-refused', call: 'start' } }],
-        }
-      }
-      const story = look.story(event.storyId)
+      if (!accepting(core)) return refused(core, 'start')
+      const story = core.stories.get(event.storyId)
       // Nothing is torn down until the id is known to be good, so a typo cannot
       // end a tour someone is in the middle of.
       if (!story) {
@@ -340,7 +354,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       if (!here || !step) return nothing(core)
       return {
         core,
-        effects: [{ kind: 'place', story: here.story, step, content: content(core, step, look) }],
+        effects: [{ kind: 'place', story: here.story, step, content: content(core, step, config) }],
       }
     }
 
@@ -358,8 +372,21 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       ])
     }
 
-    case 'searching':
-      return { core: event.yes ? seeking(core, event.step) : found(core), effects: [] }
+    case 'searching': {
+      if (!event.yes) {
+        // **Ending a wait asks nothing.** By then the tour may be on another
+        // step, and the phase the wait wrote is the phase that has to come off.
+        // Where it was written over in the meantime there is nothing to do.
+        if (core.phase !== 'searching') return nothing(core)
+        return { core: { ...core, phase: 'ready' }, effects: [] }
+      }
+      // **A wait is only started for the step the tour is on**, and only over a
+      // phase that says that step is on screen. A presenter can notice a loss
+      // after the tour has already gone somewhere else.
+      if (stepOf(core) !== event.step) return nothing(core)
+      if (core.phase !== 'ready' && core.phase !== 'settling') return nothing(core)
+      return { core: { ...core, phase: 'searching' }, effects: [] }
+    }
 
     // --- the machine carrying on
 
@@ -367,7 +394,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       // An ending with somewhere to go stays closed through its own report. One
       // with nowhere to go opens first, so a host is free to start a story from
       // it.
-      const curtain = event.into ? core : opened(core)
+      const curtain: Core<S, St> = event.into ? core : { ...core, phase: 'ready' }
       return {
         core: curtain,
         effects: [
@@ -386,7 +413,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       // in the turn is inside the window too. No step has been entered yet, and
       // this phase is how `ending` knows the step's `onLeave` is not owed.
       return {
-        core: heldForStory(core),
+        core: { ...core, phase: 'story' },
         effects: [{ kind: 'callStoryEnter', at: event.at, story: event.at.story }],
       }
 
@@ -407,7 +434,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       // the draw rather than after, because a step whose anchor turns out to be
       // missing can end the run from inside it, and the `onStep` that reports
       // that ending has to find a machine a host may call into.
-      const ready = opened(core)
+      const ready: Core<S, St> = { ...core, phase: 'ready' }
       return {
         core: ready,
         effects: [
@@ -416,7 +443,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
             at: event.at,
             story: event.at.story,
             step,
-            content: content(ready, step, look),
+            content: content(ready, step, config),
             animate: event.animate,
           },
         ],
@@ -432,7 +459,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       if (!step) return nothing(core)
       const previous = core.announced
       return {
-        core: arrivedAt(core, step),
+        core: { ...core, announced: step },
         effects: [{ kind: 'report', story: event.at.story, step, previous }],
       }
     }
@@ -442,12 +469,23 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       // can end the run before `show` returns. Calling the step settled after
       // that would put `running` back on a tour that is over.
       if (!stillAt(core, event.at)) return nothing(core)
-      return { core: settling(core, event.showing), effects: [] }
+      return { core: { ...core, phase: 'settling', showing: event.showing }, effects: [] }
 
     case 'settled':
       // Only the morph nothing has replaced may call the step settled.
       if (core.showing !== event.showing) return nothing(core)
-      return { core: settled(core), effects: [] }
+      return {
+        core: {
+          ...core,
+          showing: undefined,
+          // **Only the phase this promise put on the machine is its to take
+          // off.** A target that left the page while the morph ran has written
+          // `searching` over it, and that wait ends when the presenter says it
+          // does.
+          phase: core.phase === 'settling' ? 'ready' : core.phase,
+        },
+        effects: [],
+      }
 
     case 'entryFailed': {
       // The reason is thrown again on its own, because a library that quietly
@@ -468,7 +506,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
       // The words belong on the attempt they were written about. A handler that
       // looked something up and answered a second later writes nothing.
       if (!stillAt(core, event.attempt)) return nothing(core)
-      const said = failing(core, event.message)
+      const said: Core<S, St> = { ...core, error: event.message }
       return {
         core: said,
         effects: [
@@ -477,7 +515,7 @@ export function reduce<A, S extends StepBase<A, S>, St extends StoryBase<A, S, S
             story: event.story,
             step: event.step,
             anchor: event.anchor,
-            content: content(said, event.step, look),
+            content: content(said, event.step, config),
           },
         ],
       }

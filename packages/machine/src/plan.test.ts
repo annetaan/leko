@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { type Core, idle, type Position } from './core.js'
 import type { Anchor, Step, Story } from './fake.js'
-import { type Effect, type Event, type Look, type Outcome, reduce } from './plan.js'
+import { type Config, type Effect, type Event, type Outcome, reduce } from './plan.js'
 
 // The reducer with no world at all. `machine.test.ts` drives a real presenter
 // and asks what happened; this asks what was owed, which is the thing that used
@@ -17,23 +17,26 @@ const story: Story = { id: 'tour', steps: [first, second] }
 const other: Story = { id: 'other', steps: [{ id: 'c', target: 'third' }] }
 const empty: Story = { id: 'empty', steps: [] }
 
-const look: Look<Anchor, Step, Story> = {
-  story: (id) => [story, other, empty].find((one) => one.id === id),
-  nextLabel: 'Next',
-}
+const config: Config = { nextLabel: 'Next' }
+
+/** The three stories registered, which is state and so lives in the core. */
+const stories = new Map([story, other, empty].map((one) => [one.id, one]))
+
+/** Nothing running, with everything registered. */
+const nothing = (): C => ({ ...idle<Step, Story>(), stories })
 
 const at = (index: number): Position<Story> => ({ story, index })
 
 /** A tour standing on `index`, drawn and settled. */
 const running = (index = 0, over: Partial<C> = {}): C => ({
-  ...idle<Step, Story>(),
+  ...nothing(),
   position: at(index),
   announced: story.steps[index],
   ...over,
 })
 
 const put = (core: C, event: Event<Anchor, Step, Story>): Outcome<Anchor, Step, Story> =>
-  reduce(core, event, look)
+  reduce(core, event, config)
 
 /** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome<Anchor, Step, Story>): string[] =>
@@ -68,9 +71,9 @@ describe('an ending', () => {
   })
 
   test('does nothing at all while idle, however many times it is asked', () => {
-    const outcome = put(idle<Step, Story>(), { kind: 'stop' })
+    const outcome = put(nothing(), { kind: 'stop' })
 
-    expect(outcome.core).toEqual(idle<Step, Story>())
+    expect(outcome.core).toEqual(nothing())
     expect(outcome.effects).toEqual([])
     expect(outcome.next).toBeUndefined()
   })
@@ -159,11 +162,7 @@ describe('arriving at a step', () => {
 
   test('draws no control on a step that declares a signal', () => {
     const waiting: Story = { id: 'tour', steps: [{ ...first, awaits: 'saved' }] }
-    const arriving: C = {
-      ...idle<Step, Story>(),
-      position: { story: waiting, index: 0 },
-      phase: 'step',
-    }
+    const arriving: C = { ...nothing(), position: { story: waiting, index: 0 }, phase: 'step' }
 
     const [drawn] = put(arriving, {
       kind: 'stepEntered',
@@ -184,7 +183,7 @@ describe('arriving at a step', () => {
   })
 
   test('says nothing where the run ended inside the draw', () => {
-    const gone = idle<Step, Story>()
+    const gone = nothing()
 
     expect(put(gone, { kind: 'drawn', at: at(0) }).effects).toEqual([])
   })
@@ -193,7 +192,7 @@ describe('arriving at a step', () => {
 describe('a failed attempt', () => {
   const guarded: Story = { id: 'tour', steps: [{ ...first, validate: () => false }, second] }
   const attempt: Position<Story> = { story: guarded, index: 0 }
-  const core: C = { ...idle<Step, Story>(), position: attempt }
+  const core: C = { ...nothing(), position: attempt }
 
   test('asks the page rather than deciding here', () => {
     const outcome = put(core, { kind: 'pressed' })
@@ -254,7 +253,7 @@ describe('starting', () => {
   })
 
   test('puts the position up before the curtain, and the curtain before onEnter', () => {
-    const outcome = put(idle<Step, Story>(), { kind: 'start', storyId: 'tour' })
+    const outcome = put(nothing(), { kind: 'start', storyId: 'tour' })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
     expect(outcome.effects).toEqual([{ kind: 'hold', story, step: undefined }])
@@ -265,7 +264,159 @@ describe('starting', () => {
   })
 
   test('registers a story, and does nothing for the one the tour is on', () => {
-    expect(owed(put(idle<Step, Story>(), { kind: 'setStory', story }))).toEqual(['register'])
-    expect(put(running(), { kind: 'setStory', story }).effects).toEqual([])
+    const fresh: Story = { id: 'fresh', steps: [first] }
+
+    // Registering is a write to the state, not a call out, so there is nothing
+    // owed and the registry itself is the answer.
+    const registered = put(nothing(), { kind: 'setStory', story: fresh })
+    expect(registered.effects).toEqual([])
+    expect(registered.core.stories.get('fresh')).toBe(fresh)
+
+    // The story the tour is on is left alone, object and all, so a component
+    // re-registering on every render cannot move the ground under a user.
+    const refused = put(running(), { kind: 'setStory', story: { ...story, steps: [second] } })
+    expect(refused.core.stories).toBe(stories)
+    expect(refused.effects).toEqual([])
+  })
+
+  test('a story registered while the tour is elsewhere is what start then finds', () => {
+    const fresh: Story = { id: 'other', steps: [second] }
+    const registered = put(running(), { kind: 'setStory', story: fresh })
+
+    const started = put(registered.core, { kind: 'start', storyId: 'other' })
+
+    expect(started.core.stories.get('other')).toBe(fresh)
+    // A story is on, so this is a teardown that carries the new one with it.
+    expect(started.next).toEqual({ kind: 'left', story, previous: first, into: fresh, after: [] })
+  })
+
+  test('a teardown keeps the registry, because registering is not part of a run', () => {
+    const torn = put(running(), { kind: 'stop' })
+
+    expect(torn.core.stories).toBe(stories)
+  })
+})
+
+describe('a position is the occurrence, not the place', () => {
+  test('two arrivals at the same step are two objects', () => {
+    // The identity is what every late callback in the machine compares against,
+    // so the same story at the same index twice has to be two of them.
+    const once = put(nothing(), { kind: 'start', storyId: 'tour' }).core.position
+    const twice = put(nothing(), { kind: 'start', storyId: 'tour' }).core.position
+
+    expect(twice).toEqual(once)
+    expect(twice).not.toBe(once)
+  })
+
+  test('the next step is a fresh one, and everything else stays where it was', () => {
+    const before = running()
+
+    const outcome = put(before, { kind: 'pressed' })
+
+    expect(outcome.core).toEqual({ ...before, position: { story, index: 1 } })
+    expect(outcome.next).toEqual({
+      kind: 'entering',
+      at: outcome.core.position,
+      leaving: first,
+      animate: true,
+    })
+  })
+})
+
+describe('an arrival throws away what belonged to the step being left', () => {
+  test('drops the attempt and the morph, and keeps the report', () => {
+    const before = running(0, { error: 'not yet', showing: Promise.resolve() })
+
+    const outcome = put(before, { kind: 'entering', at: at(0), leaving: undefined, animate: true })
+
+    expect(outcome.core).toEqual({
+      ...before,
+      phase: 'step',
+      error: undefined,
+      showing: undefined,
+    })
+    // A morph settling after this reads a promise nothing is holding any more.
+    expect(outcome.core.announced).toBe(first)
+  })
+
+  test("a story's own arrival has no step, so there is neither to throw away", () => {
+    const outcome = put(nothing(), { kind: 'start', storyId: 'tour' })
+    const opened = put(outcome.core, outcome.next!)
+
+    expect(opened.core).toEqual({ ...outcome.core, phase: 'story' })
+  })
+})
+
+describe('a morph landing', () => {
+  const morph = Promise.resolve()
+
+  test('takes off the phase it put on', () => {
+    const arrived = running(0, { phase: 'step' })
+    const shown = put(arrived, { kind: 'shown', at: arrived.position!, showing: morph })
+    expect(shown.core.phase).toBe('settling')
+
+    const outcome = put(shown.core, { kind: 'settled', showing: morph })
+
+    expect(outcome.core).toEqual({ ...shown.core, phase: 'ready', showing: undefined })
+  })
+
+  test('leaves a search alone, because the search wrote the phase over it', () => {
+    // Both wrote the phase, and only the one that wrote it may take it off. The
+    // wait ends when the presenter says it does.
+    const before = running(0, { phase: 'searching', showing: morph })
+
+    expect(put(before, { kind: 'settled', showing: morph }).core).toEqual({
+      ...before,
+      showing: undefined,
+    })
+  })
+
+  test('lets go of nothing where another arrival has already replaced it', () => {
+    const before = running(0, { phase: 'settling', showing: Promise.resolve() })
+
+    expect(put(before, { kind: 'settled', showing: morph }).core).toBe(before)
+  })
+})
+
+describe('the presenter looking for an anchor', () => {
+  const seek = (core: C, step: Step = first) => put(core, { kind: 'searching', step, yes: true })
+
+  test('starts a wait over a step that is on screen', () => {
+    for (const phase of ['ready', 'settling'] as const) {
+      expect(seek(running(0, { phase })).core.phase).toBe('searching')
+    }
+  })
+
+  test('starts nothing over an arrival, an ending, or a wait already running', () => {
+    for (const phase of ['story', 'step', 'ending', 'searching'] as const) {
+      const before = running(0, { phase })
+
+      // The same object, so nothing downstream of a commit has to look twice.
+      expect(seek(before).core).toBe(before)
+    }
+  })
+
+  test('starts nothing for a step the tour has already left', () => {
+    // A presenter can notice a loss after the tour has moved on, and that
+    // notice is about a step nobody is showing.
+    const before = running()
+
+    expect(seek(before, second).core).toBe(before)
+  })
+
+  test('ends a wait without asking where the tour is', () => {
+    const before = running(0, { phase: 'searching' })
+
+    const outcome = put(before, { kind: 'searching', step: second, yes: false })
+
+    expect(outcome.core).toEqual({ ...before, phase: 'ready' })
+  })
+
+  test('ends nothing where the wait was written over in the meantime', () => {
+    for (const phase of ['ready', 'settling', 'story', 'step', 'ending'] as const) {
+      const before = running(0, { phase })
+
+      expect(put(before, { kind: 'searching', step: first, yes: false }).core).toBe(before)
+    }
   })
 })

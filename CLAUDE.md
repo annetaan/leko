@@ -71,7 +71,10 @@ DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
 a `document` in it is a compile error. It is the same split again inside:
 `core.ts` is the state, `plan.ts` says what an event does to it and what the
 machine owes the world, and both are pure. `machine.ts` makes the calls and
-decides nothing. A decision that lands in `machine.ts` is in the wrong file.
+decides nothing. A decision that lands in `machine.ts` is in the wrong file, and
+so is one that lands in `core.ts`. A move belongs in the `plan.ts` case that
+decided it, written out. `core.ts` names a write only where a spread at the call
+site could get it wrong, which is twice.
 
 `packages/spotlight` draws and knows nothing about steps. `packages/leko` wires
 the two together, owns the public types, and is the only package that publishes.

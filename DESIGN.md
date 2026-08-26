@@ -157,7 +157,8 @@ and `StepBase.message` is `readonly` to say so.
 
 `setStory(story)` puts a story in the map under its id, replacing whatever was
 there. A component that registers on every render does not accumulate copies of
-itself, which is the only reason it replaces rather than adds.
+itself, which is the only reason it replaces rather than adds. The map is a
+field of `Core` like any other, for the reason **`state` is derived** gives.
 
 That is all it is for. The instrumentation goes into an application first, and
 the stories come later, so `setStory` exists to let a story appear at any point
@@ -511,11 +512,27 @@ made from in there.
 field here, check whether it is a third way of saying what two fields already
 say.
 
-**The five fields are one value.** They live in `core.ts` as `Core`, and every
-move the machine makes is a pure function from one `Core` to the next. `end`
-used to clear four of them in four statements. It calls `torn()` now, and there
-is no longer a version of that clearing which forgets one. The class holds one
-`#core` and one `commit` that writes it.
+**Everything the machine knows is one value.** Six fields in `core.ts` as
+`Core`: the stories registered, where the tour is, the phase, the words of the
+last failed attempt, the step `onStep` was told about, and the morph the
+presenter is running. The class holds one `#core` and one `commit` that writes
+it, and every event is answered with the whole of the next `Core` rather than
+with a field to set.
+
+**The stories registered are one of those six.** `setStory` writes them and
+`start` reads them, and both of those are decisions. A map held beside the state
+is a second state the reducer cannot see, and then `setStory` has to work out
+its own answer by reading the list of calls it just asked for. `registered` in
+`packages/machine/model/machine.qnt` is the same field. The model had it in the
+state record from the beginning.
+
+**A move is written where it is decided.** `core.ts` holds the shape, the four
+readings taken off it, and two writes: `idle` and `torn`, which are the two a
+spread written out at a call site could get wrong. Everything else is a spread
+in the `plan.ts` case that decided it. Giving each of those a name in `core.ts`
+bought a second vocabulary for the same set of transitions, so a reader had to
+know that the `shown` event calls `settling()` and the `settled` event calls
+`settled()`. One vocabulary is the event names.
 
 **The calls out are a value too.** `plan.ts` answers an event with the next
 `Core` and a list of the calls the machine owes: hold, teardown, draw, the

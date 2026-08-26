@@ -2,26 +2,20 @@ import { describe, expect, test } from 'vitest'
 
 import {
   accepting,
-  arrivedAt,
   type Core,
-  failing,
-  found,
-  heldForStep,
-  heldForStory,
   idle,
-  movedTo,
-  opened,
   type Phase,
-  seeking,
-  settled,
-  settling,
   stateOf,
   stepOf,
+  stillAt,
   torn,
+  withStory,
 } from './core.js'
 
-// `core.ts` asks nothing of a step but that a story holds a list of them, so the
-// fixtures here are as small as that.
+// The state and how it is read. What every move does to it is decided in
+// `plan.ts` and asserted there, because a move that nothing decides is a spread
+// with a name on it.
+
 interface Step {
   id: string
 }
@@ -38,15 +32,15 @@ const elsewhere: Story = { id: 'other', steps: [{ id: 'c' }] }
 
 const PHASES: Phase[] = ['story', 'step', 'ending', 'settling', 'searching', 'ready']
 
-const morph = Promise.resolve()
-
 /** A run standing on `index` of `story`, with everything else filled in. */
 const running = (phase: Phase, index = 0): C => ({
+  ...idle<Step, Story>(),
+  stories: new Map([[story.id, story]]),
   position: { story, index },
   phase,
   error: 'not yet',
   announced: first,
-  showing: morph,
+  showing: Promise.resolve(),
 })
 
 describe('what a phase answers', () => {
@@ -99,9 +93,23 @@ describe('stepOf', () => {
   })
 })
 
+describe('stillAt', () => {
+  test('is the position object, and not what it holds', () => {
+    const core = running('ready')
+
+    expect(stillAt(core, core.position)).toBe(true)
+    // The same story at the same index, and a different occurrence of it. Every
+    // late callback in the machine is told apart this way.
+    expect(stillAt(core, { story, index: 0 })).toBe(false)
+  })
+})
+
 describe('torn', () => {
-  test('keeps nothing', () => {
-    expect(torn<Step, Story>()).toEqual({
+  test('keeps the registry and nothing else', () => {
+    const before = running('ready')
+
+    expect(torn(before)).toEqual({
+      stories: before.stories,
       position: undefined,
       phase: 'ending',
       error: undefined,
@@ -112,127 +120,34 @@ describe('torn', () => {
 
   test('is idle with the curtain still down, which is the whole of the difference', () => {
     // `onLeave` runs behind it, and a call made from there has to be refused.
-    expect(accepting(torn<Step, Story>())).toBe(false)
-    expect({ ...torn<Step, Story>(), phase: 'ready' }).toEqual(idle<Step, Story>())
+    const before = idle<Step, Story>()
+
+    expect(accepting(torn(before))).toBe(false)
+    expect({ ...torn(before), phase: 'ready' }).toEqual(before)
   })
 })
 
-describe('a move leaves alone what it does not name', () => {
-  test('opened writes the phase and nothing else', () => {
-    const before = running('settling')
+describe('withStory', () => {
+  test('registers under the id, replacing whatever was there', () => {
+    const one = withStory(idle<Step, Story>(), story)
+    const two = withStory(one, elsewhere)
+    const again = withStory(two, { id: 'tour', steps: [second] })
 
-    expect(opened(before)).toEqual({ ...before, phase: 'ready' })
+    expect([...two.stories.keys()]).toEqual(['tour', 'other'])
+    expect(again.stories.get('tour')?.steps).toEqual([second])
   })
 
-  test('heldForStory writes the phase and nothing else', () => {
-    // The story's own arrival. No step has been entered, so there is no attempt
-    // and no morph belonging to this run to throw away.
-    const before = running('ready')
+  test('makes a fresh map every time, which is what says a registration took', () => {
+    const before = idle<Step, Story>()
+    const after = withStory(before, story)
 
-    expect(heldForStory(before)).toEqual({ ...before, phase: 'story' })
-  })
-
-  test('heldForStep throws away the attempt and the morph, and keeps the report', () => {
-    const before = running('ready')
-
-    expect(heldForStep(before)).toEqual({
-      ...before,
-      phase: 'step',
-      error: undefined,
-      showing: undefined,
-    })
-  })
-
-  test('failing writes the message and nothing else', () => {
-    const before = running('ready')
-
-    expect(failing(before, 'try again')).toEqual({ ...before, error: 'try again' })
-  })
-
-  test('arrivedAt writes what onStep was told and nothing else', () => {
-    const before = running('ready')
-
-    expect(arrivedAt(before, second)).toEqual({ ...before, announced: second })
-  })
-})
-
-describe('movedTo', () => {
-  test('makes a fresh position every time', () => {
-    // The object identity is the step occurrence every late callback compares
-    // against, so the same story at the same index twice is two occurrences.
-    const once = movedTo(idle<Step, Story>(), story, 0)
-    const twice = movedTo(once, story, 0)
-
-    expect(twice.position).toEqual(once.position)
-    expect(twice.position).not.toBe(once.position)
+    expect(after.stories).not.toBe(before.stories)
+    expect(before.stories.size).toBe(0)
   })
 
   test('leaves everything else where it was', () => {
     const before = running('ready')
-    const after = movedTo(before, elsewhere, 0)
 
-    expect(after).toEqual({ ...before, position: { story: elsewhere, index: 0 } })
-  })
-})
-
-describe('a morph landing', () => {
-  test('takes off the phase it put on', () => {
-    const before = settling(running('ready'), morph)
-
-    expect(before.phase).toBe('settling')
-    expect(settled(before)).toEqual({ ...before, phase: 'ready', showing: undefined })
-  })
-
-  test('leaves a search alone, because the search wrote the phase over it', () => {
-    // Both wrote the phase, and only the one that wrote it may take it off. The
-    // wait ends when the presenter says it does.
-    const searching = { ...running('searching'), showing: morph }
-
-    expect(settled(searching)).toEqual({ ...searching, showing: undefined })
-  })
-
-  test('lets go of the promise from any phase at all', () => {
-    for (const phase of PHASES) {
-      expect(settled({ ...running(phase), showing: morph }).showing).toBeUndefined()
-    }
-  })
-})
-
-describe('the presenter looking for an anchor', () => {
-  test('starts a wait over a step that is on screen', () => {
-    for (const phase of ['ready', 'settling'] as const) {
-      expect(seeking(running(phase), first).phase).toBe('searching')
-    }
-  })
-
-  test('starts nothing over an arrival, an ending, or a wait already running', () => {
-    for (const phase of ['story', 'step', 'ending', 'searching'] as const) {
-      const before = running(phase)
-
-      // The same object, so nothing downstream of a commit has to look twice.
-      expect(seeking(before, first)).toBe(before)
-    }
-  })
-
-  test('starts nothing for a step the tour has already left', () => {
-    // A presenter can notice a loss after the tour has moved on, and that
-    // notice is about a step nobody is showing.
-    const before = running('ready')
-
-    expect(seeking(before, second)).toBe(before)
-  })
-
-  test('ends a wait without asking where the tour is', () => {
-    const before = running('searching')
-
-    expect(found(before)).toEqual({ ...before, phase: 'ready' })
-  })
-
-  test('ends nothing where the wait was written over in the meantime', () => {
-    for (const phase of ['ready', 'settling', 'story', 'step', 'ending'] as const) {
-      const before = running(phase)
-
-      expect(found(before)).toBe(before)
-    }
+    expect(withStory(before, elsewhere)).toEqual({ ...before, stories: expect.anything() })
   })
 })

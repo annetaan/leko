@@ -1,5 +1,5 @@
 import { type Core, idle, type Position, stateOf, stepOf } from './core.js'
-import { type Effect, type Event, type Look, type Outcome, reduce } from './plan.js'
+import { type Config, type Effect, type Event, type Outcome, reduce } from './plan.js'
 import type { Host, Presenter } from './port.js'
 import type { ErrorUtils, MachineOptions, MachineState, StepBase, StoryBase } from './types.js'
 
@@ -26,14 +26,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   private readonly options: MachineOptions<A, S, St>
   private readonly presenter: Presenter<A, S, St>
   /**
-   * Every story the application has registered, of which at most one is ever
-   * running. Held here so that a call site reports a signal once, to the
-   * instance, and never has to know how many stories might care.
-   */
-  private readonly stories = new Map<string, St>()
-  /**
-   * Where the tour is, as one value. What each field holds is written down on
-   * {@link Core}, and every write to any of them goes through {@link commit}.
+   * Everything the machine knows, as one value: where the tour is, and every
+   * story registered. What each field holds is written down on {@link Core},
+   * and every write to any of them goes through {@link commit}.
    */
   #core: Core<S, St> = idle()
   /**
@@ -55,14 +50,10 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   /**
    * The one place the machine's state changes.
    *
-   * Every move is a pure function in `core.ts`, and every one of them lands
-   * here. What used to be five fields written a statement at a time is one
-   * replacement that cannot land half done: `end` clearing four of them is
-   * {@link torn}, and there is no version of it that forgets one.
-   *
-   * {@link announce} used to sit on the setters of the two fields {@link state}
-   * is read from. It sits on the one write there is instead. That is the same
-   * bargain those setters struck, over a smaller thing to remember.
+   * `plan.ts` answers every event with the whole of the next state, so this is
+   * one replacement that cannot land half done rather than a field written at a
+   * time. {@link announce} sits on it, which is why a new write cannot forget
+   * to say that {@link state} moved.
    */
   private commit(next: Core<S, St>): void {
     const now = this.#core
@@ -206,11 +197,12 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * Answers whether the story was registered.
    */
   setStory(story: St): boolean {
-    // A `register` effect is what registering looks like from out here, and the
-    // two ways there is none are the two ways this answers `false`.
-    return this.dispatch({ kind: 'setStory', story }).effects.some(
-      (effect) => effect.kind === 'register',
-    )
+    // The registry is replaced whenever a registration takes and left alone
+    // whenever it does not, so its identity is the whole answer. The two ways
+    // it stays put are the two ways this answers `false`.
+    const before = this.#core.stories
+    this.dispatch({ kind: 'setStory', story })
+    return this.#core.stories !== before
   }
 
   /**
@@ -238,7 +230,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * and nothing anywhere says why.
    */
   start(storyId: string): boolean {
-    const story = this.stories.get(storyId)
+    const story = this.#core.stories.get(storyId)
     this.dispatch({ kind: 'start', storyId })
     // Asked after the fact rather than assumed, because a story's `onEnter` can
     // throw and end the run before this returns.
@@ -279,12 +271,9 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
   // the state and what the machine owes the world because of it, and these two
   // do the owing.
 
-  /** The two things a reduction needs that this class holds rather than states. */
-  private get look(): Look<A, S, St> {
-    return {
-      story: (id) => this.stories.get(id),
-      nextLabel: this.options.nextLabel ?? NEXT_LABEL,
-    }
+  /** The one thing a reduction needs that is not state. */
+  private get config(): Config {
+    return { nextLabel: this.options.nextLabel ?? NEXT_LABEL }
   }
 
   /**
@@ -302,7 +291,7 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    * so that a reduction stops at a window rather than spanning one.
    */
   private dispatch(event: Event<A, S, St>): Outcome<A, S, St> {
-    const outcome = reduce(this.#core, event, this.look)
+    const outcome = reduce(this.#core, event, this.config)
     this.commit(outcome.core)
     for (const effect of outcome.effects) this.perform(effect)
     if (outcome.next) this.dispatch(outcome.next)
@@ -318,10 +307,6 @@ export class Machine<A, S extends StepBase<A, S>, St extends StoryBase<A, S, St>
    */
   private perform(effect: Effect<A, S, St>): void {
     switch (effect.kind) {
-      case 'register':
-        this.stories.set(effect.story.id, effect.story)
-        return
-
       case 'hold':
         this.presenter.hold(effect.story, effect.step)
         return
