@@ -1,12 +1,5 @@
 import { type Rect, union } from './geometry.js'
-import { prefersReducedMotion } from './scrim.js'
-
-/**
- * The name given to the step's action target while it is being pointed at. The
- * target is the consumer's element, so whatever it already carried is put back
- * when the tour lets go of it.
- */
-const ANCHOR_NAME = '--leko-message-anchor'
+import { MESSAGE_ANCHOR, prefersReducedMotion } from './scrim.js'
 
 /** How long the message takes to fade back in after a morph. */
 const FADE = 120
@@ -17,7 +10,7 @@ const FADE = 120
  * place for it, and reading order puts it after the target rather than before.
  */
 const SIDES = ['bottom', 'top', 'right', 'left'] as const
-type Side = (typeof SIDES)[number]
+export type Side = (typeof SIDES)[number]
 
 /**
  * Physical keywords, not logical ones. The side is chosen from measurements in
@@ -58,21 +51,6 @@ const canAnchor = (): boolean =>
   CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
 
 /**
- * Whether an `anchor-name` written onto `target` is a name this message can see.
- *
- * **An anchor name does not cross a shadow boundary.** It is scoped to the tree
- * the element is in, so a target inside a shadow root cannot be pointed at from
- * the document, and nothing says so: the box lays out as though it carried no
- * anchor at all and lands wherever its containing block leaves it — which in
- * the case that matters is on top of the target, and putting anything over the
- * target is the one thing this library exists not to do. So the side is chosen
- * and written here instead, the same way it is for a browser with no anchor
- * positioning at all. See `spike/anchor-across-shadow/`.
- */
-const sameTree = (target: HTMLElement, message: HTMLElement): boolean =>
-  target.getRootNode() === message.getRootNode()
-
-/**
  * The side with room for the message, given how much of the viewport the cutouts
  * already take up. Falls back to `bottom` when nothing fits, which is when the
  * browser's own fallbacks — where it has them — get their turn.
@@ -111,6 +89,12 @@ function chooseSide(box: Rect, width: number, height: number, gap: number): Side
  * by the scroll of everything between it and its anchor, by the browser, with no
  * script involved. JS only picks the *side* — once per step, from measurements
  * it already has — and the browser keeps it there.
+ *
+ * **What it anchors to is a marker of Leko's own, never the target.** The scrim
+ * owns it and puts it on the edge of the cutout; see `Scrim.anchorAt`. An
+ * `anchor-name` cannot be read across a shadow boundary, and writing one onto
+ * the target would be a mutation of the host page that has to be undone later.
+ * DESIGN.md argues both under **A target is a question**.
  */
 export class Message {
   readonly element: HTMLElement
@@ -118,8 +102,6 @@ export class Message {
   private readonly error = document.createElement('div')
   private readonly control = document.createElement('button')
   private readonly anchored = canAnchor()
-  private anchor: HTMLElement | undefined
-  private restore: string | undefined
   private open = false
   private shown = false
   private pressed = false
@@ -229,12 +211,7 @@ export class Message {
    * for as long as the two move together — which they do, being cut from the
    * same scrim.
    */
-  show(
-    content: MessageContent,
-    anchor: HTMLElement | undefined,
-    cutouts: Rect[],
-    gap: number,
-  ): void {
+  show(content: MessageContent, cutouts: Rect[], gap: number, at?: (side: Side) => void): void {
     this.fill(content)
     if (!this.element.isConnected) document.body.append(this.element)
     if (!this.open) {
@@ -243,9 +220,7 @@ export class Message {
       this.element.showPopover?.()
       this.open = true
     }
-    if (anchor) this.hold(anchor)
-    else this.release()
-    this.place(anchor, cutouts, gap)
+    this.place(cutouts, gap, at)
     Object.assign(this.element.style, {
       transition: prefersReducedMotion() ? '' : `opacity ${FADE}ms`,
       visibility: 'visible',
@@ -311,46 +286,27 @@ export class Message {
     this.shown = false
   }
 
-  private hold(el: HTMLElement): void {
-    if (!this.anchored || !sameTree(el, this.element) || this.anchor === el) return
-    this.release()
-    this.restore = el.style.getPropertyValue('anchor-name')
-    el.style.setProperty('anchor-name', ANCHOR_NAME)
-    this.anchor = el
-    this.element.style.setProperty('position-anchor', ANCHOR_NAME)
-  }
-
-  private release(): void {
-    if (!this.anchor) return
-    if (this.restore) this.anchor.style.setProperty('anchor-name', this.restore)
-    else this.anchor.style.removeProperty('anchor-name')
-    this.anchor = undefined
-    this.restore = undefined
-  }
-
-  private place(anchor: HTMLElement | undefined, cutouts: Rect[], gap: number): void {
+  private place(cutouts: Rect[], gap: number, at: ((side: Side) => void) | undefined): void {
     const style = this.element.style
     const box = union(cutouts)
-    // No anchor and no cutouts is the curtain: there is no hole to sit beside,
-    // so the box goes where it goes when the browser cannot track one either.
-    if (!this.anchored || !box || !anchor || !sameTree(anchor, this.element)) {
-      return this.dock()
-    }
+    // No cutouts, or nowhere to put the anchor, is the curtain: there is no hole
+    // to sit beside, so the box goes where it goes when the browser cannot track
+    // one either.
+    if (!this.anchored || !box || !at) return this.dock()
 
     for (const margin of MARGINS) style[margin] = '0px'
     for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''
     style.translate = ''
 
+    // The side is chosen from what is on screen, and the anchor point is then
+    // put on that edge of the cutout. **The whole of the clearance is the gap.**
+    // What is being anchored to is the edge itself rather than the target
+    // inside it, so there is no padding left to make up for here.
     const side = chooseSide(box, this.element.offsetWidth, this.element.offsetHeight, gap)
-    const a = anchor.getBoundingClientRect()
-    const clearance: Record<Side, number> = {
-      bottom: box.y + box.height - a.bottom + gap,
-      top: a.top - box.y + gap,
-      right: box.x + box.width - a.right + gap,
-      left: a.left - box.x + gap,
-    }
+    at(side)
+    style.setProperty('position-anchor', MESSAGE_ANCHOR)
     style.setProperty('position-area', AREA[side])
-    style[MARGIN[side]] = `${Math.max(gap, clearance[side])}px`
+    style[MARGIN[side]] = `${gap}px`
 
     // An enhancement, not the mechanism: `@position-try` and this property need
     // Safari 26, and the side picked above is already the one with room. Where
@@ -382,7 +338,6 @@ export class Message {
   }
 
   destroy(): void {
-    this.release()
     if (this.open) this.element.hidePopover?.()
     this.open = false
     this.element.remove()

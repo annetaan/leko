@@ -68,6 +68,13 @@ export function paddingBoxWithin(el: HTMLElement, container: HTMLElement | null)
   }
 }
 
+/**
+ * The name the message anchors to. Declared here because this is the file that
+ * makes the element carrying it, and read in `message.ts`, which is the only
+ * thing that ever asks for it.
+ */
+export const MESSAGE_ANCHOR = '--leko-message-anchor'
+
 export const prefersReducedMotion = (): boolean =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -84,6 +91,22 @@ const ease = (t: number): number => 1 - (1 - t) ** 3
  */
 export class Scrim {
   readonly element: HTMLElement
+  /**
+   * The point a message anchors itself to, in this scrim's coordinate space.
+   *
+   * A zero-area element of Leko's own rather than the target itself, and it is
+   * what lets a message sit beside anything the scrim can cut a hole around.
+   * An `anchor-name` is scoped to the tree its element is in, so a target inside
+   * a shadow root cannot be named from the document and the browser reports
+   * nothing when it fails — `spike/anchor-across-shadow/` is the page. Naming
+   * the target also meant writing into the host page's inline style and putting
+   * back whatever was there, and this owes nobody that.
+   *
+   * It sits beside the scrim rather than inside it, so the clip and the
+   * blocking rectangles know nothing about it. It follows a scroll for exactly
+   * the reason the scrim does: the container moves both, and no script runs.
+   */
+  private marker: HTMLElement | undefined
   readonly container: HTMLElement | null
   private readonly restorePosition: string | null
   private cutouts: Cutout[] = []
@@ -127,6 +150,33 @@ export class Scrim {
     this.element = el
     ;(container ?? document.body).append(el)
     this.resize()
+  }
+
+  /**
+   * Put the anchor point where the message asked for it, in this scrim's
+   * coordinates. Written once per step rather than per frame, the same as the
+   * cutouts, because the container carries both from then on.
+   */
+  anchorAt(x: number, y: number): void {
+    // Made on demand, and only ever by the innermost scrim. Every layer making
+    // one would put the same `anchor-name` on several elements at once, and a
+    // name that answers to more than one element is a name that answers to the
+    // wrong one.
+    if (!this.marker) {
+      const mark = document.createElement('div')
+      mark.className = 'leko-anchor'
+      mark.setAttribute('aria-hidden', 'true')
+      Object.assign(mark.style, {
+        position: 'absolute',
+        width: '0',
+        height: '0',
+        pointerEvents: 'none',
+      })
+      mark.style.setProperty('anchor-name', MESSAGE_ANCHOR)
+      this.marker = mark
+      ;(this.container ?? document.body).append(mark)
+    }
+    Object.assign(this.marker.style, { left: `${x}px`, top: `${y}px` })
   }
 
   /** Cover the whole scrollable area, not just the visible part. */
@@ -322,6 +372,7 @@ export class Scrim {
   destroy(): void {
     this.halt()
     this.element.remove()
+    this.marker?.remove()
     if (this.container && this.restorePosition !== null) {
       this.container.style.position = this.restorePosition
     }

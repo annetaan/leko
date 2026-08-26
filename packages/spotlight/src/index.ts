@@ -13,5 +13,5 @@
  */
 export { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
 export { Close } from './close.js'
-export { Message } from './message.js'
+export { Message, type Side } from './message.js'
 export { findScrollContainer, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'

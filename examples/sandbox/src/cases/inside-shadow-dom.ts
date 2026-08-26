@@ -11,6 +11,11 @@ import { type Case, html } from '../case.js'
 // over a shadow root is a cutout like any other. Nothing is placed over the
 // target either way, which is why the boundary makes no difference to the hole,
 // the blocking, or the wheel.
+//
+// Watch where the message lands as well. It anchors to a marker of Leko's own
+// on the edge of the cutout rather than to the target, so it sits beside this
+// button the same as beside any other. An `anchor-name` written onto the button
+// itself could not be read from out here at all.
 const SEND = 'send-button'
 
 class SendButton extends HTMLElement {
@@ -90,7 +95,8 @@ export const insideShadowDom: Case = {
           message:
             'This button lives inside a shadow root. The step names it with a ' +
             'function, because there is no selector that reaches it. Press it ' +
-            'through the hole — the boundary changes nothing about the cutout.',
+            'through the hole — the boundary changes nothing about the cutout, ' +
+            'and nothing about where this box sits either.',
         },
       ],
     },

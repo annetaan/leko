@@ -25,6 +25,13 @@ const rect = (el: Element) => el.getBoundingClientRect()
 const overlaps = (a: DOMRect, b: DOMRect): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
+/** How far apart two rects are, which is zero where they touch or overlap. */
+const gap = (a: DOMRect, b: DOMRect): number =>
+  Math.hypot(
+    Math.max(0, a.left - b.right, b.left - a.right),
+    Math.max(0, a.top - b.bottom, b.top - a.bottom),
+  )
+
 /**
  * Wait for the box to actually be on screen.
  *
@@ -88,6 +95,48 @@ test.runIf(anchors)('the message clears every cutout, not just the one it is anc
   // the scrim: sitting on the related one would hide half of what was explained.
   expect(overlaps(note, rect(target))).toBe(false)
   expect(overlaps(note, rect(related))).toBe(false)
+})
+
+test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {
+  // No selector reaches in here, and neither does an `anchor-name`: the name is
+  // scoped to the tree its element is in, so pointing at this from the document
+  // used to be impossible and the box docked instead. What it anchors to now is
+  // Leko's own marker, which is in the document because Leko put it there.
+  // `spike/anchor-across-shadow/` is the page that settled the boundary.
+  const host = document.createElement('div')
+  Object.assign(host.style, { position: 'fixed', left: '120px', top: '160px' })
+  const root = host.attachShadow({ mode: 'open' })
+  const inner = document.createElement('button')
+  inner.textContent = 'inside'
+  Object.assign(inner.style, { display: 'block', width: '140px', height: '44px' })
+  root.append(inner)
+  document.body.append(host)
+  keep(host)
+
+  start([{ id: 'one', target: () => inner, message: 'Press the one in the shadow root.' }])
+  await frame()
+
+  const note = rect(message()!)
+  const target = rect(inner)
+  // Beside it and not over it. The distance is what says this is not the docked
+  // box at the foot of the viewport, which is where this landed before and
+  // which every other assertion here would have been happy with.
+  expect(overlaps(note, target)).toBe(false)
+  expect(gap(note, target)).toBeLessThan(40)
+})
+
+test('Leko writes no anchor-name into the page it is pointing at', () => {
+  // The marker is Leko's own element, so the host's is left exactly as it was.
+  // This used to be written and put back, and putting something back is a
+  // promise that only holds until somebody forgets.
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  target.style.setProperty('anchor-name', '--the-page-had-this')
+
+  const leko = start([{ id: 'one', target: () => target, message: 'Press it.' }])
+
+  expect(target.style.getPropertyValue('anchor-name')).toBe('--the-page-had-this')
+  leko.stop()
+  expect(target.style.getPropertyValue('anchor-name')).toBe('--the-page-had-this')
 })
 
 test.runIf(anchors)('the message follows its target when a scroller moves under it', async () => {

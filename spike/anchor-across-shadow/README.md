@@ -43,14 +43,20 @@ usable rather than a picture of a control. A message that silently loses its
 anchor and settles over the target breaks exactly that, on exactly the pages
 most likely to have a component worth pointing at.
 
-So `message.ts` asks `getRootNode()` before it anchors anything, and where the
-answer is not its own root it takes the same docked path a browser without
-anchor positioning takes. Docking is a downgrade — the message stops sitting
-beside the thing it describes — but it is a downgrade that stays out of the way,
-and being plain is not the same as being wrong.
+So Leko does not name the target. It puts a zero-area marker of its own on the
+edge of the cutout, in the container the scrim lives in, and anchors the message
+to that. The marker is in Leko's tree whatever tree the target is in, so the
+right-hand column above stops being a case that has to be handled at all.
+
+That was worth doing for a second reason. Naming the target meant writing
+`anchor-name` into the host page's inline style and putting back whatever was
+there when the tour let go. DESIGN.md argues both halves under **A target is a
+question**.
 
 ## Revisiting
 
-If a future spec gives an anchor name a way out of its tree — an exported name,
-a part-like mechanism, anything — the right side of the table turns green and
-the `sameTree` check in `message.ts` can go. This page is the check.
+This page no longer guards a branch in the code, because the branch is gone.
+What it still does is say why the marker exists. If a future spec gives an
+anchor name a way out of its tree, the right-hand column turns green, and
+anchoring the target directly becomes possible again — though the second reason
+would still stand against it.

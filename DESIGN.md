@@ -153,13 +153,28 @@ often than once, and it is called during layout work. It may answer `null`,
 which is not a failure: a target that is not there yet is what the search for a
 lost target is for, and `null` is how a host says so.
 
-**The message cannot always sit beside a target it does not own.** An
-`anchor-name` is scoped to the tree the element is in, so a target inside a
-shadow root cannot be anchored to from the document, and the browser says
-nothing — the box lands wherever its containing block leaves it, which is
-sometimes on top of the target. That would break the first constraint, so the
-message asks which root the target is in and docks where the answer is not its
-own. See `spike/anchor-across-shadow/`.
+**The message anchors to a marker of Leko's own, never to the target.** A
+zero-area element, put on the chosen edge of the cutout, living beside the scrim
+in the same container. Two things fall out of that and both matter.
+
+An `anchor-name` is scoped to the tree the element is in. Name the target and a
+target inside a shadow root cannot be reached from the document at all, and
+nothing reports it: the box lays out as though it had no anchor and lands
+wherever its containing block leaves it, which is sometimes on top of the
+target. See `spike/anchor-across-shadow/`. The marker is Leko's own element in
+Leko's own tree, so the question never arises and every target is anchored the
+same way.
+
+**And Leko writes nothing into the page it is pointing at.** Naming the target
+meant putting `anchor-name` into somebody else's inline style and putting back
+whatever was there, which is a promise that holds until one path out forgets to
+keep it. There is no such promise now.
+
+The marker follows a scroll for the same reason the scrim does, and it is the
+same reason: the container carries both, and no script runs. It goes on the edge
+rather than in the middle because it has no area — `position-area` lays the box
+out from that point alone, and a point in the middle of the hole would put the
+message over half of it.
 
 ## A failed attempt
 

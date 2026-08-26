@@ -11,6 +11,7 @@ import {
   resolveTarget,
   resolveTargets,
   Scrim,
+  type Side,
   union,
 } from '@annetaan/leko-spotlight'
 import { type Curtain, covering, DOWN, onset, owed } from './curtain.js'
@@ -194,7 +195,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // hole is a measurement about nothing. Zero rather than a padding read off
       // some step, which is a number this cannot use and had no honest way to
       // pick.
-      this.message.show({ text, error: undefined, next: undefined }, undefined, [], 0)
+      this.message.show({ text, error: undefined, next: undefined }, [], 0)
     }
   }
 
@@ -254,11 +255,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * Put the message beside the step's cutouts.
    *
-   * Measured in viewport coordinates and only at step boundaries: the side is
-   * chosen from what is on screen now, and the browser holds the message there
-   * through every scroll that follows.
+   * Two measurements of the same holes. The side is chosen from viewport
+   * coordinates, because what decides it is how much room is on screen right
+   * now. The anchor point is written in the scrim's coordinates, because that
+   * is the space the scroller carries — and once it is written, the browser
+   * holds the message beside it through every scroll that follows, with no
+   * script involved.
    */
-  private say(story: LekoStory, step: LekoStep, action: HTMLElement, content: Content): void {
+  private say(story: LekoStory, step: LekoStep, content: Content): void {
     const onScreen = this.cutouts(story, step, (el) => el.getBoundingClientRect())
     this.showClose(onScreen?.cutouts ?? [])
     if (!content.text && !content.error && !content.next) {
@@ -267,7 +271,33 @@ export class DomPresenter implements Presenter<LekoWorld> {
     }
     this.message ??= new Message(() => this.host.next())
     const gap = this.setting(story, step, 'padding')
-    this.message.show(content, action, onScreen?.cutouts ?? [], gap)
+    const inner = this.layers[0]
+    const within = inner && this.cutouts(story, step, (el) => rectWithin(el, inner.container))
+    const box = within && union(within.cutouts)
+    this.message.show(
+      content,
+      onScreen?.cutouts ?? [],
+      gap,
+      // Absent where there is no scrim to hang the anchor in, which is what
+      // makes the box dock instead.
+      inner && box ? (side) => inner.anchorAt(...DomPresenter.edge(box, side)) : undefined,
+    )
+  }
+
+  /**
+   * The midpoint of one edge of `box`, which is where the message's anchor goes.
+   *
+   * The edge rather than the middle: the anchor has no area, so `position-area`
+   * lays the box out from this point alone, and a point in the middle of the
+   * hole would put the message over half of it.
+   */
+  private static edge(box: Rect, side: Side): [number, number] {
+    const midX = box.x + box.width / 2
+    const midY = box.y + box.height / 2
+    if (side === 'bottom') return [midX, box.y + box.height]
+    if (side === 'top') return [midX, box.y]
+    if (side === 'right') return [box.x + box.width, midY]
+    return [box.x, midY]
   }
 
   /**
@@ -396,7 +426,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const duration = story.duration ?? this.options.duration ?? DEFAULTS.duration
     const morphing = inner.morph(resolved.cutouts, duration)
     if (!morphing) {
-      this.say(story, step, anchor, content)
+      this.say(story, step, content)
       return
     }
     // Nothing back where the morph was interrupted. Another one starting is the
@@ -405,7 +435,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // there either way.
     return morphing.then((finished) => {
       if (!finished) return
-      this.say(story, step, anchor, content)
+      this.say(story, step, content)
     })
   }
 
@@ -426,7 +456,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     if (resolved) inner.set(resolved.cutouts)
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again.
-    if (anchor) this.say(story, step, anchor, content)
+    if (anchor) this.say(story, step, content)
   }
 
   /**
@@ -441,7 +471,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       this.message.setError(content.error ?? '')
       return
     }
-    this.say(story, step, anchor, content)
+    this.say(story, step, content)
   }
 
   reject(): void {
