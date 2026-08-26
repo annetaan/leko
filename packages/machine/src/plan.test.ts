@@ -1,15 +1,27 @@
 import { describe, expect, test } from 'vitest'
 
-import { type Core, idle, type Position } from './core.js'
-import type { Anchor, Step, Story } from './fake.js'
-import { type Config, type Effect, type Event, type Outcome, reduce } from './plan.js'
+import type { Fixture, Step, Story } from './fake.js'
+import {
+  accepting,
+  type Config,
+  type Core,
+  type Effect,
+  type Event,
+  idle,
+  type Outcome,
+  type Phase,
+  type Position,
+  reduce,
+  stateOf,
+  stepOf,
+} from './plan.js'
 
-// The reducer with no world at all. `machine.test.ts` drives a real presenter
-// and asks what happened; this asks what was owed, which is the thing that used
-// to be a call halfway down a method and is now a value.
+// The state, how it is read, and what every event does to it, with no world at
+// all. `machine.test.ts` drives a real presenter and asks what happened. This
+// asks what was owed.
 
-type C = Core<Step, Story>
-type E = Effect<Anchor, Step, Story>
+type C = Core<Fixture>
+type E = Effect<Fixture>
 
 const first: Step = { id: 'a', target: 'first', message: 'do the thing' }
 const second: Step = { id: 'b', target: 'second' }
@@ -23,9 +35,9 @@ const config: Config = { nextLabel: 'Next' }
 const stories = new Map([story, other, empty].map((one) => [one.id, one]))
 
 /** Nothing running, with everything registered. */
-const nothing = (): C => ({ ...idle<Step, Story>(), stories })
+const nothing = (): C => ({ ...idle<Fixture>(), stories })
 
-const at = (index: number): Position<Story> => ({ story, index })
+const at = (index: number): Position<Fixture> => ({ story, index })
 
 /** A tour standing on `index`, drawn and settled. */
 const running = (index = 0, over: Partial<C> = {}): C => ({
@@ -35,12 +47,56 @@ const running = (index = 0, over: Partial<C> = {}): C => ({
   ...over,
 })
 
-const put = (core: C, event: Event<Anchor, Step, Story>): Outcome<Anchor, Step, Story> =>
-  reduce(core, event, config)
+const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, event, config)
 
 /** Every effect an outcome owes, by kind, in order. */
-const owed = (outcome: Outcome<Anchor, Step, Story>): string[] =>
-  outcome.effects.map((effect) => effect.kind)
+const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
+
+const PHASES: Phase[] = ['story', 'step', 'ending', 'settling', 'searching', 'ready']
+
+describe('reading the state', () => {
+  test('a call is acted on where the step is on screen and nowhere else', () => {
+    const answers = Object.fromEntries(
+      PHASES.map((phase) => [phase, accepting(running(0, { phase }))]),
+    )
+
+    expect(answers).toEqual({
+      ready: true,
+      settling: true,
+      searching: true,
+      story: false,
+      step: false,
+      ending: false,
+    })
+  })
+
+  test('idle is the position being empty, whatever the phase says', () => {
+    for (const phase of PHASES) expect(stateOf({ ...nothing(), phase })).toBe('idle')
+  })
+
+  test('running is the one phase where the step arrived and stopped moving', () => {
+    const answers = Object.fromEntries(
+      PHASES.map((phase) => [phase, stateOf(running(0, { phase }))]),
+    )
+
+    // `settling` and `searching` are both a step on screen, and a host standing
+    // back while the tour is between things has to hear about them.
+    expect(answers).toEqual({
+      ready: 'running',
+      settling: 'transitioning',
+      searching: 'transitioning',
+      story: 'transitioning',
+      step: 'transitioning',
+      ending: 'transitioning',
+    })
+  })
+
+  test('stepOf reads the step the position names, and nothing past the end', () => {
+    expect(stepOf(running(1))).toBe(second)
+    expect(stepOf(running(2))).toBeUndefined()
+    expect(stepOf(nothing())).toBeUndefined()
+  })
+})
 
 describe('an ending', () => {
   test('empties the machine before it owes anybody anything', () => {
@@ -191,7 +247,7 @@ describe('arriving at a step', () => {
 
 describe('a failed attempt', () => {
   const guarded: Story = { id: 'tour', steps: [{ ...first, validate: () => false }, second] }
-  const attempt: Position<Story> = { story: guarded, index: 0 }
+  const attempt: Position<Fixture> = { story: guarded, index: 0 }
   const core: C = { ...nothing(), position: attempt }
 
   test('asks the page rather than deciding here', () => {
@@ -202,31 +258,21 @@ describe('a failed attempt', () => {
   })
 
   test('writes its words on the attempt they were about', () => {
-    const outcome = put(core, {
-      kind: 'setError',
-      attempt,
-      story: guarded,
-      step: guarded.steps[0]!,
-      anchor: 'first',
-      message: 'not yet',
-    })
+    const outcome = put(core, { kind: 'setError', attempt, anchor: 'first', message: 'not yet' })
 
     expect(outcome.core.error).toBe('not yet')
+    // The story and the step are read off the attempt rather than carried
+    // beside it, so they cannot disagree with the position they belong to.
     const [retold] = outcome.effects as [E & { kind: 'retell' }]
+    expect(retold.story).toBe(guarded)
+    expect(retold.step).toBe(guarded.steps[0])
     expect(retold.content.error).toBe('not yet')
   })
 
   test('writes nothing where the tour has moved since', () => {
     const moved: C = { ...core, position: { story: guarded, index: 1 } }
 
-    const outcome = put(moved, {
-      kind: 'setError',
-      attempt,
-      story: guarded,
-      step: guarded.steps[0]!,
-      anchor: 'first',
-      message: 'not yet',
-    })
+    const outcome = put(moved, { kind: 'setError', attempt, anchor: 'first', message: 'not yet' })
 
     expect(outcome.core).toBe(moved)
     expect(outcome.effects).toEqual([])

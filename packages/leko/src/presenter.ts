@@ -13,7 +13,7 @@ import {
   Scrim,
   union,
 } from '@annetaan/leko-spotlight'
-import type { LekoOptions, LekoStep, LekoStory, LekoTarget } from './types.js'
+import type { LekoOptions, LekoStep, LekoStory, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
 
@@ -53,9 +53,9 @@ interface Resolved {
  * than acted on, because whether the tour may be measured at all is the
  * machine's to know.
  */
-export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory> {
+export class DomPresenter implements Presenter<LekoWorld> {
   private readonly options: LekoOptions
-  private readonly host: Host<LekoStep>
+  private readonly host: Host<LekoWorld>
   /**
    * One scrim per scrolling ancestor, innermost first, always ending with the
    * document. Only the innermost carries the step's cutouts; each outer one is
@@ -105,7 +105,7 @@ export class DomPresenter implements Presenter<HTMLElement, LekoStep, LekoStory>
   /** Ends the promise a search hands back, whichever way the search went. */
   private settled: (() => void) | undefined
 
-  constructor(options: LekoOptions, host: Host<LekoStep>) {
+  constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
     this.host = host
   }

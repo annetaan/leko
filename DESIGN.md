@@ -512,7 +512,7 @@ made from in there.
 field here, check whether it is a third way of saying what two fields already
 say.
 
-**Everything the machine knows is one value.** Six fields in `core.ts` as
+**Everything the machine knows is one value.** Six fields in `plan.ts` as
 `Core`: the stories registered, where the tour is, the phase, the words of the
 last failed attempt, the step `onStep` was told about, and the morph the
 presenter is running. The class holds one `#core` and one `commit` that writes
@@ -526,13 +526,22 @@ its own answer by reading the list of calls it just asked for. `registered` in
 `packages/machine/model/machine.qnt` is the same field. The model had it in the
 state record from the beginning.
 
-**A move is written where it is decided.** `core.ts` holds the shape, the four
-readings taken off it, and two writes: `idle` and `torn`, which are the two a
-spread written out at a call site could get wrong. Everything else is a spread
-in the `plan.ts` case that decided it. Giving each of those a name in `core.ts`
-bought a second vocabulary for the same set of transitions, so a reader had to
-know that the `shown` event calls `settling()` and the `settled` event calls
-`settled()`. One vocabulary is the event names.
+**A move is written where it is decided.** `plan.ts` holds the shape, the
+readings taken off it, and then one spread per case. Giving each of those a name
+of its own bought a second vocabulary for the same set of transitions, so a
+reader had to know that the `shown` event calls `settling()` and the `settled`
+event calls `settled()`. One vocabulary is the event names.
+
+**The machine is three files.** `types.ts` is what a host brings and what a
+presenter owes. `plan.ts` is the state and what an event does to it, and it is
+pure. `machine.ts` is the class, and it decides nothing. Anything a fourth file
+would hold is one of those three.
+
+**The three types a host brings are one parameter.** `W extends World` carries
+the anchor, the step and the story, and every signature reaches through it with
+`W['step']` and `W['story']`. Three parameters tied together by an F-bound cost
+four lines of header on functions with fifteen-line bodies, and a host declares
+its `World` once and never sees it again.
 
 **The calls out are a value too.** `plan.ts` answers an event with the next
 `Core` and a list of the calls the machine owes: hold, teardown, draw, the
@@ -768,7 +777,8 @@ this repository under the same licence, so the rule is not about it.
 - `packages/leko` wires the two together, owns the public types, and is the only
   one that publishes.
 
-What each half may ask of the other is `packages/machine/src/port.ts`.
+What each half may ask of the other is `Presenter` and `Host` in
+`packages/machine/src/types.ts`.
 
 **The presenter never schedules itself.** It reports what it noticed through
 `Host` and waits. Whether the tour may be measured at all is a fact about the

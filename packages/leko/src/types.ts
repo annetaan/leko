@@ -404,6 +404,20 @@ export interface LekoStory {
 }
 
 /**
+ * The three types the machine takes as its one parameter: what an anchor is
+ * here, what a step is, and what a story is.
+ *
+ * Written out rather than imported, for the reason {@link ErrorUtils} is. The
+ * machine constrains this structurally, so nothing published has to name
+ * anything the machine declares.
+ */
+export interface LekoWorld {
+  anchor: HTMLElement
+  step: LekoStep
+  story: LekoStory
+}
+
+/**
  * Defaults for every story on the instance. A story may override `curtain`,
  * `curtainLabel`, `padding`, `radius` and `duration`, and a step may override
  * the first four again: the nearest one that says anything wins.

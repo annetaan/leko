@@ -3,11 +3,10 @@ import { fileURLToPath } from 'node:url'
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import type { Anchor, Step, Story } from './fake.js'
+import type { Anchor, Fixture, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
 import { Machine } from './machine.js'
-import type { Content } from './port.js'
-import type { ErrorUtils, Problem } from './types.js'
+import type { Content, ErrorUtils, Problem } from './types.js'
 
 // Every trace under `../model/traces/` driven into the real machine, call by
 // call, with the model's own state as the oracle at each one.
@@ -180,7 +179,7 @@ interface Windowed {
 }
 
 interface Run {
-  tour: Machine<Anchor, Step, Story>
+  tour: Machine<Fixture>
   fake: Recorder
   stories: Map<string, Story>
   /** Every `onEnter` still in flight, in the order the machine asked for them. */
@@ -203,7 +202,7 @@ interface Run {
   reports: { step: string | undefined; previous: string | undefined }[]
   /** `onEnter` and `onLeave`, in order, as `story:a` or `step:a1`. */
   handlers: { kind: 'enter' | 'leave'; who: string }[]
-  problems: Problem<Step>[]
+  problems: Problem<Fixture>[]
   /**
    * Calls waiting for a handler to make them.
    *
@@ -542,7 +541,7 @@ function chains(run: Run, where: string): void {
 
 // -------------------------------------------------------------------- the runs
 
-const instances: Machine<Anchor, Step, Story>[] = []
+const instances: Machine<Fixture>[] = []
 
 afterEach(() => {
   for (const tour of instances.splice(0)) tour.stop()
@@ -600,10 +599,10 @@ describe('every trace the model found', () => {
       // called.
       let run!: Run
       const reports: Run['reports'] = []
-      const problems: Problem<Step>[] = []
+      const problems: Problem<Fixture>[] = []
       let fake!: Recorder
       const stories = build(trace.states[0]!, () => run)
-      const tour = new Machine<Anchor, Step, Story>(
+      const tour = new Machine<Fixture>(
         {
           onStep: (step, previous) => {
             reports.push({ step: step?.id, previous: previous?.id })

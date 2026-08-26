@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
-import type { Anchor, Options, Step, Story } from './fake.js'
+import type { Fixture, Options, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
 import { Machine } from './machine.js'
 import type { ErrorUtils, Problem } from './types.js'
@@ -10,10 +10,10 @@ import type { ErrorUtils, Problem } from './types.js'
 // `@annetaan/leko`, and each one cost three engines a run to say that a signal
 // advanced a step. The ones about where a box ended up stayed behind.
 
-const instances: Machine<Anchor, Step, Story>[] = []
+const instances: Machine<Fixture>[] = []
 const fakes: Fake[] = []
 /** The presenter each instance was built with, so a test can press its control. */
-const drawnFor = new WeakMap<Machine<Anchor, Step, Story>, Fake>()
+const drawnFor = new WeakMap<Machine<Fixture>, Fake>()
 
 afterEach(() => {
   for (const tour of instances.splice(0)) tour.stop()
@@ -28,7 +28,7 @@ const drawing = (): Fake => fakes.at(-1)!
 const onThePage = (name: string): void => void drawing().page.add(name)
 
 function machine(options: Options = {}) {
-  const tour = new Machine<Anchor, Step, Story>(options, (host) => {
+  const tour = new Machine<Fixture>(options, (host) => {
     const fake = new Fake(host)
     fakes.push(fake)
     return fake
@@ -39,7 +39,7 @@ function machine(options: Options = {}) {
 }
 
 /** Press the next control on whatever `tour` is showing. */
-const press = (tour: Machine<Anchor, Step, Story>): void => void drawnFor.get(tour)!.press()
+const press = (tour: Machine<Fixture>): void => void drawnFor.get(tour)!.press()
 
 function register(story: Story, options: Options = {}) {
   const tour = machine(options)
@@ -572,7 +572,7 @@ describe('what the tour says it is doing', () => {
   })
 
   test('a target that is not there ends the run, whatever a host would prefer', () => {
-    const problems: Problem<Step>[] = []
+    const problems: Problem<Fixture>[] = []
     const tour = register(
       {
         id: 'story',
@@ -766,7 +766,7 @@ describe('what the tour says it is doing', () => {
 
   test('a target lost on a step the tour has left does not end the run', () => {
     const first: Step = { id: 'a', target: 'first' }
-    const problems: Problem<Step>[] = []
+    const problems: Problem<Fixture>[] = []
     const tour = register(
       { id: 'story', steps: [first, { id: 'b', target: 'second' }] },
       { onDiagnostic: (problem) => problems.push(problem) },
@@ -1567,7 +1567,7 @@ describe('saying that a call did nothing', () => {
 
   /** A tour with a diagnostic wired up, and the list it writes into. */
   function heard(story: Story) {
-    const problems: Problem<Step>[] = []
+    const problems: Problem<Fixture>[] = []
     const tour = register(story, { onDiagnostic: (problem) => problems.push(problem) })
     return { tour, problems }
   }

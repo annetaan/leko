@@ -89,7 +89,7 @@ Four packages. One of them publishes.
 
 The two halves never import each other. They meet in
 `packages/leko/src/presenter.ts`, and what each may ask of the other is written
-down in `packages/machine/src/port.ts`.
+down in `Presenter` and `Host`, in `packages/machine/src/types.ts`.
 
 `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in that
 package is a compile error. That is what lets its 73 tests run in Node against a
@@ -106,11 +106,9 @@ it.
 | `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
 | `packages/leko/src/leko.ts` | The public class. Four getters and six methods |
 | `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired |
-| `packages/machine/src/core.ts` | The five fields the tour is, and the pure moves between them |
-| `packages/machine/src/plan.ts` | What each event does to those fields, and what the machine owes the world |
-| `packages/machine/src/machine.ts` | The shell. It makes the calls and decides nothing |
-| `packages/machine/src/port.ts` | `Presenter` and `Host`. The seam |
-| `packages/machine/src/types.ts` | `StepBase`, `StoryBase`, `ErrorUtils`, `Problem` |
+| `packages/machine/src/types.ts` | What a host brings (`World`, `StepBase`, `StoryBase`) and what a presenter owes (`Presenter`, `Host`) |
+| `packages/machine/src/plan.ts` | The state, and what each event does to it. Pure |
+| `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
 | `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
 | `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
 | `packages/spotlight/src/message.ts` | The box beside the hole |
@@ -127,24 +125,26 @@ the vocabulary for everything else. `LekoStep`, `LekoStory`, `LekoOptions`.
 Read the JSDoc on `LekoStep.awaits` and on `LekoOptions.nextLabel` together.
 They are the same rule from two sides.
 
-**2. `packages/machine/src/port.ts`**
+**2. `packages/machine/src/types.ts`**
 
-The seam, and the shortest thing here. Two interfaces and nothing else. `Presenter` is what the machine may
-ask of whatever draws. `Host` is the five things a presenter may report back.
+What the machine needs of the world, and the seam. `World` is the three types a
+host brings, carried as the one parameter everything else takes. `Presenter` is
+what the machine may ask of whatever draws, and `Host` is the five things a
+presenter may report back.
 
-Read it twice. Three rules live here and DESIGN.md states each under
+Read the second half twice. Three rules live there and DESIGN.md states each under
 [Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
 The presenter never schedules itself. The presenter never decides whether there
 is a next control. The presenter is told and never asks back.
 
-**3. `packages/machine/src/core.ts`, then `plan.ts`, then `machine.ts`**
+**3. `packages/machine/src/plan.ts`, then `machine.ts`**
 
-The hard part, and three files rather than one. Budget an hour.
+The hard part. Budget an hour.
 
-`core.ts` is where the tour is: five fields as one value, and a pure function
-per move between them. Read it and the section below on what each field means.
+`plan.ts` opens with where the tour is: six fields as one `Core`, and the four
+readings taken off it. Read that and the section below on what each field means.
 
-`plan.ts` is every decision the machine makes. `reduce` takes the state and one
+The rest of `plan.ts` is every decision the machine makes. `reduce` takes the state and one
 event and answers with the next state, the calls the machine owes as data, and
 the event it will carry on with. It imports nothing that can be called, so a
 decision cannot make one.
@@ -235,7 +235,7 @@ disagreeing about where the tour was.
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
 `stories` is a registry and sits on the class. The other five are `Core` in
-`core.ts`, replaced together rather than written one at a time, and `commit` in
+`plan.ts`, replaced together rather than written one at a time, and `commit` in
 `machine.ts` is the only thing that writes one.
 
 These six and the six values of `phase` are written down again, as a state
@@ -272,7 +272,7 @@ happen.
 Nothing can forget to write an answer that nobody stores. If you add a field
 here, ask whether it is a third way of saying something two fields already say.
 
-`accepting` is the pattern to learn. It is in `core.ts` beside `stateOf`.
+`accepting` is the pattern to learn. It is in `plan.ts` beside `stateOf`.
 
 ```ts
 export const accepting = <S, St>(core: Core<S, St>): boolean =>
@@ -383,7 +383,7 @@ DESIGN.md says so under
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
-| What the machine may ask of the presenter | `machine/src/port.ts`, then both implementations |
+| What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |
 

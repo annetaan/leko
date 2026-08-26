@@ -69,17 +69,20 @@ DOM work stays in `scrim.ts`, `message.ts` and `leko.ts` and stays small.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
 a `document` in it is a compile error. It is the same split again inside:
-`core.ts` is the state, `plan.ts` says what an event does to it and what the
-machine owes the world, and both are pure. `machine.ts` makes the calls and
-decides nothing. A decision that lands in `machine.ts` is in the wrong file, and
-so is one that lands in `core.ts`. A move belongs in the `plan.ts` case that
-decided it, written out. `core.ts` names a write only where a spread at the call
-site could get it wrong, which is twice.
+three files and no more. `types.ts` is what a host brings and what a presenter
+owes, `plan.ts` is the state and what an event does to it, and `machine.ts` is
+the class that makes the calls. `plan.ts` is pure. A decision that lands in
+`machine.ts` is in the wrong file, and a move belongs in the `plan.ts` case that
+decided it, written out rather than given a name of its own.
+
+The three types a host brings are one parameter, `W extends World`. A signature
+names one type, never three.
 
 `packages/spotlight` draws and knows nothing about steps. `packages/leko` wires
 the two together, owns the public types, and is the only package that publishes.
-What each half may ask of the other is `packages/machine/src/port.ts`, and
-DESIGN.md argues the two rules that interface exists to keep.
+What each half may ask of the other is `Presenter` and `Host` in
+`packages/machine/src/types.ts`, and DESIGN.md argues the two rules that seam
+exists to keep.
 
 New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a

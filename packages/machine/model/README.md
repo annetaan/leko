@@ -169,7 +169,7 @@ of a teardown and never inside one. I asked it directly and it agreed:
 [ok] No violation found (2447ms at 81733 traces/second)
 ```
 
-200000 traces, 24 steps, and `ending` never once. Six phases in `core.ts`, and
+200000 traces, 24 steps, and `ending` never once. Six phases in `plan.ts`, and
 the search could reach five.
 
 `end` parks a `Leaving` now, and `doLeave` is the rest of it. Between the two,
@@ -293,9 +293,10 @@ does. One of them is wrong. Read the state in the `.itf.json` alongside the
 definition it is named after. Every pure function in `machine.qnt` carries the
 name of the thing it stands for, and there are two places to look.
 
-`torn` and the other moves that only change the five fields are in `core.ts`.
-`end`, `enter`, `arrive`, `advance` and `moveOn` are in `plan.ts`, as pure
-functions answering with the next state and the calls the machine owes.
+`end`, `enter`, `advance`, `moveOn` and `enterStory` are in `plan.ts` under the
+same names, as pure functions answering with the next state and the calls the
+machine owes. Everything else a state change does is a spread in the `reduce`
+case that decided it.
 
 `plan.ts` is the closest thing to this model that TypeScript holds. Both take an
 event and a state and answer with a state, and both stop where the machine hands

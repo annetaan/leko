@@ -1,8 +1,8 @@
 # The phases, drawn
 
-The machine has six phases and one state value with five fields in it. This file
-is the picture of them. `core.ts` holds the phases and the state, `plan.ts` says
-what each event does to them, and `machine.ts` makes the calls that follow.
+The machine has six phases and one state value with six fields in it. This file
+is the picture of them. `plan.ts` holds the phases, the state and what each event
+does to them, and `machine.ts` makes the calls that follow.
 [`README.md`](README.md) beside this says how the model is searched, and
 `machine.qnt` is the same graph written down in a form a search can walk. When
 they disagree, the code is the one that is right.
@@ -90,7 +90,7 @@ once instead of nine times.
 
 ## The gate
 
-`accepting` in `core.ts` is one line and it decides everything above.
+`accepting` in `plan.ts` is one line and it decides everything above.
 
 ```ts
 core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
@@ -223,7 +223,7 @@ Worth knowing before trusting the table above.
 
 ## Redrawing this
 
-Nothing generates these diagrams. They are read off `core.ts`, `plan.ts` and
+Nothing generates these diagrams. They are read off `plan.ts` and
 `machine.qnt` by hand, which means they can go stale. If you change a phase
 transition, change the first diagram in the same commit.
 

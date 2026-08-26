@@ -1,6 +1,6 @@
 import { Machine } from '@annetaan/leko-machine'
 import { DomPresenter } from './presenter.js'
-import type { LekoOptions, LekoSignal, LekoState, LekoStep, LekoStory } from './types.js'
+import type { LekoOptions, LekoSignal, LekoState, LekoStep, LekoStory, LekoWorld } from './types.js'
 
 /**
  * A tour, and everything the application says to it.
@@ -11,13 +11,10 @@ import type { LekoOptions, LekoSignal, LekoState, LekoStep, LekoStory } from './
  * about steps. This class is the wiring, and the public vocabulary.
  */
 export class Leko {
-  private readonly machine: Machine<HTMLElement, LekoStep, LekoStory>
+  private readonly machine: Machine<LekoWorld>
 
   constructor(options: LekoOptions = {}) {
-    this.machine = new Machine<HTMLElement, LekoStep, LekoStory>(
-      options,
-      (host) => new DomPresenter(options, host),
-    )
+    this.machine = new Machine<LekoWorld>(options, (host) => new DomPresenter(options, host))
   }
 
   get state(): LekoState {

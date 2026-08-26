@@ -1,5 +1,12 @@
-import type { Content, Host, Presenter } from './port.js'
-import type { MachineOptions, StepBase, StoryBase } from './types.js'
+import type {
+  Content,
+  Host,
+  MachineOptions,
+  Presenter,
+  StepBase,
+  StoryBase,
+  World,
+} from './types.js'
 
 // The world both `machine.test.ts` and `replay.test.ts` drive the machine
 // against. Shared rather than declared twice: a replay driving a presenter that
@@ -13,7 +20,7 @@ import type { MachineOptions, StepBase, StoryBase } from './types.js'
  */
 export type Anchor = string
 
-export interface Step extends StepBase<Anchor, Step> {
+export interface Step extends StepBase<Fixture> {
   target: string
   /**
    * Writable here, the way `LekoStep` declares it. `StepBase` has it `readonly`
@@ -23,8 +30,16 @@ export interface Step extends StepBase<Anchor, Step> {
   message?: string
 }
 
-export type Story = StoryBase<Anchor, Step, Story>
-export type Options = MachineOptions<Anchor, Step, Story>
+export type Story = StoryBase<Fixture>
+
+/** The three types, as the one parameter everything in the machine takes. */
+export interface Fixture extends World {
+  anchor: Anchor
+  step: Step
+  story: Story
+}
+
+export type Options = MachineOptions<Fixture>
 
 /** The names on the page. A step pointing anywhere else resolves to nothing. */
 export const PAGE = ['first', 'second', 'third', 'target']
@@ -37,7 +52,7 @@ export const PAGE = ['first', 'second', 'third', 'target']
  * nothing to animate does. {@link Fake.slow} makes it wait instead, so the gap
  * between a step arriving and a step settling can be looked at.
  */
-export class Fake implements Presenter<Anchor, Step, Story> {
+export class Fake implements Presenter<Fixture> {
   readonly page = new Set(PAGE)
   /** Every step it was asked to draw, in order. */
   readonly shown: string[] = []
@@ -50,7 +65,7 @@ export class Fake implements Presenter<Anchor, Step, Story> {
   torn = 0
   private settle: (() => void) | undefined
 
-  constructor(private readonly host: Host<Step>) {}
+  constructor(private readonly host: Host<Fixture>) {}
 
   resolve(step: Step): Anchor | null {
     return this.page.has(step.target) ? step.target : null

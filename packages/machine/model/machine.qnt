@@ -1,20 +1,21 @@
-// `packages/machine/src/machine.ts`, written down as a state machine so that a
+// `packages/machine/src/plan.ts`, written down as a state machine so that a
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// The names here are the names in `machine.ts`. `position`, `phase`, `error`,
-// `announced` and `showing` are its five mutable fields; `drawn`, `presenterUp`
-// and `inflight` are things the code keeps implicitly and a model has to say out
-// loud. Where a definition mirrors a method, it carries that method's name.
+// The names here are the names in `plan.ts`. `registered`, `position`, `phase`,
+// `hasError`, `announced` and `showing` are the six fields of its `Core`.
+// `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
+// a model has to say out loud. Where a definition mirrors one in `plan.ts`, it
+// carries that name.
 module machine {
   // ---------------------------------------------------------------- the world
 
   type Maybe[a] = Just(a) | Nothing
 
-  /// `Phase` in machine.ts, with the same six values and the same meanings.
+  /// `Phase` in plan.ts, with the same six values and the same meanings.
   type Phase = Story | Step | Ending | Settling | Searching | Ready
 
-  /// Which step the tour is on. `position` in machine.ts, by story id rather
+  /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
   type Pos = { story: str, index: int }
 
@@ -69,8 +70,8 @@ module machine {
   /// Every field at once, so that the definitions below can be pure functions of
   /// the shape `M => M` and read like the methods they stand for.
   type M = {
-    // --- what `machine.ts` holds
-    // `stories`. The keys are what `setStory` has registered.
+    // --- what `Core` in `plan.ts` holds
+    // `Core.stories`. The keys are what `setStory` has registered.
     registered: Set[str],
     position: Maybe[Pos],
     phase: Phase,
@@ -168,12 +169,12 @@ module machine {
 
   pure def stepAt(s: M, at: Pos): StepSpec = storyOf(s, at).steps[at.index]
 
-  /// `Machine.accepting`. The one thing a call from the application is answered
+  /// `accepting` in `plan.ts`. The one thing a call from the application is answered
   /// against.
   pure def accepting(s: M): bool =
     s.phase == Ready or s.phase == Settling or s.phase == Searching
 
-  /// `Machine.state`, derived from two fields and never stored.
+  /// `stateOf` in `plan.ts`, derived from two fields and never stored.
   pure def stateOf(s: M): str =
     match s.position {
       | Nothing => "idle"
@@ -181,7 +182,7 @@ module machine {
     }
 
   /// Whether `at` still names the step the tour is standing on. Every late
-  /// callback in `machine.ts` asks this, by comparing the captured `position`
+  /// callback in `plan.ts` asks this, by comparing the captured `position`
   /// object with the current one.
   pure def stillAt(s: M, at: Pos): bool = s.position == Just(at)
 
@@ -201,7 +202,7 @@ module machine {
     s.with("holding", s.holding.union(Set({ token: s.nextToken, at: at })))
      .with("nextToken", s.nextToken + 1)
 
-  /// `Machine.end`. `next` is a story only where `start` is displacing this one.
+  /// `ending` in `plan.ts`. `next` is a story only where `start` displaces this one.
   ///
   /// An ending with somewhere to go stays closed through its own report; one
   /// with nowhere to go opens first.
@@ -224,15 +225,15 @@ module machine {
       }
     }
 
-  /// `Machine.failed`. The rethrow is invisible to state.
+  /// The `entryFailed` event. The rethrow is invisible to state.
   pure def failed(s: M, at: Pos): M =
     if (stillAt(s, at)) end(s, Nothing) else s
 
-  /// `Machine.lose`, reached through `Host.lost`.
+  /// The `lost` event, reached through `Host.lost`.
   pure def lose(s: M, at: Pos): M =
     if (stillAt(s, at)) end(s, Nothing) else s
 
-  /// `Machine.draw`. Hands the step over, and only the morph nothing has
+  /// The `stepEntered` event. Hands the step over, and only the morph nothing has
   /// replaced may call it settled.
   pure def draw(s: M, at: Pos): M = {
     val step = stepAt(s, at)
@@ -251,7 +252,7 @@ module machine {
     }
   }
 
-  /// `Machine.arrive`. Draw the step, then say the tour moved, in that order.
+  /// The `drawn` event. Draw the step, then say the tour moved, in that order.
   pure def arrive(s: M, at: Pos): M =
     if (not(stillAt(s, at))) s
     else {
@@ -262,7 +263,7 @@ module machine {
       else drawing.with("announced", Just(at))
     }
 
-  /// `Machine.enter`. Enter the step `position` now names.
+  /// `entering` in `plan.ts`. Enter the step `position` now names.
   pure def enter(s: M): M =
     match s.position {
       | Nothing => end(s, Nothing)
@@ -286,7 +287,7 @@ module machine {
       }
     }
 
-  /// `Machine.enterStory`. Outermost first: the story's own `onEnter` before
+  /// `opening` in `plan.ts`. Outermost first: the story's own `onEnter` before
   /// anything about its first step.
   pure def enterStory(s: M, at: Pos): M = {
     val story = storyOf(s, at)
@@ -299,7 +300,7 @@ module machine {
     else held
   }
 
-  /// The half of `Machine.advance` after the guard: the last step ends the run,
+  /// `moveOn` in `plan.ts`, the half of advancing after the guard: the last step ends the run,
   /// and every other one moves on.
   pure def moveOn(s: M, at: Pos): M = {
     val story = storyOf(s, at)
@@ -307,7 +308,7 @@ module machine {
     else enter(s.with("position", Just({ story: at.story, index: at.index + 1 })))
   }
 
-  /// `Machine.advance`. `guardOk` is what `validate` answered. What
+  /// `advance` in `plan.ts`. `guardOk` is what `validate` answered. What
   /// `onValidationError` does about a no is a separate action, because it may
   /// answer later or never.
   ///
