@@ -168,6 +168,13 @@ export interface Host<W extends World> {
    * `step`'s anchor is not on the page and the presenter has not given up yet.
    * `yes` is `false` once it is back. A report, not a request: what `state` says
    * meanwhile is the machine's to decide. The give-up is {@link lost}.
+   *
+   * **Only for a wait the machine cannot see any other way.** A target missing
+   * when the step arrives is waited for inside {@link Presenter.show}, and the
+   * promise that hands back is already a wait the machine reads. Saying this as
+   * well would put a phase on and take it off again in the same turn. The one
+   * worth saying is a target lost after the step was drawn, because nobody
+   * asked for that search and nobody is holding a promise for it.
    */
   searching(step: W['step'], yes: boolean): void
 }

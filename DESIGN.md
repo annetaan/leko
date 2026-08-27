@@ -657,6 +657,13 @@ stand back for one of them. That is the reading `state` is about the machine and
 not about the screen would have allowed, and the cost of it is a fifth member on
 `Host`.
 
+**`Host.searching` is said on the second of those and not on the first.** The
+presenter used to say it on both, and on the first the phase it wrote was
+overwritten by the `settling` the promise put on, in the same turn. A call whose
+effect is undone before anything can read it is a call that reads as though it
+does something. `unasked` in `DomPresenter.search` is which of the two waits
+this is.
+
 **A teardown says `idle`, and the gate is still shut.** `end` empties the
 position before it calls anything, so a handler reading `state` from inside its
 own `onLeave` is told the tour is over. That is the truth, and the ending

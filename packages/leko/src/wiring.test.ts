@@ -16,7 +16,8 @@ import {
   start,
   watched,
 } from './harness.js'
-import type { LekoProblem, LekoState, LekoStep } from './types.js'
+import { DomPresenter } from './presenter.js'
+import type { LekoProblem, LekoState, LekoStep, LekoStory } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
 // the presenter a test writes. What each of these pins down is which step the
@@ -868,4 +869,65 @@ test('a curtain nobody could have seen owes nothing', async () => {
   press()
 
   expect(centre(second)).toBe(second)
+})
+
+// --- what the presenter reports on its own account
+//
+// Driven one layer below the rest of this file, because the two waits below are
+// the same three letters to a host — `state` says `transitioning` for both — and
+// which of them reaches `Host.searching` is the whole claim.
+
+/** A `DomPresenter` with a `Host` that records rather than a machine. */
+function watching(options = {}) {
+  const reported: [string, boolean][] = []
+  const lost: string[] = []
+  const presenter = new DomPresenter(
+    { duration: 0, curtain: false, ...options },
+    {
+      lost: (step) => void lost.push(step.id),
+      moved: () => {},
+      next: () => {},
+      close: () => {},
+      searching: (step, yes) => void reported.push([step.id, yes]),
+    },
+  )
+  return { presenter, reported, lost }
+}
+
+const CONTENT = { text: undefined, error: undefined, next: undefined }
+
+test('a target missing on arrival is a wait the machine hears about through the promise', () => {
+  const { presenter, reported } = watching()
+  const step: LekoStep = { id: 'late', target: '#not-here-yet' }
+  const story: LekoStory = { id: 'story', steps: [step] }
+
+  const waiting = presenter.show(story, step, null, CONTENT, false)
+
+  // Handed back, and the machine reads that as a step still arriving: it writes
+  // `settling`, which is the phase `Host.searching` would have written. Saying
+  // both put a phase on and took it off again in the same turn.
+  expect(typeof (waiting as Promise<void>)?.then).toBe('function')
+  expect(reported).toEqual([])
+
+  presenter.teardown()
+})
+
+test('a target lost after the step was drawn is the wait nobody asked for', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const { presenter, reported } = watching()
+  const step: LekoStep = { id: 'only', target: '#anchor' }
+  const story: LekoStory = { id: 'story', steps: [step] }
+
+  presenter.show(story, step, target, CONTENT, false)
+  expect(reported).toEqual([])
+
+  target.remove()
+  await vi.waitUntil(() => reported.length > 0, { timeout: 1000 })
+
+  // Nobody is holding a promise for this one, so the call is the only way the
+  // machine can see it at all. DESIGN.md argues it under **`state` is derived**.
+  expect(reported).toEqual([['only', true]])
+
+  presenter.teardown()
 })

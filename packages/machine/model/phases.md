@@ -84,7 +84,7 @@ once instead of nine times.
 | `story` | `transitioning` | a run is starting. The story's own `onEnter` is running or about to be, no step has been entered, and a curtain is up |
 | `step` | `transitioning` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is in flight, the anchor has not been looked for, nothing is drawn |
 | `settling` | `transitioning` | the step arrived and is drawn. The presenter is still moving it |
-| `searching` | `transitioning` | the step arrived, and its anchor has since left the page. The tour is still on that step. What is on screen is a curtain |
+| `searching` | `transitioning` | the step arrived, its anchor has since left the page, and the presenter is looking. The tour is still on that step. What is on screen is a curtain. A target that was missing when the step arrived is `settling` instead: that wait is one the machine was handed a promise for |
 | `ready` | `running` | the step is drawn and still. The only phase `state` calls `running` |
 | `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
 
@@ -109,7 +109,7 @@ user is looking at it. A call about it means what it says, so `settling` and
 | `stop()` | anywhere | the one call the gate does not stand in front of. A step still arriving is thrown away rather than waited for |
 | `Host.next()` | open | private, and reachable only through the presenter. A step declaring `awaits` never gets a control |
 | `Host.moved()` | open | places the step where it belongs now, without animating. No phase change and no report |
-| `Host.searching(step, yes)` | `ready`, `settling` | starts a wait only for the step the tour is on. Ending one asks nothing |
+| `Host.searching(step, yes)` | `ready`, `settling` | starts a wait only for the step the tour is on, and only for a target lost after the step was drawn. Ending one asks nothing |
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
 

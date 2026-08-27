@@ -500,7 +500,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // seconds of curtain and an ending.
       const back = this.resolve(held.step)
       if (back) return void this.show(held.story, held.step, back, held.content, true)
-      this.search(held.story, held.step, held.content)
+      // Nothing is holding the promise this hands back, so this is the one
+      // search the machine is told about.
+      this.search(held.story, held.step, held.content, true)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
   }
@@ -524,10 +526,19 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * time, the step is drawn again and nothing about the tour has changed. Not
    * found, `Host.lost` means what it has always meant.
    *
-   * Either way the machine is told the wait began, through `Host.searching`,
-   * because a wait it did not ask for is one it cannot otherwise see.
+   * **`unasked` is whether the machine will hear about this wait any other
+   * way.** A search reached from `show` hands its promise back, and the machine
+   * reads that as a step still arriving: it writes `settling` and the phase
+   * `Host.searching` would have written is gone in the same turn. Only a target
+   * lost after the step was drawn is a wait nobody asked for and nobody is
+   * holding a promise for, and that is the one worth a call.
    */
-  private search(story: LekoStory, step: LekoStep, content: Content): Promise<void> | void {
+  private search(
+    story: LekoStory,
+    step: LekoStep,
+    content: Content,
+    unasked = false,
+  ): Promise<void> | void {
     if (this.searching !== undefined) return
     // Whatever `curtain` says. That setting is about an arrival, which is a
     // normal wait, and this is not one: a hole standing over nothing for two
@@ -558,10 +569,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
         this.host.lost(step)
       }, SEARCH)
     })
-    // Said whichever way this search was reached, and said last, so the search
-    // is fully armed before the machine hears about it.
+    // Said last, so the search is fully armed before the machine hears about it.
     this.sought = step
-    this.host.searching(step, true)
+    if (unasked) this.host.searching(step, true)
     return waiting
   }
 
