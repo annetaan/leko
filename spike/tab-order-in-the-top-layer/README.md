@@ -20,11 +20,13 @@ first and the readout says the order focus actually took.
 | | Verdict |
 | --- | --- |
 | Chrome 151.0.0.0 | DOM position kept |
+| Safari (by hand) | DOM position kept |
 | Chromium 151.0.7922.34 (Playwright) | DOM position kept |
 | Firefox 153.0 (Playwright) | DOM position kept |
 | WebKit 605.1.15 (Playwright) | DOM position kept |
 
-macOS, 2026-08-28. Safari has not been checked by hand yet.
+macOS, 2026-08-28. Safari by hand — `run.mjs` cannot reach it — and the rest
+through `run.mjs`.
 
 Firefox and Safari on macOS only tab to buttons when *Keyboard navigation* is on
 in the system settings. Playwright's Firefox has it on. A hand run in a browser

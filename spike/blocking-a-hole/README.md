@@ -25,6 +25,7 @@ over the hole in every one, and it asks to be hit.
 | | 1. Rectangle inside the overlay | 2. Rectangle beside the overlay | 3. No rectangle |
 | --- | --- | --- | --- |
 | Chrome 151.0.0.0 | **open** | blocked | open |
+| Safari (by hand) | **open** | blocked | open |
 | Chromium 151.0.7922.34 (Playwright) | **open** | blocked | open |
 | Firefox 153.0 (Playwright) | **open** | blocked | open |
 | WebKit 605.1.15 (Playwright) | **open** | blocked | open |
@@ -32,10 +33,7 @@ over the hole in every one, and it asks to be hit.
 macOS, 2026-08-28. `elementFromPoint` and a real click agree in every cell, which
 is not something to assume: the wheel next door is a case where they do not.
 
-Safari has not been checked by hand yet. Every engine here answers the same way
-and the mechanism is not one Safari has its own version of, so the row is
-expected rather than surprising, and it is still a row somebody should open the
-page for.
+Safari by hand — `run.mjs` cannot reach it — and the rest through `run.mjs`.
 
 ## What it settled
 

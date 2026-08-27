@@ -5,6 +5,7 @@ import { branching } from './branching.js'
 import { formValidation } from './form-validation.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
+import { lookThenUse } from './look-then-use.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
@@ -21,6 +22,7 @@ import { twoStories } from './two-stories.js'
 // take, then the situations that break naive implementations.
 export const cases: Case[] = [
   stepping,
+  lookThenUse,
   formValidation,
   nextControl,
   asyncCompletion,

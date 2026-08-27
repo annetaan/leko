@@ -1,22 +1,28 @@
 ---
 title: What Leko is
-description: A product tour that cuts a hole in the overlay, so the user works the real element underneath.
+description: A product tour that cuts a hole in the overlay, so a step that asks for something hands over the real element underneath.
 ---
 
 import { LinkButton } from '@astrojs/starlight/components'
 import { href } from '../../lib/href.ts'
 
-Leko highlights an element by cutting a hole in an overlay. The element under
-the hole is the real one. Clicks reach it, focus reaches it, the keyboard
-reaches it, and scrolling under the pointer still scrolls.
+Leko highlights an element by cutting a hole in an overlay. Where a step asks
+the user to do something, the element under the hole is the real one. Clicks
+reach it, focus reaches it, the keyboard reaches it, and scrolling under the
+pointer still scrolls.
 
 Two rules hold the library up, and everything else is negotiable.
 
-## Never place an element over the target
+## Never place an element over a target the step opened
 
 Not even a transparent one. An overlay with a transparent patch over the button
 is still an overlay over the button, and the browser knows it even when the
 person does not.
+
+A step says `interactive: true` when it wants the page live. Most steps of most
+tours explain what is already on screen, so the default is a hole that is shown
+and not handed over. A click on one of those would take the user off the page
+the next step points at.
 
 ## Steps advance on application state, never on DOM events
 
@@ -29,7 +35,7 @@ leko.reached('order-saved')
 A step names what it waits for.
 
 ```ts
-{ id: 'save', target: '#submit', awaits: 'order-saved' }
+{ id: 'save', target: '#submit', interactive: true, awaits: 'order-saved' }
 ```
 
 There is no click listener anywhere that moves a tour along. A step that waits

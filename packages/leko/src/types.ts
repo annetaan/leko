@@ -168,8 +168,9 @@ export interface LekoStep {
    * be looked at rather than acted on, so a summary figure beside the row it
    * was computed from goes second.
    *
-   * A target that scrolls is fine: the wheel, clicks, focus and keys all reach
-   * it through the cutout.
+   * A target that scrolls is fine on a step that opened it: the wheel, clicks,
+   * focus and keys all reach it through the cutout. See {@link interactive} for
+   * which holes are opened, and it is not the default.
    */
   target: LekoTarget | LekoRegion[]
 
