@@ -89,7 +89,7 @@ export type Problem<W extends World> =
 export interface MachineOptions<W extends World> {
   /** The words on a next control, where a step gets one. */
   nextLabel?: string
-  onStep?(step: W['step'] | undefined, previous: W['step'] | undefined, story: W['story']): void
+  onStep?(step: W['step'] | undefined, story: W['story']): void
   onDiagnostic?(problem: Problem<W>): void
 }
 

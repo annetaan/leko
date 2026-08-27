@@ -368,8 +368,14 @@ decided by how a handler happened to be written. That failure is also the one
 way out with no `Problem` of its own, and what a host gets there is the reason
 thrown again, which **What a step and a story assume** argues for.
 
-`previous` is the step a host was last **told about**, not the step the tour came
-from. `index` is there so a host never searches `story.steps`. A step is a plain
+**`onStep` names the step and the story, and nothing else.** It named where the
+tour came from as well, off a field the machine kept for it. A host that wants
+the pair keeps the last `step` it was handed, and that line is right by
+construction: the hook only ever names a step that went up, so a step whose
+`onEnter` is still in flight cannot get into it. The machine was doing work to
+hand back something a host gets for free.
+
+`index` is there so a host never searches `story.steps`. A step is a plain
 object with no identity of its own, and a story holding the same one twice makes
 `indexOf` return the first of them.
 
@@ -683,16 +689,20 @@ made from in there.
 field here, check whether it is a third way of saying what two fields already
 say.
 
-**Everything the machine knows is one value.** Five fields in `plan.ts` as
-`Core`: where the tour is, the phase, the words of the last failed attempt, the
-step `onStep` was told about, and the morph the presenter is running. The class
-holds one `#core` and one `commit` that writes it, and every event is answered
-with the whole of the next `Core` rather than with a field to set.
+**Everything the machine knows is one value.** Four fields in `plan.ts` as
+`Core`: where the tour is, the phase, the words of the last failed attempt, and
+the morph the presenter is running. The class holds one `#core` and one `commit`
+that writes it, and every event is answered with the whole of the next `Core`
+rather than with a field to set.
 
-**None of the five is a list of stories.** `start` is handed the one it is to
+**None of the four is a list of stories.** `start` is handed the one it is to
 run, so there is nothing to look up and nothing to keep between runs. The state
 is what a tour is doing, and the stories a project happens to have written are
-not that. `packages/machine/model/machine.qnt` has the same five.
+not that. `packages/machine/model/machine.qnt` has the same four.
+
+**None of the four is there to be handed back.** A field the machine keeps only
+so that a hook can read it is a field two places have to agree about. Where a
+host can keep it and cannot get it wrong, the host keeps it.
 
 **A move is written where it is decided.** `plan.ts` holds the shape, the
 readings taken off it, and then one spread per case. Giving each of those a name

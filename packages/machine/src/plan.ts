@@ -35,8 +35,6 @@ export interface Core<W extends World> {
   readonly phase: Phase
   /** What the last attempt at the current step was told was wrong with it. */
   readonly error: string | undefined
-  /** The step `onStep` was last told about, which is where every `previous` is read from. */
-  readonly announced: W['step'] | undefined
   /** Whatever `Presenter.show` last handed back, so a morph settling late can tell. */
   readonly showing: Promise<void> | undefined
 }
@@ -55,7 +53,6 @@ export const idle = <W extends World>(): Core<W> => ({
   position: undefined,
   phase: 'ready',
   error: undefined,
-  announced: undefined,
   showing: undefined,
 })
 
@@ -103,7 +100,7 @@ export type Effect<W extends World> =
   | { kind: 'callStepEnter'; at: Position<W>; step: Step<W>; animate: boolean }
   | { kind: 'callStepLeave'; step: Step<W>; next: Step<W> | undefined }
   | { kind: 'callStoryLeave'; story: Story<W>; next: Story<W> | undefined }
-  | { kind: 'report'; story: Story<W>; step?: Step<W>; previous: Step<W> | undefined }
+  | { kind: 'report'; story: Story<W>; step?: Step<W> }
   | { kind: 'diagnose'; problem: Problem<W> }
   | { kind: 'rethrow'; reason: unknown }
 
@@ -123,7 +120,7 @@ export type Event<W extends World> =
   | { kind: 'searching'; step: Step<W>; yes: boolean }
   // --- the machine carrying on, one per window it has to stop at
   /** The `onLeave` calls are done and the report is owed. */
-  | { kind: 'left'; story: Story<W>; previous?: Step<W>; into?: Story<W>; after: Owed<W> }
+  | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
   /** The report is done and the story that displaced this one may go up. */
   | { kind: 'startInto'; story: Story<W> }
   /** The curtain is up for a story and its own `onEnter` is owed. */
@@ -196,7 +193,7 @@ const ending = <W extends World>(
   return {
     core: { ...idle<W>(), phase: 'ending' },
     effects,
-    next: { kind: 'left', story: here.story, previous: core.announced, into, after },
+    next: { kind: 'left', story: here.story, into, after },
   }
 }
 
@@ -356,10 +353,7 @@ export function reduce<W extends World>(
       // with nowhere to go opens first, so a host may start from it.
       return {
         core: event.into ? core : { ...core, phase: 'ready' },
-        effects: [
-          { kind: 'report', story: event.story, step: undefined, previous: event.previous },
-          ...event.after,
-        ],
+        effects: [{ kind: 'report', story: event.story, step: undefined }, ...event.after],
         next: event.into ? { kind: 'startInto', story: event.into } : undefined,
       }
 
@@ -404,15 +398,7 @@ export function reduce<W extends World>(
       // The draw can have ended the run, and a host may have started its own.
       const step = stepOf(core)
       if (!stillAt(core, event.at) || !step) return nothing(core)
-      return owing(
-        { ...core, announced: step },
-        {
-          kind: 'report',
-          story: event.at.story,
-          step,
-          previous: core.announced,
-        },
-      )
+      return owing(core, { kind: 'report', story: event.at.story, step })
     }
 
     case 'shown':

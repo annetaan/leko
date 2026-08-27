@@ -125,13 +125,10 @@ export const frame = (): Promise<void> =>
 export const absorbed = (el: HTMLElement): boolean =>
   (centre(el) as HTMLElement | null)?.closest('.leko-scrim') != null
 
-/** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
+/** Every call, as the id it named, so a whole run reads as one array. */
 export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {
-  const seen: [string | undefined, string | undefined][] = []
-  const leko = holding(story, {
-    ...options,
-    onStep: (step, previous) => seen.push([step?.id, previous?.id]),
-  })
+  const seen: (string | undefined)[] = []
+  const leko = holding(story, { ...options, onStep: (step) => seen.push(step?.id) })
   return { leko, seen }
 }
 

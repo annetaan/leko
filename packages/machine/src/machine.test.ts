@@ -73,13 +73,10 @@ function start(steps: Step[], options: Options = {}) {
   return tour
 }
 
-/** Every call, as `[step, previous]` ids, so a whole run reads as one array. */
+/** Every call, as the id it named, so a whole run reads as one array. */
 function watched(story: Story, options: Omit<Options, 'onStep'> = {}) {
-  const seen: [string | undefined, string | undefined][] = []
-  const tour = staging(story, {
-    ...options,
-    onStep: (step, previous) => seen.push([step?.id, previous?.id]),
-  })
+  const seen: (string | undefined)[] = []
+  const tour = staging(story, { ...options, onStep: (step) => seen.push(step?.id) })
   return { tour, seen }
 }
 
@@ -389,11 +386,7 @@ describe('a story that says what follows it', () => {
 
     // The ending is reported, and then the story that follows it. No call from
     // the application sits between the two.
-    expect(seen).toEqual([
-      ['a', undefined],
-      [undefined, 'a'],
-      ['end', undefined],
-    ])
+    expect(seen).toEqual(['a', undefined, 'end'])
     expect(tour.story?.id).toBe('summary')
     expect(tour.state).toBe('running')
   })
@@ -830,12 +823,12 @@ describe('what the tour says it is doing', () => {
     // Nothing moved. The tour is on the step it was on, and no report was made
     // about a wait that may yet come to nothing.
     expect(tour.step?.id).toBe('a')
-    expect(seen).toEqual([['a', undefined]])
+    expect(seen).toEqual(['a'])
 
     drawing().found(only)
 
     expect(tour.state).toBe('running')
-    expect(seen).toEqual([['a', undefined]])
+    expect(seen).toEqual(['a'])
   })
 
   test('a signal is still acted on while a lost target is being looked for', () => {
@@ -1050,7 +1043,7 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('idle')
     // `b` was never drawn, so the ending leaves from the step a host was told
     // about rather than from the one it was walking into.
-    expect(seen).toEqual([[undefined, 'a']])
+    expect(seen).toEqual([undefined])
   })
 
   test('a step still arriving says transitioning, whatever its handlers answered', () => {
@@ -1143,11 +1136,9 @@ describe('what the tour says it is doing', () => {
 })
 
 describe('saying where the tour got to', () => {
-  // `onStep`, which is the one hook that says so. The largest group in the
-  // file, because `previous` was got wrong twice and each fix arrived with the
-  // run that produced it.
+  // `onStep`, which is the one hook that says so.
 
-  test('a story reports where it went, and what it came from', () => {
+  test('a story reports where it went, and says when there is nowhere left', () => {
     const { tour, seen } = watched({
       id: 'story',
       steps: [
@@ -1160,11 +1151,9 @@ describe('saying where the tour got to', () => {
     press(tour)
     tour.reached('saved')
 
-    expect(seen).toEqual([
-      ['a', undefined], // nothing came before the first step of a run
-      ['b', 'a'],
-      [undefined, 'b'], // past the last step there is nowhere to be
-    ])
+    // Past the last step there is nowhere to be, which is the trailing
+    // `undefined`.
+    expect(seen).toEqual(['a', 'b', undefined])
   })
 
   test('the instance has finished moving by the time it says so', () => {
@@ -1194,7 +1183,7 @@ describe('saying where the tour got to', () => {
     tour.stop()
     tour.stop()
 
-    expect(seen).toEqual([[undefined, 'a']])
+    expect(seen).toEqual([undefined])
   })
 
   test('a step that fails validation reports nothing, because nothing moved', () => {
@@ -1218,7 +1207,7 @@ describe('saying where the tour got to', () => {
 
     const tour = staging(
       { id: 'from', steps: [{ id: 'a', target: 'first' }] },
-      { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id ?? '-'}`) },
+      { onStep: (step, story) => heard.push(`${story.id}:${step?.id ?? '-'}`) },
     )
     hold(tour, { id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
@@ -1258,10 +1247,10 @@ describe('saying where the tour got to', () => {
     settle()
     await promise
 
-    expect(seen).toEqual([['b', 'a']])
+    expect(seen).toEqual(['b'])
   })
 
-  test('a run that ends before it draws says it came from nowhere', () => {
+  test('a run that ends before it draws reports the ending and nothing else', () => {
     const { tour, seen } = watched({
       id: 'story',
       steps: [{ id: 'a', target: 'late' }],
@@ -1269,10 +1258,10 @@ describe('saying where the tour got to', () => {
 
     begin(tour, 'story')
 
-    // The arrival at `a` was never announced, because `a` was never drawn. An
-    // ending naming it would tell a readout the tour left a step it was never
-    // told the tour reached.
-    expect(seen).toEqual([[undefined, undefined]])
+    // One call, and it names no step. `a` was never drawn, so `onStep` never
+    // named it, and an ending is not a second chance to. A readout hears about
+    // a step when it goes up and never otherwise.
+    expect(seen).toEqual([undefined])
   })
 
   test('a run that ends after a slow story setup says the same', async () => {
@@ -1290,7 +1279,7 @@ describe('saying where the tour got to', () => {
     // A story's own setup runs before anything about its first step does, so
     // this is the widest the window gets between a start and the first thing a
     // host is told.
-    expect(seen).toEqual([[undefined, undefined]])
+    expect(seen).toEqual([undefined])
   })
 
   test('a story arriving is not displaced, because the start is refused', async () => {
@@ -1309,7 +1298,7 @@ describe('saying where the tour got to', () => {
     // `from` was inside its own first step and nothing had been drawn. Nothing
     // was reported either, so the arrival that lands is the only thing a
     // readout ever hears about.
-    expect(seen).toEqual([['a', undefined]])
+    expect(seen).toEqual(['a'])
     expect(tour.step?.id).toBe('a')
   })
 
@@ -1319,10 +1308,10 @@ describe('saying where the tour got to', () => {
     begin(tour, 'story')
 
     // `show` found nothing and stopped the run, which reported the ending. A
-    // start announced after that would leave a readout pointing at a story that
-    // is not running — the frozen footer again, one call later. `ghost` is not
-    // named on the way out either: it was never drawn, so it was never announced.
-    expect(seen).toEqual([[undefined, undefined]])
+    // report naming a step after that would leave a readout pointing at a story
+    // that is not running. `ghost` is not named on the way out either, because
+    // it was never drawn.
+    expect(seen).toEqual([undefined])
     expect(tour.step).toBeUndefined()
   })
 
@@ -1340,10 +1329,10 @@ describe('saying where the tour got to', () => {
     seen.length = 0
     press(tour)
 
-    // The ending leaves from `a`, which is the step a readout is still showing.
-    // `gone` was never drawn and so was never announced, and naming it would be
-    // the first a host had heard of it.
-    expect(seen).toEqual([[undefined, 'a']])
+    // `gone` was never drawn, so it is never named. Naming it on the way out
+    // would be the first a host had heard of it, which is a readout jumping to
+    // a step nobody saw and then to nothing.
+    expect(seen).toEqual([undefined])
   })
 })
 
@@ -1376,10 +1365,7 @@ describe('what a step assumes', () => {
 
     // Dropped rather than queued: settling lands on `b`, and `c` is still ahead.
     expect(tour.step?.id).toBe('b')
-    expect(seen).toEqual([
-      ['a', undefined],
-      ['b', 'a'],
-    ])
+    expect(seen).toEqual(['a', 'b'])
   })
 
   test('a signal reported from inside onEnter is dropped, promise or no promise', () => {
@@ -1408,10 +1394,7 @@ describe('what a step assumes', () => {
     // advanced, so which step a signal moved depended on how the handler above
     // it happened to be written. `b` arrives and `c` is still ahead.
     expect(tour.step?.id).toBe('b')
-    expect(seen).toEqual([
-      ['a', undefined],
-      ['b', 'a'],
-    ])
+    expect(seen).toEqual(['a', 'b'])
   })
 
   test('onLeave says where the tour is going, and says nothing where it is ending', () => {
@@ -1896,17 +1879,17 @@ describe('moving from one story to another', () => {
   // made from.
 
   test('switching stories ends one and starts the other, and says which is which', () => {
-    const from: [string | undefined, string | undefined][] = []
-    const into: [string | undefined, string | undefined][] = []
+    const from: (string | undefined)[] = []
+    const into: (string | undefined)[] = []
 
     const tour = staging(
       { id: 'from', steps: [{ id: 'a', target: 'first' }] },
       {
         // Which story moved is the third argument, so one handler sorts the two
         // runs apart without either story carrying a hook.
-        onStep: (step, previous, story) => {
+        onStep: (step, story) => {
           const seen = story.id === 'from' ? from : into
-          seen.push([step?.id, previous?.id])
+          seen.push(step?.id)
         },
       },
     )
@@ -1916,12 +1899,9 @@ describe('moving from one story to another', () => {
     tour.stop()
     begin(tour, 'into')
 
-    expect(from).toEqual([
-      ['a', undefined],
-      [undefined, 'a'], // told that it ended, rather than left half-finished
-    ])
-    // `previous` does not chain across: within the new story nothing came first.
-    expect(into).toEqual([['b', undefined]])
+    // Told that it ended, rather than left half-finished.
+    expect(from).toEqual(['a', undefined])
+    expect(into).toEqual(['b'])
   })
 
   test('the step of the story being left is told there is nowhere to go', () => {
@@ -1958,7 +1938,7 @@ describe('moving from one story to another', () => {
         steps: [{ id: 'a', target: 'first' }],
       },
       {
-        onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`),
+        onStep: (step, story) => heard.push(`${story.id}:${step?.id}`),
         onDiagnostic: (problem) => problems.push(problem),
       },
     )
@@ -1993,7 +1973,7 @@ describe('moving from one story to another', () => {
         steps: [{ id: 'a', target: 'first' }],
       },
       {
-        onStep: (step, _previous, story) => {
+        onStep: (step, story) => {
           heard.push(`${story.id}:${step?.id}`)
           // Reacting to the ending by sending the user somewhere else, which is
           // an ordinary thing for a host to do and is not one it can do from

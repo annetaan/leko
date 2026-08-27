@@ -29,7 +29,7 @@
     const input = demo.querySelector<HTMLInputElement>('[data-tour-input]')!
 
     const leko = createLeko({
-      onStep: (step, _previous, story) => {
+      onStep: (step, story) => {
         status.textContent = step
           ? `${story.id}: “${step.id}”`
           : 'The tour is over. Everything you did to the page stayed done.'

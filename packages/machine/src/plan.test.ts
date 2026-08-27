@@ -40,7 +40,6 @@ const at = (index: number): Position<Fixture> => ({ story, index })
 const running = (index = 0, over: Partial<C> = {}): C => ({
   ...nothing(),
   position: at(index),
-  announced: story.steps[index],
   ...over,
 })
 
@@ -221,12 +220,14 @@ describe('arriving at a step', () => {
   })
 
   test('says where the tour got to only once the step is on screen', () => {
-    const arriving: C = { ...running(1), phase: 'step', announced: first }
+    const arriving: C = { ...running(1), phase: 'step' }
 
     const outcome = put(arriving, { kind: 'drawn', at: arriving.position! })
 
-    expect(outcome.core.announced).toBe(second)
-    expect(outcome.effects).toEqual([{ kind: 'report', story, step: second, previous: first }])
+    // The report is the whole of what this event does. Nothing is written down,
+    // which is why `Core` has no field for where the tour came from.
+    expect(outcome.core).toBe(arriving)
+    expect(outcome.effects).toEqual([{ kind: 'report', story, step: second }])
   })
 
   test('says nothing where the run ended inside the draw', () => {
@@ -355,7 +356,7 @@ describe('a position is the occurrence, not the place', () => {
 })
 
 describe('an arrival throws away what belonged to the step being left', () => {
-  test('drops the attempt and the morph, and keeps the report', () => {
+  test('drops the attempt and the morph', () => {
     const before = running(0, { error: 'not yet', showing: Promise.resolve() })
 
     const outcome = put(before, { kind: 'entering', at: at(0), leaving: undefined, animate: true })
@@ -366,8 +367,6 @@ describe('an arrival throws away what belonged to the step being left', () => {
       error: undefined,
       showing: undefined,
     })
-    // A morph settling after this reads a promise nothing is holding any more.
-    expect(outcome.core.announced).toBe(first)
   })
 
   test("a story's own arrival has no step, so there is neither to throw away", () => {

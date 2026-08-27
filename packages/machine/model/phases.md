@@ -147,7 +147,7 @@ flowchart TD
   J --> K["presenter.resolve(step)"]
   K -- "null" --> L["the presenter decides.<br>Wait, or Host.lost, which ends the run"]
   K -- "an anchor" --> M["presenter.show(...)"]
-  M -- "nothing back" --> P["onStep(step, previous, story)"]
+  M -- "nothing back" --> P["onStep(step, story)"]
   M -- "a promise" --> O["phase: settling"]
   O --> P
 

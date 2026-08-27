@@ -222,7 +222,7 @@ reach anything else on the machine.
 asked for, and the machine decides what `state` says about it, the same way it
 decides for a target that was missing when the step arrived.
 
-## The five fields in the machine
+## The four fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
@@ -232,15 +232,16 @@ disagreeing about where the tour was.
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
 | `phase` | How far along the machine is. `story`, `step`, `ending`, `settling`, `searching` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
-| `announced` | The step `onStep` was last told about. Every `previous` is read from here |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
-All five are `Core` in `plan.ts`, replaced together rather than written one at a
+All four are `Core` in `plan.ts`, replaced together rather than written one at a
 time, and `commit` in `machine.ts` is the only thing that writes one. There is
 no list of stories among them: `start` is handed the one it is to run, so there
-is nothing to look up and nothing to keep between runs.
+is nothing to look up and nothing to keep between runs. There is nothing a hook
+reads either: a field the machine keeps only so a host can be handed it is a
+field two places have to agree about.
 
-These five and the six values of `phase` are written down again, as a state
+These four and the six values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it

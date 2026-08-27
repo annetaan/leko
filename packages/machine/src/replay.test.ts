@@ -14,8 +14,7 @@ import type { Content, Problem } from './types.js'
 // `../model/machine.qnt` carries two invariants, because those two are the only
 // ones on the list in issue #52 that a state predicate can see. The rest are
 // claims about what a *transition* did — "nothing moved", "exactly one
-// `onLeave`", "every `previous` is where the last report arrived" — and a
-// predicate over one state cannot see a transition at all. Writing them into the
+// `onLeave`" — and a predicate over one state cannot see a transition at all. Writing them into the
 // model as a flag an action sets would make them true by construction. They live
 // here instead, where the thing being asked is the real class.
 //
@@ -66,7 +65,6 @@ interface Snapshot {
   position: Pos | undefined
   phase: string
   hasError: boolean
-  announced: Pos | undefined
   showing: number | undefined
   drawn: Pos | undefined
   presenterUp: boolean
@@ -110,7 +108,6 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     position: maybe(m['position'], pos),
     phase: tag(m['phase']),
     hasError: m['hasError'] as boolean,
-    announced: maybe(m['announced'], pos),
     showing: maybe(m['showing'], int),
     drawn: maybe(m['drawn'], pos),
     presenterUp: m['presenterUp'] as boolean,
@@ -183,8 +180,8 @@ interface Run {
   pending: Map<number, Deferred>
   /** What `validate` answers. */
   guardOk: boolean
-  /** Every `onStep`, as the pair it was called with. */
-  reports: { step: string | undefined; previous: string | undefined }[]
+  /** Every `onStep`, as the step id it named. */
+  reports: (string | undefined)[]
   /** `onEnter` and `onLeave`, in order, as `story:a` or `step:a1`. */
   handlers: { kind: 'enter' | 'leave'; who: string }[]
   problems: Problem<Fixture>[]
@@ -472,11 +469,6 @@ function agrees(run: Run, now: Snapshot, where: string): void {
   expect(seen.index, `${where}: index`).toBe(now.position?.index)
   expect(seen.drawn, `${where}: what is on screen`).toBe(now.drawn && stepOf(run, now.drawn).id)
   expect(seen.presenterUp, `${where}: anything on screen at all`).toBe(now.presenterUp)
-  // 4. `onStep` chains: every `previous` is the step the last report arrived at.
-  const last = run.reports.at(-1)
-  expect(last?.step, `${where}: the step onStep last named`).toBe(
-    now.announced && stepOf(run, now.announced).id,
-  )
 }
 
 /** 3. Every `onEnter` is followed by exactly one `onLeave`, for steps and stories. */
@@ -491,15 +483,6 @@ function balanced(run: Run, where: string): void {
     // A story's own `onLeave` runs after its step's, so the two nest.
     expect(open.at(-1), `${where}: ${who} left without being entered`).toBe(who)
     open.pop()
-  }
-}
-
-/** 4. Every `previous` is the step the report before it arrived at. */
-function chains(run: Run, where: string): void {
-  let arrived: string | undefined
-  for (const { step, previous } of run.reports) {
-    expect(previous, `${where}: onStep left from somewhere it never arrived at`).toBe(arrived)
-    arrived = step
   }
 }
 
@@ -574,8 +557,8 @@ describe('every trace the model found', () => {
       const stories = build(trace.states[0]!, () => run)
       const tour = new Machine<Fixture>(
         {
-          onStep: (step, previous) => {
-            reports.push({ step: step?.id, previous: previous?.id })
+          onStep: (step) => {
+            reports.push(step?.id)
             drain(run)
           },
           onDiagnostic: (problem) => void problems.push(problem),
@@ -674,7 +657,7 @@ describe('every trace the model found', () => {
         bind(run, before, now)
         agrees(run, now, where)
 
-        // 7. While the phase is closed, no call from the application changes
+        // 6. While the phase is closed, no call from the application changes
         //    anything, and `stop()` is the one exception. The model says which
         //    calls the gate turned down; what has to be checked here is that the
         //    real one did nothing about them.
@@ -684,7 +667,7 @@ describe('every trace the model found', () => {
           // not move, and without this nothing anywhere says why.
           expect(run.problems.length, `${where}: refused in silence`).toBe(problemsBefore + 1)
         }
-        // 6. A callback settling for a position the tour has already left
+        // 5. A callback settling for a position the tour has already left
         //    changes nothing. `position` is replaced on every move and on
         //    nothing else, so holding the object is holding the step occurrence.
         //
@@ -707,7 +690,7 @@ describe('every trace the model found', () => {
           )
           expect(run.problems.length, `${where}: and said something about it`).toBe(problemsBefore)
         }
-        // 8. A refusal is never silent, and it says why only where the step
+        // 7. A refusal is never silent, and it says why only where the step
         //    gave words for it. Both halves are read off the step, so neither
         //    is a choice anything makes at the moment of the refusal.
         if (['refuse-said', 'refuse-mute'].includes(now.mark)) {
@@ -730,7 +713,7 @@ describe('every trace the model found', () => {
             `${where}: a step with nothing to say said something`,
           ).toBe(retoldBefore)
         }
-        // 5. No signal advances a step the presenter has not been given.
+        // 4. No signal advances a step the presenter has not been given.
         if (['doReached', 'doPress'].includes(now.action) && !same(wasAt, now.position)) {
           expect(seenBefore.drawn, `${where}: advanced a step nothing had drawn`).toBe(
             wasAt && stepOf(run, wasAt).id,
@@ -742,7 +725,6 @@ describe('every trace the model found', () => {
       }
 
       balanced(run, 'the whole trace')
-      chains(run, 'the whole trace')
       // The tour is torn down as many times as it ended, and the recorder saw
       // every one of them.
       expect(fake.torn).toBeGreaterThanOrEqual(0)

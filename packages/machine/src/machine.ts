@@ -260,7 +260,7 @@ export class Machine<W extends World> {
         return effect.story.onLeave?.(effect.story, effect.next)
 
       case 'report':
-        return this.options.onStep?.(effect.step, effect.previous, effect.story)
+        return this.options.onStep?.(effect.step, effect.story)
 
       case 'diagnose':
         return this.options.onDiagnostic?.(effect.problem)

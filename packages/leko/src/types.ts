@@ -536,10 +536,8 @@ export interface LekoOptions {
    * tour says where it got to.**
    *
    * `step` is where the tour is now, and is `undefined` once there is nowhere
-   * to be: past the last step, or after `stop()`. `previous` is where it came
-   * from, and is `undefined` on the first step of a run. Both are `undefined`
-   * when a run ends before it ever drew, which is the one case with nothing to
-   * name on either side. `story` is the one that moved.
+   * to be: past the last step, or after `stop()`. `story` is the one that
+   * moved.
    *
    * A story used to carry a hook of its own as well, and both fired. It could
    * say nothing this cannot: it was never told which story it was, so anything
@@ -557,10 +555,10 @@ export interface LekoOptions {
    * transition would be {@link LekoStep.validate} again, in a place where the
    * application has claimed nothing.
    *
-   * `previous` is the step this hook last named as `step`, so the calls chain:
-   * each one leaves from where the last one arrived. A step whose `onEnter` is
-   * still in flight has never been drawn and is never named, so a run that ends
-   * there says it came from nowhere rather than from a step nobody saw.
+   * A host that wants the pair keeps the last `step` it was handed. That is a
+   * line of its own state, and it is right by construction: this hook only ever
+   * names a step that was drawn, so a step whose `onEnter` is still in flight
+   * cannot end up in it.
    *
    * {@link Leko.stop} from in here is never turned down. {@link Leko.start} is
    * turned down unless the tour has ended and has nowhere to go, which is the
@@ -573,7 +571,7 @@ export interface LekoOptions {
    * whose story already named the one that follows it is `call-refused`, and
    * the story named in `next` is the one that runs.
    */
-  onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
+  onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 
   /**
    * Called when a call meant to do something and did not. See

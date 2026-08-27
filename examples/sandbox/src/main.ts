@@ -1,4 +1,4 @@
-import { createLeko, type Leko } from '@annetaan/leko'
+import { createLeko, type Leko, type LekoStep } from '@annetaan/leko'
 
 import { type Case, html } from './case.js'
 import { cases } from './cases/index.js'
@@ -99,6 +99,9 @@ let showing: Case | undefined
 /** The showing case's own step handler, if it asked for one. */
 let caseStep: ReturnType<NonNullable<Case['onStep']>> | undefined
 
+/** The step `onStep` named last, which is what a host keeps if it wants a chain. */
+let told: LekoStep | undefined
+
 // Reading the instance from in here is the point of the test: if the hook fired
 // before Leko had finished moving, this would print the step it just left.
 function report(): void {
@@ -167,13 +170,17 @@ function show(next: Case): void {
     // case registers, and it is told which story each time. A host whose
     // stories live in several places writes exactly this and routes it, which
     // is what the second line does.
-    onStep: (step, previous, story) => {
-      // `step` is undefined where the run ended, and `previous` is where the
-      // last report arrived, so the two of them read as a chain down the log.
-      const from = previous ? `“${previous.id}” → ` : ''
+    onStep: (step, story) => {
+      // The log reads as a chain, and `told` is the whole of what that costs a
+      // host. Leko names the step it is on and nothing else, so the step it
+      // named last is the step this one leaves from, and a host that wants the
+      // pair keeps it. One line, and it cannot be wrong: this hook only ever
+      // names a step that went up.
+      const from = told ? `“${told.id}” → ` : ''
       note('step', `${story.id}: ${from}${step ? `“${step.id}”` : 'the run ended'}`)
+      told = step
       report()
-      caseStep?.(step, previous, story)
+      caseStep?.(step, story)
     },
   })
 

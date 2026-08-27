@@ -2,8 +2,8 @@
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// `position`, `phase`, `hasError`, `announced` and `showing` are the five fields
-// of its `Core`, under those names except that `hasError` is `error` as a bit.
+// `position`, `phase`, `hasError` and `showing` are the four fields of its
+// `Core`, under those names except that `hasError` is `error` as a bit.
 // `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
 // a model has to say out loud. Every definition that mirrors one in `plan.ts`
 // names it in its doc, because three of them are spelled differently there:
@@ -91,7 +91,6 @@ module machine {
     phase: Phase,
     // `error`, as a bit. Nothing reads the string.
     hasError: bool,
-    announced: Maybe[Pos],
     // The token of the morph `draw` last handed back, or nothing.
     showing: Maybe[int],
     // --- what the code keeps implicitly
@@ -279,7 +278,6 @@ module machine {
           s.with("phase", Ending)
            .with("position", Nothing)
            .with("hasError", false)
-           .with("announced", Nothing)
            .with("showing", Nothing)
            // teardown()
            .with("presenterUp", false)
@@ -326,9 +324,9 @@ module machine {
     else {
       // Opened before `draw`, because a lost anchor can end the run from inside
       // it and the report of that ending has to find a machine a host may call.
-      val drawing = draw(s.with("phase", Ready), at)
-      if (not(stillAt(drawing, at))) drawing
-      else drawing.with("announced", Just(at))
+      // Nothing is written down. The report is the whole of the event, which
+      // is why `Core` has no field for where the tour came from.
+      draw(s.with("phase", Ready), at)
     }
 
   /// `entering` in `plan.ts`. Enter the step `position` now names.
@@ -665,7 +663,6 @@ module machine {
     position: Nothing,
     phase: Ready,
     hasError: false,
-    announced: Nothing,
     showing: Nothing,
     drawn: Nothing,
     presenterUp: false,
@@ -768,7 +765,7 @@ module machine {
     stateOf(m) == "running" implies m.drawn == m.position
 
   /// 2. `state == "idle"` implies the presenter has been torn down, and
-  ///    `position`, `error`, `announced` and `showing` are all empty.
+  ///    `position`, `error` and `showing` are all empty.
   ///
   /// This used to ask for `phase == Ready` as well, and it held because nothing
   /// could reach a teardown from the outside. `end` empties the position before
@@ -781,7 +778,6 @@ module machine {
       m.phase == Ready or m.phase == Ending,
       not(m.presenterUp),
       not(m.hasError),
-      m.announced == Nothing,
       m.showing == Nothing,
       m.drawn == Nothing,
     }
@@ -881,11 +877,16 @@ module machine {
   val staleReport: bool =
     (m.mark == "lose-stale" or m.mark == "hunt-stale") and m.position != Nothing
 
-  /// The tour reported as far as the last step of the longest story, which is
-  /// as deep as this world goes. By address, because which occurrence of it the
+  /// The tour got as far as the last step of the longest story, which is as
+  /// deep as this world goes. By address, because which occurrence of it the
   /// tour got there on is not the question.
+  ///
+  /// Read off `position` rather than off anything the report leaves behind,
+  /// because the report leaves nothing behind. A witness is counted for a trace
+  /// where it held at any state, and the tour stands here for several before it
+  /// ends, so the window is wide enough without a `mark` of its own.
   val reachedLastStep: bool =
-    match m.announced {
+    match m.position {
       | Nothing => false
       | Just(at) => at.story == "a" and at.index == 3
     }

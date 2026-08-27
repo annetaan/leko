@@ -7,18 +7,6 @@
         "index": 0
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -321,18 +309,6 @@
         "index": 1
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -638,18 +614,6 @@
         "index": 2
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -950,18 +914,6 @@
         "index": 3
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -1264,18 +1216,6 @@
         "index": 4
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -1576,18 +1516,6 @@
         "index": 5
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {
@@ -1900,18 +1828,6 @@
         "index": 6
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {
@@ -2226,18 +2142,6 @@
         "index": 7
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {
@@ -2550,18 +2454,6 @@
         "index": 8
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {
@@ -2879,18 +2771,6 @@
         "index": 9
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {
@@ -3203,18 +3083,6 @@
         "index": 10
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "occurrence": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -3549,18 +3417,6 @@
         "index": 11
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "occurrence": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -3884,18 +3740,6 @@
         "index": 12
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "occurrence": {
-              "#bigint": "1"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -4216,18 +4060,6 @@
         "index": 13
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "occurrence": {
-              "#bigint": "4"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -4563,18 +4395,6 @@
         "index": 14
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -4927,18 +4747,6 @@
         "index": 15
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -5290,18 +5098,6 @@
         "index": 16
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -5642,18 +5438,6 @@
         "index": 17
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -5989,18 +5773,6 @@
         "index": 18
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -6341,18 +6113,6 @@
         "index": 19
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -6688,18 +6448,6 @@
         "index": 20
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -7035,18 +6783,6 @@
         "index": 21
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -7382,18 +7118,6 @@
         "index": 22
       },
       "m": {
-        "announced": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "occurrence": {
-              "#bigint": "6"
-            },
-            "story": "a"
-          }
-        },
         "drawn": {
           "tag": "Just",
           "value": {
@@ -7728,12 +7452,6 @@
         "index": 23
       },
       "m": {
-        "announced": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
         "drawn": {
           "tag": "Nothing",
           "value": {

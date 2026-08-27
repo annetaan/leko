@@ -214,7 +214,7 @@ test('a watcher hears the crossings onStep never mentions', async () => {
   // from, so it is cut rather than animated, and a watcher is told the answer
   // the turn ended on rather than everything it passed through.
   expect(states).toEqual(['running'])
-  expect(seen).toEqual([['only', undefined]])
+  expect(seen).toEqual(['only'])
 
   target.remove()
   await vi.waitUntil(() => states.at(-1) === 'transitioning', { timeout: 1000 })
@@ -226,7 +226,7 @@ test('a watcher hears the crossings onStep never mentions', async () => {
   // Two more crossings, and the tour never moved. Nothing in `onStep` could
   // have told a host any of this, which is the whole reason for `watch`.
   expect(states).toEqual(['running', 'transitioning', 'running'])
-  expect(seen).toEqual([['only', undefined]])
+  expect(seen).toEqual(['only'])
 
   stop()
   leko.stop()
@@ -304,16 +304,14 @@ test('moving on to a target that has gone waits, then reports the ending', async
   press()
 
   // `b` is where the tour is, under a curtain, while its target is given time
-  // to turn up.
-  expect(seen).toEqual([['b', 'a']])
+  // to turn up. The machine drew it, so it is named. Whether the presenter
+  // found an anchor for it is the presenter's problem.
+  expect(seen).toEqual(['b'])
   expect(leko.state).toBe('transitioning')
 
   await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
 
-  expect(seen).toEqual([
-    ['b', 'a'],
-    [undefined, 'b'],
-  ])
+  expect(seen).toEqual(['b', undefined])
 })
 
 test('onEnter builds the state the step assumes, before the target is looked for', () => {

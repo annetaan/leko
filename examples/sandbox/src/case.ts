@@ -42,10 +42,7 @@ export interface Case {
    * somewhere — a branch ending by starting the story its paths meet at —
    * needs both. Called after `mount`, so the page it reads is there.
    */
-  onStep?: (
-    root: HTMLElement,
-    leko: Leko,
-  ) => (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
+  onStep?: (root: HTMLElement, leko: Leko) => (step: LekoStep | undefined, story: LekoStory) => void
 }
 
 /**

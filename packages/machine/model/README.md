@@ -78,9 +78,8 @@ see. Those two live here:
 | `idleIsClean` | `state == "idle"` means everything is empty and the presenter is down |
 
 The other five are claims about what a *transition* did. "Nothing moved while
-the gate was closed." "Exactly one `onLeave` per `onEnter`." "Every `previous`
-is where the last report arrived." A predicate over one state cannot see a
-transition at all. I could write each one as a flag that the action sets, and
+the gate was closed." "Exactly one `onLeave` per `onEnter`." A predicate over one
+state cannot see a transition at all. I could write each one as a flag that the action sets, and
 then the model would be marking its own homework.
 
 So they live in `packages/machine/src/replay.test.ts` instead, where the thing
@@ -89,11 +88,10 @@ being asked is the real class:
 | | |
 | --- | --- |
 | 3 | every `onEnter` is followed by exactly one `onLeave`, steps and stories |
-| 4 | every `previous` in the `onStep` chain is where the last report arrived |
-| 5 | no signal advances a step the presenter has never been given |
-| 6 | a callback settling for a position the tour has left changes nothing |
-| 7 | while the phase is closed no call from the application changes anything |
-| 8 | a refusal always reaches the presenter, and says why only where the step says so |
+| 4 | no signal advances a step the presenter has never been given |
+| 5 | a callback settling for a position the tour has left changes nothing |
+| 6 | while the phase is closed no call from the application changes anything |
+| 7 | a refusal always reaches the presenter, and says why only where the step says so |
 
 The model's job for those is to reach the state where the question can be asked,
 and then to say what the answer should be.
@@ -119,7 +117,6 @@ were measured and 80 when the last one was:
 | `accepting` returns true during an arrival | yes | yes |
 | `draw` drops the `this.showing !== showing` check | yes | yes |
 | `advance` runs `validate` on a step that declares `awaits` | yes | yes |
-| `end` forgets to clear `announced` | yes | no |
 | `draw`'s settle writes `ready` over a `searching` phase | **no** | yes |
 | `seek` accepts a search for a step the tour has left | **no** | yes |
 | `lose` accepts a loss for a step the tour has left | **no** | yes |
