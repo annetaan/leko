@@ -194,8 +194,11 @@ export interface LekoStep {
    * **It applies to the first region only.** Later regions of
    * {@link LekoStep.target} are there to be looked at, and no flag opens them.
    *
-   * **Pointer only.** Keyboard focus still reaches a blocked element, the same
-   * way it reaches anything else under the scrim.
+   * **Tab is held to the same answer.** Focus walks a ring of what this step
+   * opened and the controls Leko drew, so a hole that is only shown cannot be
+   * reached with the keyboard either. A positive `tabindex` in the page, or an
+   * `iframe` inside the region, can still put focus somewhere unplanned, and
+   * what happens then is that the next key brings it back.
    */
   interactive?: boolean
 

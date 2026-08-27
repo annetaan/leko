@@ -231,9 +231,8 @@ user to do that something. `scrollable-target.ts` is where they come apart.
 Reading a panel to the bottom establishes nothing the application would report,
 so that step waits for a press, and the user still has to reach the panel.
 
-**Pointer only.** A blocked element can still be reached with Tab, the same way
-anything else under the scrim can. That is what the scrim has always promised
-and this claims no more.
+**The pointer is the half the rectangles do.** Tab is the other half, and
+**The ring focus cannot leave** is where that one is argued.
 
 One list answers both questions. `punchedPath` is given every cutout, so what is
 drawn is the same either way. `complementRects` is given the open ones, so the
@@ -241,6 +240,65 @@ sweep runs straight through a closed hole and a rectangle covers it.
 `Cutout.interactive` is what tells them apart, and
 [`spike/blocking-a-hole/`](spike/blocking-a-hole/) is why that rectangle has to
 live beside the scrim rather than inside it.
+
+## The ring focus cannot leave
+
+A rectangle stops a click. It does nothing at all about a key. So a step that
+shows a hole it did not open is a step whose target is one Tab away, ready to be
+pressed, typed into and navigated away from.
+
+**So focus walks a ring, and the ring is what the step opened plus the chrome
+Leko drew.** On a step that opened nothing that is the message and the way out,
+and Tab moves between the two and nowhere else. On a step that opened its first
+region, that region joins the ring ahead of them.
+
+**The ring is put in document order and Tab is left alone inside it.** The top
+layer changes what paints over what and nothing about sequential focus
+navigation, so a popover is reached where it sits in the tree
+([`spike/tab-order-in-the-top-layer/`](spike/tab-order-in-the-top-layer/)). The
+target is in the middle of the page and Leko's chrome is at the end of the body,
+so the order the ring wants is the order the browser already takes. What is left
+is catching the two moments Tab would walk out, which is `focus.ts` and one pure
+function.
+
+A ring in some other order would be worse than no ring. Focus leaving a segment
+would be answered by sending it to one Tab had just come from, and the two would
+trade the same pair for ever.
+
+**A Tab at the edge of a segment is stepped over before the browser acts on
+it.** Hearing about focus that has already arrived somewhere and moving it on is
+a blocked field focused for the length of a turn, and announced for it. At an
+edge the whole answer is known in the `keydown`, so the gap is crossed there
+instead and focus never touches the page. Inside a segment this does nothing,
+and the browser walks the stops it always walked, which is what keeps the file
+from having to know anybody's tab order.
+
+**Both ends of the document are made focusable, as the backstop.** A `focusin`
+fires for focus landing somewhere. Tab off the last element in the document
+lands in the browser's own chrome, and the page hears nothing about it. Two
+zero-area elements of Leko's own sit at the ends of the body for that case, and
+are moved back there every time the ring changes, since the chrome they have to
+follow is made as it is needed. An ordinary Tab never reaches either.
+
+**It is a net rather than a promise, and the difference is worth saying out
+loud.** A positive `tabindex` in the host page reorders what this assumes. An
+`iframe` inside a segment takes focus somewhere no event reaches. A host moving
+focus itself is answered once and then left alone, because a bounce per turn is
+the limit. In each of those focus ends up back in the ring one key later rather
+than anywhere worse, which is the direction to fail in.
+
+**`inert` cannot do this job.** It is inherited and there is no way to lift it
+from a descendant, so a page made inert cannot have the step's region excepted
+out of it, and Leko's own chrome would go inert along with everything else.
+
+**Neither can a modal `<dialog>`.** It would inert the page for free, and it
+would also inert the target on a step that opened one, take focus on every step
+boundary, and leave the way out unreachable, since that control is a separate
+element in a corner rather than part of the message.
+
+**Nothing here advances a step.** The second constraint is about Leko listening
+for what the user did and deciding a step succeeded. This listens for where
+focus went and puts it back. No event reaching this file can move the tour.
 
 ## A failed attempt
 

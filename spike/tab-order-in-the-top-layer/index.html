@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Where does a popover sit in the tab order?</title>
+    <style>
+      :root { color-scheme: light dark; }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        font: 15px/1.6 system-ui, sans-serif;
+      }
+
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      .lede { max-width: 62ch; margin: 0 0 24px; }
+
+      .page {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      button { font: inherit; padding: 6px 14px; }
+
+      /*
+       * A popover, opened with `showPopover()`. It paints in the top layer, and
+       * the question is whether that moves it in the tab order as well.
+       */
+      [popover] {
+        margin: 0;
+        border: 2px solid rgb(120 120 255);
+        border-radius: 8px;
+        padding: 12px;
+        inset: auto 32px 32px auto;
+      }
+
+      table { border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 4px 14px 4px 0; }
+      code { font-family: ui-monospace, monospace; }
+      .note { max-width: 72ch; color: rgb(128 128 128); }
+      .bad { color: rgb(200 40 40); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Where does a popover sit in the tab order?</h1>
+
+    <p class="lede">
+      Five buttons in the page, then a popover holding two more. The popover is
+      last in the document and paints in the top layer. Press Tab from the top
+      and the readout says the order focus actually took.
+    </p>
+
+    <div class="page">
+      <button type="button" id="one">1 page</button>
+      <button type="button" id="two">2 page</button>
+      <button type="button" id="three">3 page</button>
+      <button type="button" id="four">4 page</button>
+      <button type="button" id="five">5 page</button>
+    </div>
+
+    <div popover="manual" id="layer">
+      <button type="button" id="six">6 popover</button>
+      <button type="button" id="seven">7 popover</button>
+    </div>
+
+    <table>
+      <tbody>
+        <tr><th>DOM order</th><td data-dom></td></tr>
+        <tr><th>Order Tab took</th><td data-seen></td></tr>
+        <tr><th>Verdict</th><td data-verdict></td></tr>
+      </tbody>
+    </table>
+
+    <p class="note">
+      Click <code>1 page</code> and hold Tab down. A popover that keeps its DOM
+      position gives the two lines the same order, which means a box painted over
+      everything is still reached last.
+    </p>
+
+    <script>
+      const layer = document.getElementById('layer')
+      layer.showPopover()
+
+      const ids = ['one', 'two', 'three', 'four', 'five', 'six', 'seven']
+      const label = (id) => document.getElementById(id).textContent
+
+      const dom = ids.map(label)
+      document.querySelector('[data-dom]').textContent = dom.join(' → ')
+
+      const seen = []
+      const seenOut = document.querySelector('[data-seen]')
+      const verdictOut = document.querySelector('[data-verdict]')
+
+      document.addEventListener('focusin', (event) => {
+        const id = event.target.id
+        if (!ids.includes(id)) return
+        // Only the first visit to each, so holding Tab round the loop twice
+        // does not write the same answer twice.
+        if (!seen.includes(id)) seen.push(id)
+        report()
+      })
+
+      function report() {
+        seenOut.textContent = seen.map(label).join(' → ')
+        if (seen.length < ids.length) {
+          verdictOut.textContent = `${seen.length} of ${ids.length} so far`
+          verdictOut.className = ''
+          return
+        }
+        const same = seen.join() === ids.join()
+        verdictOut.textContent = same ? 'DOM position kept' : 'MOVED BY THE TOP LAYER'
+        verdictOut.className = same ? '' : 'bad'
+      }
+
+      report()
+
+      // What `run.mjs` asks, so a run and a pair of eyes read the same order.
+      window.spikeTabOrder = {
+        ids: () => ids,
+        seen: () => seen,
+        reset: () => {
+          seen.length = 0
+          report()
+        },
+      }
+    </script>
+  </body>
+</html>

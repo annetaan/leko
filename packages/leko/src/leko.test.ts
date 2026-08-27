@@ -1,4 +1,5 @@
-import { expect, test } from 'vitest'
+import { userEvent } from '@vitest/browser/context'
+import { expect, test, vi } from 'vitest'
 
 import {
   absorbed,
@@ -8,6 +9,8 @@ import {
   holding,
   holes,
   keep,
+  control,
+  held,
   press,
   scrim,
   start,
@@ -264,4 +267,120 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   // almost nothing dimmed for a few hundred milliseconds.
   expect(absorbed(far)).toBe(true)
   expect(centre(target)).toBe(target)
+})
+
+// The ring focus cannot leave. The blocking rectangles stop a click on a hole
+// the step did not open, and they do nothing at all about Tab, so without this
+// the same element is one key away. Engines disagree about focus, so these run
+// in all three rather than in `wiring.test.ts`.
+
+/** Where focus is, named the way a reader would name it. */
+const focused = (): string => {
+  const el = document.activeElement as HTMLElement | null
+  if (!el || el === document.body) return 'nowhere'
+  if (el.closest('.leko-message')) return 'the message'
+  if (el.closest('.leko-close')) return 'the way out'
+  return el.textContent?.trim() ?? el.tagName.toLowerCase()
+}
+
+/** Tab `times`, and every place focus landed on the way. */
+async function tabbing(times: number): Promise<string[]> {
+  const seen: string[] = []
+  for (let i = 0; i < times; i += 1) {
+    await userEvent.tab()
+    seen.push(focused())
+  }
+  return seen
+}
+
+test('a closed step keeps Tab on the message and the way out', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
+
+  start([{ id: 'look', target: () => target, message: 'Read this.' }])
+
+  control()!.focus()
+  const seen = await tabbing(4)
+
+  // Nothing of the page, however many times it is asked for. The target is
+  // shown through the hole and the tour is what answers for it.
+  expect(seen).not.toContain('target')
+  expect(seen).not.toContain('elsewhere')
+  expect(new Set(seen)).toEqual(new Set(['the message', 'the way out']))
+})
+
+test('an open step puts its target in the ring and comes back to it', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
+
+  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+
+  target.focus()
+  const seen = await tabbing(4)
+
+  // Round the ring and back. The step opened its region, so the real button is
+  // a stop, and the page around it still is not.
+  expect(seen).toContain('target')
+  expect(seen).not.toContain('elsewhere')
+})
+
+test('shift-tab out of the ring lands on the end it was heading for', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
+
+  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+
+  // The first stop in the ring. Backwards out of it is the far end of the ring
+  // rather than the page behind, which is the half a forward-only net misses.
+  target.focus()
+  await userEvent.tab({ shift: true })
+
+  expect(focused()).not.toBe('elsewhere')
+  expect(['the message', 'the way out']).toContain(focused())
+})
+
+test('the way out is still reachable while a curtain is up', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const { promise, settle } = held()
+  const leko = holding(
+    {
+      id: 'story',
+      onEnter: () => promise,
+      steps: [{ id: 'one', target: () => target, interactive: true }],
+    },
+    { curtain: true },
+  )
+
+  begin(leko, 'story')
+
+  // Nothing is drawn and nothing is open, so the ring is one stop. Tab has
+  // nowhere else to be, and where it is, is the way out.
+  await userEvent.tab()
+  expect(focused()).toBe('the way out')
+
+  settle()
+  await vi.waitUntil(() => centre(target) === target)
+})
+
+test('focus never lands on the page on its way round the ring', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  // Straight after the target in the tab order, so a ring that let go at the
+  // edge of its first segment would put focus here before taking it back.
+  const after = box('after', { left: '100px', top: '400px', width: '160px', height: '48px' })
+
+  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+
+  const touched: string[] = []
+  const watch = (event: FocusEvent): void => {
+    touched.push((event.target as HTMLElement).textContent?.trim() ?? '')
+  }
+  after.addEventListener('focusin', watch)
+
+  target.focus()
+  await tabbing(6)
+  after.removeEventListener('focusin', watch)
+
+  // Not once, not even for the turn a net would take to put it back. Tab at the
+  // edge of a segment is stepped over before the browser acts on it.
+  expect(touched).toEqual([])
 })

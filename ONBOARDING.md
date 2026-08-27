@@ -114,6 +114,7 @@ it.
 | `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
 | `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
 | `packages/spotlight/src/message.ts` | The box beside the hole |
+| `packages/spotlight/src/focus.ts` | The ring Tab cannot leave |
 | `packages/codegen/src/scan.ts` | Every name a `reached()` call reports |
 
 ## Read the files in this order
@@ -395,6 +396,7 @@ DESIGN.md says so under
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
+| What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `leko/src/presenter.ts` |
 | What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |

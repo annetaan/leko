@@ -3,6 +3,7 @@ import {
   Close,
   type Cutout,
   findScrollContainer,
+  FocusRing,
   grow,
   Message,
   paddingBoxWithin,
@@ -36,6 +37,18 @@ const regionsOf = (target: LekoStep['target']): LekoRegion[] =>
 
 /** The elements one region unions together. */
 const targetsIn = (region: LekoRegion): LekoTarget[] => (Array.isArray(region) ? region : [region])
+
+/**
+ * Everything in the region a step opened, or nothing where it opened none.
+ *
+ * The ring's first segment. A step that shows a hole without opening it has
+ * nothing here, so Tab has nowhere to be but Leko's own chrome.
+ */
+const openElements = (step: LekoStep): HTMLElement[] => {
+  if (step.interactive !== true) return []
+  const first = regionsOf(step.target)[0]
+  return first === undefined ? [] : resolveTargets(targetsIn(first))
+}
 
 /**
  * The one element the step is about: the first target of its first region.
@@ -83,6 +96,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * behaving.
    */
   private close: Close | undefined
+  /**
+   * The ring Tab cannot leave while anything is drawn.
+   *
+   * Made and destroyed with the rest of the chrome. The blocking rectangles
+   * stop a click on a hole the step did not open, and they do nothing at all
+   * about a key, so without this the same element is one Tab away.
+   */
+  private ring: FocusRing | undefined
   private onViewportChange: (() => void) | undefined
   private watcher: MutationObserver | undefined
   /** Where the curtain is. `curtain.ts` says what each state means. */
@@ -211,6 +232,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // pick.
       this.message.show({ text, error: undefined, next: undefined }, [], 0)
     }
+    // No step, so no open region. Under a curtain there is nothing drawn to
+    // reach, and the way out is the only stop there is.
+    this.showRing(undefined)
   }
 
   /**
@@ -282,6 +306,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.showClose(onScreen ?? [])
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
+      this.showRing(step)
       return
     }
     this.message ??= new Message(() => this.host.next())
@@ -297,6 +322,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // makes the box dock instead.
       inner && box ? (side) => inner.anchorAt(...DomPresenter.edge(box, side)) : undefined,
     )
+    // Last, so the next control is showing by the time the ring is asked
+    // whether the message is a stop.
+    this.showRing(step)
   }
 
   /**
@@ -334,6 +362,26 @@ export class DomPresenter implements Presenter<LekoWorld> {
       this.options.renderClose,
     )
     this.close.place(cutouts)
+  }
+
+  /**
+   * Say what Tab may reach, now.
+   *
+   * Called wherever the chrome or the step changes, because every one of those
+   * moves a stop. `step` is `undefined` under a curtain, where nothing has been
+   * drawn and the way out is the only thing to reach.
+   *
+   * The message goes in whether or not it is showing. A hidden one has nothing
+   * Tab would land on, so `FocusRing` drops it, and a step with no next control
+   * on its message drops out the same way.
+   */
+  private showRing(step: LekoStep | undefined): void {
+    this.ring ??= new FocusRing()
+    this.ring.set([
+      step ? openElements(step) : [],
+      this.message ? [this.message.element] : [],
+      this.close ? [this.close.element] : [],
+    ])
   }
 
   /**
@@ -439,6 +487,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // it is set, and a page that is blocked with no way out of it is the thing
     // this control exists to prevent, even for the length of one morph.
     this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect()) ?? [])
+    // Before the morph too. The message is away for the whole of it, and the
+    // target is already reachable, so the ring is already two stops short of
+    // what `say` will make it.
+    this.showRing(step)
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
@@ -636,5 +688,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.message = undefined
     this.close?.destroy()
     this.close = undefined
+    this.ring?.destroy()
+    this.ring = undefined
   }
 }
