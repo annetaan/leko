@@ -465,7 +465,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * reading why they were stopped. A step that had no message until now has
    * nowhere to jump from, so that one is placed properly.
    */
-  retell(story: LekoStory, step: LekoStep, anchor: HTMLElement, content: Content): void {
+  retell(story: LekoStory, step: LekoStep, content: Content): void {
     if (this.message?.visible) {
       this.message.setText(content.text ?? '')
       this.message.setError(content.error ?? '')

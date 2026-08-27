@@ -58,10 +58,7 @@ export const firstOrder = {
       target: 'input[name="quantity"]',
       message: '個数として 3 と入力してください',
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
-      onValidationError: (_el, utils) => {
-        utils.shake()
-        utils.setError('3が入力されていません。入力値を確認してください。')
-      },
+      error: '3が入力されていません。入力値を確認してください。',
     },
     {
       id: 'save',

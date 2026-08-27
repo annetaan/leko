@@ -38,18 +38,19 @@ export const formValidation: Case = {
           target: 'input[name="email"]',
           message: 'Enter the address you want to sign in with.',
           validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
-          onValidationError: (_el, utils) => {
-            utils.shake()
-            // Under the instruction rather than over it. Pressing Next with an
-            // empty field used to leave the step asking for nothing.
-            utils.setError('That does not look like an email address yet.')
-          },
+          // Under the instruction rather than over it. Pressing Next with an
+          // empty field used to leave the step asking for nothing.
+          error: 'That does not look like an email address yet.',
         },
         {
           id: 'password',
           target: 'input[name="password"]',
           message: 'Pick a password of at least eight characters.',
           validate: (el) => (el as HTMLInputElement).value.length >= 8,
+          // Worked out from what was typed, which is what the function form is
+          // for. Asked once, for the attempt that just failed.
+          error: (el) =>
+            `Eight characters at least, and that is ${(el as HTMLInputElement).value.length}.`,
         },
         {
           id: 'submit',

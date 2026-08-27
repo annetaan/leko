@@ -281,7 +281,7 @@ export const accepting = <S, St>(core: Core<S, St>): boolean =>
 
 Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
-`onStep`, an `onValidationError`. Rather than checking afterwards whether the
+`onStep`, a `validate`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
 nothing to check. The `reached`, `start`, `pressed` and `moved` events all ask
 this first, in `plan.ts`.
@@ -297,10 +297,10 @@ that can land after a window carries the position it was planned at, and
 `plan.ts` asks `stillAt` before acting on one. A `stop()` can have thrown that
 arrival away while the machine was gone.
 
-There are eight of those asks. Six are about a position an arrival began at, and
-the last two are a different job: a `setError` or a `shake` that answers after
-the tour has moved on. All eight are what is left of a counter that used to be
-checked in thirteen places.
+There are seven of those asks. Six are about a position an arrival began at, and
+the last one is a different job: a `refused` landing after a `validate` that
+called `stop()` from inside itself. All seven are what is left of a counter that
+used to be checked in thirteen places.
 
 ## The two constraints, and the line that keeps each
 
@@ -387,7 +387,7 @@ DESIGN.md says so under
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |
 
-`Target`, `ErrorUtils` and the three state literals are written out twice, in
+`Target` and the three state literals are written out twice, in
 `@annetaan/leko` and in the package underneath it. That is deliberate while
 those packages are private, and DESIGN.md explains it under
 [Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).

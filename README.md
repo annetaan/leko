@@ -68,10 +68,9 @@ export const firstOrder = {
       message: 'Enter 3 as the quantity.',
       // Your rule, your verdict. Typing something is not success.
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
-      onValidationError: (_el, utils) => {
-        utils.shake()
-        utils.setError('The quantity is not 3 yet. Check the field.')
-      },
+      // Said under the instruction when the guard says no. The cutout shakes
+      // either way, so a guard can never leave Next doing nothing.
+      error: 'The quantity is not 3 yet. Check the field.',
     },
     {
       id: 'save',

@@ -186,19 +186,38 @@ second source of truth for the same question. The second kind is what the second
 constraint exists to keep out, and one rule derived from `awaits` is easier to
 hold than two.
 
-`onValidationError` is handed two things, `shake()` and `setError()`.
+**A refusal is never silent.** The cutout shakes on every no. Which half of a
+refusal happens is read off the step and is not a choice anything makes at the
+time.
 
-**`setError()` puts the reason under the instruction. It does not replace it.**
+There was a version where both halves were handed to a handler as `shake()` and
+`setError()`. A step could then declare `validate` and no handler, and pressing
+Next on that step did nothing at all. One of the three guarded steps in
+`examples/sandbox/src/cases/` was written that way. That is the same button the
+way out exists to keep off the page, one control along, so the shake is now
+derived and `error` is the only part a step decides.
+
+**`error` puts the reason under the instruction. It does not replace it.**
 A user who has just been told they were wrong needs to still read what they were
 asked for. Nothing takes the reason away again. It goes when the next attempt
 succeeds or the step changes, because those are the two moments it stopped being
 true. A `clearError()` would only invent a way to leave a stale complaint on
-screen.
+screen. A step with no `error` still refuses, in silence.
 
-`onValidationError` returns `void`, so a handler is free to look something up
-and call back two steps later. **Utils held that long do nothing.** Whatever
-they had to say belongs to the step that was attempted or to nowhere.
-See `late-reason.ts`.
+**`error` is asked once, for the attempt that failed.** `target` is asked every
+time anything needs the box, and `message` is read every time the step draws, so
+an edit to either is seen. This one is different. The function form runs in the
+turn the guard said no, on the element the guard was handed, and the words it
+gives back are held from there. Asking again on a redraw would let a reason
+change while nobody had tried anything.
+
+**There is no hook for a failed press.** `onValidationError` was one, and
+because it returned `void` a handler could keep its utils and answer two steps
+later. Those answers were dropped. So the freedom on offer was the freedom to
+write code that did nothing, and it cost an anchor travelling into `plan.ts` and
+back on two events of its own, plus a set in the model holding every answer
+still owed. A reason that has to be fetched belongs to a different shape: the
+application finds out, then calls `reached()`.
 
 Leko does not hold the instruction. `step.message` is read every time it draws,
 and `StepBase.message` is `readonly` to say so.
@@ -870,7 +889,7 @@ configure the rule back off.
 returns anything. The story is a parameter of `show`, `place` and `retell`, so
 the drawing half never reaches into the state half to answer a drawing question.
 
-`Target`, `ErrorUtils` and the three state literals are written out in both
+`Target` and the three state literals are written out in both
 packages. That is deliberate while the lower two are private, since a published
 `.d.ts` referring to `@annetaan/leko-machine` would not resolve in anyone's
 project. `@annetaan/leko` bundles both halves in with `tsdown`, so a consumer

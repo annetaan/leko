@@ -129,7 +129,7 @@ flowchart TD
   V -- "no guard, or awaits declared" --> B{"the last step?"}
   V -- "the guard passed" --> B
   V -- "the anchor is gone" --> Z["the ending. phase: ending"]
-  V -- "the guard failed" --> S["onValidationError(anchor, utils)<br>shake() or setError()<br>the tour stays put"]
+  V -- "the guard failed" --> S["presenter.reject(), and step.error<br>under the instruction where there is any<br>the tour stays put"]
   B -- "yes" --> Z
   B -- "no" --> C["position = index + 1<br>phase: step"]
   C --> D["presenter.hold(story, step)<br>a curtain, nothing drawn"]
@@ -173,7 +173,11 @@ tour standing somewhere else, and each one checks a different thing.
 | --- | --- |
 | a slow `onEnter`, story or step | the captured `position` object against the current one |
 | a morph | the token in `showing`, because two arrivals at the same position are two occurrences |
-| an `onValidationError` that answers late | the `position` object the utils were made against, carried on the `setError` and `shake` events |
+
+A refusal is not on this list. `validate` answers in the turn it is asked, and
+`error` is read in the same turn, so there is nothing left over to land later.
+The `refused` event still asks where the tour got to, because `validate` is the
+application's own code and can call `stop()` from inside itself.
 
 The morph has one more check after that. It may only write `ready` if the phase
 is still `settling`. A target that left the page mid morph has written
@@ -203,7 +207,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | a `start()` the gate turned down | `story-setup` | press `start()` again inside the 600ms window. The log says it was not acted on |
 | `Host.lost` ending a run | `target-disappears` | press **Dismiss**. Two seconds under a curtain, then the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
-| a verdict that arrives late | `late-reason` | the reason lands after the tour has moved, and belongs to the attempt that asked |
+| `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |
 | `Host.next` | `next-control`, `stepping` | the control on the message. A step declaring `awaits` never has one |
 
 ### What no case reaches

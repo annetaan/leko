@@ -37,11 +37,17 @@ module machine {
   /// `hasGuard` is `validate` being present. Whether it passes is nondeterministic
   /// at the point it is asked, because `validate` reads the page and the page
   /// moves; pinning it per step would make a step either a wall or a formality.
+  ///
+  /// `hasWords` is `error` being present. It is fixed per step rather than
+  /// nondeterministic: whether a step has words for a refusal is written down
+  /// when the story is, and the machine asks for them in the turn the guard
+  /// said no.
   type StepSpec = {
     id: str,
     target: str,
     awaits: Maybe[str],
     hasGuard: bool,
+    hasWords: bool,
     slowEnter: bool,
     throwsOnEnter: bool,
   }
@@ -72,14 +78,6 @@ module machine {
     // whether the curtain goes up before the report, and what happens after.
     | Leaving({ token: int, into: Maybe[str] })
 
-  /// What `onValidationError` was handed, and has not answered with yet.
-  ///
-  /// `errorUtils` closes over the position the attempt was made at, and a
-  /// handler is free to look something up and call back afterwards. So the
-  /// utils outlive the call that made them, and the model has to hold them
-  /// somewhere rather than spending them where they were handed over.
-  type Utils = { token: int, at: Pos }
-
   /// Every field at once, so that the definitions below can be pure functions of
   /// the shape `M => M` and read like the methods they stand for.
   type M = {
@@ -99,8 +97,6 @@ module machine {
     // up, `teardown` takes it down.
     presenterUp: bool,
     inflight: Set[Callback],
-    // Every `ErrorUtils` handed to a handler that has not answered yet.
-    holding: Set[Utils],
     nextToken: int,
     // --- the world the tour runs in
     world: str -> StorySpec,
@@ -126,17 +122,20 @@ module machine {
 
   pure val WORLD: str -> StorySpec = Map(
     // Runs. Its first step advances on a control, its second on a signal and
-    // through a slow `onEnter`, its third on a control behind a guard.
+    // through a slow `onEnter`, and its last two on a control behind a guard —
+    // one with `error` written on it and one without, because a refusal with
+    // nothing to say still has to shake the cutout.
     "a" -> {
       id: "a",
       slowEnter: false,
       throwsOnEnter: false,
       steps: [
-        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, slowEnter: false, throwsOnEnter: false },
+        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
         // A step with both. The guard is ignored on a step that declares
         // `awaits`, and this is the pair that says so.
-        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, slowEnter: true, throwsOnEnter: false },
-        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, slowEnter: false, throwsOnEnter: false },
+        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, hasWords: false, slowEnter: true, throwsOnEnter: false },
+        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, hasWords: true, slowEnter: false, throwsOnEnter: false },
+        { id: "a4", target: "third", awaits: Nothing, hasGuard: true, hasWords: false, slowEnter: false, throwsOnEnter: false },
       ],
     },
     // A story whose own `onEnter` is slow, so the `story` phase is a window a
@@ -146,9 +145,9 @@ module machine {
       slowEnter: true,
       throwsOnEnter: false,
       steps: [
-        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, slowEnter: false, throwsOnEnter: false },
+        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
         // Throws on the way in, which is the only way `enter`'s catch is reached.
-        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, slowEnter: false, throwsOnEnter: true },
+        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: true },
       ],
     },
     // Throws in its own `onEnter`, which is a different catch from the one above.
@@ -157,7 +156,7 @@ module machine {
       slowEnter: false,
       throwsOnEnter: true,
       steps: [
-        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, slowEnter: false, throwsOnEnter: false },
+        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
       ],
     },
     // Nothing in it. `start` must refuse it without tearing down the tour that
@@ -246,13 +245,6 @@ module machine {
   /// displaced a run, and `moveOn` for every step after the first.
   pure def standOn(s: M, at: Pos): M =
     s.with("position", Just(at)).with("nextToken", s.nextToken + 1)
-
-  /// `Machine.errorUtils`, handed to `onValidationError` and kept until the
-  /// handler does something with it. The position is captured here, which is
-  /// what `stale()` reads a second later.
-  pure def handOver(s: M, at: Pos): M =
-    s.with("holding", s.holding.union(Set({ token: s.nextToken, at: at })))
-     .with("nextToken", s.nextToken + 1)
 
   /// `ending` in `plan.ts`. `next` is a story only where `start` displaces this one.
   ///
@@ -364,9 +356,9 @@ module machine {
       enter(standOn(s, { story: at.story, index: at.index + 1, occurrence: s.nextToken }))
   }
 
-  /// `advance` in `plan.ts`. `guardOk` is what `validate` answered. What
-  /// `onValidationError` does about a no is a separate action, because it may
-  /// answer later or never.
+  /// `advance` in `plan.ts`. `guardOk` is what `validate` answered, and the
+  /// refusal is settled in the same turn: there is no handler left to answer
+  /// later.
   ///
   /// A step that declares `awaits` is not guarded. The application has already
   /// said the thing happened, and reading the page to check would be a second
@@ -374,18 +366,19 @@ module machine {
   pure def advance(s: M, at: Pos, guardOk: bool): M = {
     val step = stepAt(s, at)
     if (not(step.hasGuard) or step.awaits != Nothing)
-      moveOn(s, at)
+      moveOn(s, at).with("mark", "press")
     else if (not(s.page.contains(step.target)))
       // `resolve` answered null, which `advance` hands to `lose`.
-      lose(s, at)
+      lose(s, at).with("mark", "press-lost")
     else if (guardOk)
-      moveOn(s, at)
+      moveOn(s, at).with("mark", "press")
     else
-      // The guard said no. `onValidationError` is handed the utils here and
-      // what it does with them is {@link doSetError} and {@link doShake},
-      // because a handler is free to answer a second late, and to answer more
-      // than once.
-      handOver(s, at)
+      // The guard said no. Saying no is not optional and saying why is: the
+      // cutout is shaken whichever way, and a step with `error` also puts words
+      // under the instruction. `plan.ts` reads both off the step, so neither is
+      // a choice a handler makes.
+      s.with("hasError", step.hasWords)
+       .with("mark", if (step.hasWords) "refuse-said" else "refuse-mute")
   }
 
   // ----------------------------------------------------------------- the calls
@@ -464,7 +457,10 @@ module machine {
     m' =
       match m.position {
         | Nothing => m
-        | Just(at) => advance(m, at, guardOk).with("mark", "press")
+        // The mark is {@link advance}'s to write, because a press that is
+        // refused and a press that moves the tour are the two halves this
+        // action exists to tell apart.
+        | Just(at) => advance(m, at, guardOk)
       },
   }
 
@@ -577,35 +573,6 @@ module machine {
     },
   }
 
-  // --- what a failed attempt says about itself
-
-  // Neither of the two below spends the utils it answers with. `ErrorUtils` is
-  // a pair of closures the machine hands over and never mentions again, so a
-  // handler holding one may shake, then write words, then write different
-  // words, and `plan.ts` takes each of them on its own terms. Utils leave
-  // {@link M.holding} for nothing at all, which is also how a handler that does
-  // nothing with them is written down: every trace ending with one still in
-  // there shows exactly that.
-
-  /// `ErrorUtils.setError`. The words belong on the attempt they were written
-  /// about, so a handler answering after the tour has moved writes nothing.
-  action doSetError(u: Utils): bool = all {
-    m.holding.contains(u),
-    m' =
-      if (stillAt(m, u.at)) m.with("hasError", true).with("mark", "set-error")
-      else m.with("mark", "set-error-stale"),
-  }
-
-  /// `ErrorUtils.shake()`. It writes no field, so the mark is the whole of what
-  /// this leaves behind, and `replay.test.ts` reads it to know whether the
-  /// presenter should have been told to reject.
-  action doShake(u: Utils): bool = all {
-    m.holding.contains(u),
-    m' =
-      if (stillAt(m, u.at)) m.with("mark", "shake")
-      else m.with("mark", "shake-stale"),
-  }
-
   // --- what lands late
 
   action doSettle(cb: Callback): bool = all {
@@ -674,7 +641,6 @@ module machine {
     drawn: Nothing,
     presenterUp: false,
     inflight: Set(),
-    holding: Set(),
     nextToken: 0,
     world: WORLD,
     page: TARGETS,
@@ -728,10 +694,6 @@ module machine {
     doFail(failPick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
-    nondet errorPick = m.holding.oneOf()
-    doSetError(errorPick),
-    nondet shakePick = m.holding.oneOf()
-    doShake(shakePick),
   }
 
   /// The same actions with the three that restart the world taken out, paired
@@ -763,10 +725,6 @@ module machine {
     doFail(failPick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
-    nondet errorPick = m.holding.oneOf()
-    doSetError(errorPick),
-    nondet shakePick = m.holding.oneOf()
-    doShake(shakePick),
   }
 
   // ---------------------------------------------------------------- invariants
@@ -840,18 +798,14 @@ module machine {
   /// to make. That is what {@link M.mark} is for.
   val morphUnderSearch: bool = m.mark == "morph-under-search"
 
-  /// A handler still holding utils for a step the tour has already left. The
-  /// answer it is about to give is the one that has to be dropped.
-  val staleUtils: bool = m.holding.exists((u) => not(stillAt(m, u.at)))
+  /// A refusal with words for it, which is the pair below with `error` written
+  /// on the step.
+  val refusedWithWords: bool = m.mark == "refuse-said"
 
-  /// That answer, given and dropped.
-  val lateError: bool = m.mark == "set-error-stale"
-
-  /// The same second thoughts, said with `shake()` rather than with words.
-  val lateShake: bool = m.mark == "shake-stale"
-
-  /// A shake that landed, which is the other half of that pair.
-  val shook: bool = m.mark == "shake"
+  /// A refusal with none. The half worth aiming at: the cutout still has to be
+  /// shaken, because a guard with nothing to say must not leave the next
+  /// control as a button that does nothing.
+  val refusedInSilence: bool = m.mark == "refuse-mute"
 
   /// The machine standing inside a teardown, with `onLeave` owed. The window
   /// every call below has to come to nothing in.
@@ -892,6 +846,6 @@ module machine {
   val reachedLastStep: bool =
     match m.announced {
       | Nothing => false
-      | Just(at) => at.story == "a" and at.index == 2
+      | Just(at) => at.story == "a" and at.index == 3
     }
 }

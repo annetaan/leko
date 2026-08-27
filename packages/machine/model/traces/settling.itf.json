@@ -20,9 +20,6 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
@@ -69,6 +66,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -80,6 +78,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -93,7 +92,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -114,6 +128,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -127,6 +142,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -150,6 +166,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -173,12 +190,6 @@
       },
       "mbt::actionTaken": "init",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -216,12 +227,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -265,18 +270,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "lose-stale",
         "nextToken": {
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -314,6 +316,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -325,6 +328,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -338,7 +342,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -359,6 +378,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -372,6 +392,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -395,6 +416,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -416,14 +438,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doLose",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -455,18 +471,15 @@
           }
         },
         "losePick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -510,18 +523,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "found-ignored",
+        "mark": "resize-ignored",
         "nextToken": {
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -559,6 +569,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -570,6 +581,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -583,7 +595,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -604,6 +631,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -617,6 +645,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -640,6 +669,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -661,14 +691,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doFound",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -676,12 +700,9 @@
           }
         },
         "foundPick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "index": {
-              "#bigint": "1"
-            },
-            "story": "b"
+            "#tup": []
           }
         },
         "guardOk": {
@@ -709,12 +730,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -758,9 +773,6 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
@@ -769,7 +781,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -807,6 +819,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -818,6 +831,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -831,7 +845,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -852,6 +881,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -865,6 +895,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -888,6 +919,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -911,12 +943,6 @@
       },
       "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -954,12 +980,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -1003,18 +1023,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "resize-ignored",
         "nextToken": {
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1052,6 +1069,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -1063,6 +1081,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -1076,7 +1095,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -1097,6 +1131,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -1110,6 +1145,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -1133,6 +1169,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -1154,14 +1191,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -1199,12 +1230,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -1248,303 +1273,18 @@
           }
         },
         "hasError": false,
-        "holding": {
+        "inflight": {
           "#set": []
         },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "EnterStory",
-              "value": {
-                "at": {
-                  "index": {
-                    "#bigint": "0"
-                  },
-                  "occurrence": {
-                    "#bigint": "0"
-                  },
-                  "story": "b"
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "start",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target", "third"]
         },
         "phase": {
-          "tag": "Story",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "0"
-            },
-            "story": "b"
-          }
-        },
-        "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doStart",
-      "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "leavePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "startPick": {
-          "tag": "Some",
-          "value": "b"
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 6
-      },
-      "m": {
-        "announced": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "holding": {
-          "#set": []
-        },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "2"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "fail-story",
-        "nextToken": {
-          "#bigint": "3"
-        },
-        "page": {
-          "#set": ["first", "second", "target", "third"]
-        },
-        "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -1579,6 +1319,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -1590,6 +1331,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -1603,7 +1345,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -1624,6 +1381,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -1637,6 +1395,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -1660,6 +1419,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -1681,32 +1441,12 @@
           ]
         }
       },
-      "mbt::actionTaken": "doFail",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "errorPick": {
+        "failPick": {
           "tag": "None",
           "value": {
             "#tup": []
-          }
-        },
-        "failPick": {
-          "tag": "Some",
-          "value": {
-            "tag": "EnterStory",
-            "value": {
-              "at": {
-                "index": {
-                  "#bigint": "0"
-                },
-                "occurrence": {
-                  "#bigint": "0"
-                },
-                "story": "b"
-              },
-              "token": {
-                "#bigint": "1"
-              }
-            }
           }
         },
         "foundPick": {
@@ -1745,7 +1485,252 @@
             "#tup": []
           }
         },
-        "shakePick": {
+        "signalPick": {
+          "tag": "Some",
+          "value": "sent"
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "startPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 6
+      },
+      "m": {
+        "announced": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "drawn": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "hasError": false,
+        "inflight": {
+          "#set": []
+        },
+        "mark": "hunt-stale",
+        "nextToken": {
+          "#bigint": "0"
+        },
+        "page": {
+          "#set": ["first", "target"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "presenterUp": false,
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "a1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a2",
+                    "slowEnter": true,
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": true,
+                    "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "slowEnter": true,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b1",
+                    "slowEnter": false,
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b2",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "c1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "slowEnter": false,
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doHunt",
+      "mbt::nondetPicks": {
+        "failPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "Some",
+          "value": {
+            "index": {
+              "#bigint": "2"
+            },
+            "story": "a"
+          }
+        },
+        "leavePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -1789,18 +1774,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "left",
+        "mark": "resize-ignored",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -1838,6 +1820,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -1849,6 +1832,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -1862,7 +1846,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -1883,6 +1882,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -1896,6 +1896,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -1919,6 +1920,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -1940,14 +1942,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLeave",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -1973,20 +1969,9 @@
           }
         },
         "leavePick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "tag": "Leaving",
-            "value": {
-              "into": {
-                "tag": "Nothing",
-                "value": {
-                  "#tup": []
-                }
-              },
-              "token": {
-                "#bigint": "2"
-              }
-            }
+            "#tup": []
           }
         },
         "losePick": {
@@ -1996,12 +1981,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -2045,18 +2024,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -2094,6 +2070,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -2105,6 +2082,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -2118,7 +2096,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -2139,6 +2132,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -2152,6 +2146,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -2175,6 +2170,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -2196,14 +2192,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -2246,17 +2236,9 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "sent"
         },
         "slowPick": {
           "tag": "None",
@@ -2290,18 +2272,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "resize-ignored",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -2339,6 +2318,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -2350,6 +2330,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -2363,7 +2344,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -2384,6 +2380,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -2397,6 +2394,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -2420,6 +2418,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -2441,14 +2440,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doResize",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -2491,17 +2484,9 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "saved"
         },
         "slowPick": {
           "tag": "None",
@@ -2523,42 +2508,27 @@
       },
       "m": {
         "announced": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
         "drawn": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "start",
+        "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -2567,18 +2537,12 @@
           }
         },
         "position": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
-        "presenterUp": true,
+        "presenterUp": false,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2602,6 +2566,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -2613,6 +2578,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -2626,7 +2592,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -2647,6 +2628,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -2660,6 +2642,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -2683,6 +2666,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -2704,14 +2688,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStart",
+      "mbt::actionTaken": "doHunt",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -2731,9 +2709,12 @@
           }
         },
         "huntPick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "3"
+            },
+            "story": "a"
           }
         },
         "leavePick": {
@@ -2749,12 +2730,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -2773,8 +2748,10 @@
           }
         },
         "startPick": {
-          "tag": "Some",
-          "value": "a"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         }
       }
     },
@@ -2784,42 +2761,27 @@
       },
       "m": {
         "announced": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
         "drawn": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "slow",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -2828,25 +2790,19 @@
           }
         },
         "position": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "occurrence": {
-              "#bigint": "3"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
-        "presenterUp": true,
+        "presenterUp": false,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -2863,6 +2819,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -2874,6 +2831,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -2887,7 +2845,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -2908,6 +2881,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -2921,6 +2895,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -2944,6 +2919,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -2965,14 +2941,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSetSlow",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -3015,21 +2985,15 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "none"
         },
         "slowPick": {
-          "tag": "Some",
-          "value": true
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "startPick": {
           "tag": "None",
@@ -3057,36 +3021,18 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "4"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -3104,7 +3050,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3121,6 +3067,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -3132,6 +3079,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -3145,7 +3093,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -3166,6 +3129,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -3179,6 +3143,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -3202,6 +3167,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -3225,12 +3191,6 @@
       },
       "mbt::actionTaken": "doStop",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -3268,12 +3228,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -3317,36 +3271,18 @@
           }
         },
         "hasError": false,
-        "holding": {
+        "inflight": {
           "#set": []
         },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "4"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "slow",
+        "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -3364,7 +3300,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3381,6 +3317,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -3392,6 +3329,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -3405,7 +3343,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -3426,6 +3379,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -3439,6 +3393,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -3462,6 +3417,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -3483,14 +3439,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSetSlow",
+      "mbt::actionTaken": "doHunt",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -3510,9 +3460,12 @@
           }
         },
         "huntPick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "story": "b"
           }
         },
         "leavePick": {
@@ -3533,12 +3486,6 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
           "tag": "None",
           "value": {
@@ -3546,8 +3493,10 @@
           }
         },
         "slowPick": {
-          "tag": "Some",
-          "value": true
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "startPick": {
           "tag": "None",
@@ -3575,36 +3524,18 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "4"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -3622,7 +3553,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3639,6 +3570,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -3650,6 +3582,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -3663,7 +3596,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -3684,6 +3632,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -3697,6 +3646,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -3720,6 +3670,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -3743,12 +3694,6 @@
       },
       "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -3761,7 +3706,7 @@
             "index": {
               "#bigint": "1"
             },
-            "story": "b"
+            "story": "a"
           }
         },
         "guardOk": {
@@ -3789,12 +3734,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -3838,36 +3777,18 @@
           }
         },
         "hasError": false,
-        "holding": {
+        "inflight": {
           "#set": []
         },
-        "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "4"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "resize-ignored",
+        "mark": "slow",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -3885,7 +3806,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3902,6 +3823,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -3913,6 +3835,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -3926,7 +3849,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -3947,6 +3885,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -3960,6 +3899,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -3983,6 +3923,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -4004,14 +3945,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doResize",
+      "mbt::actionTaken": "doSetSlow",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -4054,12 +3989,6 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
           "tag": "None",
           "value": {
@@ -4067,10 +3996,8 @@
           }
         },
         "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": false
         },
         "startPick": {
           "tag": "None",
@@ -4098,18 +4025,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "left",
+        "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second"]
         },
         "phase": {
           "tag": "Ready",
@@ -4130,7 +4054,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -4147,6 +4071,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -4158,6 +4083,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -4171,7 +4097,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -4192,6 +4133,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -4205,6 +4147,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -4228,6 +4171,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -4249,14 +4193,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLeave",
+      "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -4264,9 +4202,12 @@
           }
         },
         "foundPick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "guardOk": {
@@ -4282,20 +4223,9 @@
           }
         },
         "leavePick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "tag": "Leaving",
-            "value": {
-              "into": {
-                "tag": "Nothing",
-                "value": {
-                  "#tup": []
-                }
-              },
-              "token": {
-                "#bigint": "4"
-              }
-            }
+            "#tup": []
           }
         },
         "losePick": {
@@ -4305,12 +4235,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -4354,18 +4278,15 @@
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": []
         },
-        "mark": "resize-ignored",
+        "mark": "slow",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second"]
         },
         "phase": {
           "tag": "Ready",
@@ -4403,6 +4324,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -4414,6 +4336,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -4427,7 +4350,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -4448,6 +4386,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -4461,6 +4400,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -4484,6 +4424,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -4505,14 +4446,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doResize",
+      "mbt::actionTaken": "doSetSlow",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -4555,12 +4490,6 @@
             "#tup": []
           }
         },
-        "shakePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
           "tag": "None",
           "value": {
@@ -4568,10 +4497,8 @@
           }
         },
         "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": true
         },
         "startPick": {
           "tag": "None",
@@ -4593,7 +4520,7 @@
               "#bigint": "0"
             },
             "occurrence": {
-              "#bigint": "5"
+              "#bigint": "0"
             },
             "story": "a"
           }
@@ -4605,15 +4532,12 @@
               "#bigint": "0"
             },
             "occurrence": {
-              "#bigint": "5"
+              "#bigint": "0"
             },
             "story": "a"
           }
         },
         "hasError": false,
-        "holding": {
-          "#set": []
-        },
         "inflight": {
           "#set": [
             {
@@ -4624,12 +4548,12 @@
                     "#bigint": "0"
                   },
                   "occurrence": {
-                    "#bigint": "5"
+                    "#bigint": "0"
                   },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "6"
+                  "#bigint": "1"
                 }
               }
             }
@@ -4637,10 +4561,10 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "7"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second"]
         },
         "phase": {
           "tag": "Settling",
@@ -4655,7 +4579,7 @@
               "#bigint": "0"
             },
             "occurrence": {
-              "#bigint": "5"
+              "#bigint": "0"
             },
             "story": "a"
           }
@@ -4664,7 +4588,7 @@
         "showing": {
           "tag": "Just",
           "value": {
-            "#bigint": "6"
+            "#bigint": "1"
           }
         },
         "slow": true,
@@ -4684,6 +4608,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "a1",
                     "slowEnter": false,
                     "target": "first",
@@ -4695,6 +4620,7 @@
                       "value": "saved"
                     },
                     "hasGuard": true,
+                    "hasWords": false,
                     "id": "a2",
                     "slowEnter": true,
                     "target": "second",
@@ -4708,7 +4634,22 @@
                       }
                     },
                     "hasGuard": true,
+                    "hasWords": true,
                     "id": "a3",
+                    "slowEnter": false,
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
                     "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
@@ -4729,6 +4670,7 @@
                       "value": "sent"
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b1",
                     "slowEnter": false,
                     "target": "target",
@@ -4742,6 +4684,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "b2",
                     "slowEnter": false,
                     "target": "first",
@@ -4765,6 +4708,7 @@
                       }
                     },
                     "hasGuard": false,
+                    "hasWords": false,
                     "id": "c1",
                     "slowEnter": false,
                     "target": "first",
@@ -4788,12 +4732,6 @@
       },
       "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "errorPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "failPick": {
           "tag": "None",
           "value": {
@@ -4831,12 +4769,6 @@
           }
         },
         "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "shakePick": {
           "tag": "None",
           "value": {
             "#tup": []

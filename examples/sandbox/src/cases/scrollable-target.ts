@@ -65,10 +65,7 @@ export const scrollableTarget: Case = {
           // The application's own verdict again: not "did they scroll" but "are they
           // at the bottom", which is what was actually asked of them.
           validate: (el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2,
-          onValidationError: (_el, utils) => {
-            utils.shake()
-            utils.setError('Not at the bottom yet.')
-          },
+          error: 'Not at the bottom yet.',
         },
       ],
     },

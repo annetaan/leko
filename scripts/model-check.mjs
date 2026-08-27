@@ -42,10 +42,8 @@ const WITNESSES = [
   'startWhileTearing',
   'signalWhileTearing',
   'stoppedWhileTearing',
-  'staleUtils',
-  'lateError',
-  'lateShake',
-  'shook',
+  'refusedWithWords',
+  'refusedInSilence',
   'reachedLastStep',
 ]
 

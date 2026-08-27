@@ -59,7 +59,7 @@ export class Fake implements Presenter<Fixture> {
   /** What it was last told to say. */
   content: Content | undefined
   /** Every retell, so a test can ask which step got rewritten, and with what. */
-  readonly retold: { step: string; anchor: Anchor; content: Content }[] = []
+  readonly retold: { step: string; content: Content }[] = []
   slow = false
   rejected = 0
   torn = 0
@@ -93,8 +93,8 @@ export class Fake implements Presenter<Fixture> {
     this.content = content
   }
 
-  retell(_story: Story, step: Step, anchor: Anchor, content: Content): void {
-    this.retold.push({ step: step.id, anchor, content })
+  retell(_story: Story, step: Step, content: Content): void {
+    this.retold.push({ step: step.id, content })
     this.content = content
   }
 

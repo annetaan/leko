@@ -55,12 +55,9 @@ export const nextControl: Case = {
             const value = (el as HTMLInputElement).value.trim()
             return value !== '' && value !== 'Untitled'
           },
-          onValidationError: (_el, utils) => {
-            utils.shake()
-            // Beside the instruction, not instead of it: a second failed
-            // attempt must still say what the step is asking for.
-            utils.setError('Still “Untitled”. Type something else first.')
-          },
+          // Beside the instruction, not instead of it: a second failed
+          // attempt must still say what the step is asking for.
+          error: 'Still “Untitled”. Type something else first.',
         },
         {
           id: 'save',

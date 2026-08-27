@@ -37,7 +37,17 @@ export interface StepBase<W extends World> {
   onLeave?(step: W['step'], next: W['step'] | undefined): void
   /** The guard on advancing. **Ignored on a step that declares `awaits`.** */
   validate?(anchor: W['anchor']): boolean
-  onValidationError?(anchor: W['anchor'], utils: ErrorUtils): void
+  /**
+   * What to say under the instruction when `validate` says no. Asked once, for
+   * the attempt that failed, and the words it gives back are held until that
+   * attempt stops being the last one.
+   *
+   * The function form takes `never` for the same reason the handlers above are
+   * methods: a host's own narrower step has to stay assignable to this one, and
+   * a function inside a union is checked strictly where a method is not. The
+   * host's own type names the argument; `machine.ts` is where it is named again.
+   */
+  error?: string | ((anchor: never) => string)
 }
 
 /** What the machine needs a story to be. */
@@ -46,12 +56,6 @@ export interface StoryBase<W extends World> {
   steps: W['step'][]
   onEnter?(story: W['story']): void | Promise<void>
   onLeave?(story: W['story'], next: W['story'] | undefined): void
-}
-
-/** What a failed attempt can do about itself. */
-export interface ErrorUtils {
-  shake(): void
-  setError(message: string): void
 }
 
 export type MachineState = 'idle' | 'running' | 'transitioning'
@@ -121,7 +125,7 @@ export interface Presenter<W extends World> {
   /** Put it where it belongs now, without animating: the surface moved, not the tour. */
   place(story: W['story'], step: W['step'], anchor: W['anchor'] | null, content: Content): void
   /** The words changed and nothing moved. */
-  retell(story: W['story'], step: W['step'], anchor: W['anchor'], content: Content): void
+  retell(story: W['story'], step: W['step'], content: Content): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
   /** Everything this presenter put on the page goes. */

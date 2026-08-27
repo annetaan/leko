@@ -117,33 +117,6 @@ export type LekoKnownSignal = [Known] extends [never]
  */
 export type LekoSignal = [Known] extends [never] ? string : Known | (string & {})
 
-/**
- * Utilities handed to {@link LekoStep.onValidationError} so a step can react to
- * a failed attempt without reaching into Leko's internals.
- */
-export interface ErrorUtils {
-  /** Play the built-in shake animation on the cutout. */
-  shake(): void
-  /**
-   * Say what went wrong, under the step's message rather than instead of it.
-   *
-   * There is nothing to call to take it away again. It goes when the next
-   * attempt succeeds or the step changes, because those are the two moments it
-   * has stopped being true. A `clearError()` would only invent a way to leave a
-   * stale complaint on screen.
-   *
-   * Nothing here replaces the instruction. A step that says what to do and a
-   * line saying why the last try did not work are two different things, and a
-   * user who has just been told they were wrong needs to still be able to read
-   * what they were asked for.
-   *
-   * These utils belong to the attempt that was turned down. Calling one after
-   * the tour has moved on does nothing at all, because whatever it had to say
-   * was about a step the user has already left.
-   */
-  setError(message: string): void
-}
-
 export interface LekoStep {
   /**
    * Stable identifier. Leko never reads it, and it is required so that
@@ -319,7 +292,7 @@ export interface LekoStep {
 
   /**
    * Called before advancing on the next control. Returning `false` blocks the
-   * transition and triggers {@link onValidationError}.
+   * transition, shakes the cutout, and shows {@link error} where there is one.
    *
    * The control claims the moment has come, and claims nothing about the state
    * behind it, so a step that has one can want a guard. This is that guard.
@@ -334,8 +307,30 @@ export interface LekoStep {
    */
   validate?: (targetEl: HTMLElement) => boolean
 
-  /** Called when {@link validate} returns `false`. */
-  onValidationError?: (targetEl: HTMLElement, utils: ErrorUtils) => void
+  /**
+   * What to say under the instruction when {@link validate} says no. Nothing
+   * here replaces {@link message}: a step that says what to do and a line
+   * saying why the last try did not work are two different things, and a user
+   * who has just been told they were wrong needs to still be able to read what
+   * they were asked for.
+   *
+   * **Leave it out and the step still refuses out loud.** The cutout shakes
+   * whether or not there are words for it, so a guard cannot turn the next
+   * control into a button that does nothing.
+   *
+   * **Unlike {@link target} and {@link message}, this is asked once**, for the
+   * attempt that just failed, and the words it gives back are held from there.
+   * A function form must be cheap and must not have side effects; it is given
+   * the same element {@link validate} was. There is nothing to call to take the
+   * words away again. They go when the next attempt succeeds or the step
+   * changes, because those are the two moments they stopped being true.
+   *
+   * ```ts
+   * error: 'That does not look like an email address yet.'
+   * error: (el) => `${(el as HTMLInputElement).value} is already taken.`
+   * ```
+   */
+  error?: string | ((targetEl: HTMLElement) => string)
 }
 
 /**
@@ -440,7 +435,7 @@ export interface LekoStory {
  * The three types the machine takes as its one parameter: what an anchor is
  * here, what a step is, and what a story is.
  *
- * Written out rather than imported, for the reason {@link ErrorUtils} is. The
+ * Written out rather than imported, for the reason {@link LekoTarget} is. The
  * machine constrains this structurally, so nothing published has to name
  * anything the machine declares.
  */

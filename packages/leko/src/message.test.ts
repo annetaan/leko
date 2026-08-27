@@ -179,7 +179,7 @@ test('an error is written into the box that is already there', () => {
       target: () => target,
       message: 'Type your name.',
       validate: () => false,
-      onValidationError: (_el, utils) => utils.setError('A name, not a number.'),
+      error: 'A name, not a number.',
     },
     { id: 'two', target: () => target },
   ])
@@ -291,7 +291,7 @@ test('the control goes through validate, and a failed press stays where it is', 
       target: () => target,
       message: 'Type 3.',
       validate: () => typed,
-      onValidationError: (_el, utils) => utils.setError('That is not 3 yet.'),
+      error: 'That is not 3 yet.',
     },
     { id: 'two', target: () => target, message: 'Now place the order.' },
   ])
@@ -322,7 +322,7 @@ test('an error is about the attempt, so leaving the step takes it away', async (
       target: () => target,
       message: 'Second.',
       validate: () => false,
-      onValidationError: (_el, utils) => utils.setError('Not yet.'),
+      error: 'Not yet.',
     },
   ])
 
@@ -347,7 +347,7 @@ test('a step with only an error to show gets a box for it', async () => {
       id: 'one',
       target: () => target,
       validate: () => false,
-      onValidationError: (_el, utils) => utils.setError('The total is still zero.'),
+      error: 'The total is still zero.',
     },
   ])
 
@@ -370,7 +370,6 @@ test('a refusal during the opening morph does not take the message with it', asy
         target: () => target,
         message: 'Press it.',
         validate: () => false,
-        onValidationError: (_el, utils) => utils.shake(),
       },
     ],
     // The one test here that wants a morph rather than a cutout already in

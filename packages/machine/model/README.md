@@ -93,18 +93,18 @@ being asked is the real class:
 | 5 | no signal advances a step the presenter has never been given |
 | 6 | a callback settling for a position the tour has left changes nothing |
 | 7 | while the phase is closed no call from the application changes anything |
-| 8 | a failed attempt answering late writes nothing, in words or in a shake |
+| 8 | a refusal always reaches the presenter, and says why only where the step says so |
 
 The model's job for those is to reach the state where the question can be asked,
 and then to say what the answer should be.
 
-Number 8 arrived after the other five. `onValidationError` returns `void`, so a
-handler can look something up and call `setError` a second later, by which time
-the tour may be somewhere else. `errorUtils` closes over the position for
-exactly that reason. The model hands the utils over in `advance` and keeps them
-in `holding`, and `doSetError` and `doShake` are what a handler eventually does
-with them. Both may fire any number of calls after the attempt that made them,
-which is the whole point.
+Number 8 arrived after the other five, and it used to be about a different
+thing. `onValidationError` returned `void`, so a handler could look something up
+and call `setError` a second later, by which time the tour may be somewhere
+else. That hook is gone. A step declares `error` instead, the machine reads it
+in the turn the guard said no, and the shake is derived rather than asked for.
+`hasWords` on `StepSpec` is which of the two a step is, and `refuse-said` and
+`refuse-mute` are the two marks `advance` leaves behind.
 
 ## What it found
 
@@ -192,6 +192,12 @@ closures the machine hands over and never mentions again. A handler can keep one
 and use it as often as it likes. I checked: `shake()`, then `setError('one')`,
 then `setError('two')` gives 1 reject and 2 retells. The model could not reach
 any of that. Nothing takes utils back now.
+
+That last one has since stopped mattering. `onValidationError` and `ErrorUtils`
+were both taken out, and with them `holding`, `handOver`, `doSetError` and
+`doShake`. The reading that found the bug is still the reading that killed the
+feature: a handler that answers late is a handler whose answer is dropped, so
+the freedom it had was the freedom to write code that does nothing.
 
 Two smaller ones came out of the same read. `doResize` marked a resize accepted
 while nothing was running, and `moved` in `plan.ts` wants a step to place before

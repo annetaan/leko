@@ -10,7 +10,7 @@ import {
   stateOf,
   stepOf,
 } from './plan.js'
-import type { ErrorUtils, Host, MachineOptions, MachineState, Presenter, World } from './types.js'
+import type { Host, MachineOptions, MachineState, Presenter, World } from './types.js'
 
 /** What the next control reads until an instance says otherwise. */
 const NEXT_LABEL = 'Next'
@@ -209,7 +209,7 @@ export class Machine<W extends World> {
         )
 
       case 'retell':
-        return this.presenter.retell(effect.story, effect.step, effect.anchor, effect.content)
+        return this.presenter.retell(effect.story, effect.step, effect.content)
 
       case 'reject':
         return this.presenter.reject()
@@ -220,7 +220,13 @@ export class Machine<W extends World> {
         if (effect.step.validate?.(anchor)) {
           return void this.dispatch({ kind: 'validated', at: effect.at })
         }
-        return effect.step.onValidationError?.(anchor, this.errorUtils(effect.at, anchor))
+        // Asked here, on the anchor the guard was just given, so the words are
+        // about the attempt that failed and no anchor has to travel to
+        // `plan.ts` and back to say so.
+        const { error } = effect.step
+        const reason =
+          typeof error === 'function' ? (error as (anchor: W['anchor']) => string)(anchor) : error
+        return void this.dispatch({ kind: 'refused', at: effect.at, reason })
       }
 
       case 'callStoryEnter': {
@@ -275,17 +281,5 @@ export class Machine<W extends World> {
     }
     if (!isThenable(entering)) return void this.dispatch(done)
     void entering.then(() => void this.dispatch(done), failed)
-  }
-
-  /**
-   * What one failed attempt is allowed to do about itself. `onValidationError`
-   * returns `void`, so `attempt` is captured here and `plan.ts` compares it with
-   * where the tour has got to since.
-   */
-  private errorUtils(attempt: Position<W>, anchor: W['anchor']): ErrorUtils {
-    return {
-      shake: () => void this.dispatch({ kind: 'shake', attempt }),
-      setError: (message) => void this.dispatch({ kind: 'setError', attempt, anchor, message }),
-    }
   }
 }

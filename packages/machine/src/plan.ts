@@ -93,9 +93,9 @@ export type Effect<W extends World> =
   | { kind: 'draw'; at: Position<W>; step: Step<W>; content: Content; animate: boolean }
   /** `resolve` then `place`. Nothing about the tour changed, so nothing answers. */
   | { kind: 'place'; story: Story<W>; step: Step<W>; content: Content }
-  | { kind: 'retell'; step: Step<W>; anchor: W['anchor']; content: Content; story: Story<W> }
+  | { kind: 'retell'; step: Step<W>; content: Content; story: Story<W> }
   | { kind: 'reject' }
-  /** `resolve`, `validate`, and `onValidationError` where the answer was no. */
+  /** `resolve`, `validate`, and the step's `error` where the answer was no. */
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
   | { kind: 'callStoryEnter'; at: Position<W> }
   | { kind: 'callStepEnter'; at: Position<W>; step: Step<W>; animate: boolean }
@@ -135,8 +135,8 @@ export type Event<W extends World> =
   | { kind: 'shown'; at: Position<W>; showing: Promise<void> }
   | { kind: 'settled'; showing: Promise<void> }
   | { kind: 'validated'; at: Position<W> }
-  | { kind: 'setError'; attempt: Position<W>; anchor: W['anchor']; message: string }
-  | { kind: 'shake'; attempt: Position<W> }
+  /** The guard said no, and `reason` is whatever the step's `error` gave back. */
+  | { kind: 'refused'; at: Position<W>; reason: string | undefined }
 
 /** `next` is the continuation, dispatched once `effects` have run. */
 export interface Outcome<W extends World> {
@@ -431,23 +431,26 @@ export function reduce<W extends World>(
       return moveOn(core, event.at, step)
     }
 
-    case 'setError': {
-      // The words belong to the attempt they were written about, so a handler
-      // that answered a second later writes nothing.
+    case 'refused': {
+      // `validate` is the application's own code and may have called `stop()`
+      // from inside itself, so where the tour got to is asked once more here.
       const step = stepOf(core)
-      if (!stillAt(core, event.attempt) || !step) return nothing(core)
-      const said: Core<W> = { ...core, error: event.message }
-      return owing(said, {
-        kind: 'retell',
-        story: event.attempt.story,
-        step,
-        anchor: event.anchor,
-        content: content(said, step, config),
-      })
+      if (!stillAt(core, event.at) || !step) return nothing(core)
+      // Saying no is not optional. Saying why is. A step with a guard and no
+      // words still refuses out loud, because a control that sometimes did
+      // nothing would be worse than no control.
+      if (event.reason === undefined) return owing(core, { kind: 'reject' })
+      const said: Core<W> = { ...core, error: event.reason }
+      return owing(
+        said,
+        { kind: 'reject' },
+        {
+          kind: 'retell',
+          story: event.at.story,
+          step,
+          content: content(said, step, config),
+        },
+      )
     }
-
-    case 'shake':
-      if (!stillAt(core, event.attempt)) return nothing(core)
-      return owing(core, { kind: 'reject' })
   }
 }

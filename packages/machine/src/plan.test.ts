@@ -245,32 +245,37 @@ describe('a failed attempt', () => {
     expect(outcome.core).toBe(core)
   })
 
-  test('writes its words on the attempt they were about', () => {
-    const outcome = put(core, { kind: 'setError', attempt, anchor: 'first', message: 'not yet' })
+  test('says no out loud, and says why where the step gave words for it', () => {
+    const outcome = put(core, { kind: 'refused', at: attempt, reason: 'not yet' })
 
     expect(outcome.core.error).toBe('not yet')
+    // The refusal comes first: it is the answer to the press, and the words are
+    // what the answer is about.
+    expect(owed(outcome)).toEqual(['reject', 'retell'])
     // The story and the step are read off the attempt rather than carried
     // beside it, so they cannot disagree with the position they belong to.
-    const [retold] = outcome.effects as [E & { kind: 'retell' }]
+    const [, retold] = outcome.effects as [E, E & { kind: 'retell' }]
     expect(retold.story).toBe(guarded)
     expect(retold.step).toBe(guarded.steps[0])
     expect(retold.content.error).toBe('not yet')
   })
 
-  test('writes nothing where the tour has moved since', () => {
+  test('still says no where the step gave no words', () => {
+    const outcome = put(core, { kind: 'refused', at: attempt, reason: undefined })
+
+    // A guard with nothing to say must not leave the control doing nothing.
+    expect(outcome.effects).toEqual([{ kind: 'reject' }])
+    expect(outcome.core.error).toBeUndefined()
+  })
+
+  test('says nothing at all where the tour has moved since', () => {
+    // `validate` is the application's own code and can have called `stop()`.
     const moved: C = { ...core, position: { story: guarded, index: 1 } }
 
-    const outcome = put(moved, { kind: 'setError', attempt, anchor: 'first', message: 'not yet' })
+    const outcome = put(moved, { kind: 'refused', at: attempt, reason: 'not yet' })
 
     expect(outcome.core).toBe(moved)
     expect(outcome.effects).toEqual([])
-  })
-
-  test('shakes nothing where the tour has moved since', () => {
-    const moved: C = { ...core, position: { story: guarded, index: 1 } }
-
-    expect(put(moved, { kind: 'shake', attempt }).effects).toEqual([])
-    expect(put(core, { kind: 'shake', attempt }).effects).toEqual([{ kind: 'reject' }])
   })
 })
 

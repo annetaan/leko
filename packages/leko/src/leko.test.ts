@@ -191,20 +191,9 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  let utils: import('./types.js').ErrorUtils | undefined
-  start([
-    {
-      id: 'one',
-      target: () => target,
-      validate: () => false,
-      onValidationError: (_el, u) => {
-        utils = u
-      },
-    },
-  ])
+  start([{ id: 'one', target: () => target, validate: () => false }])
 
   press()
-  utils?.shake()
 
   // Translating the scrim would slide the dimming off the edge of the page.
   const scrimEl = document.querySelector<HTMLElement>('.leko-scrim')!

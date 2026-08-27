@@ -38,9 +38,8 @@ const HARVEST = [
   { name: 'signal-tearing', target: 'signalWhileTearing', seed: '0x10' },
   { name: 'stop-tearing', target: 'stoppedWhileTearing', seed: '0x11' },
   { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },
-  { name: 'late-error', target: 'lateError', seed: '0xb', deep: true },
-  { name: 'late-shake', target: 'lateShake', seed: '0xc', deep: true },
-  { name: 'shook', target: 'shook', seed: '0xd', deep: true },
+  { name: 'refused-said', target: 'refusedWithWords', seed: '0xb', deep: true },
+  { name: 'refused-mute', target: 'refusedInSilence', seed: '0xc', deep: true },
   { name: 'erroring', target: 'erroring', seed: '0x6', deep: true },
   { name: 'last-step', target: 'reachedLastStep', seed: '0x7', deep: true },
 ]

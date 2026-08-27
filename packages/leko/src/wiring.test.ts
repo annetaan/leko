@@ -54,17 +54,19 @@ test('a step does not advance until the application says it succeeded', async ()
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
   let ready = false
-  const onValidationError = vi.fn()
+  const error = vi.fn((_el: HTMLElement) => 'Not saved yet.')
 
   const leko = start([
-    { id: 'first', target: () => first, validate: () => ready, onValidationError },
+    { id: 'first', target: () => first, validate: () => ready, error },
     { id: 'second', target: () => second },
   ])
 
   press()
   expect(leko.step?.id).toBe('first')
-  expect(onValidationError).toHaveBeenCalledOnce()
-  expect(onValidationError.mock.calls[0]?.[0]).toBe(first)
+  // Asked once, for the attempt that failed, and given the action target the
+  // guard was given.
+  expect(error).toHaveBeenCalledOnce()
+  expect(error.mock.calls[0]?.[0]).toBe(first)
 
   ready = true
   // A frame first: everything reaching the control inside one is the same
