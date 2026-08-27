@@ -1,6 +1,17 @@
 import { expect, test } from 'vitest'
 
-import { absorbed, begin, box, centre, holding, keep, press, scrim, start } from './harness.js'
+import {
+  absorbed,
+  begin,
+  box,
+  centre,
+  holding,
+  holes,
+  keep,
+  press,
+  scrim,
+  start,
+} from './harness.js'
 
 // Claims about layout the browser actually performed: where a hole ended up,
 // what hit-testing returns at a point, which element a scrim was mounted in.
@@ -14,7 +25,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const other = box('other', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'one', target: () => target }])
+  start([{ id: 'one', interactive: true, target: () => target }])
 
   expect(centre(target)).toBe(target)
   expect(absorbed(other)).toBe(true)
@@ -22,7 +33,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
 
 test('stopping puts the page back', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([{ id: 'one', target: () => target }])
+  const leko = start([{ id: 'one', interactive: true, target: () => target }])
 
   expect(scrim()).not.toBeNull()
   leko.stop()
@@ -38,7 +49,7 @@ test('one region of several targets is one cutout, and what sits between it open
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
   // One element of `target`, written as a list, so the two are unioned.
-  start([{ id: 'columns', target: [[() => left, () => right]] }])
+  start([{ id: 'columns', interactive: true, target: [[() => left, () => right]] }])
 
   expect(centre(left)).toBe(left)
   expect(centre(right)).toBe(right)
@@ -53,12 +64,42 @@ test('two regions get a cutout each rather than being unioned', () => {
 
   // Two elements of `target`, so two holes. The same two written inside one
   // element would be the test above, and would open everything between them.
-  start([{ id: 'linked', target: [() => target, () => summary] }])
+  start([{ id: 'linked', interactive: true, target: [() => target, () => summary] }])
 
+  // Two holes, not one big one — otherwise everything in between would be lit.
+  expect(holes()).toBe(2)
   expect(centre(target)).toBe(target)
-  expect(centre(summary)).toBe(summary)
-  // Two holes, not one big one — otherwise everything in between would open.
+  // Shown and not reachable. `interactive` opens the first region and no other,
+  // because a later one is there to explain rather than to be used.
+  expect(absorbed(summary)).toBe(true)
   expect(absorbed(between)).toBe(true)
+})
+
+test('a step that says nothing shows its target and does not hand it over', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+
+  start([{ id: 'look', target: () => target }])
+
+  // The hole is cut, so the scrim paints nothing over the target and the user
+  // can read it.
+  expect(holes()).toBe(1)
+  // And the pointer stops at the tour. Most steps of most tours explain what is
+  // already on screen, and a click on one of those can navigate away from the
+  // target the next step points at.
+  expect(absorbed(target)).toBe(true)
+})
+
+test('what blocks a shown hole sits beside the scrim, never inside it', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+
+  start([{ id: 'look', target: () => target }])
+
+  // A `clip-path` clips its descendants out of hit-testing along with itself,
+  // so a rectangle inside the scrim and over one of its holes catches nothing.
+  // `spike/blocking-a-hole/` is the page that settled it, in all three engines.
+  const caught = centre(target) as HTMLElement
+  expect(caught.closest('.leko-scrim')).toBeNull()
+  expect(caught.closest('.leko-blocking')).not.toBeNull()
 })
 
 test('a step overrides the padding the instance was given', () => {
@@ -66,7 +107,7 @@ test('a step overrides the padding the instance was given', () => {
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
   const leko = holding(
-    { id: 'roomy', steps: [{ id: 'a', target: () => target, padding: 40 }] },
+    { id: 'roomy', steps: [{ id: 'a', interactive: true, target: () => target, padding: 40 }] },
     { padding: 4 },
   )
   begin(leko, 'roomy')
@@ -103,7 +144,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', target: () => target }])
+  start([{ id: 'deep', interactive: true, target: () => target }])
 
   // Inside the scroller, so scrolling moves scrim and target together and no
   // position math has to run per frame.
@@ -140,7 +181,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
 
   const outside = box('outside', { left: '20px', top: '20px', width: '100px', height: '40px' })
 
-  start([{ id: 'deep', target: () => target }])
+  start([{ id: 'deep', interactive: true, target: () => target }])
 
   // One scrim inside the scroller so the cutout tracks its content for free,
   // and one outside so the rest of the page is not left bright and clickable.
@@ -148,7 +189,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
   expect(centre(outside)).not.toBe(outside)
   // Whichever part of the outer layer answers — it paints, and blocks with
   // rectangles that keep clear of the hole — the page underneath does not.
-  expect((centre(outside) as HTMLElement).closest('.leko-scrim')).not.toBeNull()
+  expect(absorbed(outside)).toBe(true)
 })
 
 test('nothing that catches a pointer overlaps the hole cut for a scroller', () => {
@@ -176,7 +217,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', target: () => target }])
+  start([{ id: 'deep', interactive: true, target: () => target }])
 
   // The reason this is checked by geometry rather than by hit-testing: a
   // clip-path already takes the outer layer out of `elementFromPoint`, and an
@@ -196,7 +237,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  start([{ id: 'one', target: () => target, validate: () => false }])
+  start([{ id: 'one', interactive: true, target: () => target, validate: () => false }])
 
   press()
 
@@ -211,7 +252,7 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   // A real duration, because the bug this pins down was only visible while an
   // animation was running.
   const leko = holding(
-    { id: 'story', steps: [{ id: 'one', target: () => target }] },
+    { id: 'story', steps: [{ id: 'one', interactive: true, target: () => target }] },
     { duration: 200 },
   )
   begin(leko, 'story')

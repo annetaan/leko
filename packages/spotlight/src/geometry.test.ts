@@ -18,9 +18,13 @@ import {
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height })
 /** A path with its numbers stripped out — what is left is its segment list. */
 const shape = (path: string) => path.replace(/-?[\d.]+/g, '')
+// Interactive by default here. Every test in this file is about geometry, and
+// `punchedPath` reads the same shape whichever way this goes; the tests that are
+// about it say so.
 const cutout = (x: number, y: number, w: number, h: number, radius = 8): Cutout => ({
   ...rect(x, y, w, h),
   radius,
+  interactive: true,
 })
 
 test('union is the bounding box, including the gap between', () => {
@@ -65,7 +69,7 @@ test('cutout lists are padded to equal length so their paths still interpolate',
 
   // The surplus cutout does not vanish from the path — it shrinks to nothing at
   // its own centre, which is what keeps the segment lists aligned.
-  expect(to[1]).toEqual({ x: 225, y: 25, width: 0, height: 0, radius: 0 })
+  expect(to[1]).toEqual({ x: 225, y: 25, width: 0, height: 0, radius: 0, interactive: false })
   expect(shape(punchedPath(400, 400, from))).toBe(shape(punchedPath(400, 400, to)))
 })
 
@@ -81,6 +85,7 @@ const cut = (x: number, y: number, w: number, h: number, r = 8): Cutout => ({
   width: w,
   height: h,
   radius: r,
+  interactive: true,
 })
 
 // A value the browser rejects is not an error — assigning one to style is simply

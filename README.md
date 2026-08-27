@@ -65,6 +65,7 @@ export const firstOrder = {
     {
       id: 'enter-quantity',
       target: 'input[name="quantity"]',
+      interactive: true,
       message: 'Enter 3 as the quantity.',
       // Your rule, your verdict. Typing something is not success.
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
@@ -74,8 +75,11 @@ export const firstOrder = {
     },
     {
       id: 'save',
-      // Three regions, so three holes. The first is the one the step is about.
+      // Three regions, so three holes. The first is the one the step is about,
+      // and `interactive` is what hands it to the user. Off by default, because
+      // most steps explain something rather than ask for it.
       target: ['button[type="submit"]', '#tax', '#total'],
+      interactive: true,
       message: 'Place the order.',
       awaits: 'order-saved',
     },
@@ -181,16 +185,23 @@ nothing to import, and nothing lands in your bundle.
 `target` is a list, and each element of it is one hole. Write an element as a
 list of its own and those elements are unioned into a single hole, so
 `target: [['#label', '#input']]` lights the pair and the gap between them.
-Every option is documented next to itself in
+
+A hole is shown and not handed over until the step says `interactive: true`.
+Most steps of a tour explain what is already on screen, and a click on one of
+those can take the user off the page the next step points at. Every option is
+documented next to itself in
 [`packages/leko/src/types.ts`](packages/leko/src/types.ts).
 
 ## What makes it different
 
-**The user really uses your app.** Leko never puts anything over the element it
-highlights. Not even a transparent layer. The real button takes the click and
-the real input takes the typing, and focus, the keyboard and the wheel keep
-working because nothing is intercepting them. Your tour can ask the user to do
-the thing instead of watching a pointer being waved at it.
+**The user really uses your app.** Mark a step `interactive` and Leko puts
+nothing over the element it highlights. Not even a transparent layer. The real
+button takes the click and the real input takes the typing. Focus and the wheel
+reach it too, because nothing is intercepting them. Your tour can ask the user
+to do the thing instead of watching a pointer being waved at it.
+
+Every other step gets a hole it can be seen through and not reached through,
+which is what almost every step of a tour wants.
 
 **Scrolling stays free.** A tour costs nothing while the user scrolls, so you
 never have to freeze the page or fight jitter to keep the highlight where it

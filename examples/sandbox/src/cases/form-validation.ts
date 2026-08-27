@@ -35,6 +35,7 @@ export const formValidation: Case = {
       steps: [
         {
           id: 'email',
+          interactive: true,
           target: 'input[name="email"]',
           message: 'Enter the address you want to sign in with.',
           validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
@@ -44,6 +45,7 @@ export const formValidation: Case = {
         },
         {
           id: 'password',
+          interactive: true,
           target: 'input[name="password"]',
           message: 'Pick a password of at least eight characters.',
           validate: (el) => (el as HTMLInputElement).value.length >= 8,
@@ -54,6 +56,7 @@ export const formValidation: Case = {
         },
         {
           id: 'submit',
+          interactive: true,
           target: 'button[type="submit"]',
           message: 'Now create the account.',
         },

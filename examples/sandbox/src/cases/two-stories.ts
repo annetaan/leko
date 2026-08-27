@@ -50,11 +50,13 @@ export const twoStories: Case = {
       steps: [
         {
           id: 'quantity',
+          interactive: true,
           target: 'input[name="quantity"]',
           message: 'How many you want. Change it if you like, then press Next.',
         },
         {
           id: 'place',
+          interactive: true,
           target: '[data-place]',
           message: 'Place the order. This step is waiting for “order-placed”.',
           awaits: 'order-placed',

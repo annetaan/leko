@@ -20,10 +20,15 @@ file. How the code got here is in the commits.
 
 These are why Leko exists. Everything else is negotiable. These are not.
 
-**1. Never place an element over the target.** The highlight is a real hole,
-cut by an even-odd `clip-path`. Layer anything over the target, transparent or
-not, and pointer events and focus stop reaching the element underneath. The
-library loses its purpose at that moment.
+**1. Never place an element over a target the step opened.** The highlight is a
+real hole, cut by an even-odd `clip-path`. Layer anything over the target,
+transparent or not, and pointer events and focus stop reaching the element
+underneath. The library loses its purpose at that moment.
+
+This is about a target the step opened. A step that says nothing is showing the
+user something rather than asking for it, and a rectangle over that hole is the
+step's own instruction carried out. **A hole, and whether it is open** argues
+which holes are which.
 
 **2. Steps advance on application state, never on DOM events.** The host
 reports what happened. It calls `leko.reached('order-saved')` when it knows the
@@ -198,6 +203,44 @@ same reason: the container carries both, and no script runs. It goes on the edge
 rather than in the middle because it has no area — `position-area` lays the box
 out from that point alone, and a point in the middle of the hole would put the
 message over half of it.
+
+## A hole, and whether it is open
+
+A cutout shows what is under it. Whether the page underneath also takes the
+pointer is a second question, and the answer is no unless the step says
+otherwise.
+
+**`interactive` is the step saying otherwise, and it is off by default.** Most
+steps of most tours explain something that is already on screen. The user reads
+the box and presses Next. A click on that target does nothing the tour asked
+for, and it can do plenty the tour did not. Navigating away is the ordinary one.
+The next step's target never turns up, the tour ends as `target-lost` two
+seconds later, and nothing on screen says why.
+
+The sandbox is 18 open steps out of 37. That is a set written so that every case
+is something a user does, so a real product tour sits lower than half. A default
+that is wrong for most steps of most tours is worth turning round.
+
+**It opens the first region and no other.** A later region of `target` is there
+to explain the first one, which **A target is a question** already says. This is
+that sentence being true rather than only written down.
+
+**A step declares it, and `awaits` does not decide it.** The two nearly agree,
+because a step waiting for the application to report something usually needs the
+user to do that something. `scrollable-target.ts` is where they come apart.
+Reading a panel to the bottom establishes nothing the application would report,
+so that step waits for a press, and the user still has to reach the panel.
+
+**Pointer only.** A blocked element can still be reached with Tab, the same way
+anything else under the scrim can. That is what the scrim has always promised
+and this claims no more.
+
+One list answers both questions. `punchedPath` is given every cutout, so what is
+drawn is the same either way. `complementRects` is given the open ones, so the
+sweep runs straight through a closed hole and a rectangle covers it.
+`Cutout.interactive` is what tells them apart, and
+[`spike/blocking-a-hole/`](spike/blocking-a-hole/) is why that rectangle has to
+live beside the scrim rather than inside it.
 
 ## A failed attempt
 
@@ -944,7 +987,7 @@ box** of the scroller nested inside it. Cut it to the border box and the
 scroller's own border stays lit as a hairline.
 
 **Every layer paints and catches nothing. Plain rectangles in the gaps between
-the cutouts do the blocking** (`complementRects`). A `clip-path` takes an
+the open cutouts do the blocking** (`complementRects`). A `clip-path` takes an
 element out of hit-testing but **not** out of the search for what a wheel should
 scroll, so a scrollable element under a hole stops scrolling under the pointer.
 Firefox routes such a wheel to the element, Chromium does so only while the
@@ -952,11 +995,21 @@ scrim's own container has nothing left to scroll, and WebKit never does
 ([`spike/wheel-through-a-hole/`](spike/wheel-through-a-hole/), and
 `scrollable-target.ts`).
 
+**The rectangles live beside the scrim, never inside it.** A `clip-path` clips
+its descendants out of hit-testing along with itself, so a rectangle inside the
+scrim and over one of its holes catches nothing at all
+([`spike/blocking-a-hole/`](spike/blocking-a-hole/)). That costs nothing while
+every hole is open, because a rectangle never lands on one. It is the whole
+question once a step shows a hole it does not open. `.leko-blocking` is the
+sibling, it paints nothing, and moving the blocking into it changed nothing
+about what is on screen.
+
 **Do not go back to blocking with the clipped element**, however much tidier one
 element looks. `elementFromPoint` reports the hole open the whole time the
 scrolling is broken, so the tests check this by geometry. Rectangles also make
 constraint 1 true by construction. They are built from the complement of the
-cutouts, so nothing of Leko's can be over a target even in principle.
+cutouts the step opened, so nothing of Leko's can be over a target the step made
+reachable, even in principle.
 
 That is also why **only one story is ever visible**. A second story's rectangles
 are the complement of a *different* set of holes, so they land squarely on the

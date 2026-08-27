@@ -110,7 +110,21 @@ export class Scrim {
   readonly container: HTMLElement | null
   private readonly restorePosition: string | null
   private cutouts: Cutout[] = []
-  /** The rectangles that do the blocking; see {@link block}. */
+  /**
+   * Where the blocking rectangles live. **Beside the scrim, never inside it.**
+   *
+   * A `clip-path` clips its descendants out of hit-testing along with itself,
+   * so a rectangle inside the scrim and over one of its holes catches nothing —
+   * `spike/blocking-a-hole/` is the page. That does not matter while every hole
+   * is meant to be reachable, because a rectangle never lands on one. It
+   * matters the moment a step shows a hole it does not open, which is a
+   * rectangle laid exactly over a hole and asking to be hit.
+   *
+   * Unclipped, so it blocks what it is told to. It carries no background, so
+   * moving the blocking out of the scrim changed nothing about what is painted.
+   */
+  private readonly blocking: HTMLElement
+  /** The rectangles themselves; see {@link block}. */
   private blockers: HTMLElement[] = []
   private frame: number | undefined
   private settle: ((finished: boolean) => void) | undefined
@@ -143,12 +157,28 @@ export class Scrim {
       top: '0',
       background: 'var(--leko-scrim-color, rgb(0 0 0 / 0.66))',
       zIndex: 'var(--leko-z, 9999)',
-      // This element paints and nothing else. Its children do the blocking, for
-      // the reason set out on `block`.
+      // This element paints and nothing else. The blocking is done beside it,
+      // for the reason set out on `blocking`.
       pointerEvents: 'none',
     })
     this.element = el
-    ;(container ?? document.body).append(el)
+
+    const blocking = document.createElement('div')
+    blocking.className = 'leko-blocking'
+    blocking.setAttribute('aria-hidden', 'true')
+    Object.assign(blocking.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      // The same stacking level as the scrim, and after it in the tree, so a
+      // rectangle over a hole is above the scrim that has no paint there.
+      zIndex: 'var(--leko-z, 9999)',
+      // Nothing is caught by the layer itself. Its rectangles ask for it.
+      pointerEvents: 'none',
+    })
+    this.blocking = blocking
+
+    ;(container ?? document.body).append(el, blocking)
     this.resize()
   }
 
@@ -189,6 +219,8 @@ export class Scrim {
         ]
     this.element.style.width = `${w}px`
     this.element.style.height = `${h}px`
+    this.blocking.style.width = `${w}px`
+    this.blocking.style.height = `${h}px`
   }
 
   private path(cutouts: Cutout[]): string {
@@ -273,17 +305,26 @@ export class Scrim {
    *
    * Rectangles leave nothing to interpret. They also make constraint 1 true by
    * construction rather than by trusting a clip: they are built from the
-   * complement of the cutouts, so no element of Leko's can be over a target
-   * even in principle.
+   * complement of the cutouts the step **opened**, so no element of Leko's can
+   * be over a target the step made reachable, even in principle.
+   *
+   * A cutout that is not interactive is left out of that complement, so the
+   * sweep runs straight through it and a rectangle covers it. It is still a
+   * hole in the clip and still shows what is under it. That is the whole of
+   * what a shown-and-not-reachable hole is.
    */
   private block(cutouts: Cutout[]): void {
-    const rects = complementRects(this.element.offsetWidth, this.element.offsetHeight, cutouts)
+    const rects = complementRects(
+      this.element.offsetWidth,
+      this.element.offsetHeight,
+      cutouts.filter((cutout) => cutout.interactive),
+    )
 
     while (this.blockers.length < rects.length) {
       const el = document.createElement('div')
       el.className = 'leko-block'
       Object.assign(el.style, { position: 'absolute', pointerEvents: 'auto' })
-      this.element.append(el)
+      this.blocking.append(el)
       this.blockers.push(el)
     }
     this.blockers.forEach((el, i) => {
@@ -372,6 +413,7 @@ export class Scrim {
   destroy(): void {
     this.halt()
     this.element.remove()
+    this.blocking.remove()
     this.marker?.remove()
     if (this.container && this.restorePosition !== null) {
       this.container.style.position = this.restorePosition

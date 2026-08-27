@@ -67,12 +67,14 @@ export const signalTooEarly: Case = {
       steps: [
         {
           id: 'send',
+          interactive: true,
           target: '[data-send]',
           message: 'Send it. The request behind this takes 400ms.',
           awaits: 'order-placed',
         },
         {
           id: 'receipt',
+          interactive: true,
           // Two adjacent elements as one cutout, so the button below the line
           // is inside the hole and can still be pressed.
           target: [['[data-status]', '[data-again]']],

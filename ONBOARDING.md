@@ -311,16 +311,25 @@ DESIGN.md argues both under
 [Two constraints that must not be broken](DESIGN.md#two-constraints-that-must-not-be-broken).
 Here is where they live in code.
 
-**1. Never place an element over the target.**
+**1. Never place an element over a target the step opened.**
 
 The `Scrim` constructor sets `pointerEvents: 'none'` on the scrim. The scrim paints and
-catches nothing. Its children do the catching, and those children come from
-`complementRects` in `geometry.ts`, which returns what is left of the
-surface once the holes are taken out.
+catches nothing. The catching is done by `.leko-blocking`, a sibling it builds
+beside itself, whose rectangles come from `complementRects` in `geometry.ts` and
+are what is left of the surface once the open holes are taken out.
+
+Beside rather than inside, because a `clip-path` clips its descendants out of
+hit-testing along with itself, so a rectangle inside the scrim and over one of
+its holes catches nothing. `spike/blocking-a-hole/` is the page.
 
 That makes the constraint true by construction. The rectangles are built from
-the complement of the cutouts, so nothing of Leko's can be over a target even in
-principle. No clip path has to be trusted for it.
+the complement of the cutouts the step opened, so nothing of Leko's can be over
+a target the step made reachable, even in principle. No clip path has to be
+trusted for it.
+
+A cutout that is not interactive is left out of that complement, so a rectangle
+covers it. It is still a hole in the clip and still shows what is under it.
+`LekoStep.interactive` is off by default and opens the first region only.
 
 `geometry.test.ts` states it as a property: no blocking rectangle ever overlaps
 a hole. `harness.ts` has `absorbed(el)`, which asks whether the tour caught a hit

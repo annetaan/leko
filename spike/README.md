@@ -16,6 +16,7 @@ tell you what you are allowed to assume.
 | [`waapi-clip-path/`](waapi-clip-path/) | Does a `clip-path` animation render correctly when it runs on the compositor? |
 | [`wheel-through-a-hole/`](wheel-through-a-hole/) | Does a wheel reach the element under a hole, the way a click does? |
 | [`anchor-across-shadow/`](anchor-across-shadow/) | Can a message anchor itself to a target inside a shadow root? |
+| [`blocking-a-hole/`](blocking-a-hole/) | Can an overlay block one of its own holes, or does the clip take the blocker with it? |
 
 ## Reading them
 

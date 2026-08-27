@@ -46,7 +46,15 @@ export function instance(options: LekoOptions = {}) {
  */
 const staged = new WeakMap<Leko, Map<string, LekoStory>>()
 
-/** An instance with `story` to hand, which {@link begin} puts up by name. */
+/**
+ * An instance with `story` to hand, which {@link begin} puts up by name.
+ *
+ * The story is staged as it was written. Nothing here rewrites a step: the
+ * object a test builds is the object the machine holds and the object a hook is
+ * handed back, and one test in `wiring.test.ts` is about exactly that. A test
+ * that wants its hole reachable writes `interactive: true` on the step, the
+ * same as any other host.
+ */
 export function holding(story: LekoStory, options: LekoOptions = {}) {
   const leko = instance(options)
   staged.set(leko, new Map([[story.id, story]]))
@@ -92,6 +100,17 @@ export const centre = (el: HTMLElement) => {
 
 export const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
 
+/**
+ * How many holes the innermost scrim has cut, read off its `clip-path`.
+ *
+ * A hole and a hole somebody can reach are two different things, and this is
+ * the first of them. {@link absorbed} is the second. Every subpath begins with
+ * an `M` and only the first is the outer rectangle, so counting them counts the
+ * cutouts.
+ */
+export const holes = (): number =>
+  Math.max(0, ((scrim()?.style.clipPath ?? '').match(/M/g)?.length ?? 0) - 1)
+
 /** The box holding the way out of the tour, or `null` while none is drawn. */
 export const closer = () => document.querySelector<HTMLElement>('.leko-close')
 
@@ -118,12 +137,19 @@ export const frame = (): Promise<void> =>
 
 /**
  * Whether the tour absorbed a hit at the centre of `el`, rather than the page
- * underneath receiving it. Asked this way round because the scrim paints and its
- * rectangles catch, so naming one element would be pinning down the mechanism
- * instead of the promise.
+ * underneath receiving it.
+ *
+ * The blocking rectangles live beside the scrim rather than inside it, because
+ * a `clip-path` clips its descendants out of hit-testing too and a rectangle
+ * over a hole has to be reachable. So this asks about `.leko-blocking`, which
+ * is the layer those rectangles are in and the only thing of Leko's that ever
+ * catches a hit on the page.
+ *
+ * It is true both of the page outside every hole and of a hole the step showed
+ * without opening. Those are the same fact: the tour took the hit.
  */
 export const absorbed = (el: HTMLElement): boolean =>
-  (centre(el) as HTMLElement | null)?.closest('.leko-scrim') != null
+  (centre(el) as HTMLElement | null)?.closest('.leko-blocking') != null
 
 /** Every call, as the id it named, so a whole run reads as one array. */
 export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {

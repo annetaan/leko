@@ -46,6 +46,7 @@ export const nextControl: Case = {
       steps: [
         {
           id: 'name',
+          interactive: true,
           target: 'input[name="name"]',
           message: 'Give the project a name of your own, then press Next.',
           // Pressing the control claims the moment has come and claims
@@ -61,6 +62,7 @@ export const nextControl: Case = {
         },
         {
           id: 'save',
+          interactive: true,
           target: '[data-save]',
           message: 'Now save it. No control on this one, and no guard. The save ends it.',
           awaits: 'project-renamed',

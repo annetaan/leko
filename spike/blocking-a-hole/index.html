@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Can an overlay block one of its own holes?</title>
+    <style>
+      :root { color-scheme: light dark; }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        font: 15px/1.6 system-ui, sans-serif;
+      }
+
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      h2 { font-size: 15px; margin: 0 0 4px; }
+
+      .lede { max-width: 60ch; margin: 0 0 24px; }
+
+      .cases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        margin-bottom: 32px;
+      }
+
+      /*
+       * Each case is its own stacking and containing block, so an overlay
+       * covers its own case and nothing else. A single page-wide overlay would
+       * make three cases into one.
+       */
+      .case {
+        position: relative;
+        isolation: isolate;
+        width: 300px;
+        height: 200px;
+        border: 1px solid rgb(128 128 128 / 0.5);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .case-body {
+        position: absolute;
+        inset: 0;
+        padding: 12px;
+      }
+
+      .target {
+        position: absolute;
+        left: 70px;
+        top: 80px;
+        width: 160px;
+        height: 40px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      /*
+       * The overlay paints and catches nothing, exactly as `.leko-scrim` does.
+       * Its clip-path is written by script, because a path has to come from
+       * measurements.
+       */
+      .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgb(0 0 0 / 0.55);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /*
+       * What is under test. A rectangle laid exactly over the hole, asking to
+       * be hit. `inside` puts it in the overlay, `outside` puts it beside.
+       */
+      .blocker {
+        position: absolute;
+        background: rgb(220 40 40 / 0.35);
+        pointer-events: auto;
+        z-index: 2;
+      }
+
+      table { border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 4px 14px 4px 0; vertical-align: top; }
+      th { font-weight: 600; }
+      code { font-family: ui-monospace, monospace; }
+
+      .verdict-blocked { color: rgb(20 130 60); font-weight: 600; }
+      .verdict-open { color: rgb(200 40 40); font-weight: 600; }
+      .drift { color: rgb(200 40 40); font-weight: 600; }
+      .note { max-width: 70ch; color: rgb(128 128 128); }
+    </style>
+  </head>
+  <body>
+    <h1>Can an overlay block one of its own holes?</h1>
+
+    <p class="lede">
+      Each panel holds a button and an overlay with an even-odd
+      <code>clip-path</code> cutting a hole over it. The panels differ only in
+      where the red rectangle lives. It is laid over the hole in every one, and
+      it asks to be hit.
+    </p>
+
+    <div class="cases">
+      <section class="case" data-case="inside">
+        <div class="case-body">
+          <h2>1. Rectangle inside the overlay</h2>
+          <button class="target" type="button">Target</button>
+        </div>
+      </section>
+
+      <section class="case" data-case="outside">
+        <div class="case-body">
+          <h2>2. Rectangle beside the overlay</h2>
+          <button class="target" type="button">Target</button>
+        </div>
+      </section>
+
+      <section class="case" data-case="none">
+        <div class="case-body">
+          <h2>3. No rectangle</h2>
+          <button class="target" type="button">Target</button>
+        </div>
+      </section>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Panel</th>
+          <th>elementFromPoint</th>
+          <th>Last click landed on</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody data-readout></tbody>
+    </table>
+
+    <p class="note" data-drift></p>
+
+    <p class="note">
+      Click the middle of each hole. <strong>Blocked</strong> means the red
+      rectangle took it, which is what a rectangle over a hole is for.
+      <strong>Open</strong> means the button took it and the rectangle did
+      nothing.
+    </p>
+
+    <script>
+      const PAD = 8
+      const RADIUS = 8
+
+      /** A rounded rectangle, the same shape `roundedRectPath` writes. */
+      function roundedRect(x, y, w, h, r) {
+        const k = Math.max(0, Math.min(r, w / 2, h / 2))
+        return (
+          `M${x + k} ${y} L${x + w - k} ${y} A${k} ${k} 0 0 1 ${x + w} ${y + k}` +
+          ` L${x + w} ${y + h - k} A${k} ${k} 0 0 1 ${x + w - k} ${y + h}` +
+          ` L${x + k} ${y + h} A${k} ${k} 0 0 1 ${x} ${y + h - k}` +
+          ` L${x} ${y + k} A${k} ${k} 0 0 1 ${x + k} ${y} Z`
+        )
+      }
+
+      /** The hole, in the case's own coordinates. */
+      function holeOf(target, host) {
+        const t = target.getBoundingClientRect()
+        const h = host.getBoundingClientRect()
+        return {
+          x: t.left - h.left - PAD,
+          y: t.top - h.top - PAD,
+          width: t.width + PAD * 2,
+          height: t.height + PAD * 2,
+        }
+      }
+
+      const cases = [...document.querySelectorAll('[data-case]')]
+      /** Where each case's rectangle went, so drift can be re-measured later. */
+      const built = new Map()
+
+      function build(host) {
+        const which = host.dataset.case
+        const target = host.querySelector('.target')
+
+        const overlay = document.createElement('div')
+        overlay.className = 'overlay'
+        host.append(overlay)
+
+        const box = host.getBoundingClientRect()
+        const hole = holeOf(target, host)
+        const outer = `M0 0 L${box.width} 0 L${box.width} ${box.height} L0 ${box.height} Z`
+        const inner = roundedRect(hole.x, hole.y, hole.width, hole.height, RADIUS)
+        overlay.style.clipPath = `path(evenodd, "${outer} ${inner}")`
+
+        if (which === 'none') {
+          built.set(which, { hole, blocker: null })
+          return
+        }
+
+        const blocker = document.createElement('div')
+        blocker.className = 'blocker'
+        blocker.dataset.blocker = which
+        Object.assign(blocker.style, {
+          left: `${hole.x}px`,
+          top: `${hole.y}px`,
+          width: `${hole.width}px`,
+          height: `${hole.height}px`,
+        })
+        // The whole question. Inside the clipped element, or beside it.
+        ;(which === 'inside' ? overlay : host).append(blocker)
+        built.set(which, { hole, blocker })
+      }
+
+      /** What a point answers with, said the way a reader would say it. */
+      function nameOf(el) {
+        if (el === null) return 'nothing'
+        if (el.dataset.blocker) return 'the rectangle'
+        if (el.classList.contains('target')) return 'the button'
+        if (el.classList.contains('overlay')) return 'the overlay'
+        return el.tagName.toLowerCase()
+      }
+
+      /** The middle of a case's hole, in viewport coordinates. */
+      function centreOf(host) {
+        const { hole } = built.get(host.dataset.case)
+        const box = host.getBoundingClientRect()
+        return [box.left + hole.x + hole.width / 2, box.top + hole.y + hole.height / 2]
+      }
+
+      const clicked = new Map()
+      document.addEventListener(
+        'click',
+        (event) => {
+          const host = event.target.closest?.('[data-case]')
+          if (host) clicked.set(host.dataset.case, nameOf(event.target))
+          report()
+        },
+        true,
+      )
+
+      /**
+       * How far each rectangle has drifted from the hole it was measured
+       * against, in px. A rectangle that no longer covers its hole reports the
+       * hole open for a reason that has nothing to do with the question.
+       */
+      function drift() {
+        let worst = 0
+        for (const host of cases) {
+          const { blocker } = built.get(host.dataset.case)
+          if (!blocker) continue
+          const now = holeOf(host.querySelector('.target'), host)
+          const was = built.get(host.dataset.case).hole
+          worst = Math.max(
+            worst,
+            Math.abs(now.x - was.x),
+            Math.abs(now.y - was.y),
+            Math.abs(now.width - was.width),
+            Math.abs(now.height - was.height),
+          )
+        }
+        return Math.round(worst)
+      }
+
+      const rows = document.querySelector('[data-readout]')
+      const drifted = document.querySelector('[data-drift]')
+
+      function report() {
+        rows.textContent = ''
+        for (const host of cases) {
+          const which = host.dataset.case
+          const at = nameOf(document.elementFromPoint(...centreOf(host)))
+          const took = clicked.get(which) ?? '—'
+          const blocked = at === 'the rectangle'
+          const row = document.createElement('tr')
+          row.innerHTML =
+            `<td>${which}</td><td>${at}</td><td>${took}</td>` +
+            `<td class="${blocked ? 'verdict-blocked' : 'verdict-open'}">` +
+            `${blocked ? 'blocked' : 'open'}</td>`
+          rows.append(row)
+        }
+        const off = drift()
+        drifted.className = off > 1 ? 'note drift' : 'note'
+        drifted.textContent =
+          off > 1
+            ? `A rectangle has drifted ${off}px from the hole it was measured against.` +
+              ' Nothing below means anything until that is fixed.'
+            : ''
+      }
+
+      for (const host of cases) build(host)
+      report()
+      addEventListener('resize', () => {
+        for (const host of cases) {
+          host.querySelector('.overlay')?.remove()
+          host.querySelector('.blocker')?.remove()
+        }
+        for (const host of cases) build(host)
+        report()
+      })
+
+      // What `run.mjs` asks, so a run and a pair of eyes read the same numbers.
+      window.spikeBlocking = {
+        centres: () => Object.fromEntries(cases.map((h) => [h.dataset.case, centreOf(h)])),
+        at: () =>
+          Object.fromEntries(
+            cases.map((h) => [h.dataset.case, nameOf(document.elementFromPoint(...centreOf(h)))]),
+          ),
+        clicked: () => Object.fromEntries(clicked),
+        drift,
+      }
+    </script>
+  </body>
+</html>

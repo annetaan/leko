@@ -34,6 +34,7 @@ export const nestedScroller: Case = {
       steps: [
         {
           id: 'deep-row',
+          interactive: true,
           target: '[data-deep]',
           message: 'Scroll the list. The cutout should stay on this row.',
         },

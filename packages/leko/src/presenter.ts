@@ -257,8 +257,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // hole this step does not cut, and nothing else follows from it.
     if (!boxes[0]) return null
     return boxes
-      .filter((box): box is Rect => box !== null)
-      .map((box) => ({ ...grow(box, padding), radius }))
+      .flatMap((box, i) => (box === null ? [] : [[box, i] as const]))
+      .map(([box, i]) => ({
+        ...grow(box, padding),
+        radius,
+        // Off unless the step asked, and only ever for the first region. A
+        // later region is there to be looked at, and no flag opens one.
+        interactive: i === 0 && step.interactive === true,
+      }))
   }
 
   /**
@@ -346,7 +352,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
       if (!nested) return
       // Match the scroller's own rounding, or its corners show through the hole.
       const radius = parseFloat(getComputedStyle(nested).borderTopLeftRadius) || 0
-      layer.set([{ ...paddingBoxWithin(nested, layer.container), radius }])
+      // Always interactive. This hole is where the scrim below it lives, and a
+      // rectangle over it would block that whole scroller, cutouts and all.
+      // What is reachable inside it is the inner layer's to say.
+      layer.set([{ ...paddingBoxWithin(nested, layer.container), radius, interactive: true }])
     })
   }
 
@@ -417,7 +426,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
       const w = inner.element.offsetWidth
       const h = inner.element.offsetHeight
       const m = Math.max(w, h)
-      inner.set([{ x: -m, y: -m, width: w + m * 2, height: h + m * 2, radius: 0 }])
+      // Not interactive, so the page is blocked for the whole of the opening.
+      // The morph below re-blocks in the same task, so no frame carries this.
+      inner.set([
+        { x: -m, y: -m, width: w + m * 2, height: h + m * 2, radius: 0, interactive: false },
+      ])
     }
 
     this.watchTarget(step, anchor)

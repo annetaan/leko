@@ -88,6 +88,7 @@ export const insideShadowDom: Case = {
         },
         {
           id: 'send',
+          interactive: true,
           // The whole case. `document.querySelector('button')` finds nothing
           // here, and neither would any other string: the element is behind a
           // boundary only its host can cross.

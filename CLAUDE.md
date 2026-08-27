@@ -15,8 +15,11 @@ page before overruling a rule; do not restate a rule here that belongs there.
 
 Everything else is negotiable; these are not. Both are explained in DESIGN.md.
 
-1. **Never place an element over the target** — not even a transparent one.
-   Only one story is ever visible, and this is why.
+1. **Never place an element over a target the step opened** — not even a
+   transparent one. Only one story is ever visible, and this is why. A step
+   declares `interactive` to open its first region; every other hole is shown
+   and blocked, and DESIGN.md argues that under **A hole, and whether it is
+   open**.
 2. **Steps advance on application state, never on DOM events.** A call site
    names what happened (`leko.reached('order-saved')`) and a step names what it
    waits for (`awaits`). Never add a click or input listener that advances a

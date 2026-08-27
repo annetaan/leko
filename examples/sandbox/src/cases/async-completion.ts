@@ -35,6 +35,7 @@ export const asyncCompletion: Case = {
       steps: [
         {
           id: 'save',
+          interactive: true,
           target: '[data-save]',
           message: 'Save your changes. The tour waits for the request, not the click.',
         },

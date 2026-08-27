@@ -173,6 +173,32 @@ export interface LekoStep {
    */
   target: LekoTarget | LekoRegion[]
 
+  /**
+   * Let the user operate the first region.
+   *
+   * **Off by default.** A cutout shows what is under it either way. This is
+   * whether the page underneath also takes the pointer, or whether a blocking
+   * rectangle sits over the hole.
+   *
+   * Most steps of most tours explain something that is already on screen. A
+   * user who clicks one of those can navigate away from the target the next
+   * step points at, and the tour ends looking for something that is not coming
+   * back. So a step says when it wants the page live, rather than saying when
+   * it does not.
+   *
+   * ```ts
+   * { id: 'tax', target: '#tax', message: 'Worked out from the quantity.' }
+   * { id: 'save', target: '#save', awaits: 'order-saved', interactive: true }
+   * ```
+   *
+   * **It applies to the first region only.** Later regions of
+   * {@link LekoStep.target} are there to be looked at, and no flag opens them.
+   *
+   * **Pointer only.** Keyboard focus still reaches a blocked element, the same
+   * way it reaches anything else under the scrim.
+   */
+  interactive?: boolean
+
   /** Message shown alongside the cutout. */
   message?: string
 

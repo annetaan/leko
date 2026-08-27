@@ -36,7 +36,7 @@ test('a selector matching several elements takes the first', () => {
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
   second.classList.add('pick-me')
 
-  start([{ id: 'sel', target: '.pick-me' }])
+  start([{ id: 'sel', interactive: true, target: '.pick-me' }])
 
   expect(centre(first)).toBe(first)
   expect(absorbed(second)).toBe(true)
@@ -44,7 +44,10 @@ test('a selector matching several elements takes the first', () => {
 
 test('nothing draws a next control while idle, so there is nothing to press', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = holding({ id: 'story', steps: [{ id: 'one', target: () => target }] })
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'one', interactive: true, target: () => target }],
+  })
 
   expect(control()).toBeNull()
   expect(leko.state).toBe('idle')
@@ -58,8 +61,8 @@ test('a step does not advance until the application says it succeeded', async ()
   const error = vi.fn((_el: HTMLElement) => 'Not saved yet.')
 
   const leko = start([
-    { id: 'first', target: () => first, validate: () => ready, error },
-    { id: 'second', target: () => second },
+    { id: 'first', interactive: true, target: () => first, validate: () => ready, error },
+    { id: 'second', interactive: true, target: () => second },
   ])
 
   press()
@@ -82,7 +85,7 @@ test('reached does nothing while idle, so it needs no guard either', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = holding({
     id: 'story',
-    steps: [{ id: 'one', target: () => target, awaits: 'ready' }],
+    steps: [{ id: 'one', interactive: true, target: () => target, awaits: 'ready' }],
   })
 
   expect(() => leko.reached('ready')).not.toThrow()
@@ -97,8 +100,8 @@ test('validate is handed the first element of the first region, and no other', (
   const validate = vi.fn(() => true)
 
   start([
-    { id: 'a', target: [[() => target, () => beside], () => later], validate },
-    { id: 'b', target: () => target },
+    { id: 'a', interactive: true, target: [[() => target, () => beside], () => later], validate },
+    { id: 'b', interactive: true, target: () => target },
   ])
   press()
 
@@ -107,7 +110,7 @@ test('validate is handed the first element of the first region, and no other', (
 
 test('the last step ends the tour', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = start([{ id: 'only', target: () => target }])
+  const leko = start([{ id: 'only', interactive: true, target: () => target }])
 
   press()
 
@@ -118,7 +121,7 @@ test('the last step ends the tour', () => {
 test('a target that never turns up stops the tour instead of pointing at nothing', async () => {
   const problems: LekoProblem[] = []
   const leko = holding(
-    { id: 'story', steps: [{ id: 'ghost', target: '#not-here' }] },
+    { id: 'story', steps: [{ id: 'ghost', interactive: true, target: '#not-here' }] },
     { onDiagnostic: (problem) => problems.push(problem) },
   )
 
@@ -145,13 +148,16 @@ test('stopping and starting puts away whatever was running', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
-  const leko = holding({ id: 'onboarding', steps: [{ id: 'a', target: () => first }] })
+  const leko = holding({
+    id: 'onboarding',
+    steps: [{ id: 'a', interactive: true, target: () => first }],
+  })
 
   begin(leko, 'onboarding')
   // Two calls, because `start` never ends a tour. What is on the page after
   // them is what one call used to leave.
   leko.stop()
-  leko.start({ id: 'returning', steps: [{ id: 'b', target: () => second }] })
+  leko.start({ id: 'returning', steps: [{ id: 'b', interactive: true, target: () => second }] })
 
   expect(leko.story?.id).toBe('returning')
   expect(leko.step?.id).toBe('b')
@@ -164,7 +170,10 @@ test('stopping and starting puts away whatever was running', () => {
 
 test('a story with no steps in it shows nothing', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const leko = holding({ id: 'onboarding', steps: [{ id: 'a', target: () => target }] })
+  const leko = holding({
+    id: 'onboarding',
+    steps: [{ id: 'a', interactive: true, target: () => target }],
+  })
 
   leko.start({ id: 'nowhere', steps: [] })
 
@@ -176,7 +185,10 @@ test('a story with no steps in it shows nothing', () => {
 test('a target replaced by an identical one is found again, and nothing ends', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'doomed', target: '#anchor' }] })
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
+  })
 
   begin(leko, 'story')
   seen.length = 0
@@ -204,7 +216,10 @@ test('a target replaced by an identical one is found again, and nothing ends', a
 test('a watcher hears the crossings onStep never mentions', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'only', target: '#anchor' }] })
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [{ id: 'only', interactive: true, target: '#anchor' }],
+  })
   const states: LekoState[] = []
   const stop = leko.watch((state) => states.push(state))
 
@@ -240,7 +255,10 @@ test('a watcher hears the crossings onStep never mentions', async () => {
 test('a tour stopped while a curtain is owed does not draw itself back', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const leko = holding({ id: 'story', steps: [{ id: 'only', target: '#anchor' }] })
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'only', interactive: true, target: '#anchor' }],
+  })
 
   begin(leko, 'story')
   target.remove()
@@ -264,7 +282,10 @@ test('a tour stopped while a curtain is owed does not draw itself back', async (
 test('a target that comes back late is picked up by the search', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const { leko, seen } = watched({ id: 'story', steps: [{ id: 'doomed', target: '#anchor' }] })
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
+  })
 
   begin(leko, 'story')
   seen.length = 0
@@ -294,8 +315,8 @@ test('moving on to a target that has gone waits, then reports the ending', async
   const { leko, seen } = watched({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second },
     ],
   })
 
@@ -321,6 +342,7 @@ test('onEnter builds the state the step assumes, before the target is looked for
     steps: [
       {
         id: 'late',
+        interactive: true,
         target: '.late',
         onEnter: () => {
           box('late', { left: '100px', top: '100px', width: '120px', height: '40px' }).className =
@@ -343,7 +365,7 @@ test('a promise from onEnter is waited for, and nothing is drawn until it settle
   const { promise, settle } = held()
   const leko = holding({
     id: 'story',
-    steps: [{ id: 'late', target: '.late', onEnter: () => promise }],
+    steps: [{ id: 'late', interactive: true, target: '.late', onEnter: () => promise }],
   })
 
   begin(leko, 'story')
@@ -366,8 +388,8 @@ test('a resize stands back while a step is being built, and lands once it is dra
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second, onEnter: () => promise },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second, onEnter: () => promise },
     ],
   })
 
@@ -398,11 +420,15 @@ test('a story started from inside onLeave is refused, and the step that was arri
       steps: [
         {
           id: 'a',
+          interactive: true,
           target: () => first,
           onLeave: () =>
-            void leko.start({ id: 'elsewhere', steps: [{ id: 'c', target: () => third }] }),
+            void leko.start({
+              id: 'elsewhere',
+              steps: [{ id: 'c', interactive: true, target: () => third }],
+            }),
         },
-        { id: 'b', target: () => second },
+        { id: 'b', interactive: true, target: () => second },
       ],
     },
     { onDiagnostic: (problem) => problems.push(problem) },
@@ -424,7 +450,9 @@ test('a promise from a story onEnter holds back the first step entirely', async 
   const leko = holding({
     id: 'story',
     onEnter: () => promise,
-    steps: [{ id: 'late', target: '.late', onEnter: () => void entered.push('step') }],
+    steps: [
+      { id: 'late', interactive: true, target: '.late', onEnter: () => void entered.push('step') },
+    ],
   })
 
   begin(leko, 'story')
@@ -452,8 +480,8 @@ test('a story waiting on its onEnter does not let a step be moved past either', 
     id: 'story',
     onEnter: () => promise,
     steps: [
-      { id: 'a', target: () => first, onEnter: () => void entered.push('a') },
-      { id: 'b', target: () => second, onEnter: () => void entered.push('b') },
+      { id: 'a', interactive: true, target: () => first, onEnter: () => void entered.push('a') },
+      { id: 'b', interactive: true, target: () => second, onEnter: () => void entered.push('b') },
     ],
   })
 
@@ -481,8 +509,8 @@ test('moving on works again once the story has settled', async () => {
     id: 'story',
     onEnter: () => promise,
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second },
     ],
   })
 
@@ -498,14 +526,17 @@ test('moving on works again once the story has settled', async () => {
 test("a fresh object under the running story's name is turned down", () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const other = box('other', { left: '300px', top: '100px', width: '120px', height: '40px' })
-  const leko = holding({ id: 'story', steps: [{ id: 'one', target: () => target }] })
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'one', interactive: true, target: () => target }],
+  })
 
   begin(leko, 'story')
 
   // What a component re-rendering hands back. The `id` is not read and the call
   // does not end anything, so the hole stays where somebody is standing rather
   // than jumping to the steps of the newest render.
-  leko.start({ id: 'story', steps: [{ id: 'one', target: () => other }] })
+  leko.start({ id: 'story', steps: [{ id: 'one', interactive: true, target: () => other }] })
 
   expect(leko.state).toBe('running')
   expect(centre(target)).toBe(target)
@@ -516,9 +547,15 @@ test('a diagnostic reaches the host, with the step the signal was for', async ()
   const [first, second] = pair()
   const { promise, settle } = held()
   const problems: LekoProblem[] = []
-  const step: LekoStep = { id: 'b', target: () => second, awaits: 'saved', onEnter: () => promise }
+  const step: LekoStep = {
+    id: 'b',
+    interactive: true,
+    target: () => second,
+    awaits: 'saved',
+    onEnter: () => promise,
+  }
   const leko = holding(
-    { id: 'story', steps: [{ id: 'a', target: () => first }, step] },
+    { id: 'story', steps: [{ id: 'a', interactive: true, target: () => first }, step] },
     { onDiagnostic: (problem) => problems.push(problem) },
   )
 
@@ -538,7 +575,10 @@ test('a diagnostic reaches the host, with the step the signal was for', async ()
 
 test('a tour draws a way out of itself, and using it ends the tour', () => {
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
-  const leko = holding({ id: 'story', steps: [{ id: 'one', target: () => target }] })
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'one', interactive: true, target: () => target }],
+  })
 
   expect(closer()).toBeNull()
   begin(leko, 'story')
@@ -559,8 +599,8 @@ test('the way out is there while a step is still being built', async () => {
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second, onEnter: () => promise },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second, onEnter: () => promise },
     ],
   })
 
@@ -585,7 +625,10 @@ test('the way out gives up the corner a cutout wants', () => {
     width: '160px',
     height: '48px',
   })
-  const leko = holding({ id: 'story', steps: [{ id: 'one', target: () => corner }] })
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'one', interactive: true, target: () => corner }],
+  })
 
   begin(leko, 'story')
 
@@ -605,7 +648,7 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const undone: string[] = []
   const leko = holding(
-    { id: 'story', steps: [{ id: 'one', target: () => target }] },
+    { id: 'story', steps: [{ id: 'one', interactive: true, target: () => target }] },
     {
       renderClose: (root, stop) => {
         const own = document.createElement('button')
@@ -641,8 +684,8 @@ test('an arrival that lasts draws a curtain, and the page goes under it', async 
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second, curtain: true, onEnter: () => promise },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
     ],
   })
 
@@ -669,8 +712,8 @@ test('the curtain leaves the way out reachable', () => {
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second, curtain: true, onEnter: () => promise },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
     ],
   })
 
@@ -692,7 +735,7 @@ test('a story setting its own scene draws a curtain over a page with no scrim ye
     {
       id: 'story',
       onEnter: () => promise,
-      steps: [{ id: 'one', target: () => target }],
+      steps: [{ id: 'one', interactive: true, target: () => target }],
     },
     // The instance, because a story's own arrival has no step to ask and no
     // tier of its own to read. It is the only thing that can cover this window.
@@ -721,8 +764,8 @@ test('a curtain says what a host gave it to say, and docks', () => {
     {
       id: 'story',
       steps: [
-        { id: 'a', target: () => first },
-        { id: 'b', target: () => second, curtain: true, onEnter: () => promise },
+        { id: 'a', interactive: true, target: () => first },
+        { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
       ],
     },
     { curtainLabel: 'Fetching the receipt' },
@@ -745,9 +788,10 @@ test('the step arriving says what its own wait is, over anything more general', 
     {
       id: 'story',
       steps: [
-        { id: 'a', target: () => first },
+        { id: 'a', interactive: true, target: () => first },
         {
           id: 'b',
+          interactive: true,
           target: () => second,
           curtain: true,
           curtainLabel: 'Searching every order in the account',
@@ -773,7 +817,7 @@ test("a story's own arrival wears the instance's words, having no step to ask", 
     {
       id: 'story',
       onEnter: () => promise,
-      steps: [{ id: 'one', target: () => target, curtainLabel: 'Never seen' }],
+      steps: [{ id: 'one', interactive: true, target: () => target, curtainLabel: 'Never seen' }],
     },
     { curtain: true, curtainLabel: 'Working…' },
   )
@@ -795,7 +839,9 @@ test('a search does not wear the words of the step whose target went missing', a
   const leko = holding(
     {
       id: 'story',
-      steps: [{ id: 'doomed', target: '#anchor', curtainLabel: 'Loading the order' }],
+      steps: [
+        { id: 'doomed', interactive: true, target: '#anchor', curtainLabel: 'Loading the order' },
+      ],
     },
     { curtainLabel: 'Working…' },
   )
@@ -814,8 +860,8 @@ test('curtain false leaves the window exactly as it was', () => {
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
-      { id: 'b', target: () => second, curtain: false, onEnter: () => promise },
+      { id: 'a', interactive: true, target: () => first },
+      { id: 'b', interactive: true, target: () => second, curtain: false, onEnter: () => promise },
     ],
   })
 
@@ -832,9 +878,10 @@ test('a curtain that was seen stays for its minimum', async () => {
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
+      { id: 'a', interactive: true, target: () => first },
       {
         id: 'b',
+        interactive: true,
         target: () => second,
         curtain: true,
         // Long enough to be painted, far short of the minimum. Without one this
@@ -860,10 +907,10 @@ test('a curtain nobody could have seen owes nothing', async () => {
   const leko = holding({
     id: 'story',
     steps: [
-      { id: 'a', target: () => first },
+      { id: 'a', interactive: true, target: () => first },
       // Declared slow and answering in the turn, so the curtain is set and
       // replaced inside one task and no frame ever carries it.
-      { id: 'b', target: () => second, curtain: true },
+      { id: 'b', interactive: true, target: () => second, curtain: true },
     ],
   })
 
@@ -900,7 +947,7 @@ const CONTENT = { text: undefined, error: undefined, next: undefined }
 
 test('a target missing on arrival is a wait the machine hears about through the promise', () => {
   const { presenter, reported } = watching()
-  const step: LekoStep = { id: 'late', target: '#not-here-yet' }
+  const step: LekoStep = { id: 'late', interactive: true, target: '#not-here-yet' }
 
   const waiting = presenter.show(step, null, CONTENT, false)
 
@@ -917,7 +964,7 @@ test('a target lost after the step was drawn is the wait nobody asked for', asyn
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const { presenter, reported } = watching()
-  const step: LekoStep = { id: 'only', target: '#anchor' }
+  const step: LekoStep = { id: 'only', interactive: true, target: '#anchor' }
 
   presenter.show(step, target, CONTENT, false)
   expect(reported).toEqual([])

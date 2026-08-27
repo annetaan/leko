@@ -17,8 +17,21 @@ export interface Rect {
   height: number
 }
 
+/**
+ * A hole in the scrim.
+ *
+ * `interactive` is the one field here that is not geometry. A cutout always
+ * shows what is under it; this is whether the page underneath also takes the
+ * pointer. It rides on the cutout rather than travelling as a second list
+ * because the two can then never be given in different orders or different
+ * lengths, and {@link padCutouts} has to carry it either way.
+ *
+ * Only {@link complementRects} reads it. {@link punchedPath} does not, because
+ * what is drawn is the same hole whichever this says.
+ */
 export interface Cutout extends Rect {
   radius: number
+  interactive: boolean
 }
 
 /**
@@ -177,9 +190,11 @@ export function padCutouts(from: Cutout[], to: Cutout[]): [Cutout[], Cutout[]] {
       const own = list[i]
       if (own) return own
       const counterpart = other[i]
+      // Zero area either way, so nothing is blocked by it and nothing reaches
+      // through it. `false` is what a cutout with no area should say.
       return counterpart
-        ? { ...collapse(counterpart), radius: 0 }
-        : { x: 0, y: 0, width: 0, height: 0, radius: 0 }
+        ? { ...collapse(counterpart), radius: 0, interactive: false }
+        : { x: 0, y: 0, width: 0, height: 0, radius: 0, interactive: false }
     })
   return [pad(from, to), pad(to, from)]
 }

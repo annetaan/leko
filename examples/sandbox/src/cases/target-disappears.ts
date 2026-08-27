@@ -76,6 +76,7 @@ export const targetDisappears: Case = {
       steps: [
         {
           id: 'notice',
+          interactive: true,
           // A selector, so the question is asked again while the node is gone.
           // A function closing over one node captured up front cannot answer
           // any differently the second time, so this is the shape a step

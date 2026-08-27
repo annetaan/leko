@@ -37,6 +37,7 @@ const intro = {
     },
     {
       id: 'choose',
+      interactive: true,
       target: [['[data-careful]', '[data-quick]']],
       // A control would be a way past the choice, so this step has none and the
       // buttons report instead. Which story that opens is `next`'s answer.
@@ -78,6 +79,7 @@ const careful = {
   steps: [
     {
       id: 'lines',
+      interactive: true,
       // The box is the target, because ticking it is the work. The rows
       // it is a claim about get a cutout of their own rather than joining
       // the union, so the space between the two stays dimmed and stays
@@ -90,6 +92,7 @@ const careful = {
     },
     {
       id: 'send',
+      interactive: true,
       target: '[data-send]',
       message: 'Send it. That ends this branch, and the branch says what follows it.',
       awaits: 'order-sent',
@@ -104,6 +107,7 @@ const quick = {
   steps: [
     {
       id: 'send',
+      interactive: true,
       target: '[data-send]',
       message: 'quick 1/1. Same button, same signal, same rejoin, one step to get there.',
       awaits: 'order-sent',
