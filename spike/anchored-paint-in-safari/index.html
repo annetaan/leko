@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Does an anchor-positioned box still get painted?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 20px 24px 60px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; font-family: ui-monospace, monospace; }
+  h3 { font-size: 12px; margin: 0 0 6px; font-family: ui-monospace, monospace; font-weight: 600; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  /* Four fixed columns, so the grid is read the way it is described: a row is
+     where the marker lives and a column is how the box is drawn. `auto-fit`
+     wraps at a width that has nothing to do with either. */
+  .cases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 1080px) { .cases { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .cases { grid-template-columns: 1fr; } }
+
+  .stage {
+    position: relative;
+    height: 180px;
+    border: 1px solid #8886;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* The scrolling variant. The marker goes inside this, which is what Leko
+     does: the scrim has to live in the thing that scrolls, and the marker
+     goes with it. */
+  .scroller {
+    position: relative;
+    width: 100%; height: 100%;
+    overflow: auto;
+  }
+  .row { padding: 9px 14px; border-bottom: 1px solid #8883; white-space: nowrap; }
+  .row.target { background: #2f6f4f; color: #fff; }
+
+  .target {
+    font: inherit;
+    padding: 8px 18px;
+    border: 1px solid #2f6f4f;
+    border-radius: 8px;
+    background: #2f6f4f;
+    color: #fff;
+  }
+
+  /* Zero-area, exactly as Leko's is. The box is laid out from this point
+     alone, so the anchor having no area is part of what is being tested — and
+     the checkbox above gives every marker 8x8 so the two can be compared
+     without reloading. */
+  .marker { position: absolute; width: 0; height: 0; }
+  .sized .marker { width: 8px; height: 8px; background: #b3261e; }
+
+  /* Every box is anchored the same way and painted the same way. What differs
+     between the three columns is set on the element itself. */
+  .box {
+    /* Set per column; see PLACEMENT. */
+    z-index: 10000;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid #b3261e;
+    background: #fff;
+    color: #16181d;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+    font: 600 12px/1.4 ui-monospace, monospace;
+    white-space: nowrap;
+  }
+
+  .readout {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    background: #8881; padding: 8px 10px; border-radius: 6px; margin-top: 8px;
+    white-space: pre-line;
+  }
+  .yes { color: #1a7f37; }
+  .no { color: #c0392b; }
+  @media (prefers-color-scheme: dark) { .yes { color: #4ac26b; } .no { color: #ff6b5a; } }
+
+  .controls { font-family: ui-monospace, monospace; font-size: 12px; color: inherit; }
+
+  .count {
+    margin-top: 20px; padding: 12px 14px;
+    border: 1px solid #8886; border-radius: 8px;
+    max-width: 76ch;
+  }
+</style>
+</head>
+<body>
+
+<h1>Does an anchor-positioned box still get painted?</h1>
+<p>
+  A product tour keeps its message beside the element it is pointing at with CSS
+  anchor positioning, and puts the message in the top layer so the page's own
+  stacking contexts cannot outbid it. Both halves are ordinary. The question
+  here is whether a browser that lays such a box out correctly also
+  <strong>paints</strong> it.
+</p>
+<p>
+  Eight boxes, all anchored to a zero-area marker, all with a white background and
+  a red border. The rows differ in where the marker lives; the columns differ in
+  how the box is drawn. Every readout below reports the rect the browser
+  measured, so a box that is missing from the screen while its readout says
+  <span class="yes">anchored</span> is one the browser laid out and did not
+  paint.
+</p>
+<p>
+  <strong>Read this page with your eyes.</strong> No script can ask whether
+  something was painted — <code>getBoundingClientRect</code>,
+  <code>checkVisibility</code> and <code>elementFromPoint</code> all answer for a
+  box that never reached the screen. Count the red-bordered boxes you can see and
+  put the number in the field at the bottom.
+</p>
+
+<p class="controls">
+  <label><input type="checkbox" id="sized"> give every marker 8&times;8 of area</label><br>
+  <label><input type="checkbox" id="always"> <code>position-visibility: always</code> on every box</label>
+  <span id="pv"></span>
+</p>
+
+<div class="cases" id="cases"></div>
+
+<div class="count">
+  <label>Boxes you can actually see (0&ndash;8): <input id="seen" type="number" min="0" max="8" style="width: 4em; font: inherit;"></label>
+  <div class="readout" id="verdict">…</div>
+</div>
+
+<script>
+  const supported =
+    CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
+
+  // What a box can differ in, crossed with where its anchor lives. `absolute`
+  // and `fixed` are separate columns because `position-area` replaces the
+  // containing block either way and a browser can still treat the two
+  // differently; `area` and `insets` are two ways of asking for the same
+  // placement, and a browser can have one of them and not the other.
+  const PLACEMENT = [
+    { id: 'abs', title: 'absolute, position-area', position: 'absolute', popover: false, insets: false },
+    { id: 'fixed', title: 'fixed, position-area', position: 'fixed', popover: false, insets: false },
+    { id: 'popover', title: 'fixed, position-area, top layer', position: 'fixed', popover: true, insets: false },
+    { id: 'insets', title: 'fixed, anchor() insets, top layer', position: 'fixed', popover: true, insets: true },
+  ]
+  const WHERE = [
+    { id: 'flow', title: 'marker in normal flow' },
+    { id: 'scroll', title: 'marker inside a scroller' },
+  ]
+
+  const cases = document.getElementById('cases')
+  /** Every cell's measuring function, so a change to the markers can be read
+      again without rebuilding the page. */
+  const measures = []
+
+  for (const where of WHERE) {
+    for (const placement of PLACEMENT) {
+      const name = `--spike-${where.id}-${placement.id}`
+      const cell = document.createElement('div')
+      cell.innerHTML = `
+        <h3>${where.title} &middot; ${placement.title}</h3>
+        <div class="stage"></div>
+        <div class="readout">…</div>
+      `
+      const stage = cell.querySelector('.stage')
+      const readout = cell.querySelector('.readout')
+      cases.append(cell)
+
+      const marker = document.createElement('div')
+      marker.className = 'marker'
+      marker.style.setProperty('anchor-name', name)
+
+      let target
+      if (where.id === 'flow') {
+        target = document.createElement('button')
+        target.className = 'target'
+        target.type = 'button'
+        target.textContent = 'Target'
+        stage.append(target, marker)
+      } else {
+        const scroller = document.createElement('div')
+        scroller.className = 'scroller'
+        for (let i = 1; i <= 20; i++) {
+          const row = document.createElement('div')
+          row.className = i === 12 ? 'row target' : 'row'
+          row.textContent = i === 12 ? `Row ${i} — the target` : `Row ${i}`
+          scroller.append(row)
+          if (i === 12) target = row
+        }
+        scroller.append(marker)
+        stage.append(scroller)
+      }
+
+      const box = document.createElement('div')
+      box.className = 'box'
+      box.textContent = `${where.id}/${placement.id}`
+      box.style.position = placement.position
+      box.style.setProperty('position-anchor', name)
+      if (placement.insets) {
+        // The same placement written the long way: pin the top to the anchor's
+        // bottom edge and centre it, rather than naming a region.
+        box.style.top = `calc(anchor(bottom) + 8px)`
+        box.style.left = `anchor(center)`
+        box.style.translate = '-50% 0'
+      } else {
+        box.style.setProperty('position-area', 'bottom center')
+        box.style.marginTop = '8px'
+      }
+      // Appended to the body, never to the stage. A box inside the scroller
+      // would be clipped by it, which is the whole reason a tour puts its
+      // message somewhere else and anchors it back.
+      document.body.append(box)
+      if (placement.popover) {
+        box.popover = 'manual'
+        box.showPopover?.()
+      }
+
+      const measure = () => {
+        const m = marker.getBoundingClientRect()
+        const b = box.getBoundingClientRect()
+        // Anchored means the box landed where the marker is. An unresolved
+        // anchor is not an error: the box simply lays out as though the
+        // properties were not there, which puts it at the viewport origin.
+        const near = (a, c) => Math.abs(a - c) < 2
+        // Against the marker's centre, not its left edge: `bottom center` and
+        // `anchor(center)` both centre on the anchor box, which is 8px wide
+        // once the checkbox has given it area.
+        const anchored = near(b.top, m.bottom + 8) && near(b.left + b.width / 2, m.left + m.width / 2)
+        readout.innerHTML =
+          `${anchored ? '<span class="yes">anchored</span>' : '<span class="no">not anchored</span>'}\n` +
+          `box    ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)}\n` +
+          `marker ${Math.round(m.left)},${Math.round(m.top)} ${Math.round(m.width)}x${Math.round(m.height)}`
+      }
+      measures.push(measure)
+
+      requestAnimationFrame(() => {
+        if (where.id === 'scroll') target.scrollIntoView({ block: 'center' })
+        // The marker goes on the bottom edge of the target, in the coordinate
+        // space of whatever it was appended to — the same sum Leko does.
+        const t = target.getBoundingClientRect()
+        const p = marker.offsetParent ?? stage
+        const o = p.getBoundingClientRect()
+        marker.style.left = `${t.left + t.width / 2 - o.left + p.scrollLeft}px`
+        marker.style.top = `${t.bottom - o.top + p.scrollTop}px`
+        requestAnimationFrame(measure)
+      })
+    }
+  }
+
+  const boxes = [...document.querySelectorAll('.box')]
+  document.getElementById('pv').textContent =
+    CSS.supports('position-visibility: always') ? '' : ' — not supported here'
+  document.getElementById('always').addEventListener('change', (event) => {
+    for (const box of boxes) {
+      if (event.target.checked) box.style.setProperty('position-visibility', 'always')
+      else box.style.removeProperty('position-visibility')
+    }
+    requestAnimationFrame(() => measures.forEach((m) => m()))
+  })
+
+  document.getElementById('sized').addEventListener('change', (event) => {
+    document.body.classList.toggle('sized', event.target.checked)
+    requestAnimationFrame(() => measures.forEach((m) => m()))
+  })
+
+  const verdict = document.getElementById('verdict')
+  const seen = document.getElementById('seen')
+  const say = () => {
+    if (!supported) {
+      verdict.textContent =
+        'This browser has no anchor positioning, so every box above fell back to ' +
+        'wherever its containing block left it. Nothing here is about paint.'
+      return
+    }
+    const n = Number(seen.value)
+    if (seen.value === '') { verdict.textContent = '…'; return }
+    verdict.textContent = n === 8
+      ? 'All eight painted. Anchor positioning and the top layer get along here.'
+      : `${8 - n} of the eight laid out and were not painted. Which ones is the answer: ` +
+        'the row says whether a scroller is needed, and the columns separate ' +
+        'absolute from fixed, position-area from anchor() insets, and the top layer ' +
+        'from an ordinary z-index.'
+  }
+  seen.addEventListener('input', say)
+  say()
+</script>
+
+</body>
+</html>

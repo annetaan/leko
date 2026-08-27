@@ -308,6 +308,23 @@ export class Message {
     style.setProperty('position-area', AREA[side])
     style[MARGIN[side]] = `${gap}px`
 
+    // Whether a browser may take an anchored box away on its own. The initial
+    // value is already this, so an engine that reads the property the way the
+    // spec does is unaffected. **Safari is not.** It hides the message outright
+    // when the anchor has no area and sits inside something that scrolls, which
+    // is every anchor Leko writes: the marker is zero-area, and the scrim it
+    // lives beside has to be in the scroller. The box lays out where it should
+    // and paints nothing, so nothing on this side reports a problem.
+    //
+    // The other way out is to give the marker area, and that one is closed. It
+    // sits on the edge of the cutout, so area puts an element of Leko's over a
+    // hole the step opened. `spike/anchored-paint-in-safari/` has both columns.
+    //
+    // Unguarded, because a property an engine does not know is a declaration it
+    // drops, which is the degradation wanted anyway. No test holds this down:
+    // Playwright's WebKit paints the box with or without it.
+    style.setProperty('position-visibility', 'always')
+
     // An enhancement, not the mechanism: `@position-try` and this property need
     // Safari 26, and the side picked above is already the one with room. Where
     // it exists it covers what the measurement could not — a target scrolled
