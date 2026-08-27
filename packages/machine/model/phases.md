@@ -130,7 +130,9 @@ flowchart TD
   V -- "the guard passed" --> B
   V -- "the anchor is gone" --> Z["the ending. phase: ending"]
   V -- "the guard failed" --> S["presenter.reject(), and step.error<br>under the instruction where there is any<br>the tour stays put"]
-  B -- "yes" --> Z
+  B -- "yes" --> N["story.next, asked on the last step"]
+  N -- "a story" --> Y["the ending, into that story.<br>phase: ending, and it stays closed<br>through its own report"]
+  N -- "nothing" --> Z
   B -- "no" --> C["position = index + 1<br>phase: step"]
   C --> D["presenter.hold(story, step)<br>a curtain, nothing drawn"]
   D --> E["leaving.onLeave(leaving, step)"]
@@ -151,7 +153,7 @@ flowchart TD
 
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
-  class C,D,E,F,G,H shut
+  class C,D,E,F,G,H,Y shut
   class J,O,P open
 ```
 
@@ -202,12 +204,14 @@ say. One table pointed the other way is one place, and it shows the holes.
 | `searching` | `target-disappears` | press **Dismiss for a second**. The target comes back inside the window and nothing is reported |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
 | `ending`, and then `story` | `branching`, `two-stories` | press the other `start()` button while a story runs. One call, and the run showing is displaced |
-| a `start()` from the ending report | `branching` | finish a branch. `onStep` sees the run end and starts `summary` from there |
+| a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
 | a `reached()` the gate turned down | `signal-too-early` | send the order. The call lands 400ms into a 900ms `onEnter` and is dropped |
 | a `start()` the gate turned down | `story-setup` | press `start()` again inside the 600ms window. The log says it was not acted on |
 | `Host.lost` ending a run | `target-disappears` | press **Dismiss**. Two seconds under a curtain, then the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
 | `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |
+| a story handing the tour on | `branching` | press either path button. `intro` runs out and its `next` answers with the branch the page recorded |
+| a chain not followed | `branching` | press the way out on a branch. Only a story that ran to the end is followed, so the summary never opens |
 | `Host.next` | `next-control`, `stepping` | the control on the message. A step declaring `awaits` never has one |
 
 ### What no case reaches
@@ -222,6 +226,10 @@ Worth knowing before trusting the table above.
 - A morph landing while the phase is `searching`. The model has a trace named
   `morph-under-search` for it. Getting a target to leave the page inside a 320ms
   morph by hand is not something a case can ask a person to do.
+- A `start()` made from an ending report. `branching` was the case for it and
+  the rejoin is a `next` now, so nothing in the sandbox starts a story from
+  inside a report any more. `machine.test.ts` still asks it, twice: once for the
+  answer it gives and once for the refusal a chained ending hands back.
 
 ## Redrawing this
 

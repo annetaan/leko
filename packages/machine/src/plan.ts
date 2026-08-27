@@ -97,6 +97,8 @@ export type Effect<W extends World> =
   | { kind: 'reject' }
   /** `resolve`, `validate`, and the step's `error` where the answer was no. */
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
+  /** The story's `next`, asked while the tour still stands on its last step. */
+  | { kind: 'chain'; at: Position<W>; story: Story<W> }
   | { kind: 'callStoryEnter'; at: Position<W> }
   | { kind: 'callStepEnter'; at: Position<W>; step: Step<W>; animate: boolean }
   | { kind: 'callStepLeave'; step: Step<W>; next: Step<W> | undefined }
@@ -137,6 +139,8 @@ export type Event<W extends World> =
   | { kind: 'validated'; at: Position<W> }
   /** The guard said no, and `reason` is whatever the step's `error` gave back. */
   | { kind: 'refused'; at: Position<W>; reason: string | undefined }
+  /** `next` answered, and `into` is the story that follows or nothing. */
+  | { kind: 'chained'; at: Position<W>; into: Story<W> | undefined }
 
 /** `next` is the continuation, dispatched once `effects` have run. */
 export interface Outcome<W extends World> {
@@ -215,9 +219,16 @@ const entering = <W extends World>(
   return { core: { ...core, phase: 'step', error: undefined, showing: undefined }, effects }
 }
 
-/** `moveOn`. The half of advancing that happens once the guard has answered. */
+/**
+ * `moveOn`. The half of advancing that happens once the guard has answered.
+ *
+ * Running out of steps asks the story where the tour goes rather than ending it
+ * here, because `next` may be a function and nothing in this file makes a call.
+ */
 const moveOn = <W extends World>(core: Core<W>, here: Position<W>, step: W['step']): Outcome<W> => {
-  if (here.index >= here.story.steps.length - 1) return ending(core, undefined, [])
+  if (here.index >= here.story.steps.length - 1) {
+    return owing(core, { kind: 'chain', at: here, story: here.story })
+  }
   const at: Position<W> = { story: here.story, index: here.index + 1 }
   return {
     core: { ...core, position: at },
@@ -429,6 +440,13 @@ export function reduce<W extends World>(
       const step = stepOf(core)
       if (!stillAt(core, event.at) || !step) return nothing(core)
       return moveOn(core, event.at, step)
+    }
+
+    case 'chained': {
+      // `next` is the application's own code and may have called `stop()` from
+      // inside itself, so where the tour got to is asked once more here.
+      if (!stillAt(core, event.at)) return nothing(core)
+      return ending(core, event.into, [])
     }
 
     case 'refused': {

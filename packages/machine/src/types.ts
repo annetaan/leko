@@ -54,6 +54,19 @@ export interface StepBase<W extends World> {
 export interface StoryBase<W extends World> {
   id: string
   steps: W['step'][]
+  /**
+   * What the tour goes on to once this story runs out of steps. Asked when the
+   * last step advances and never stored, so nothing has to be cleared between
+   * runs of the same story.
+   *
+   * **Only a story that ran to the end is followed.** A `stop()`, a lost target
+   * and a handler that threw all end the tour where it stands.
+   *
+   * The function form takes nothing. Everything it could be handed is already in
+   * the closure that wrote it, and a parameterless function has no argument
+   * position to go wrong, so this needs none of what `StepBase.error` needs.
+   */
+  next?: W['story'] | (() => W['story'] | undefined)
   onEnter?(story: W['story']): void | Promise<void>
   onLeave?(story: W['story'], next: W['story'] | undefined): void
 }

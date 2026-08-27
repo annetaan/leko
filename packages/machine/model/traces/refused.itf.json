@@ -56,6 +56,10 @@
               "a",
               {
                 "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -120,6 +124,12 @@
               "b",
               {
                 "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": true,
                 "steps": [
                   {
@@ -156,6 +166,12 @@
               "c",
               {
                 "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -180,8 +196,44 @@
               "d",
               {
                 "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
                 "throwsOnEnter": false
               }
             ]
@@ -324,6 +376,10 @@
               "a",
               {
                 "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -388,6 +444,12 @@
               "b",
               {
                 "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": true,
                 "steps": [
                   {
@@ -424,6 +486,12 @@
               "c",
               {
                 "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -448,8 +516,44 @@
               "d",
               {
                 "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
                 "throwsOnEnter": false
               }
             ]
@@ -602,6 +706,10 @@
               "a",
               {
                 "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -666,6 +774,12 @@
               "b",
               {
                 "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": true,
                 "steps": [
                   {
@@ -702,6 +816,12 @@
               "c",
               {
                 "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -726,8 +846,44 @@
               "d",
               {
                 "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
                 "throwsOnEnter": false
               }
             ]
@@ -880,6 +1036,10 @@
               "a",
               {
                 "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -944,6 +1104,12 @@
               "b",
               {
                 "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": true,
                 "steps": [
                   {
@@ -980,6 +1146,12 @@
               "c",
               {
                 "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -1004,8 +1176,44 @@
               "d",
               {
                 "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
                 "throwsOnEnter": false
               }
             ]
@@ -1050,7 +1258,7 @@
             "index": {
               "#bigint": "0"
             },
-            "story": "a"
+            "story": "c"
           }
         },
         "settlePick": {
@@ -1163,6 +1371,10 @@
               "a",
               {
                 "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -1227,6 +1439,12 @@
               "b",
               {
                 "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": true,
                 "steps": [
                   {
@@ -1263,6 +1481,12 @@
               "c",
               {
                 "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [
                   {
@@ -1287,8 +1511,44 @@
               "d",
               {
                 "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
                 "slowEnter": false,
                 "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "slowEnter": false,
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
                 "throwsOnEnter": false
               }
             ]
@@ -1353,7 +1613,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "a"
+          "value": "b"
         }
       }
     }

@@ -229,6 +229,15 @@ export class Machine<W extends World> {
         return void this.dispatch({ kind: 'refused', at: effect.at, reason })
       }
 
+      case 'chain': {
+        // Asked while the tour still stands on the last step, so a `stop()`
+        // made from in here is the ordinary one and the `chained` event finds
+        // the machine already empty.
+        const { next } = effect.story
+        const into = typeof next === 'function' ? next() : next
+        return void this.dispatch({ kind: 'chained', at: effect.at, into })
+      }
+
       case 'callStoryEnter': {
         const story = effect.at.story
         return this.enter(() => story.onEnter?.(story), effect.at, {

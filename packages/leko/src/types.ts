@@ -358,6 +358,34 @@ export interface LekoStory {
   steps: LekoStep[]
 
   /**
+   * The story the tour goes on to when this one runs out of steps. A chapter
+   * after a chapter, without the application having to notice that the first
+   * one ended.
+   *
+   * **Only a story that ran to the end is followed.** `stop()`, a target that
+   * never came back, and a handler that threw all end the tour where it stands.
+   * So somebody who left the tour is not carried into the next chapter.
+   *
+   * **Nothing is stored.** The function form is asked when the last step
+   * advances, and answering `undefined` ends the tour. Running the same story
+   * again asks again, so there is no slot to clear between runs and no way for
+   * one tour's answer to be inherited by the next.
+   *
+   * A function must be cheap and must not have side effects. Where it is a
+   * branch, the thing it reads is the application's own state, the same state
+   * a {@link Leko.reached} call is a report about.
+   *
+   * ```ts
+   * next: summary
+   * next: () => (order.needsReview ? review : summary)
+   * ```
+   *
+   * {@link onLeave} is told which story this answered with, so a panel two
+   * chapters share can stay open across the join.
+   */
+  next?: LekoStory | (() => LekoStory | undefined)
+
+  /**
    * Whether steps of this story that do not say draw a curtain while they
    * arrive. See {@link LekoStep.curtain}.
    */

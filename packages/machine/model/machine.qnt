@@ -52,9 +52,14 @@ module machine {
     throwsOnEnter: bool,
   }
 
+  /// `next` is the story this one hands the tour to when it runs out of steps.
+  /// Fixed per story here. The code asks a function and the answer may vary, and
+  /// what the model has to reach is the pair: a story that chains and a story
+  /// that ends.
   type StorySpec = {
     id: str,
     steps: List[StepSpec],
+    next: Maybe[str],
     slowEnter: bool,
     throwsOnEnter: bool,
   }
@@ -127,6 +132,8 @@ module machine {
     // nothing to say still has to shake the cutout.
     "a" -> {
       id: "a",
+      // Hands the tour on when it runs out, which is the whole of `chain-into`.
+      next: Just("e"),
       slowEnter: false,
       throwsOnEnter: false,
       steps: [
@@ -142,6 +149,7 @@ module machine {
     // call can arrive in.
     "b" -> {
       id: "b",
+      next: Nothing,
       slowEnter: true,
       throwsOnEnter: false,
       steps: [
@@ -153,6 +161,7 @@ module machine {
     // Throws in its own `onEnter`, which is a different catch from the one above.
     "c" -> {
       id: "c",
+      next: Nothing,
       slowEnter: false,
       throwsOnEnter: true,
       steps: [
@@ -161,7 +170,19 @@ module machine {
     },
     // Nothing in it. `start` must refuse it without tearing down the tour that
     // is running.
-    "d" -> { id: "d", steps: [], slowEnter: false, throwsOnEnter: false },
+    "d" -> { id: "d", steps: [], next: Nothing, slowEnter: false, throwsOnEnter: false },
+    // Where "a" hands the tour to, and the end of the chain. One step, nothing
+    // in the way of it, so a run that gets here runs out and `chain-ends` is
+    // what that looks like.
+    "e" -> {
+      id: "e",
+      next: Nothing,
+      slowEnter: false,
+      throwsOnEnter: false,
+      steps: [
+        { id: "e1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
+      ],
+    },
   )
 
   /// The names a call site might report. `"none"` is one no step waits for, and
@@ -349,11 +370,23 @@ module machine {
 
   /// `moveOn` in `plan.ts`, the half of advancing after the guard: the last step ends the run,
   /// and every other one moves on.
-  pure def moveOn(s: M, at: Pos): M = {
+  /// `mark` is the caller's, because a press and a signal reach this the same
+  /// way. Running out of steps writes its own instead: what happened there is
+  /// the chain being asked, and which way it answered is the half worth aiming
+  /// at.
+  pure def moveOn(s: M, at: Pos, mark: str): M = {
     val story = storyOf(s, at)
-    if (at.index >= story.steps.length() - 1) end(s, Nothing)
+    if (at.index >= story.steps.length() - 1)
+      // `Effect.chain` and the `chained` event in `plan.ts`. One turn there and
+      // one step here, because nothing the model can interleave sits between
+      // them: `next` is asked and answered inside one `dispatch`.
+      match story.next {
+        | Nothing => end(s, Nothing).with("mark", "chain-ends")
+        | Just(id) => end(s, Just(id)).with("mark", "chain-into")
+      }
     else
       enter(standOn(s, { story: at.story, index: at.index + 1, occurrence: s.nextToken }))
+        .with("mark", mark)
   }
 
   /// `advance` in `plan.ts`. `guardOk` is what `validate` answered, and the
@@ -363,15 +396,15 @@ module machine {
   /// A step that declares `awaits` is not guarded. The application has already
   /// said the thing happened, and reading the page to check would be a second
   /// source of truth for the same question.
-  pure def advance(s: M, at: Pos, guardOk: bool): M = {
+  pure def advance(s: M, at: Pos, guardOk: bool, mark: str): M = {
     val step = stepAt(s, at)
     if (not(step.hasGuard) or step.awaits != Nothing)
-      moveOn(s, at).with("mark", "press")
+      moveOn(s, at, mark)
     else if (not(s.page.contains(step.target)))
       // `resolve` answered null, which `advance` hands to `lose`.
       lose(s, at).with("mark", "press-lost")
     else if (guardOk)
-      moveOn(s, at).with("mark", "press")
+      moveOn(s, at, mark)
     else
       // The guard said no. Saying no is not optional and saying why is: the
       // cutout is shaken whichever way, and a step with `error` also puts words
@@ -425,7 +458,7 @@ module machine {
           // Matched, and dropped anyway. The step goes on waiting for something
           // the application has already been through.
           else if (not(accepting(m))) m.with("mark", "refused-signal")
-          else advance(m, at, true).with("mark", "reached")
+          else advance(m, at, true, "reached")
         }
       },
   }
@@ -460,7 +493,7 @@ module machine {
         // The mark is {@link advance}'s to write, because a press that is
         // refused and a press that moves the tour are the two halves this
         // action exists to tell apart.
-        | Just(at) => advance(m, at, guardOk)
+        | Just(at) => advance(m, at, guardOk, "press")
       },
   }
 
@@ -806,6 +839,14 @@ module machine {
   /// shaken, because a guard with nothing to say must not leave the next
   /// control as a button that does nothing.
   val refusedInSilence: bool = m.mark == "refuse-mute"
+
+  /// A story running out of steps and handing the tour to the one it names.
+  /// The ending stays closed through its own report, exactly as a `start` that
+  /// displaces a run does, so the story that follows is the story that runs.
+  val chained: bool = m.mark == "chain-into"
+
+  /// A story running out with nothing after it, which is where a tour stops.
+  val chainEnded: bool = m.mark == "chain-ends"
 
   /// The machine standing inside a teardown, with `onLeave` owed. The window
   /// every call below has to come to nothing in.

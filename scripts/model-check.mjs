@@ -44,6 +44,8 @@ const WITNESSES = [
   'stoppedWhileTearing',
   'refusedWithWords',
   'refusedInSilence',
+  'chained',
+  'chainEnded',
   'reachedLastStep',
 ]
 

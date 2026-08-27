@@ -244,7 +244,13 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
   const world = map((raw['m'] as Record<string, Itf>)['world'])
   const stories = new Map<string, Story>()
   for (const [, spec] of world) {
-    const story = spec as { id: string; steps: Itf[]; slowEnter: boolean; throwsOnEnter: boolean }
+    const story = spec as {
+      id: string
+      steps: Itf[]
+      next: Itf
+      slowEnter: boolean
+      throwsOnEnter: boolean
+    }
     stories.set(story.id, {
       id: story.id,
       onEnter: () => {
@@ -284,6 +290,13 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
         return step
       }),
     })
+  }
+  // A second pass, because a story names one that may not be built yet. The
+  // model carries an id and the machine takes the object.
+  for (const [, spec] of world) {
+    const story = spec as { id: string; next: Itf }
+    const into = maybe(story.next, str)
+    if (into !== undefined) stories.get(story.id)!.next = stories.get(into)!
   }
   return stories
 }

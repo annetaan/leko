@@ -46,10 +46,12 @@ Fifteen cases sit in the left rail. Take them in this order on the first day.
    with rectangles instead of with itself, and it is the thing that broke.
 3. **two-stories**. One `reached('order-placed')` call, two stories on the same
    screen, and only the one that declared that name moves.
-4. **branching**. Three stories, and a `start(summary)` at the end of either
-   path that hands the tour on to where they meet. `start` takes a story and
-   nothing else, so the shared part is a story rather than a step two paths
-   point at. Watch the footer counter.
+4. **branching**. Four stories joined by `next`. Each branch names the summary
+   both paths meet at, and nothing in the file starts anything: the buttons
+   report which way it went and the intro's `next` answers with the branch. A
+   story cannot be entered part way through, so the shared part is a story
+   rather than a step two paths point at. Watch the footer counter, then press
+   the way out on a branch and watch the summary not open.
 5. **signal-too-early**. Press Send and read the footer. The application
    reported something true while the step waiting for it was still being built,
    and the call was dropped. This is the one case where the interesting thing

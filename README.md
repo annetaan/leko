@@ -122,6 +122,24 @@ is where a back button starts to feel necessary, and that is the signal to split
 it. What two paths share is a story as well, rather than a step they both point
 at. [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
 
+Splitting costs nothing at the join, because a story says what follows it.
+
+```ts
+const done = { id: 'done', steps: [/* … */] } satisfies LekoStory
+const review = { id: 'review', next: done, steps: [/* … */] } satisfies LekoStory
+
+const payment = {
+  id: 'payment',
+  // A story, or a function of your own state asked when the last step advances.
+  // Nothing is stored, so the next run of this story asks again.
+  next: () => (order.needsReview ? review : done),
+  steps: [/* … */],
+} satisfies LekoStory
+```
+
+Only a story that ran to the end is followed. Somebody who pressed the way out
+stops where they were.
+
 ### Write the call, get the name back
 
 Both sides of a signal are a string, and a string is easy to mistype. Nothing

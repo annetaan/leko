@@ -224,8 +224,9 @@ and `StepBase.message` is `readonly` to say so.
 
 ## Starting a story
 
-`start(story)` is handed the story itself, and it is the only way a story is
-ever put up.
+`start(story)` is handed the story itself, and it is the only way a host puts
+one up. The other way is a story naming the one that follows it, further down
+this section.
 
 **There is no registry.** A host already holds its stories — they are objects it
 wrote — and a map from a name to one of them would be Leko holding a second
@@ -255,6 +256,39 @@ rebuilds its story on every render and starts it on every render gets a tour
 that restarts, which is a bug it can see. What it never gets is steps changing
 underneath a position somebody is standing on, which is a bug nobody can see.
 
+**A story says what follows it, and `start()` is still the only way one is put
+up from outside.** `next` names the story the tour goes on to when this one runs
+out of steps. Four short chapters that always run in order are four `next`
+declarations, and the application never has to notice that a chapter ended.
+
+**Only a story that ran to the end is followed.** A `stop()`, a target that
+never came back and a handler that threw all end the tour where it stands.
+Somebody who pressed the way out is not carried into the next chapter. That is
+also what took a question out of `branching.ts`: the rejoin used to live in
+`onStep` and had to read the page to tell an ending it caused from an ending
+somebody else did.
+
+**Nothing about `next` is stored.** The function form is asked when the last
+step advances and the answer is used there and then. Run the same story again
+and it is asked again. A field the machine wrote at the end of one run would be
+read at the end of the next, and a tour inheriting an earlier tour's branch is a
+bug that only shows up on the second run.
+
+```ts
+next: summary
+next: () => (order.needsReview ? review : summary)
+```
+
+The second form is where a branch goes. What it reads is the application's own
+state, which is what `awaits` and `reached()` already say a step advances on,
+one layer up. `branching.ts` is four stories joined this way, and its two
+buttons report `path-chosen` rather than starting anything.
+
+**The join is one operation, and `onLeave` is told where the tour is going.**
+It runs the same way a `start()` that displaces a story does: the ending stays
+closed through its own report, so the story named in `next` is the story that
+runs. A panel two chapters share can stay open across the join.
+
 ## Saying where the tour got to
 
 `LekoOptions.onStep` does not reopen the second constraint. That constraint is
@@ -282,15 +316,16 @@ A hook that could not say "nowhere" would leave a progress readout showing the
 final step for ever.
 
 **A handler may start a story from an ending that has nowhere to go.** `stop()`
-and a tour running off its last step report with the machine already idle, and
-nothing runs after that report, so the story a handler starts there is the story
-that runs. `branching.ts` rejoins that way.
+and a tour running out of steps with no `next` report with the machine already
+idle, and nothing runs after that report, so the story a handler starts there is
+the story that runs.
 
-**An ending caused by `start()` is not that kind.** Displacing one story with
-another is one operation, and the report goes out in the middle of it. A story
-begun from there would be overwritten by the one already on its way. So it is
-refused, like every other call made while Leko is inside the application. That
-refusal is what makes `next` worth having: the story `onLeave` is told about is
+**An ending with somewhere to go is not that kind.** A `start()` displacing one
+story with another, and a story handing the tour on through `next`, are each one
+operation with the report in the middle of it. A story begun from there would be
+overwritten by the one already on its way. So it is refused, like every other
+call made while Leko is inside the application. That refusal is what makes the
+`next` argument to `onLeave` worth having: the story `onLeave` is told about is
 the story that runs.
 
 **`start()` answers whether the story it was given is the one now running.
@@ -409,8 +444,8 @@ code that was never written for it.
 
 **What two paths share is a story, not a step they both point at.**
 `branching.ts` is four of them: an intro, two branches, and the summary both
-branches finish by starting. Neither branch has to know how many steps came
-before it.
+branches name in `next`. Neither branch has to know how many steps came before
+it.
 
 Nothing in the API is needed to work this way. A project writes as many stories
 as it has, and `start(story)` replays one from the top. What a project chooses
@@ -647,8 +682,8 @@ an effect runs down the stack rather than joining a queue. `start()` answers
 whether the call took, and it reads that answer off the state once the event has
 run. Queue the call and there is no answer to give:
 `start()` from inside an `onStep` says `false` and then starts the story a
-moment later, which is what `branching.ts` does and what the test named *start
-from inside onStep runs there, and answers truthfully* pins down. A queue is
+moment later, which is what the test named *start from inside onStep runs there,
+and answers truthfully* pins down. A queue is
 tidier to reason about and it costs two booleans the API cannot express any
 other way.
 

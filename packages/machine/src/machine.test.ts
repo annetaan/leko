@@ -370,6 +370,157 @@ describe('what a failed attempt says', () => {
   })
 })
 
+describe('a story that says what follows it', () => {
+  // Running out of steps asks the story where the tour goes. The answer is
+  // asked for and never stored, so nothing is left on a story between runs.
+
+  const summary: Story = { id: 'summary', steps: [{ id: 'end', target: 'second' }] }
+
+  test('runs the story it named, and reports the join in one turn', () => {
+    const { tour, seen } = watched({
+      id: 'first',
+      next: summary,
+      steps: [{ id: 'a', target: 'first' }],
+    })
+
+    begin(tour, 'first')
+    press(tour)
+
+    // The ending is reported, and then the story that follows it. No call from
+    // the application sits between the two.
+    expect(seen).toEqual([
+      ['a', undefined],
+      [undefined, 'a'],
+      ['end', undefined],
+    ])
+    expect(tour.story?.id).toBe('summary')
+    expect(tour.state).toBe('running')
+  })
+
+  test('tells the story onLeave where the tour is going', () => {
+    const seen: (string | undefined)[] = []
+    const tour = staging({
+      id: 'first',
+      next: summary,
+      onLeave: (_self, next) => void seen.push(next?.id),
+      steps: [{ id: 'a', target: 'first' }],
+    })
+
+    begin(tour, 'first')
+    press(tour)
+
+    // A panel two chapters share can stay open across a join and close on a
+    // stop, which is the whole reason `onLeave` is given this.
+    expect(seen).toEqual(['summary'])
+  })
+
+  test('asks a function, and asks it again the next time the story runs', () => {
+    const asked: string[] = []
+    let go: Story | undefined = summary
+    const first: Story = {
+      id: 'first',
+      next: () => {
+        asked.push('asked')
+        return go
+      },
+      steps: [{ id: 'a', target: 'first' }],
+    }
+    const tour = staging(first)
+    hold(tour, summary)
+
+    begin(tour, 'first')
+    press(tour)
+    expect(tour.story?.id).toBe('summary')
+
+    // Nothing was written on the story, so the second run gets the second
+    // answer. A slot would have carried the first one over.
+    go = undefined
+    begin(tour, 'first')
+    press(tour)
+
+    expect(asked).toHaveLength(2)
+    expect(tour.state).toBe('idle')
+  })
+
+  test('follows nothing where the tour was stopped rather than finished', () => {
+    const tour = staging({
+      id: 'first',
+      next: summary,
+      steps: [{ id: 'a', target: 'first' }],
+    })
+
+    begin(tour, 'first')
+    tour.stop()
+
+    // Somebody who left the tour is not carried into the next chapter.
+    expect(tour.state).toBe('idle')
+    expect(drawing().shown).toEqual(['a'])
+  })
+
+  test('follows nothing where the target went and took the run with it', () => {
+    const tour = staging({
+      id: 'first',
+      next: summary,
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'gone', target: '#not-here' },
+      ],
+    })
+
+    begin(tour, 'first')
+    press(tour)
+
+    // `lost` ends the run where it stands. A chain is what running out of steps
+    // means, and this story never ran out.
+    expect(tour.state).toBe('idle')
+    expect(drawing().shown).toEqual(['a'])
+  })
+
+  test('a next that stops the tour from inside itself is left alone', () => {
+    let tour!: Machine<Fixture>
+    const first: Story = {
+      id: 'first',
+      next: () => {
+        tour.stop()
+        return summary
+      },
+      steps: [{ id: 'a', target: 'first' }],
+    }
+    tour = staging(first)
+    hold(tour, summary)
+
+    begin(tour, 'first')
+    press(tour)
+
+    // `next` is the application's own code and is one more way in. The answer
+    // it gave is about a tour that was already over when it gave it.
+    expect(tour.state).toBe('idle')
+    expect(drawing().shown).toEqual(['a'])
+  })
+
+  test('the chain is closed through its own report, so a start from there is refused', () => {
+    const other: Story = { id: 'other', steps: [{ id: 'o', target: 'first' }] }
+    let answered: boolean | undefined
+    const tour = staging(
+      { id: 'first', next: summary, steps: [{ id: 'a', target: 'first' }] },
+      {
+        onStep: (step) => {
+          if (step === undefined && answered === undefined) answered = tour.start(other)
+        },
+      },
+    )
+    hold(tour, other)
+
+    begin(tour, 'first')
+    press(tour)
+
+    // The story already on its way would overwrite anything begun here, so the
+    // call is turned down and says so. `branching.ts` used to rejoin this way.
+    expect(answered).toBe(false)
+    expect(tour.story?.id).toBe('summary')
+  })
+})
+
 describe('a call made from inside a report', () => {
   // `branching.ts` in the sandbox rejoins a shared story this way: the `onStep`
   // that says the first one ended starts the second.
