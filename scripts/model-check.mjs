@@ -40,6 +40,7 @@ const WITNESSES = [
   'staleReport',
   'tearing',
   'startWhileTearing',
+  'startWhileRunning',
   'signalWhileTearing',
   'stoppedWhileTearing',
   'refusedWithWords',

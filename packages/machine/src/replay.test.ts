@@ -161,7 +161,7 @@ const defer = (): Deferred => {
  * with the other two: nothing moved, and something said so. Each is one
  * diagnostic, which is what the counting below asks for.
  */
-const REFUSALS = ['refused-start', 'refused-signal', 'empty-story']
+const REFUSALS = ['refused-start', 'refused-signal', 'empty-story', 'start-running']
 
 /** What a step with `error` on it says, so an assertion can name the words. */
 const REASON = 'not yet'

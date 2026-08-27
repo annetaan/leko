@@ -82,6 +82,8 @@ export type Problem<W extends World> =
   | { kind: 'story-empty'; story: W['story'] }
   | { kind: 'signal-dropped'; name: string; step: W['step'] }
   | { kind: 'call-refused' }
+  /** A `start` made while a tour was running. `running` is the one it left alone. */
+  | { kind: 'tour-running'; story: W['story']; running: W['story'] }
   | { kind: 'target-lost'; step: W['step']; story: W['story'] }
 
 export interface MachineOptions<W extends World> {

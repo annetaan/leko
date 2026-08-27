@@ -35,6 +35,7 @@ const HARVEST = [
   { name: 'refused', target: 'refused', seed: '0x9' },
   { name: 'stale-occurrence', target: 'staleOccurrence', seed: '0x12' },
   { name: 'start-tearing', target: 'startWhileTearing', seed: '0xe' },
+  { name: 'start-running', target: 'startWhileRunning', seed: '0x15' },
   { name: 'signal-tearing', target: 'signalWhileTearing', seed: '0x10' },
   { name: 'stop-tearing', target: 'stoppedWhileTearing', seed: '0x11' },
   { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },

@@ -271,15 +271,19 @@ export function reduce<W extends World>(
     case 'start': {
       if (!accepting(core)) return diagnosing(core, { kind: 'call-refused' })
       const story = event.story
-      // Nothing is torn down until the story is known to be runnable, so an
-      // empty one cannot end a tour someone is in the middle of.
+      // **`start` never ends a tour.** `stop()` is the way out, and it is the
+      // only one, which is what lets a host read this call as one that either
+      // puts a story up or does nothing at all. DESIGN.md argues it under
+      // **Starting a story**.
+      const here = core.position
+      if (here) return diagnosing(core, { kind: 'tour-running', story, running: here.story })
+      // Asked after the one above, because whether this call can be acted on at
+      // all is a fact about the machine and what is in the story only matters
+      // once it can be. The empty check used to come first, so that an empty
+      // story could not end a tour someone was in the middle of. No `start`
+      // ends one now, so the order is free.
       if (story.steps.length === 0) return diagnosing(core, { kind: 'story-empty', story })
-      // A story the tour is already on starts again. There is one meaning here
-      // and it is "put this up", which is what makes the position it leaves
-      // behind a run that ended rather than an object swapped underneath one.
-      // What is ending is told what is starting, so a teardown and the story it
-      // rejoins are one operation from out here.
-      return core.position ? ending(core, story, []) : opening(core, story)
+      return opening(core, story)
     }
 
     case 'reached': {

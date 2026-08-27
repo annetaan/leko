@@ -228,6 +228,31 @@ and `StepBase.message` is `readonly` to say so.
 one up. The other way is a story naming the one that follows it, further down
 this section.
 
+**`start` never ends a tour.** A call made while one is running is turned down
+and reported as `tour-running`, naming both the story it was given and the one
+it left alone. `stop()` is the way out and it is the only one, which is what
+lets a host read this call as one that either puts a story up or does nothing at
+all. Moving between tours is two calls.
+
+That is a rule about the API rather than about the machine. It removes no
+branch. `plan.ts` is a line longer for it. What it removes is a second way for a
+tour to end, in a library whose whole **The way out** section is an argument
+that there should be exactly one.
+
+**A component that starts its story on every render is turned down rather than
+restarted.** Before, it got a tour that went back to step 1 whenever anything
+above it re-rendered, and the `id` was not read so a fresh object was a fresh
+run. That was a bug the developer could see, and it is now a bug the developer
+is told about. The two refusals are separate members of `LekoProblem` because
+the fixes differ: a `call-refused` is worth making again a moment later, and a
+`tour-running` will be turned down every time until the tour ends.
+
+What a host loses is one call where it now writes two. `stop()` runs the whole
+teardown inside the call that made it, so the `start` on the next line goes
+through. What it pays is an extra ending report, and `onLeave` being told the
+tour is going nowhere rather than being handed the story that follows. Both of
+those are true: the tour really did end.
+
 **There is no registry.** A host already holds its stories — they are objects it
 wrote — and a map from a name to one of them would be Leko holding a second
 copy of something the application is better placed to keep. It would also make
@@ -285,9 +310,9 @@ one layer up. `branching.ts` is four stories joined this way, and its two
 buttons report `path-chosen` rather than starting anything.
 
 **The join is one operation, and `onLeave` is told where the tour is going.**
-It runs the same way a `start()` that displaces a story does: the ending stays
-closed through its own report, so the story named in `next` is the story that
-runs. A panel two chapters share can stay open across the join.
+The ending stays closed through its own report, so the story named in `next` is
+the story that runs. A panel two chapters share can stay open across the join.
+This is the only way an ending has somewhere to go.
 
 ## Saying where the tour got to
 
@@ -320,13 +345,12 @@ and a tour running out of steps with no `next` report with the machine already
 idle, and nothing runs after that report, so the story a handler starts there is
 the story that runs.
 
-**An ending with somewhere to go is not that kind.** A `start()` displacing one
-story with another, and a story handing the tour on through `next`, are each one
-operation with the report in the middle of it. A story begun from there would be
-overwritten by the one already on its way. So it is refused, like every other
-call made while Leko is inside the application. That refusal is what makes the
-`next` argument to `onLeave` worth having: the story `onLeave` is told about is
-the story that runs.
+**An ending with somewhere to go is not that kind.** A story handing the tour on
+through `next` is one operation with the report in the middle of it. A story
+begun from there would be overwritten by the one already on its way. So it is
+refused, like every other call made while Leko is inside the application. That
+refusal is what makes the `next` argument to `onLeave` worth having: the story
+`onLeave` is told about is the story that runs.
 
 **`start()` answers whether the story it was given is the one now running.
 `reached()` still does not.** A `reached()` call is instrumentation, and most of
@@ -372,8 +396,8 @@ around it assumes the same kind of thing one level out, and assumes it for
 longer.
 
 **The story's `onLeave` is the half that cannot be written anywhere else.** It
-runs when the run ends, after the last step's, and a `start()` displacing this
-story tells it where the tour is going. Put a story's clear-up on the first
+runs when the run ends, after the last step's, and a story handing the tour on
+through `next` tells it where that is. Put a story's clear-up on the first
 step's `onLeave` and it fires the moment the tour reaches step 2, with the rest
 of the story still standing on what it took away. No step's leaving means the
 story is over.
@@ -571,10 +595,18 @@ something that must be free to leave in cannot complain about being left in.
 **It must never speak**, and nothing should be added here that makes it.
 
 Reported through `onDiagnostic`: a `start()` given a story with no steps in it,
-and any call refused by the gate above. There is no version of starting an empty
-story a working application meant, and a call refused mid-arrival came from an
-application doing everything right at a moment nothing could be done with it. Neither has any other symptom. The tour does not move, and nothing
-anywhere says why.
+a `start()` made while a tour is running, and any call refused by the gate
+above. There is no version of starting an empty story a working application
+meant, and a call refused mid-arrival came from an application doing everything
+right at a moment nothing could be done with it. None of them has any other
+symptom. The tour does not move, and nothing anywhere says why.
+
+**The two refused `start()` calls are separate members, and the fix is why.** A
+`call-refused` is the gate, and the same call a moment later goes through. A
+`tour-running` will be turned down every time until the tour ends, so the fix is
+`stop()` rather than patience. A host reading one member for both would have to
+read `state` to find out which it was holding, and `state` has moved on by
+then.
 
 A press the gate turns down is in neither list. Every other refusal is reported
 because a host made a call and nothing happened; the control is a button Leko
@@ -702,8 +734,8 @@ to `ready` is a crossing a watcher should hear. `story` to `step` is not, and
 neither is a call that wrote a field the answer does not depend on.
 
 **One call per turn.** `enter` writes the phase twice on its way to a step that
-is not on screen yet, and a `start` that displaces a running story commits three
-times before the new story is up. A watcher told
+is not on screen yet, and a story handing the tour on commits three times before
+the story that follows is up. A watcher told
 about each write would see a flicker that never existed for anybody, so the
 answer is compared with what it was when the turn started and reported only if
 the two differ. A run that starts and settles inside one turn says `running`

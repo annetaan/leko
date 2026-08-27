@@ -687,6 +687,24 @@ export type LekoProblem =
    */
   | { kind: 'call-refused' }
   /**
+   * A {@link Leko.start} made while a tour was running. `running` is the story
+   * that was showing, and it is still showing: nothing was torn down and no
+   * step moved.
+   *
+   * **`start` never ends a tour.** `stop()` is the way out and it is the only
+   * one, which is what lets this call be read as one that either puts a story
+   * up or does nothing at all. The fix is `stop()` and then `start` again.
+   *
+   * Told apart from {@link LekoProblem} `call-refused` because that one is the
+   * gate, and a call the gate turned down is worth making again a moment later.
+   * This one will be turned down every time until the tour ends.
+   *
+   * A component that rebuilds its story on every render and starts it on every
+   * render lands here, which is the shape this member is most likely to be
+   * reporting.
+   */
+  | { kind: 'tour-running'; story: LekoStory; running: LekoStory }
+  /**
    * A step's target was not on the page and did not come back within two
    * seconds, so the run stopped.
    *

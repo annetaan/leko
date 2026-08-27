@@ -335,6 +335,7 @@ test('an error is about the attempt, so leaving the step takes it away', async (
 
   // Running the story again is the only way back to a step, and the complaint
   // belonged to one attempt at the step that is now behind.
+  leko.stop()
   begin(leko, 'story')
   expect(on(error())).toBe(false)
   expect(words()).toBe('First.')

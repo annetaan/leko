@@ -142,7 +142,10 @@ describe('an ending', () => {
   })
 
   test('stays closed through its report where a story is on its way', () => {
-    const torn = put(running(), { kind: 'start', story: other })
+    // Only a chain gets here. `start` no longer ends anything, so a story on
+    // its way is one the story that just ran out named in `next`.
+    const core = running()
+    const torn = put(core, { kind: 'chained', at: core.position!, into: other })
     const outcome = put(torn.core, torn.next!)
 
     // A story begun from that report would be overwritten by the one already
@@ -280,12 +283,23 @@ describe('a failed attempt', () => {
 })
 
 describe('starting', () => {
-  test('tears nothing down until the story is known to be runnable', () => {
+  test('is turned down while a tour is running, and says which one it left alone', () => {
     const before = running()
 
-    const outcome = put(before, { kind: 'start', story: empty })
+    const outcome = put(before, { kind: 'start', story: other })
 
+    // `stop()` is the way out and it is the only one. A `start` either puts a
+    // story up or does nothing at all.
     expect(outcome.core).toBe(before)
+    expect(outcome.effects).toEqual([
+      { kind: 'diagnose', problem: { kind: 'tour-running', story: other, running: story } },
+    ])
+  })
+
+  test('is turned down where the story has nothing in it', () => {
+    const outcome = put(nothing(), { kind: 'start', story: empty })
+
+    expect(outcome.core.position).toBeUndefined()
     expect(owed(outcome)).toEqual(['diagnose'])
   })
 
@@ -300,15 +314,17 @@ describe('starting', () => {
     expect(owed(opened)).toEqual(['callStoryEnter'])
   })
 
-  test("a fresh object under the running story's name is a new run, not a swap", () => {
+  test("a fresh object under the running story's name is turned down like any other", () => {
     const fresh: Story = { ...story, steps: [second] }
 
     const started = put(running(), { kind: 'start', story: fresh })
 
-    // A teardown that carries the new one with it, the same as any other
-    // displacement. There is no case here for "the story the tour is on", so
-    // the steps never move under the position somebody is standing on.
-    expect(started.next).toEqual({ kind: 'left', story, previous: first, into: fresh, after: [] })
+    // The `id` is not read, so a component that rebuilds its story on every
+    // render and starts it on every render is turned down rather than restarted.
+    // Either way the steps never move under the position somebody stands on.
+    expect(started.core).toEqual(running())
+    expect(started.next).toBeUndefined()
+    expect(owed(started)).toEqual(['diagnose'])
   })
 })
 

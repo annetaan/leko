@@ -155,6 +155,8 @@ function show(next: Case): void {
         problem = `Target for “${found.story.id} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
       } else if (found.kind === 'call-refused') {
         problem = 'start() arrived while Leko was inside the application, and was not acted on.'
+      } else if (found.kind === 'tour-running') {
+        problem = `start() was given “${found.story.id}” while “${found.running.id}” was running. Press stop() first: start() never ends a tour.`
       } else {
         problem = `start() was given “${found.story.id}”, which has no steps in it.`
       }
@@ -225,8 +227,8 @@ pick('.controls').addEventListener('click', (event) => {
   const story = showing?.stories.find((one) => one.id === id)
   if (story) {
     problem = undefined
-    // Logged before the call rather than after, so a start that displaces a
-    // running story sits above the teardown it causes. There is no row for the
+    // Logged before the call rather than after, so the diagnostic a refused
+    // start makes sits under the call that made it. There is no row for the
     // answer, because every `false` `start` returns has a diagnostic of its own
     // and that lands here too.
     note('call', `start('${story.id}')`)

@@ -426,26 +426,22 @@ module machine {
   // true of it is that nothing moved — which is not something a search can look
   // for in a call it never makes.
 
+  /// `start` never ends a tour. Three ways it comes to nothing and one way it
+  /// takes, and all four leave the run that was showing exactly as it was.
   action doStart(id: str): bool = all {
     m' =
       if (not(accepting(m))) m.with("mark", "refused-start")
+      // A tour is running and `stop()` is the way out of one. Told apart from
+      // the refusal above because the fix is a different call rather than a
+      // second attempt at this one.
+      else if (m.position != Nothing) m.with("mark", "start-running")
       else if (m.world.get(id).steps.length() == 0)
-        // Nothing is torn down until the story is known to be runnable, so an
-        // empty one cannot end a tour someone is in the middle of. A refusal
-        // like any other from out here: one diagnostic, and nothing moved.
+        // A story runs from its first step and there is no first step here.
         m.with("mark", "empty-story")
-      else
-        match m.position {
-          // Nothing to tear down, so the story goes up in this call.
-          | Nothing => {
-            val at = { story: id, index: 0, occurrence: m.nextToken }
-            enterStory(standOn(m, at), at).with("mark", "start")
-          }
-          // What is ending is told what is starting, and the phase stays closed
-          // through the whole of it, report included. The second half of this
-          // call is in {@link doLeave}, which is where that report is made.
-          | Just(_) => end(m, Just(id)).with("mark", "start-displacing")
-        },
+      else {
+        val at = { story: id, index: 0, occurrence: m.nextToken }
+        enterStory(standOn(m, at), at).with("mark", "start")
+      },
   }
 
   action doReached(name: str): bool = all {
@@ -862,6 +858,10 @@ module machine {
 
   /// A call the gate turned down.
   val refused: bool = m.mark == "refused-start" or m.mark == "refused-signal"
+
+  /// A `start` made while a tour was running. Not the gate: the phase was open
+  /// and the answer is still no, because ending a tour is `stop()`'s job.
+  val startWhileRunning: bool = m.mark == "start-running"
 
   /// A `start` on a story with nothing in it. Refused like the two above and
   /// for a different reason, and the run that was showing has to survive it.

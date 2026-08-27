@@ -61,7 +61,7 @@ stateDiagram-v2
   step --> ending : stop(), onEnter threw, the anchor went during show
 
   ending --> idle : nothing follows
-  ending --> story : start() displaced this run
+  ending --> story : the story that ran out named this one in next
 
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
@@ -203,7 +203,8 @@ say. One table pointed the other way is one place, and it shows the holes.
 | `settling` | any case, `stepping` is plainest | the morph is 320ms, and the log says `transitioning` for that long on every move |
 | `searching` | `target-disappears` | press **Dismiss for a second**. The target comes back inside the window and nothing is reported |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
-| `ending`, and then `story` | `branching`, `two-stories` | press the other `start()` button while a story runs. One call, and the run showing is displaced |
+| `ending`, and then `story` | `branching` | press either path button. The story that ran out names the one that follows it |
+| a `start()` turned down for a tour that is running | `two-stories` | press the other `start()` button while a story runs. Nothing moves, and the footer says which tour it left alone |
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
 | a `reached()` the gate turned down | `signal-too-early` | send the order. The call lands 400ms into a 900ms `onEnter` and is dropped |
 | a `start()` the gate turned down | `story-setup` | press `start()` again inside the 600ms window. The log says it was not acted on |

@@ -62,23 +62,35 @@ export class Leko {
    * arrived at twice, because the application reported that name once and will
    * not report it again, so a tour standing there a second time waits for ever.
    * Moving a user from one story into another is still ordinary, and it is what
-   * a branch does: run a shared story, start one of several, then start the one
-   * they rejoin at. The switch cuts rather than morphs, because two unrelated
-   * stories interpolating into each other would be a strange thing to watch.
+   * a branch does. It is written on the stories rather than here: a story names
+   * the one that follows it in {@link LekoStory.next}, so a shared story hands
+   * the tour to a branch and each branch hands it to the story they rejoin at.
+   * The switch cuts rather than morphs, because two unrelated stories
+   * interpolating into each other would be a strange thing to watch.
    *
    * A tour somebody wants to redo part of is a shorter story. See
    * [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md).
    *
-   * **The story the tour is already on starts again.** There is one meaning
-   * here and it is "put this up", so the run standing there ends, reports its
-   * ending, and a new one begins at the first step. Nothing is ever swapped
+   * **This never ends a tour.** A call made while one is running is turned down
+   * and reported as `tour-running`, naming this story and the one it left
+   * alone. {@link stop} is the way out and it is the only one, so this call
+   * either puts a story up or does nothing at all, and nothing is ever swapped
    * underneath a position somebody is holding.
    *
-   * Nothing is torn down until the story is known to be runnable, so an empty
-   * one cannot end a tour someone is in the middle of.
+   * A component that rebuilds its story on every render and starts it on every
+   * render lands there. `id` is not read, so a fresh object under the same name
+   * is a fresh story like any other.
+   *
+   * Moving between tours is two calls. {@link stop} runs the whole teardown
+   * inside the call that made it, so the `start` on the next line goes through.
+   *
+   * ```ts
+   * leko.stop()
+   * leko.start(other)
+   * ```
    *
    * **Answers whether this story is the one now running.** A story with no
-   * steps in it gets `false`.
+   * steps in it gets `false`, and so does one handed over while a tour runs.
    *
    * This is not the silence {@link reached} keeps, and the difference is the
    * point. A `reached()` call is instrumentation, written where a thing happens
@@ -89,7 +101,8 @@ export class Leko {
    *
    * `false` also comes back where the story's own `onEnter` threw, and where
    * the call arrived while Leko was inside the application and could not act on
-   * anything.
+   * anything. Every one of those has a {@link LekoProblem} of its own, so a
+   * host that wants to know which never has to guess.
    */
   start(story: LekoStory): boolean {
     return this.machine.start(story)

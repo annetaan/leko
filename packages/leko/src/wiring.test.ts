@@ -139,13 +139,16 @@ test('a target that never turns up stops the tour instead of pointing at nothing
   ])
 })
 
-test('starting a story puts away whatever was running', () => {
+test('stopping and starting puts away whatever was running', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
   const leko = holding({ id: 'onboarding', steps: [{ id: 'a', target: () => first }] })
 
   begin(leko, 'onboarding')
+  // Two calls, because `start` never ends a tour. What is on the page after
+  // them is what one call used to leave.
+  leko.stop()
   leko.start({ id: 'returning', steps: [{ id: 'b', target: () => second }] })
 
   expect(leko.story?.id).toBe('returning')
@@ -491,21 +494,21 @@ test('moving on works again once the story has settled', async () => {
   expect(centre(second)).toBe(second)
 })
 
-test("a fresh object under the running story's name starts it again", () => {
+test("a fresh object under the running story's name is turned down", () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const other = box('other', { left: '300px', top: '100px', width: '120px', height: '40px' })
   const leko = holding({ id: 'story', steps: [{ id: 'one', target: () => target }] })
 
   begin(leko, 'story')
 
-  // What a component re-rendering hands back. There is one meaning to `start`
-  // and it is "put this up", so the run standing there ends and a new one
-  // begins on the steps handed over this time.
-  expect(leko.start({ id: 'story', steps: [{ id: 'one', target: () => other }] })).toBe(true)
+  // What a component re-rendering hands back. The `id` is not read and the call
+  // does not end anything, so the hole stays where somebody is standing rather
+  // than jumping to the steps of the newest render.
+  expect(leko.start({ id: 'story', steps: [{ id: 'one', target: () => other }] })).toBe(false)
 
   expect(leko.state).toBe('running')
-  expect(centre(other)).toBe(other)
-  expect(centre(target)).not.toBe(target)
+  expect(centre(target)).toBe(target)
+  expect(centre(other)).not.toBe(other)
 })
 
 test('a diagnostic reaches the host, with the step the signal was for', async () => {

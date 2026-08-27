@@ -254,6 +254,7 @@ describe('a signal, and the step waiting for it', () => {
 
     // The other story was waiting for the same name and did not move: progress
     // recorded while nobody was being shown a step is not evidence of anything.
+    tour.stop()
     begin(tour, 'returning')
     expect(tour.step?.id).toBe('save-again')
   })
@@ -337,6 +338,7 @@ describe('what a failed attempt says', () => {
 
     // Running the story again is the only way back to a step, and it is a
     // fresh attempt at it.
+    tour.stop()
     begin(tour, 'story')
     press(tour)
 
@@ -435,6 +437,7 @@ describe('a story that says what follows it', () => {
     // Nothing was written on the story, so the second run gets the second
     // answer. A slot would have carried the first one over.
     go = undefined
+    tour.stop()
     begin(tour, 'first')
     press(tour)
 
@@ -568,6 +571,7 @@ describe('starting a story', () => {
 
     // Running it again puts somebody back at the top, which is the only place
     // a story can be entered and the reason a story should be short.
+    tour.stop()
     begin(tour, 'onboarding')
 
     expect(tour.step?.id).toBe('a')
@@ -585,27 +589,41 @@ describe('starting a story', () => {
     expect(drawing().shown).toEqual([])
   })
 
-  test("a second object under a running story's name starts a new run of it", () => {
-    const { tour, seen } = watched({ id: 'onboarding', steps: twoSteps('before') })
+  test("a second object under a running story's name is turned down like any other", () => {
+    const problems: Problem<Fixture>[] = []
+    const { tour, seen } = watched(
+      { id: 'onboarding', steps: twoSteps('before') },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
     begin(tour, 'onboarding')
     press(tour)
     seen.length = 0
 
-    // There is one meaning here and it is "put this up". A component handing
-    // over freshly built steps every render gets a run that ends and a run that
-    // begins, reported as both, rather than steps changing under the position
-    // somebody is standing on.
-    expect(tour.start({ id: 'onboarding', steps: twoSteps('after') })).toBe(true)
+    // The `id` is not read, and a component handing over freshly built steps on
+    // every render is a host calling `start` on a tour that is running. It gets
+    // an answer rather than a run that restarts under somebody.
+    expect(tour.start({ id: 'onboarding', steps: twoSteps('after') })).toBe(false)
 
-    expect(seen).toEqual([
-      [undefined, 'b'],
-      ['a', undefined],
-    ])
-    expect(tour.step?.id).toBe('a')
+    expect(seen).toEqual([])
+    expect(tour.step?.id).toBe('b')
+    expect(tour.step?.message).toBe('before')
+    expect(problems.map((problem) => problem.kind)).toEqual(['tour-running'])
+  })
 
-    // And it is the steps that were handed over this time that the run walks.
-    press(tour)
-    expect(tour.step?.message).toBe('after')
+  test('says which tour it left alone, so a host can tell the two refusals apart', () => {
+    const onboarding: Story = { id: 'onboarding', steps: [{ id: 'a', target: 'first' }] }
+    const other: Story = { id: 'other', steps: [{ id: 'b', target: 'second' }] }
+    const problems: Problem<Fixture>[] = []
+    const tour = staging(onboarding, { onDiagnostic: (problem) => problems.push(problem) })
+    hold(tour, other)
+
+    begin(tour, 'onboarding')
+    begin(tour, 'other')
+
+    // `call-refused` means the gate was shut and the call is worth making again.
+    // This one is not: the fix is `stop()`, and naming both stories is what says
+    // so without the host having to read `state` to find out.
+    expect(problems).toEqual([{ kind: 'tour-running', story: other, running: onboarding }])
   })
 
   test('start says whether the story it was given is the one now running', () => {
@@ -1156,6 +1174,7 @@ describe('saying where the tour got to', () => {
     hold(tour, { id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     begin(tour, 'from')
+    tour.stop()
     begin(tour, 'into')
 
     // One hook, told which story each time, which is what a handler that cares
@@ -1164,7 +1183,7 @@ describe('saying where the tour got to', () => {
     // without one would stop reporting with nothing to say so.
     expect(heard).toEqual([
       'from:a', // started
-      'from:-', // ended, because starting another stops this one
+      'from:-', // ended by the stop
       'into:b',
     ])
   })
@@ -1652,6 +1671,9 @@ describe('a call that arrives while the machine is inside the application', () =
     // the other way to get this wrong: a signal saved over is a step advancing
     // on something that happened before it began.
     expect(drawing().shown).toEqual(['a', 'b'])
+    // And the gate is what turned it down rather than the tour running, which
+    // is the difference the two diagnostics are there to draw.
+    tour.stop()
     expect(begin(tour, 'other')).toBe(true)
   })
 
@@ -1811,8 +1833,10 @@ describe('saying that a call did nothing', () => {
 })
 
 describe('moving from one story to another', () => {
-  // One story displacing another, including the case where the application does
-  // the displacing from inside a handler the machine is in the middle of calling.
+  // `start` never ends a tour, so moving is two calls: `stop()` and then
+  // `start`. What this group asks is that the two read as one move to a host,
+  // and that the call which used to do it in one is turned down wherever it is
+  // made from.
 
   test('switching stories ends one and starts the other, and says which is which', () => {
     const from: [string | undefined, string | undefined][] = []
@@ -1832,6 +1856,7 @@ describe('moving from one story to another', () => {
     hold(tour, { id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     begin(tour, 'from')
+    tour.stop()
     begin(tour, 'into')
 
     expect(from).toEqual([
@@ -1842,7 +1867,7 @@ describe('moving from one story to another', () => {
     expect(into).toEqual([['b', undefined]])
   })
 
-  test('starting another story ends this one, and says so with nowhere to go', () => {
+  test('the step of the story being left is told there is nowhere to go', () => {
     const left: [string, string | undefined][] = []
     const tour = staging({
       id: 'from',
@@ -1857,20 +1882,50 @@ describe('moving from one story to another', () => {
     hold(tour, { id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     begin(tour, 'from')
+    tour.stop()
     begin(tour, 'into')
 
-    // The step it lands on belongs to a story this one knows nothing about, and
-    // this story is over either way.
+    // A step's `onLeave` is only ever told about a step, and the tour ended
+    // before the second call was made.
     expect(left).toEqual([['a', undefined]])
   })
 
-  test('a start displacing a story is one operation, so onLeave is told the truth', () => {
+  test('a start made while a tour runs moves nothing and takes nothing down', () => {
     const heard: string[] = []
     const left: string[] = []
-    const started: boolean[] = []
     const tour = staging(
       {
         id: 'from',
+        onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
+        steps: [{ id: 'a', target: 'first' }],
+      },
+      { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`) },
+    )
+    hold(tour, { id: 'into', steps: [{ id: 'c', target: 'third' }] })
+
+    begin(tour, 'from')
+    heard.length = 0
+
+    expect(begin(tour, 'into')).toBe(false)
+
+    // Nothing at all happened. The story showing keeps its step, no `onLeave`
+    // ran, and no report went out, so a readout watching this hears nothing to
+    // redraw for a call that came to nothing.
+    expect(left).toEqual([])
+    expect(heard).toEqual([])
+    expect(tour.story?.id).toBe('from')
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a story handing the tour on is still one operation, so onLeave is told the truth', () => {
+    const heard: string[] = []
+    const left: string[] = []
+    const started: boolean[] = []
+    const into: Story = { id: 'into', steps: [{ id: 'c', target: 'third' }] }
+    const tour = staging(
+      {
+        id: 'from',
+        next: into,
         onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
         steps: [{ id: 'a', target: 'first' }],
       },
@@ -1885,12 +1940,11 @@ describe('moving from one story to another', () => {
       },
     )
     hold(tour, { id: 'rescue', steps: [{ id: 'b', target: 'second' }] })
-    hold(tour, { id: 'into', steps: [{ id: 'c', target: 'third' }] })
+    hold(tour, into)
 
     begin(tour, 'from')
     heard.length = 0
-
-    expect(begin(tour, 'into')).toBe(true)
+    press(tour)
 
     // `from` was told `into` is next and skipped whatever the two share. A
     // `rescue` starting from that report would make `next` a lie, and would run
@@ -1955,25 +2009,29 @@ describe('moving from one story to another', () => {
     expect(tour.step?.id).toBe('a')
     expect(log).toEqual([])
 
-    // Once `gate` is standing, the same call takes.
+    // Once the tour is over, the same call takes. Both refusals are answered,
+    // and a host that reads the answer knows which fix it needs.
+    tour.stop()
     expect(begin(tour, 'elsewhere')).toBe(true)
     expect(log).toEqual(['enter b'])
   })
 
-  test('a story displaced by another is told which one is starting', () => {
+  test('a story handing the tour on is told which one is starting', () => {
     const leaving: (string | undefined)[] = []
     const tour = machine()
+    const branch: Story = { id: 'branch', steps: [{ id: 'b', target: 'second' }] }
     hold(tour, {
       id: 'shared',
+      next: branch,
       onLeave: (_story, next) => void leaving.push(next?.id),
       steps: [{ id: 'a', target: 'first' }],
     })
-    hold(tour, { id: 'branch', steps: [{ id: 'b', target: 'second' }] })
+    hold(tour, branch)
 
     begin(tour, 'shared')
-    begin(tour, 'branch')
+    press(tour)
 
-    // The teardown a branch and the story it rejoins both need is teardown this
+    // The teardown a chapter and the one after it both need is teardown this
     // argument lets a handler skip.
     expect(leaving).toEqual(['branch'])
     expect(tour.story?.id).toBe('branch')
