@@ -58,18 +58,20 @@ test('related regions get their own cutouts rather than joining the union', () =
   expect(absorbed(between)).toBe(true)
 })
 
-test('a story overrides the padding the instance was given', () => {
+test('a step overrides the padding the instance was given', () => {
   const target = box('target', { left: '100px', top: '200px', width: '120px', height: '40px' })
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
   const leko = holding(
-    { id: 'roomy', steps: [{ id: 'a', target: () => target }], padding: 40 },
+    { id: 'roomy', steps: [{ id: 'a', target: () => target, padding: 40 }] },
     { padding: 4 },
   )
   begin(leko, 'roomy')
 
   // 20px above the target: outside the instance's padding, well inside the
-  // story's, so the story is what decided the size of the hole.
+  // step's, so the step is what decided the size of the hole. There are two
+  // tiers and no third — a story that wants this for all of its steps writes it
+  // on all of its steps, which is a `.map()` rather than a tier.
   expect(centre(near)).toBe(near)
 })
 

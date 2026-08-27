@@ -357,7 +357,7 @@ module machine {
   /// anything about its first step.
   pure def enterStory(s: M, at: Pos): M = {
     val story = storyOf(s, at)
-    // hold(story, undefined): a curtain, and nothing of this story is drawn.
+    // hold(undefined): a curtain, and nothing of this story is drawn.
     val held = s.with("presenterUp", true).with("phase", Story).with("drawn", Nothing)
     if (story.throwsOnEnter) failed(held, at)
     else if (story.slowEnter)

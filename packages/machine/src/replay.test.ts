@@ -210,23 +210,18 @@ class Recorder extends Fake {
   drawn: Step | undefined
   presenterUp = false
 
-  override hold(story: Story, step: Step | undefined): void {
+  override hold(step: Step | undefined): void {
     this.drawn = undefined
     this.presenterUp = true
-    super.hold(story, step)
+    super.hold(step)
   }
 
-  override show(
-    story: Story,
-    step: Step,
-    anchor: Anchor | null,
-    content: Content,
-  ): Promise<void> | void {
+  override show(step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
     this.presenterUp = true
     // A missing anchor is `Host.lost` and nothing drawn, which is what the model
     // says too.
     if (anchor !== null) this.drawn = step
-    return super.show(story, step, anchor, content)
+    return super.show(step, anchor, content)
   }
 
   override teardown(): void {

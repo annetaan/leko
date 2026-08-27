@@ -71,7 +71,7 @@ export class Fake implements Presenter<Fixture> {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(_story: Story, step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
+  show(step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
     // No searching here. A presenter that gives a missing target time to appear
     // is answering a drawing question, and the machine is not asked about it
     // until the answer is in.
@@ -88,12 +88,12 @@ export class Fake implements Presenter<Fixture> {
     })
   }
 
-  place(_story: Story, step: Step, _anchor: Anchor | null, content: Content): void {
+  place(step: Step, _anchor: Anchor | null, content: Content): void {
     this.shown.push(`place:${step.id}`)
     this.content = content
   }
 
-  retell(_story: Story, step: Step, content: Content): void {
+  retell(step: Step, content: Content): void {
     this.retold.push({ step: step.id, content })
     this.content = content
   }
@@ -102,11 +102,11 @@ export class Fake implements Presenter<Fixture> {
     this.rejected += 1
   }
 
-  /** Every arrival it was told about, as `story/step` or `story/-` for a story. */
+  /** Every arrival it was told about, as the step's id or `-` for a story's own. */
   readonly held: string[] = []
 
-  hold(story: Story, step: Step | undefined): void {
-    this.held.push(`${story.id}/${step?.id ?? '-'}`)
+  hold(step: Step | undefined): void {
+    this.held.push(step?.id ?? '-')
   }
 
   teardown(): void {

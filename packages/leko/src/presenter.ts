@@ -15,7 +15,7 @@ import {
   union,
 } from '@annetaan/leko-spotlight'
 import { type Curtain, covering, DOWN, onset, owed } from './curtain.js'
-import type { LekoOptions, LekoStep, LekoStory, LekoTarget, LekoWorld } from './types.js'
+import type { LekoOptions, LekoStep, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
 
@@ -80,7 +80,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * The last step handed over, kept so that a target which comes back can be
    * drawn again without the machine being told anything happened.
    */
-  private drawn: { story: LekoStory; step: LekoStep; content: Content } | undefined
+  private drawn: { step: LekoStep; content: Content } | undefined
   /** The deadline on a target that has left the page, while one is running. */
   private searching: ReturnType<typeof setTimeout> | undefined
   /** The step that deadline is about, so a search the tour left can be told. */
@@ -94,14 +94,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Step, then story, then instance: the nearest one that says anything wins.
+   * Step, then instance: the nearer of the two that says anything wins.
    *
-   * The story is handed in rather than read back off the host. It used to come
-   * from `host.story`, which is the state half answering a drawing question,
-   * and correct only at moments nobody had written down.
+   * Two tiers rather than three. A story used to sit between them, and carrying
+   * it here was the whole reason this half of Leko knew what a story was.
    */
-  private setting(story: LekoStory, step: LekoStep, key: 'padding' | 'radius'): number {
-    return step[key] ?? story[key] ?? this.options[key] ?? DEFAULTS[key]
+  private setting(step: LekoStep, key: 'padding' | 'radius'): number {
+    return step[key] ?? this.options[key] ?? DEFAULTS[key]
   }
 
   /**
@@ -110,10 +109,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
    *
    * The same near-to-far read as {@link setting}, with `??` rather than `||` so
    * that a step writing `false` beats an instance writing a number instead of
-   * falling through it. A story's own arrival has no step to ask.
+   * falling through it. A story's own arrival has no step to ask, and falls to
+   * the instance.
    */
-  private curtainAfter(story: LekoStory, step: LekoStep | undefined): number | false {
-    const said = step?.curtain ?? story.curtain ?? this.options.curtain ?? DEFAULTS.curtain
+  private curtainAfter(step: LekoStep | undefined): number | false {
+    const said = step?.curtain ?? this.options.curtain ?? DEFAULTS.curtain
     if (said === false) return false
     return said === true ? 0 : said
   }
@@ -126,15 +126,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * somebody watching is concerned, and dropping it between them would be a
    * flash of the page they are not meant to be using yet.
    */
-  hold(story: LekoStory, step: LekoStep | undefined): void {
+  hold(step: LekoStep | undefined): void {
     this.message?.hide()
-    const asked = onset(this.curtain, this.curtainAfter(story, step))
+    const asked = onset(this.curtain, this.curtainAfter(step))
     if (asked.do === 'nothing') return
-    if (asked.do === 'paint') return this.drawCurtain(story, step)
+    if (asked.do === 'paint') return this.drawCurtain(step)
     this.lower()
     this.curtain = {
       kind: 'waiting',
-      timer: setTimeout(() => this.drawCurtain(story, step), asked.after),
+      timer: setTimeout(() => this.drawCurtain(step), asked.after),
     }
   }
 
@@ -152,10 +152,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * The same near-to-far read as {@link setting}, and the instance's is the foot
    * of it rather than a separate thing: a curtain nobody declared is one whose
    * step said nothing, so it falls through to whatever the host would put on any
-   * wait of its own. A story's own arrival has no step to ask.
+   * wait of its own. A story's own arrival has no step to ask, and neither does
+   * a search, so for those two the instance is the only tier there is.
    */
-  private curtainLabel(story: LekoStory, step: LekoStep | undefined): string | undefined {
-    return step?.curtainLabel ?? story.curtainLabel ?? this.options.curtainLabel
+  private curtainLabel(step: LekoStep | undefined): string | undefined {
+    return step?.curtainLabel ?? this.options.curtainLabel
   }
 
   /**
@@ -168,7 +169,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * `onEnter` used to draw nothing at all, so somebody pressed Start, watched
    * nothing happen, and pressed it again.
    */
-  private drawCurtain(story: LekoStory, step: LekoStep | undefined): void {
+  private drawCurtain(step: LekoStep | undefined): void {
     // A delay that has already fired is stopped again for nothing, and one that
     // has not is a second curtain this one would leak.
     this.lower()
@@ -188,7 +189,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       }),
     }
     this.showClose([])
-    const text = this.curtainLabel(story, step)
+    const text = this.curtainLabel(step)
     if (text !== undefined) {
       this.message ??= new Message(() => this.host.next())
       // No anchor and no cutouts, so the box docks and the gap between it and a
@@ -227,17 +228,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * same shapes in viewport coordinates, to work out which side of them has room
    * on screen. Same geometry, two readers, so the space is the parameter.
    */
-  private cutouts(
-    story: LekoStory,
-    step: LekoStep,
-    measure: (el: HTMLElement) => Rect,
-  ): Resolved | null {
+  private cutouts(step: LekoStep, measure: (el: HTMLElement) => Rect): Resolved | null {
     const targets = resolveTargets(asArray(step.target))
     const action = targets[0]
     if (!action) return null
 
-    const padding = this.setting(story, step, 'padding')
-    const radius = this.setting(story, step, 'radius')
+    const padding = this.setting(step, 'padding')
+    const radius = this.setting(step, 'radius')
 
     // The action target is one cutout — the union of however many elements were
     // named. Everything in `related` stays separate, because the union of two
@@ -262,17 +259,17 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * holds the message beside it through every scroll that follows, with no
    * script involved.
    */
-  private say(story: LekoStory, step: LekoStep, content: Content): void {
-    const onScreen = this.cutouts(story, step, (el) => el.getBoundingClientRect())
+  private say(step: LekoStep, content: Content): void {
+    const onScreen = this.cutouts(step, (el) => el.getBoundingClientRect())
     this.showClose(onScreen?.cutouts ?? [])
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       return
     }
     this.message ??= new Message(() => this.host.next())
-    const gap = this.setting(story, step, 'padding')
+    const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
-    const within = inner && this.cutouts(story, step, (el) => rectWithin(el, inner.container))
+    const within = inner && this.cutouts(step, (el) => rectWithin(el, inner.container))
     const box = within && union(within.cutouts)
     this.message.show(
       content,
@@ -342,7 +339,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   show(
-    story: LekoStory,
     step: LekoStep,
     anchor: HTMLElement | null,
     content: Content,
@@ -358,21 +354,20 @@ export class DomPresenter implements Presenter<LekoWorld> {
     }
     // Not on the page yet, which a step whose target renders a moment after its
     // `onEnter` settled is as much as one whose target has gone.
-    if (!anchor) return this.search(story, step, content)
+    if (!anchor) return this.search(step, content)
     // The curtain is what the hole opens out of when there was one. Blowing the
     // scrim up to a hole larger than the page first, which is how a tour that
     // has drawn nothing opens, would flash the whole page clear on the way.
     const covered = covering(this.curtain)
     const left = this.lift()
-    if (left === 0) return this.reveal(story, step, anchor, content, animate || covered)
+    if (left === 0) return this.reveal(step, anchor, content, animate || covered)
     return new Promise<void>((settle) => {
       this.owing = setTimeout(settle, left)
-    }).then(() => this.reveal(story, step, anchor, content, true))
+    }).then(() => this.reveal(step, anchor, content, true))
   }
 
   /** Draw the step. Called once the curtain, if there was one, has paid its dues. */
   private reveal(
-    story: LekoStory,
     step: LekoStep,
     anchor: HTMLElement,
     content: Content,
@@ -391,15 +386,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     }
 
     const container = chain[0] ?? null
-    const resolved = this.cutouts(story, step, (el) => rectWithin(el, container))
-    if (!resolved) return this.search(story, step, content)
+    const resolved = this.cutouts(step, (el) => rectWithin(el, container))
+    if (!resolved) return this.search(step, content)
 
     const inner = this.layers[0]
-    if (!inner) return this.search(story, step, content)
+    if (!inner) return this.search(step, content)
 
     // Kept so that a target which comes back can be drawn again without the
     // machine hearing that anything happened.
-    this.drawn = { story, step, content }
+    this.drawn = { step, content }
 
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
@@ -418,15 +413,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Before the morph, not after it. The scrim blocks the page from the moment
     // it is set, and a page that is blocked with no way out of it is the thing
     // this control exists to prevent, even for the length of one morph.
-    this.showClose(this.cutouts(story, step, (el) => el.getBoundingClientRect())?.cutouts ?? [])
+    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect())?.cutouts ?? [])
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
-    const duration = story.duration ?? this.options.duration ?? DEFAULTS.duration
+    const duration = this.options.duration ?? DEFAULTS.duration
     const morphing = inner.morph(resolved.cutouts, duration)
     if (!morphing) {
-      this.say(story, step, content)
+      this.say(step, content)
       return
     }
     // Nothing back where the morph was interrupted. Another one starting is the
@@ -435,7 +430,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // there either way.
     return morphing.then((finished) => {
       if (!finished) return
-      this.say(story, step, content)
+      this.say(step, content)
     })
   }
 
@@ -447,16 +442,16 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * the size of the page and converge again, so for a moment almost nothing
    * would be dimmed.
    */
-  place(story: LekoStory, step: LekoStep, anchor: HTMLElement | null, content: Content): void {
+  place(step: LekoStep, anchor: HTMLElement | null, content: Content): void {
     const inner = this.layers[0]
     if (!inner) return
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(DomPresenter.chainOf(anchor ?? document.body))
-    const resolved = this.cutouts(story, step, (el) => rectWithin(el, inner.container))
+    const resolved = this.cutouts(step, (el) => rectWithin(el, inner.container))
     if (resolved) inner.set(resolved.cutouts)
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again.
-    if (anchor) this.say(story, step, content)
+    if (anchor) this.say(step, content)
   }
 
   /**
@@ -465,13 +460,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * reading why they were stopped. A step that had no message until now has
    * nowhere to jump from, so that one is placed properly.
    */
-  retell(story: LekoStory, step: LekoStep, content: Content): void {
+  retell(step: LekoStep, content: Content): void {
     if (this.message?.visible) {
       this.message.setText(content.text ?? '')
       this.message.setError(content.error ?? '')
       return
     }
-    this.say(story, step, content)
+    this.say(step, content)
   }
 
   reject(): void {
@@ -499,10 +494,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // selector is run here, and a re-render costs a morph rather than two
       // seconds of curtain and an ending.
       const back = this.resolve(held.step)
-      if (back) return void this.show(held.story, held.step, back, held.content, true)
+      if (back) return void this.show(held.step, back, held.content, true)
       // Nothing is holding the promise this hands back, so this is the one
       // search the machine is told about.
-      this.search(held.story, held.step, held.content, true)
+      this.search(held.step, held.content, true)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
   }
@@ -533,12 +528,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * lost after the step was drawn is a wait nobody asked for and nobody is
    * holding a promise for, and that is the one worth a call.
    */
-  private search(
-    story: LekoStory,
-    step: LekoStep,
-    content: Content,
-    unasked = false,
-  ): Promise<void> | void {
+  private search(step: LekoStep, content: Content, unasked = false): Promise<void> | void {
     if (this.searching !== undefined) return
     // Whatever `curtain` says. That setting is about an arrival, which is a
     // normal wait, and this is not one: a hole standing over nothing for two
@@ -548,15 +538,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // `onEnter` is doing, and that handler finished before this step was ever
     // drawn. Putting those words over a target that has gone missing since
     // would be the curtain saying something untrue about a wait of a different
-    // kind, so this falls to whatever the story or the host says generally.
-    this.drawCurtain(story, undefined)
+    // kind, so this falls to whatever the host says generally.
+    this.drawCurtain(undefined)
     this.watcher?.disconnect()
     this.watcher = new MutationObserver(() => {
       const found = this.resolve(step)
       if (!found) return
       this.endSearch()
       this.host.searching(step, false)
-      void this.show(story, step, found, content, true)
+      void this.show(step, found, content, true)
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
     // Handed back, so an arrival that came in here has something to wait on. A

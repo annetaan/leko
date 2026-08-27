@@ -195,7 +195,7 @@ export interface LekoStep {
    *
    * Leko does not know what an `onEnter` is doing, so it puts no words of its
    * own there. The step does: it is where that handler is written. Read step,
-   * then story, then instance, the way {@link curtain} is.
+   * then instance, the way {@link curtain} is.
    *
    * This is not {@link message}. The message is what the step arrives at, and
    * it is drawn beside a cutout that does not exist while the curtain is down.
@@ -386,30 +386,6 @@ export interface LekoStory {
   next?: LekoStory | (() => LekoStory | undefined)
 
   /**
-   * Whether steps of this story that do not say draw a curtain while they
-   * arrive. See {@link LekoStep.curtain}.
-   */
-  curtain?: boolean | number
-
-  /**
-   * What a curtain says in this story, where the step arriving does not say.
-   * See {@link LekoStep.curtainLabel}.
-   *
-   * This is also what covers the story's own arrival, because `onEnter` on a
-   * story runs before any step has been entered and there is no step to ask.
-   */
-  curtainLabel?: string
-
-  /** Default padding for steps of this story that do not set their own. */
-  padding?: number
-
-  /** Default corner radius for steps of this story that do not set their own. */
-  radius?: number
-
-  /** How long a step-to-step morph runs in this story, in ms. */
-  duration?: number
-
-  /**
    * Build the state this whole story assumes, before its first step is entered.
    *
    * {@link LekoStep.onEnter} is the same job one step down, and the reason for
@@ -474,9 +450,15 @@ export interface LekoWorld {
 }
 
 /**
- * Defaults for every story on the instance. A story may override `curtain`,
- * `curtainLabel`, `padding`, `radius` and `duration`, and a step may override
- * the first four again: the nearest one that says anything wins.
+ * Defaults for every story on the instance. A step may override `curtain`,
+ * `curtainLabel`, `padding` and `radius`: the nearer of the two wins.
+ *
+ * **A story carries no settings.** It used to sit between these two, and the
+ * only thing it bought was writing a value once instead of once per step —
+ * which a host does for itself, with a `.map()` over `steps`, in code Leko does
+ * not have to grow a tier for. What it cost was `story` travelling into the
+ * half that draws, which now takes steps and never asks what they belong to.
+ * DESIGN.md argues it under **Settings, and where they are read from**.
  */
 export interface LekoOptions {
   /**
@@ -491,8 +473,13 @@ export interface LekoOptions {
   curtain?: boolean | number
 
   /**
-   * What a curtain says where neither the step arriving nor its story does.
-   * Nothing by default. See {@link LekoStep.curtainLabel}.
+   * What a curtain says where the step arriving does not. Nothing by default.
+   * See {@link LekoStep.curtainLabel}.
+   *
+   * **This is the only tier a story's own arrival has.** `onEnter` on a story
+   * runs before any step has been entered, so there is no step to ask, and the
+   * same is true of the search for a target lost after its step was drawn.
+   * Those two windows read this and nothing else.
    *
    * This is the foot of that cascade, and what it covers is the curtain nobody
    * declared: {@link curtain} is on by default, so an arrival that turns out to

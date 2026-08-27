@@ -17,7 +17,7 @@ import {
   watched,
 } from './harness.js'
 import { DomPresenter } from './presenter.js'
-import type { LekoProblem, LekoState, LekoStep, LekoStory } from './types.js'
+import type { LekoProblem, LekoState, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
 // the presenter a test writes. What each of these pins down is which step the
@@ -687,12 +687,16 @@ test('the curtain leaves the way out reachable', () => {
 test('a story setting its own scene draws a curtain over a page with no scrim yet', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const { promise, settle } = held()
-  const leko = holding({
-    id: 'story',
-    curtain: true,
-    onEnter: () => promise,
-    steps: [{ id: 'one', target: () => target }],
-  })
+  const leko = holding(
+    {
+      id: 'story',
+      onEnter: () => promise,
+      steps: [{ id: 'one', target: () => target }],
+    },
+    // The instance, because a story's own arrival has no step to ask and no
+    // tier of its own to read. It is the only thing that can cover this window.
+    { curtain: true },
+  )
 
   expect(scrim()).toBeNull()
   begin(leko, 'story')
@@ -739,7 +743,6 @@ test('the step arriving says what its own wait is, over anything more general', 
   const leko = holding(
     {
       id: 'story',
-      curtainLabel: 'Setting the step up…',
       steps: [
         { id: 'a', target: () => first },
         {
@@ -757,30 +760,29 @@ test('the step arriving says what its own wait is, over anything more general', 
   begin(leko, 'story')
   press()
 
-  // Step, then story, then instance. The step is where the handler being waited
-  // for is written, so it is the one that knows what the wait is about.
+  // Step, then instance. The step is where the handler being waited for is
+  // written, so it is the one that knows what the wait is about.
   expect(said()).toBe('Searching every order in the account')
 })
 
-test("a story's own arrival wears the story's words, having no step to ask", async () => {
+test("a story's own arrival wears the instance's words, having no step to ask", async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const { promise, settle } = held()
   const leko = holding(
     {
       id: 'story',
-      curtain: true,
-      curtainLabel: 'Opening the demo account',
       onEnter: () => promise,
       steps: [{ id: 'one', target: () => target, curtainLabel: 'Never seen' }],
     },
-    { curtainLabel: 'Working…' },
+    { curtain: true, curtainLabel: 'Working…' },
   )
 
   begin(leko, 'story')
 
   // `onEnter` on a story runs before any step has been entered, so the first
-  // step's words are not about this wait and are not borrowed for it.
-  expect(said()).toBe('Opening the demo account')
+  // step's words are not about this wait and are not borrowed for it. There is
+  // no tier between the two, so what covers this window is the instance.
+  expect(said()).toBe('Working…')
 
   settle()
   await vi.waitUntil(() => centre(target) === target)
@@ -898,9 +900,8 @@ const CONTENT = { text: undefined, error: undefined, next: undefined }
 test('a target missing on arrival is a wait the machine hears about through the promise', () => {
   const { presenter, reported } = watching()
   const step: LekoStep = { id: 'late', target: '#not-here-yet' }
-  const story: LekoStory = { id: 'story', steps: [step] }
 
-  const waiting = presenter.show(story, step, null, CONTENT, false)
+  const waiting = presenter.show(step, null, CONTENT, false)
 
   // Handed back, and the machine reads that as a step still arriving: it writes
   // `settling`, which is the phase `Host.searching` would have written. Saying
@@ -916,9 +917,8 @@ test('a target lost after the step was drawn is the wait nobody asked for', asyn
   target.id = 'anchor'
   const { presenter, reported } = watching()
   const step: LekoStep = { id: 'only', target: '#anchor' }
-  const story: LekoStory = { id: 'story', steps: [step] }
 
-  presenter.show(story, step, target, CONTENT, false)
+  presenter.show(step, target, CONTENT, false)
   expect(reported).toEqual([])
 
   target.remove()

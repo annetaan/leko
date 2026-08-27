@@ -134,7 +134,7 @@ flowchart TD
   N -- "a story" --> Y["the ending, into that story.<br>phase: ending, and it stays closed<br>through its own report"]
   N -- "nothing" --> Z
   B -- "no" --> C["position = index + 1<br>phase: step"]
-  C --> D["presenter.hold(story, step)<br>a curtain, nothing drawn"]
+  C --> D["presenter.hold(step)<br>a curtain, nothing drawn"]
   D --> E["leaving.onLeave(leaving, step)"]
   E --> F["step.onEnter(step)"]
   F -- "threw" --> Z

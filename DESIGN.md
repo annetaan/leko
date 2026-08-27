@@ -490,6 +490,30 @@ as it has, and `start(story)` replays one from the top. What a project chooses
 is how much to put in each one, and Leko's answer is: less than you were going
 to.
 
+## Settings, and where they are read from
+
+`padding`, `radius`, `curtain` and `curtainLabel` are read from the step, then
+from the instance. `duration` is read from the instance alone. Whichever it is,
+the nearer one that says anything wins, and `??` does the reading rather than
+`||`, so a step writing `false` beats an instance writing a number.
+
+**A story carries none of them.** A tier there says one thing: this value for
+every step of this story. A host says the same thing with a `.map()` over
+`steps`, in code it already owns, and that version can vary a value inside the
+story as well.
+
+What such a tier costs is `story` travelling into the half that draws, and
+nothing else in there wants one. No member of `Presenter` takes a story.
+`StoryBase` in `packages/machine/src/types.ts` holds no settings either, so a
+story tier is `packages/leko` alone putting its own data through a seam the
+machine has no use for.
+
+**Two windows have no step to ask, and the instance is the only tier they
+have.** A story's own `onEnter` runs before any step has been entered. A search
+for a target lost after its step was drawn is a wait that step's `onEnter`
+finished with long ago. Both read the instance and nothing else, which is why
+that tier stays.
+
 ## The curtain
 
 An arrival is a window where Leko acts on nothing a host calls. The page used to
@@ -510,8 +534,7 @@ above it and reachable through it.
 
 **`curtain` is declared, never called.** `true` puts it down at once, a number
 is how long an arrival has to last first, and `false` is never. It reads step,
-then story, then instance, the way `padding` and `radius` do, with `??` rather
-than `||` so a step writing `false` beats an instance writing a number.
+then instance, the way `padding` and `radius` do.
 
 A handler cannot ask for it. Nothing is known inside `onEnter` that is not known
 where the step is written, the runtime case is already covered by the delay, and
@@ -539,15 +562,13 @@ can get any of them wrong.
 **Leko puts no words on it, and a step usually should.** Leko does not know what
 an `onEnter` is doing, and a library that guesses at that is the guessing this
 one exists to avoid. The step does know. That handler is written on the step, so
-`curtainLabel` reads step, then story, then instance, the way `curtain` does. A
-story's own `onEnter` runs before any step has been entered, and that one asks
-the story.
+`curtainLabel` reads step, then instance, the way `curtain` does.
 
 Nothing bounds an `onEnter`. A search that takes 15 seconds is waited out for 15
 seconds, and a grey sheet held that long with nothing on it reads as a tour that
 has broken. That is what the step-level words are for.
 
-**The instance's are the foot of that cascade, and they cover the curtain nobody
+**The instance's are the foot of it, and they cover the curtain nobody
 declared.** `curtain` is on by default at 250ms, so an arrival that turns out to
 be slow draws one in a project that never asked for it. Nothing at that level
 knows what is being waited for. The step that would have known said nothing. So
@@ -558,8 +579,8 @@ The box docks, because there is no hole to sit beside.
 
 **A search borrows none of it.** A target that goes missing after its step was
 drawn puts up the same curtain, and by then that step's `onEnter` is long
-finished. Those words are about a wait that is over, so the search falls through
-to the story or the instance instead.
+finished. Those words are about a wait that is over, so the search reads the
+instance instead.
 
 **It narrows the race and does not close it.** A request already in flight comes
 back inside the window whatever is on screen, and its signal is dropped. See
@@ -989,8 +1010,9 @@ depends on that rule, and a presenter free to decide it would be a way to
 configure the rule back off.
 
 **The presenter is told, and never asks back.** None of `Host`'s five members
-returns anything. The story is a parameter of `show`, `place` and `retell`, so
-the drawing half never reaches into the state half to answer a drawing question.
+returns anything, and no member of `Presenter` takes a story. The drawing half
+is handed steps and never asks what one belongs to, which is what the two-tier
+read in **Settings, and where they are read from** pays for.
 
 `Target` and the three state literals are written out in both
 packages. That is deliberate while the lower two are private, since a published

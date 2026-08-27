@@ -84,13 +84,13 @@ const stillAt = <W extends World>(core: Core<W>, at: Position<W>): boolean => co
  * resolved, used and dropped.
  */
 export type Effect<W extends World> =
-  | { kind: 'hold'; story: Story<W>; step: Step<W> | undefined }
+  | { kind: 'hold'; step: Step<W> | undefined }
   | { kind: 'teardown' }
   /** `resolve` then `show`. Answers with `shown`, or `lost` where there is no anchor. */
   | { kind: 'draw'; at: Position<W>; step: Step<W>; content: Content; animate: boolean }
   /** `resolve` then `place`. Nothing about the tour changed, so nothing answers. */
-  | { kind: 'place'; story: Story<W>; step: Step<W>; content: Content }
-  | { kind: 'retell'; step: Step<W>; content: Content; story: Story<W> }
+  | { kind: 'place'; step: Step<W>; content: Content }
+  | { kind: 'retell'; step: Step<W>; content: Content }
   | { kind: 'reject' }
   /** `resolve`, `validate`, and the step's `error` where the answer was no. */
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
@@ -210,7 +210,7 @@ const entering = <W extends World>(
 ): Outcome<W> => {
   const step = stepOf(core)
   if (!core.position || !step) return ending(core, undefined, [])
-  const effects: Effect<W>[] = [{ kind: 'hold', story: at.story, step }]
+  const effects: Effect<W>[] = [{ kind: 'hold', step }]
   if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
   effects.push({ kind: 'callStepEnter', at, step, animate })
   return { core: { ...core, phase: 'step', error: undefined, showing: undefined }, effects }
@@ -249,7 +249,7 @@ const opening = <W extends World>(core: Core<W>, story: W['story']): Outcome<W> 
   const at: Position<W> = { story, index: 0 }
   return {
     core: { ...core, position: at },
-    effects: [{ kind: 'hold', story, step: undefined }],
+    effects: [{ kind: 'hold', step: undefined }],
     next: { kind: 'openStory', at },
   }
 }
@@ -312,12 +312,7 @@ export function reduce<W extends World>(
       const here = core.position
       const step = stepOf(core)
       if (!accepting(core) || !here || !step) return nothing(core)
-      return owing(core, {
-        kind: 'place',
-        story: here.story,
-        step,
-        content: content(core, step, config),
-      })
+      return owing(core, { kind: 'place', step, content: content(core, step, config) })
     }
 
     case 'lost': {
@@ -452,12 +447,7 @@ export function reduce<W extends World>(
       return owing(
         said,
         { kind: 'reject' },
-        {
-          kind: 'retell',
-          story: event.at.story,
-          step,
-          content: content(said, step, config),
-        },
+        { kind: 'retell', step, content: content(said, step, config) },
       )
     }
   }

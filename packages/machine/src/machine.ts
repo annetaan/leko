@@ -178,7 +178,7 @@ export class Machine<W extends World> {
   private perform(effect: Effect<W>): void {
     switch (effect.kind) {
       case 'hold':
-        return this.presenter.hold(effect.story, effect.step)
+        return this.presenter.hold(effect.step)
 
       case 'teardown':
         return this.presenter.teardown()
@@ -187,13 +187,7 @@ export class Machine<W extends World> {
         // A target that is not there is handed over all the same. What that
         // means is a drawing question, answered through `lost`.
         const anchor = this.presenter.resolve(effect.step)
-        const showing = this.presenter.show(
-          effect.at.story,
-          effect.step,
-          anchor,
-          effect.content,
-          effect.animate,
-        )
+        const showing = this.presenter.show(effect.step, anchor, effect.content, effect.animate)
         if (!isThenable(showing)) return
         this.dispatch({ kind: 'shown', at: effect.at, showing })
         void showing.then(() => this.dispatch({ kind: 'settled', showing }))
@@ -202,14 +196,13 @@ export class Machine<W extends World> {
 
       case 'place':
         return this.presenter.place(
-          effect.story,
           effect.step,
           this.presenter.resolve(effect.step),
           effect.content,
         )
 
       case 'retell':
-        return this.presenter.retell(effect.story, effect.step, effect.content)
+        return this.presenter.retell(effect.step, effect.content)
 
       case 'reject':
         return this.presenter.reject()

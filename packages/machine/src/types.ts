@@ -124,7 +124,6 @@ export interface Presenter<W extends World> {
    * arrival begins.
    */
   show(
-    story: W['story'],
     step: W['step'],
     anchor: W['anchor'] | null,
     content: Content,
@@ -136,11 +135,11 @@ export interface Presenter<W extends World> {
    * runs. Released by the next {@link show} or {@link teardown}, because there
    * is no other route out.
    */
-  hold(story: W['story'], step: W['step'] | undefined): void
+  hold(step: W['step'] | undefined): void
   /** Put it where it belongs now, without animating: the surface moved, not the tour. */
-  place(story: W['story'], step: W['step'], anchor: W['anchor'] | null, content: Content): void
+  place(step: W['step'], anchor: W['anchor'] | null, content: Content): void
   /** The words changed and nothing moved. */
-  retell(story: W['story'], step: W['step'], content: Content): void
+  retell(step: W['step'], content: Content): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
   /** Everything this presenter put on the page goes. */

@@ -256,10 +256,9 @@ describe('a failed attempt', () => {
     // The refusal comes first: it is the answer to the press, and the words are
     // what the answer is about.
     expect(owed(outcome)).toEqual(['reject', 'retell'])
-    // The story and the step are read off the attempt rather than carried
-    // beside it, so they cannot disagree with the position they belong to.
+    // The step is read off the attempt rather than carried beside it, so it
+    // cannot disagree with the position it belongs to.
     const [, retold] = outcome.effects as [E, E & { kind: 'retell' }]
-    expect(retold.story).toBe(guarded)
     expect(retold.step).toBe(guarded.steps[0])
     expect(retold.content.error).toBe('not yet')
   })
@@ -308,7 +307,7 @@ describe('starting', () => {
     const outcome = put(nothing(), { kind: 'start', story })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
-    expect(outcome.effects).toEqual([{ kind: 'hold', story, step: undefined }])
+    expect(outcome.effects).toEqual([{ kind: 'hold', step: undefined }])
 
     const opened = put(outcome.core, outcome.next!)
     expect(opened.core.phase).toBe('story')
