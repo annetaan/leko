@@ -11,7 +11,7 @@ takes an event and a state and answers with a state, which is the shape this
 model was always in.
 
 I wrote it because `machine.test.ts` had grown to 1901 lines and every one of
-them was an example I had thought of. It is 1851 now, because the presenter the
+them was an example I had thought of. It is 1859 now, because the presenter the
 tests drive moved to `src/fake.ts` so the replay could share it and because
 the searches keep coming back with something. Four bugs
 turned up in one week that I had not thought of. All four were reachable in
@@ -154,6 +154,52 @@ made a report about a step nobody was standing on. That is the shape of the work
 here. The model is where I write down what can happen, and getting that list
 wrong is how this fails.
 
+## Where the model was wrong
+
+I read `machine.qnt` against `plan.ts` a definition at a time. Two of them said
+something the code does not do.
+
+The first was `stillAt`. `plan.ts` writes `core.position === at`, and `Position`
+is an object replaced on every move and on nothing else. So the object is the
+step occurrence. The model compared the story and the index and had no
+occurrence to compare with. Those two agree until a tour ends and starts the
+same story again.
+
+Five calls reach the gap. `start("b")` parks the slow story `onEnter`. `stop()`.
+The teardown finishes. `start("b")` again. Then the first `onEnter` lands.
+`b/0` reads the same both times, so the model entered `b1` and went to
+`running`. I drove the same five calls into a real `Machine`. It did nothing at
+all, because the `position` object it was holding was the one from before the
+stop. `state` stayed `transitioning` and `Fake.shown` was empty.
+
+`Pos` carries an `occurrence` now, off the same counter the callbacks take their
+tokens from. That made something else wrong. `lost` and `searching` are answered
+against `stepOf(core)` in `plan.ts`, so they compare the step rather than the
+position, and `doLose` and `doHunt` were comparing the position. With an
+occurrence in there they would have started turning down reports the machine
+takes. Those two name a `Where` now, which is a story and an index and no
+occurrence.
+
+Neither invariant could see any of this. `runningIsDrawn` and `idleIsClean` both
+hold in the state the model reached. `pnpm model` ran 200000 traces and said
+nothing, and it was right to. No trace in the corpus went there either.
+`stale-occurrence` is that trace now. 24 states, and it ends on the settle that
+has to come to nothing.
+
+The second was `holding`. `doSetError` and `doShake` each took the utils back
+out of the set, so a handler got one answer and no more. `ErrorUtils` is two
+closures the machine hands over and never mentions again. A handler can keep one
+and use it as often as it likes. I checked: `shake()`, then `setError('one')`,
+then `setError('two')` gives 1 reject and 2 retells. The model could not reach
+any of that. Nothing takes utils back now.
+
+Two smaller ones came out of the same read. `doResize` marked a resize accepted
+while nothing was running, and `moved` in `plan.ts` wants a step to place before
+it does anything. And the mark for a `start` on an empty story was
+`start-refused`, which reads almost exactly like the `refused-start` beside it.
+It is `empty-story` now, and `replay.test.ts` counts its one diagnostic the way
+it counts the other two.
+
 ## The teardown window
 
 `end` empties the machine, takes the presenter down, runs two `onLeave` calls
@@ -293,10 +339,12 @@ does. One of them is wrong. Read the state in the `.itf.json` alongside the
 definition it is named after. Every pure function in `machine.qnt` carries the
 name of the thing it stands for, and there are two places to look.
 
-`end`, `enter`, `advance`, `moveOn` and `enterStory` are in `plan.ts` under the
-same names, as pure functions answering with the next state and the calls the
-machine owes. Everything else a state change does is a spread in the `reduce`
-case that decided it.
+`advance` and `moveOn` are in `plan.ts` under those names, as pure functions
+answering with the next state and the calls the machine owes. Three more are
+there under different ones. `end` is `ending`, `enter` is `entering`, and
+`enterStory` is `opening`. Each doc comment in `machine.qnt` names the one it
+stands for, so read the doc rather than trusting the name. Everything else a
+state change does is a spread in the `reduce` case that decided it.
 
 `plan.ts` is the closest thing to this model that TypeScript holds. Both take an
 event and a state and answer with a state, and both stop where the machine hands
@@ -314,6 +362,19 @@ same boundary.
   replay.
 - The `animate` flag, the words on a step, the diagnostic payloads. Only the
   count of diagnostics is checked.
+- A story that holds the same step object twice. `plan.ts` answers `lost` and
+  `searching` by comparing the step, and `Machine.index` says in its own doc
+  that a story may hold one object twice. Every step in `WORLD` is a different
+  record, so the model never sees that. Comparing the step and comparing the
+  address give the same answer here, and in a world with a repeated object they
+  would not.
+- The moment inside `opening` where `position` is written and the phase has not
+  moved yet. `presenter.hold` is called in there, and a presenter reading
+  `state` from inside it is told `running` with nothing drawn. `runningIsDrawn`
+  says that cannot happen, and for that one call it can. The model writes both
+  fields at once and has no such moment. No presenter reads `state` from
+  `hold`, so this is a hole in what the model can describe rather than a bug I
+  am sitting on.
 - A misconception shared by the model and the code. Nothing can catch that. The
-  model is 832 lines and small enough to read, and that is the whole of the
+  model is 897 lines and small enough to read, and that is the whole of the
   defence.

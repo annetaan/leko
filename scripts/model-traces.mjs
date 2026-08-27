@@ -33,6 +33,7 @@ const HARVEST = [
   { name: 'two-in-flight', target: 'twoInFlight', seed: '0x5' },
   { name: 'morph-under-search', target: 'morphUnderSearch', seed: '0x8', deep: true },
   { name: 'refused', target: 'refused', seed: '0x9' },
+  { name: 'stale-occurrence', target: 'staleOccurrence', seed: '0x12' },
   { name: 'start-tearing', target: 'startWhileTearing', seed: '0xe' },
   { name: 'signal-tearing', target: 'signalWhileTearing', seed: '0x10' },
   { name: 'stop-tearing', target: 'stoppedWhileTearing', seed: '0x11' },

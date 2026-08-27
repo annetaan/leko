@@ -2010,7 +2010,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2018,7 +2018,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["third"]
@@ -2268,7 +2268,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2276,7 +2276,7 @@
         },
         "mark": "refused-start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["third"]

@@ -1987,7 +1987,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "resize-ignored",
         "nextToken": {
           "#bigint": "0"
         },
@@ -2480,7 +2480,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "resize-ignored",
         "nextToken": {
           "#bigint": "0"
         },
@@ -2731,10 +2731,13 @@
                   "index": {
                     "#bigint": "0"
                   },
+                  "occurrence": {
+                    "#bigint": "0"
+                  },
                   "story": "b"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2742,7 +2745,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["target", "third"]
@@ -2757,6 +2760,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "b"

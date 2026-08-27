@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 
 import type { Anchor, Fixture, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
@@ -164,10 +164,12 @@ const defer = (): Deferred => {
  *
  * `refused-signal` is the odd one: the call matched what the step was waiting
  * for and was dropped all the same, so the diagnostic it raises says that
- * rather than naming the call. Both are one diagnostic, which is what the
- * counting below asks for.
+ * rather than naming the call. `empty-story` is turned down for a reason of its
+ * own and not by the gate at all, and belongs here for what it has in common
+ * with the other two: nothing moved, and something said so. Each is one
+ * diagnostic, which is what the counting below asks for.
  */
-const REFUSALS = ['refused-start', 'refused-signal']
+const REFUSALS = ['refused-start', 'refused-signal', 'empty-story']
 
 /** One call the trace says arrived while the machine was inside a teardown. */
 interface Windowed {
@@ -432,16 +434,18 @@ function drain(run: Run): void {
 }
 
 /**
- * The `ErrorUtils` the trace's pick names, taken out of the run as it is spent.
+ * The `ErrorUtils` the trace's pick names.
  *
  * The machine hands these to `onValidationError` and never mentions them again,
- * so the token the model gave one is the only way back to it.
+ * so the token the model gave one is the only way back to it. Kept rather than
+ * spent: a handler holding one may shake and then write words, or write
+ * different words a second time, and the model says so too by leaving the utils
+ * in `holding` however often they are answered with.
  */
 function answer(run: Run, pick: Itf): ErrorUtils {
   const token = int((pick as { token: Itf }).token)
   const utils = run.heldUtils.get(token)
   expect(utils, `no ErrorUtils is held for token ${token}`).toBeDefined()
-  run.heldUtils.delete(token)
   return utils!
 }
 
@@ -482,15 +486,15 @@ function bind(run: Run, before: Snapshot, now: Snapshot): void {
     if (!now.entering.has(token)) run.pending.delete(token)
   }
 
+  // Nothing takes one of these back. `holding` only ever grows, because the
+  // machine has no way to reach an `ErrorUtils` once it has handed one over and
+  // a handler is free to hold it for as long as it likes.
   const handed = [...now.holding.keys()].filter((token) => !before.holding.has(token))
   expect(run.madeUtils.length, `the model handed over ${handed.length} ErrorUtils`).toBe(
     handed.length,
   )
   for (const [index, token] of handed.entries()) run.heldUtils.set(token, run.madeUtils[index]!)
   run.madeUtils.length = 0
-  for (const token of before.holding.keys()) {
-    if (!now.holding.has(token)) run.heldUtils.delete(token)
-  }
 }
 
 // ---------------------------------------------------------------- the checking
@@ -560,6 +564,12 @@ const corpus = fileURLToPath(new URL('../model/traces/', import.meta.url))
  * would leave every assertion in it green about nothing.
  */
 const exercised = { teardownCalls: 0 }
+
+// And the alarm itself. Counting without reading the count is the same silence
+// with an extra step in it.
+afterAll(() => {
+  expect(exercised.teardownCalls, 'no trace put a call inside a teardown').toBeGreaterThan(0)
+})
 
 const named = readdirSync(corpus)
   .filter((file) => file.endsWith('.itf.json'))
@@ -714,7 +724,16 @@ describe('every trace the model found', () => {
         // 6. A callback settling for a position the tour has already left
         //    changes nothing. `position` is replaced on every move and on
         //    nothing else, so holding the object is holding the step occurrence.
-        if (['morph-stale', 'settle-stale', 'lose-stale', 'hunt-stale'].includes(now.mark)) {
+        //
+        //    `settle-restarted` is that sentence taken literally: the tour ended
+        //    and started the same story again, so the story and the index read
+        //    the same as the ones the callback was made under. Only the object
+        //    tells the two apart, and the object is what `plan.ts` compares.
+        if (
+          ['morph-stale', 'settle-stale', 'settle-restarted', 'lose-stale', 'hunt-stale'].includes(
+            now.mark,
+          )
+        ) {
           expect(observe(run), `${where}: something the tour had left moved it`).toEqual(seenBefore)
         }
         // An unmatched `reached()` is free and silent, permanently, because

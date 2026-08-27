@@ -13,6 +13,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -20,6 +23,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -34,7 +40,7 @@
         },
         "mark": "init",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -49,6 +55,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -261,6 +270,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -268,6 +280,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -282,7 +297,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -297,6 +312,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -507,6 +525,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -514,6 +535,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -528,7 +552,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -543,6 +567,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -758,6 +785,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -765,6 +795,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -779,7 +812,7 @@
         },
         "mark": "resize",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -794,6 +827,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1006,6 +1042,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -1013,6 +1052,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1027,7 +1069,7 @@
         },
         "mark": "lose-stale",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -1042,6 +1084,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"

@@ -13,6 +13,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -20,6 +23,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -34,7 +40,7 @@
         },
         "mark": "init",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -49,6 +55,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -261,6 +270,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -268,6 +280,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -282,7 +297,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -297,6 +312,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -507,6 +525,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -514,6 +535,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -528,7 +552,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -543,6 +567,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -753,6 +780,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -760,6 +790,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -774,7 +807,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -789,6 +822,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1004,6 +1040,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -1011,6 +1050,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1025,7 +1067,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1040,6 +1082,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1255,6 +1300,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -1277,10 +1325,13 @@
                   "index": {
                     "#bigint": "1"
                   },
+                  "occurrence": {
+                    "#bigint": "1"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "2"
                 }
               }
             }
@@ -1288,7 +1339,7 @@
         },
         "mark": "press",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1303,6 +1354,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -1513,6 +1567,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -1535,10 +1592,13 @@
                   "index": {
                     "#bigint": "1"
                   },
+                  "occurrence": {
+                    "#bigint": "1"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "2"
                 }
               }
             }
@@ -1546,7 +1606,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -1561,6 +1621,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -1776,6 +1839,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -1798,10 +1864,13 @@
                   "index": {
                     "#bigint": "1"
                   },
+                  "occurrence": {
+                    "#bigint": "1"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "2"
                 }
               }
             }
@@ -1809,7 +1878,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1824,6 +1893,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -2039,6 +2111,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -2061,10 +2136,13 @@
                   "index": {
                     "#bigint": "1"
                   },
+                  "occurrence": {
+                    "#bigint": "1"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "2"
                 }
               }
             }
@@ -2072,7 +2150,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2087,6 +2165,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -2302,6 +2383,9 @@
             "index": {
               "#bigint": "1"
             },
+            "occurrence": {
+              "#bigint": "1"
+            },
             "story": "a"
           }
         },
@@ -2309,6 +2393,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -2323,7 +2410,7 @@
         },
         "mark": "settle-step",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2338,6 +2425,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
               "#bigint": "1"
             },
             "story": "a"
@@ -2522,10 +2612,13 @@
                 "index": {
                   "#bigint": "1"
                 },
+                "occurrence": {
+                  "#bigint": "1"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "0"
+                "#bigint": "2"
               }
             }
           }
@@ -2561,6 +2654,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -2569,6 +2665,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2582,7 +2681,7 @@
         },
         "mark": "reached",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2598,6 +2697,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2807,6 +2909,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -2815,6 +2920,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2828,7 +2936,7 @@
         },
         "mark": "unmatched",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2844,6 +2952,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3053,6 +3164,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -3061,6 +3175,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3074,7 +3191,7 @@
         },
         "mark": "resize",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -3090,6 +3207,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3301,6 +3421,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -3309,6 +3432,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3321,10 +3447,13 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "1"
+                "#bigint": "4"
               }
             }
           ]
@@ -3334,7 +3463,7 @@
         },
         "mark": "press",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -3350,6 +3479,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3559,6 +3691,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -3567,6 +3702,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3579,10 +3717,13 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "1"
+                "#bigint": "4"
               }
             }
           ]
@@ -3592,7 +3733,7 @@
         },
         "mark": "lose-stale",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -3608,6 +3749,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3822,6 +3966,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -3831,19 +3978,37 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
         "hasError": true,
         "holding": {
-          "#set": []
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "4"
+              }
+            }
+          ]
         },
         "inflight": {
           "#set": []
         },
         "mark": "set-error",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -3859,6 +4024,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3998,10 +4166,13 @@
               "index": {
                 "#bigint": "2"
               },
+              "occurrence": {
+                "#bigint": "3"
+              },
               "story": "a"
             },
             "token": {
-              "#bigint": "1"
+              "#bigint": "4"
             }
           }
         },
@@ -4078,6 +4249,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -4086,6 +4260,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4098,10 +4275,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -4111,7 +4305,7 @@
         },
         "mark": "press",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -4127,6 +4321,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4336,6 +4533,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -4344,6 +4544,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4356,10 +4559,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -4369,7 +4589,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -4385,6 +4605,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4594,6 +4817,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -4602,6 +4828,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4614,10 +4843,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -4627,7 +4873,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -4643,6 +4889,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4852,6 +5101,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -4860,6 +5112,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -4872,10 +5127,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -4885,7 +5157,7 @@
         },
         "mark": "resize",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -4901,6 +5173,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -5112,6 +5387,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -5120,6 +5398,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -5132,10 +5413,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -5145,7 +5443,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -5161,6 +5459,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -5375,6 +5676,9 @@
             "index": {
               "#bigint": "2"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -5383,6 +5687,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -5395,10 +5702,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -5408,7 +5732,7 @@
         },
         "mark": "resize",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "6"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -5424,6 +5748,9 @@
           "value": {
             "index": {
               "#bigint": "2"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -5649,10 +5976,27 @@
                 "index": {
                   "#bigint": "2"
                 },
+                "occurrence": {
+                  "#bigint": "3"
+                },
                 "story": "a"
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
               }
             }
           ]
@@ -5669,7 +6013,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "6"
                 }
               }
             }
@@ -5677,7 +6021,7 @@
         },
         "mark": "press",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "7"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -5907,7 +6251,36 @@
         },
         "hasError": false,
         "holding": {
-          "#set": []
+          "#set": [
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "4"
+              }
+            },
+            {
+              "at": {
+                "index": {
+                  "#bigint": "2"
+                },
+                "occurrence": {
+                  "#bigint": "3"
+                },
+                "story": "a"
+              },
+              "token": {
+                "#bigint": "5"
+              }
+            }
+          ]
         },
         "inflight": {
           "#set": [
@@ -5921,7 +6294,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "6"
                 }
               }
             }
@@ -5929,7 +6302,7 @@
         },
         "mark": "set-error-stale",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "7"
         },
         "page": {
           "#set": ["first", "target", "third"]
@@ -6081,10 +6454,13 @@
               "index": {
                 "#bigint": "2"
               },
+              "occurrence": {
+                "#bigint": "3"
+              },
               "story": "a"
             },
             "token": {
-              "#bigint": "2"
+              "#bigint": "4"
             }
           }
         },

@@ -523,7 +523,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -531,7 +531,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -781,7 +781,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -789,7 +789,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -1044,7 +1044,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1052,7 +1052,7 @@
         },
         "mark": "refused-start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -1295,7 +1295,7 @@
         },
         "mark": "left",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -1482,7 +1482,7 @@
                 }
               },
               "token": {
-                "#bigint": "0"
+                "#bigint": "1"
               }
             }
           }
@@ -1551,7 +1551,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -1794,7 +1794,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -2042,7 +2042,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2275,6 +2275,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "2"
+            },
             "story": "a"
           }
         },
@@ -2283,6 +2286,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -2296,7 +2302,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2312,6 +2318,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -2527,6 +2536,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "2"
+            },
             "story": "a"
           }
         },
@@ -2535,6 +2547,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -2548,7 +2563,7 @@
         },
         "mark": "unmatched",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2564,6 +2579,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -2779,6 +2797,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "2"
+            },
             "story": "a"
           }
         },
@@ -2787,6 +2808,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -2800,7 +2824,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -2816,6 +2840,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -3036,6 +3063,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "2"
+            },
             "story": "a"
           }
         },
@@ -3044,6 +3074,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -3057,7 +3090,7 @@
         },
         "mark": "resize",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["second", "target", "third"]
@@ -3073,6 +3106,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "2"
             },
             "story": "a"
           }
@@ -3312,7 +3348,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "1"
+                  "#bigint": "3"
                 }
               }
             }
@@ -3320,7 +3356,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["second", "target", "third"]

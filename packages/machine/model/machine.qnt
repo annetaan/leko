@@ -2,11 +2,12 @@
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// The names here are the names in `plan.ts`. `position`, `phase`, `hasError`,
-// `announced` and `showing` are the five fields of its `Core`.
+// `position`, `phase`, `hasError`, `announced` and `showing` are the five fields
+// of its `Core`, under those names except that `hasError` is `error` as a bit.
 // `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
-// a model has to say out loud. Where a definition mirrors one in `plan.ts`, it
-// carries that name.
+// a model has to say out loud. Every definition that mirrors one in `plan.ts`
+// names it in its doc, because three of them are spelled differently there:
+// `end` is `ending`, `enter` is `entering`, and `enterStory` is `opening`.
 module machine {
   // ---------------------------------------------------------------- the world
 
@@ -17,7 +18,19 @@ module machine {
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
-  type Pos = { story: str, index: int }
+  ///
+  /// `occurrence` is that identity written down. `position` in `plan.ts` is an
+  /// object replaced on every move and on nothing else, and every late callback
+  /// compares itself against it with `===`, so a tour that ends and starts the
+  /// same story again is standing somewhere new even though the story and the
+  /// index read the same. Nothing but {@link stillAt} looks at this.
+  type Pos = { story: str, index: int, occurrence: int }
+
+  /// A step in the world, by address. What a presenter names when it reports
+  /// about the step it was shown, which is a step and never a position:
+  /// `Host.lost` and `Host.searching` are answered against `stepOf(core)` in
+  /// `plan.ts` rather than against `position`.
+  type Where = { story: str, index: int }
 
   /// What a step is, reduced to the five things the machine reads off one.
   ///
@@ -163,9 +176,13 @@ module machine {
 
   var m: M
 
-  pure def storyOf(s: M, at: Pos): StorySpec = s.world.get(at.story)
+  // Both take a {@link Pos} or a {@link Where}, because a story and a step are
+  // found by address and the occurrence is no part of finding one.
 
-  pure def stepAt(s: M, at: Pos): StepSpec = storyOf(s, at).steps[at.index]
+  pure def storyOf(s: M, at: { story: str, index: int | r }): StorySpec = s.world.get(at.story)
+
+  pure def stepAt(s: M, at: { story: str, index: int | r }): StepSpec =
+    storyOf(s, at).steps[at.index]
 
   /// `accepting` in `plan.ts`. The one thing a call from the application is answered
   /// against.
@@ -179,10 +196,36 @@ module machine {
       | Just(_) => if (s.phase == Ready) "running" else "transitioning"
     }
 
-  /// Whether `at` still names the step the tour is standing on. Every late
-  /// callback in `plan.ts` asks this, by comparing the captured `position`
-  /// object with the current one.
+  /// Whether `at` still names the step occurrence the tour is standing on.
+  /// Every late callback in `plan.ts` asks this, by comparing the captured
+  /// `position` object with the current one, which is why the occurrence is
+  /// part of the comparison here and not just the story and the index.
   pure def stillAt(s: M, at: Pos): bool = s.position == Just(at)
+
+  /// Whether `w` names the step the tour is standing on, whichever occurrence
+  /// of it. `stepOf(core) !== event.step` in `plan.ts`, which is what `lost`
+  /// and `searching` ask instead of {@link stillAt}: a presenter watches the
+  /// step it was shown, so what it can name is a step.
+  pure def standingOn(s: M, w: Where): bool =
+    match s.position {
+      | Nothing => false
+      | Just(at) => stepAt(s, at) == stepAt(s, w)
+    }
+
+  /// Which way an `onEnter` was stale, for a settle {@link stillAt} turned
+  /// down. `settle-restarted` is the narrow one worth aiming at: the tour ended
+  /// and started the same story again, so the story and the index read the same
+  /// as the ones the callback was made at and the occurrence does not. It is
+  /// the only case where the two ways of asking "is this still where we are"
+  /// give different answers, and `plan.ts` compares the object, so nothing
+  /// happens.
+  pure def staleMark(s: M, at: Pos): str =
+    match s.position {
+      | Nothing => "settle-stale"
+      | Just(here) =>
+        if (here.story == at.story and here.index == at.index) "settle-restarted"
+        else "settle-stale"
+    }
 
   // ------------------------------------------------------------ the machinery
   //
@@ -192,6 +235,17 @@ module machine {
   pure def park(s: M, mk: int => Callback): M =
     s.with("inflight", s.inflight.union(Set(mk(s.nextToken))))
      .with("nextToken", s.nextToken + 1)
+
+  /// Stand the tour on a step, as a step occurrence nothing has stood on
+  /// before. `plan.ts` writes `{ ...core, position: at }` and the fresh object
+  /// is the fresh occurrence; here it is a number off the same supply the
+  /// callbacks draw their tokens from.
+  ///
+  /// The three callers are the three writes of `position` in `plan.ts`:
+  /// `opening` twice, once for a `start` from idle and once for the story that
+  /// displaced a run, and `moveOn` for every step after the first.
+  pure def standOn(s: M, at: Pos): M =
+    s.with("position", Just(at)).with("nextToken", s.nextToken + 1)
 
   /// `Machine.errorUtils`, handed to `onValidationError` and kept until the
   /// handler does something with it. The position is captured here, which is
@@ -227,7 +281,10 @@ module machine {
   pure def failed(s: M, at: Pos): M =
     if (stillAt(s, at)) end(s, Nothing) else s
 
-  /// The `lost` event, reached through `Host.lost`.
+  /// The `lost` event, for the two places the machine reaches it from inside
+  /// its own work: `show` handed a missing anchor, and `resolve` answering null
+  /// where a guard was about to be asked. {@link doLose} is the third, and asks
+  /// {@link standingOn} instead, because there the presenter names the step.
   pure def lose(s: M, at: Pos): M =
     if (stillAt(s, at)) end(s, Nothing) else s
 
@@ -303,7 +360,8 @@ module machine {
   pure def moveOn(s: M, at: Pos): M = {
     val story = storyOf(s, at)
     if (at.index >= story.steps.length() - 1) end(s, Nothing)
-    else enter(s.with("position", Just({ story: at.story, index: at.index + 1 })))
+    else
+      enter(standOn(s, { story: at.story, index: at.index + 1, occurrence: s.nextToken }))
   }
 
   /// `advance` in `plan.ts`. `guardOk` is what `validate` answered. What
@@ -324,8 +382,9 @@ module machine {
       moveOn(s, at)
     else
       // The guard said no. `onValidationError` is handed the utils here and
-      // what it does with them is {@link doSetError} and {@link doForget},
-      // because a handler is free to answer a second late.
+      // what it does with them is {@link doSetError} and {@link doShake},
+      // because a handler is free to answer a second late, and to answer more
+      // than once.
       handOver(s, at)
   }
 
@@ -346,14 +405,15 @@ module machine {
       if (not(accepting(m))) m.with("mark", "refused-start")
       else if (m.world.get(id).steps.length() == 0)
         // Nothing is torn down until the story is known to be runnable, so an
-        // empty one cannot end a tour someone is in the middle of.
-        m.with("mark", "start-refused")
+        // empty one cannot end a tour someone is in the middle of. A refusal
+        // like any other from out here: one diagnostic, and nothing moved.
+        m.with("mark", "empty-story")
       else
         match m.position {
           // Nothing to tear down, so the story goes up in this call.
           | Nothing => {
-            val at = { story: id, index: 0 }
-            enterStory(m.with("position", Just(at)), at).with("mark", "start")
+            val at = { story: id, index: 0, occurrence: m.nextToken }
+            enterStory(standOn(m, at), at).with("mark", "start")
           }
           // What is ending is told what is starting, and the phase stays closed
           // through the whole of it, report included. The second half of this
@@ -415,7 +475,11 @@ module machine {
     // Not `refused`. Every other refusal is a call a host made and can be told
     // about; this one nobody made, so there is nothing to say and nobody to say
     // it to.
-    m' = m.with("mark", if (accepting(m)) "resize" else "resize-ignored"),
+    //
+    // The gate is not the whole of it: `moved` in `plan.ts` also wants a step
+    // to place, so a resize while nothing is running is ignored too.
+    m' =
+      m.with("mark", if (accepting(m) and m.position != Nothing) "resize" else "resize-ignored"),
   }
 
   // Neither of the two below asks where the tour is first. A presenter watches
@@ -423,23 +487,29 @@ module machine {
   // already started heading somewhere else, so a report about a step nobody is
   // standing on is a report that really arrives. Deciding what it means is the
   // machine's, and that is the half worth checking.
+  //
+  // All three name a {@link Where} rather than a {@link Pos}, because that is
+  // what the presenter has to name with: `lost` and `searching` carry a step,
+  // and `plan.ts` answers them against `stepOf(core)`. A step reported for the
+  // occurrence before the tour restarted is a report about the step the tour is
+  // on, and the machine takes it.
 
   /// `Fake.lose`: the target left the page and the presenter has given up on it.
-  action doLose(at: Pos): bool = all {
+  action doLose(w: Where): bool = all {
     m' = {
-      val gone = m.with("page", m.page.exclude(Set(stepAt(m, at).target)))
-      if (stillAt(gone, at)) lose(gone, at).with("mark", "lose")
+      val gone = m.with("page", m.page.exclude(Set(stepAt(m, w).target)))
+      if (standingOn(gone, w)) end(gone, Nothing).with("mark", "lose")
       else gone.with("mark", "lose-stale")
     },
   }
 
   /// `Fake.hunt`: the target left the page and the presenter is still looking.
-  action doHunt(at: Pos): bool = all {
+  action doHunt(w: Where): bool = all {
     m' = {
-      val gone = m.with("page", m.page.exclude(Set(stepAt(m, at).target)))
+      val gone = m.with("page", m.page.exclude(Set(stepAt(m, w).target)))
       // A wait is only started for the step the tour is on, and only over a
       // phase that says the step is on screen.
-      if (not(stillAt(gone, at))) gone.with("mark", "hunt-stale")
+      if (not(standingOn(gone, w))) gone.with("mark", "hunt-stale")
       else if (gone.phase == Ready or gone.phase == Settling)
         gone.with("phase", Searching).with("mark", "hunt")
       else gone.with("mark", "hunt-ignored")
@@ -449,9 +519,9 @@ module machine {
   /// `Fake.found`: it came back. Ending a wait asks nothing, because by then the
   /// tour may be on another step and the phase the wait wrote is the one that
   /// has to come off.
-  action doFound(at: Pos): bool = all {
+  action doFound(w: Where): bool = all {
     m' = {
-      val back = m.with("page", m.page.union(Set(stepAt(m, at).target)))
+      val back = m.with("page", m.page.union(Set(stepAt(m, w).target)))
       if (back.phase == Searching) back.with("phase", Ready).with("mark", "found")
       else back.with("mark", "found-ignored")
     },
@@ -496,8 +566,8 @@ module machine {
             // An ending with somewhere to go stays closed through its own
             // report, and then the story that was named goes up.
             | Just(id) => {
-              val at = { story: id, index: 0 }
-              enterStory(awake.with("position", Just(at)), at).with("mark", "left-into")
+              val at = { story: id, index: 0, occurrence: awake.nextToken }
+              enterStory(standOn(awake, at), at).with("mark", "left-into")
             }
           }
         | EnterStory(_) => awake
@@ -509,31 +579,31 @@ module machine {
 
   // --- what a failed attempt says about itself
 
+  // Neither of the two below spends the utils it answers with. `ErrorUtils` is
+  // a pair of closures the machine hands over and never mentions again, so a
+  // handler holding one may shake, then write words, then write different
+  // words, and `plan.ts` takes each of them on its own terms. Utils leave
+  // {@link M.holding} for nothing at all, which is also how a handler that does
+  // nothing with them is written down: every trace ending with one still in
+  // there shows exactly that.
+
   /// `ErrorUtils.setError`. The words belong on the attempt they were written
   /// about, so a handler answering after the tour has moved writes nothing.
   action doSetError(u: Utils): bool = all {
     m.holding.contains(u),
-    m' = {
-      val done = m.with("holding", m.holding.exclude(Set(u)))
-      if (stillAt(done, u.at)) done.with("hasError", true).with("mark", "set-error")
-      else done.with("mark", "set-error-stale")
-    },
+    m' =
+      if (stillAt(m, u.at)) m.with("hasError", true).with("mark", "set-error")
+      else m.with("mark", "set-error-stale"),
   }
 
   /// `ErrorUtils.shake()`. It writes no field, so the mark is the whole of what
   /// this leaves behind, and `replay.test.ts` reads it to know whether the
   /// presenter should have been told to reject.
-  ///
-  /// A handler that does nothing at all is not an action. It is utils that stay
-  /// in {@link M.holding} and are never answered with, which every trace that
-  /// ends with one in there already shows.
   action doShake(u: Utils): bool = all {
     m.holding.contains(u),
-    m' = {
-      val done = m.with("holding", m.holding.exclude(Set(u)))
-      if (stillAt(done, u.at)) done.with("mark", "shake")
-      else done.with("mark", "shake-stale")
-    },
+    m' =
+      if (stillAt(m, u.at)) m.with("mark", "shake")
+      else m.with("mark", "shake-stale"),
   }
 
   // --- what lands late
@@ -551,10 +621,10 @@ module machine {
       match cb {
         | EnterStory(c) =>
           if (stillAt(awake, c.at)) enter(awake).with("mark", "settle-story")
-          else awake.with("mark", "settle-stale")
+          else awake.with("mark", staleMark(awake, c.at))
         | EnterStep(c) =>
           if (stillAt(awake, c.at)) arrive(awake, c.at).with("mark", "settle-step")
-          else awake.with("mark", "settle-stale")
+          else awake.with("mark", staleMark(awake, c.at))
         | Leaving(_) => awake
         | Morph(c) => {
           // Only the morph nothing has replaced may call the step settled.
@@ -622,15 +692,15 @@ module machine {
   /// searched for.
   action initRunning = all {
     m' = {
-      val at = { story: "a", index: 0 }
-      enterStory(FRESH.with("position", Just(at)), at)
+      val at = { story: "a", index: 0, occurrence: FRESH.nextToken }
+      enterStory(standOn(FRESH, at), at)
     },
   }
 
-  /// Every position in the world, so an action that names one can pick from a
-  /// set rather than from the tour it happens to be on. A presenter can report
-  /// a step the tour has already left, and that is the case worth reaching.
-  pure val POSITIONS: Set[Pos] =
+  /// Every step in the world, so an action that names one can pick from a set
+  /// rather than from the tour it happens to be on. A presenter can report a
+  /// step the tour has already left, and that is the case worth reaching.
+  pure val WHERES: Set[Where] =
     WORLD.keys().map((id) =>
       WORLD.get(id).steps.indices().map((i) => { story: id, index: i })
     ).flatten()
@@ -644,11 +714,11 @@ module machine {
     nondet guardOk = Bool.oneOf()
     doPress(guardOk),
     doResize,
-    nondet losePick = POSITIONS.oneOf()
+    nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet huntPick = POSITIONS.oneOf()
+    nondet huntPick = WHERES.oneOf()
     doHunt(huntPick),
-    nondet foundPick = POSITIONS.oneOf()
+    nondet foundPick = WHERES.oneOf()
     doFound(foundPick),
     nondet slowPick = Bool.oneOf()
     doSetSlow(slowPick),
@@ -679,11 +749,11 @@ module machine {
     nondet guardOk = Bool.oneOf()
     doPress(guardOk),
     doResize,
-    nondet losePick = POSITIONS.oneOf()
+    nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet huntPick = POSITIONS.oneOf()
+    nondet huntPick = WHERES.oneOf()
     doHunt(huntPick),
-    nondet foundPick = POSITIONS.oneOf()
+    nondet foundPick = WHERES.oneOf()
     doFound(foundPick),
     nondet slowPick = Bool.oneOf()
     doSetSlow(slowPick),
@@ -798,6 +868,17 @@ module machine {
   /// A call the gate turned down.
   val refused: bool = m.mark == "refused-start" or m.mark == "refused-signal"
 
+  /// A `start` on a story with nothing in it. Refused like the two above and
+  /// for a different reason, and the run that was showing has to survive it.
+  val emptyStory: bool = m.mark == "empty-story"
+
+  /// An `onEnter` landing for a step occurrence the tour has left and come back
+  /// to, so that the story and the index read the same and the occurrence does
+  /// not. The one state where asking "is this where we are" by address and by
+  /// occurrence disagree, and `plan.ts` asks by occurrence: it holds the
+  /// `position` object the callback was made under and compares it with `===`.
+  val staleOccurrence: bool = m.mark == "settle-restarted"
+
   /// The presenter reporting about a step the tour has already left, which it
   /// can do because it watches the step it was shown rather than the tour.
   /// Standing somewhere, so that the report is about another step rather than
@@ -806,6 +887,11 @@ module machine {
     (m.mark == "lose-stale" or m.mark == "hunt-stale") and m.position != Nothing
 
   /// The tour reported as far as the last step of the longest story, which is
-  /// as deep as this world goes.
-  val reachedLastStep: bool = m.announced == Just({ story: "a", index: 2 })
+  /// as deep as this world goes. By address, because which occurrence of it the
+  /// tour got there on is not the question.
+  val reachedLastStep: bool =
+    match m.announced {
+      | Nothing => false
+      | Just(at) => at.story == "a" and at.index == 2
+    }
 }

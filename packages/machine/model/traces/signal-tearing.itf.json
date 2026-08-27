@@ -519,7 +519,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "start-refused",
+        "mark": "empty-story",
         "nextToken": {
           "#bigint": "0"
         },
@@ -762,7 +762,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "start-refused",
+        "mark": "empty-story",
         "nextToken": {
           "#bigint": "0"
         },
@@ -992,6 +992,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "0"
+            },
             "story": "a"
           }
         },
@@ -999,6 +1002,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1013,7 +1019,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -1028,6 +1034,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "a"
@@ -1266,7 +1275,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1274,7 +1283,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -1526,7 +1535,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1534,7 +1543,7 @@
         },
         "mark": "resize-ignored",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -1786,7 +1795,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1794,7 +1803,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -2046,7 +2055,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2054,7 +2063,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -2306,7 +2315,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2314,7 +2323,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target"]
@@ -2569,7 +2578,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2577,7 +2586,7 @@
         },
         "mark": "refused-start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target"]
@@ -2827,7 +2836,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -2835,7 +2844,7 @@
         },
         "mark": "unmatched",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["second", "target"]

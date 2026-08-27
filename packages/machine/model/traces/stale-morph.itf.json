@@ -764,7 +764,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "resize-ignored",
         "nextToken": {
           "#bigint": "0"
         },
@@ -1260,10 +1260,13 @@
                   "index": {
                     "#bigint": "0"
                   },
+                  "occurrence": {
+                    "#bigint": "0"
+                  },
                   "story": "b"
                 },
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1271,7 +1274,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1286,6 +1289,9 @@
           "tag": "Just",
           "value": {
             "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
               "#bigint": "0"
             },
             "story": "b"
@@ -1524,7 +1530,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "1"
+                  "#bigint": "2"
                 }
               }
             }
@@ -1532,7 +1538,7 @@
         },
         "mark": "fail-story",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1692,10 +1698,13 @@
                 "index": {
                   "#bigint": "0"
                 },
+                "occurrence": {
+                  "#bigint": "0"
+                },
                 "story": "b"
               },
               "token": {
-                "#bigint": "0"
+                "#bigint": "1"
               }
             }
           }
@@ -1788,7 +1797,7 @@
         },
         "mark": "left",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1975,7 +1984,7 @@
                 }
               },
               "token": {
-                "#bigint": "1"
+                "#bigint": "2"
               }
             }
           }
@@ -2044,7 +2053,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2287,9 +2296,9 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "resize-ignored",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2519,6 +2528,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -2527,6 +2539,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2540,7 +2555,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2556,6 +2571,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2771,6 +2789,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "3"
+            },
             "story": "a"
           }
         },
@@ -2779,6 +2800,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -2792,7 +2816,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "4"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -2808,6 +2832,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -3045,7 +3072,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "4"
                 }
               }
             }
@@ -3053,7 +3080,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -3305,7 +3332,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "4"
                 }
               }
             }
@@ -3313,7 +3340,7 @@
         },
         "mark": "slow",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -3563,7 +3590,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "4"
                 }
               }
             }
@@ -3571,7 +3598,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -3826,7 +3853,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "4"
                 }
               }
             }
@@ -3834,7 +3861,7 @@
         },
         "mark": "resize-ignored",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -4079,7 +4106,7 @@
         },
         "mark": "left",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -4266,7 +4293,7 @@
                 }
               },
               "token": {
-                "#bigint": "2"
+                "#bigint": "4"
               }
             }
           }
@@ -4333,9 +4360,9 @@
         "inflight": {
           "#set": []
         },
-        "mark": "resize",
+        "mark": "resize-ignored",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "5"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -4565,6 +4592,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "5"
+            },
             "story": "a"
           }
         },
@@ -4573,6 +4603,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "5"
             },
             "story": "a"
           }
@@ -4590,10 +4623,13 @@
                   "index": {
                     "#bigint": "0"
                   },
+                  "occurrence": {
+                    "#bigint": "5"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "6"
                 }
               }
             }
@@ -4601,7 +4637,7 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "7"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -4618,6 +4654,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "5"
+            },
             "story": "a"
           }
         },
@@ -4625,7 +4664,7 @@
         "showing": {
           "tag": "Just",
           "value": {
-            "#bigint": "3"
+            "#bigint": "6"
           }
         },
         "slow": true,
@@ -4832,6 +4871,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "5"
+            },
             "story": "a"
           }
         },
@@ -4840,6 +4882,9 @@
           "value": {
             "index": {
               "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "5"
             },
             "story": "a"
           }
@@ -4857,10 +4902,13 @@
                   "index": {
                     "#bigint": "0"
                   },
+                  "occurrence": {
+                    "#bigint": "5"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "6"
                 }
               }
             }
@@ -4868,7 +4916,7 @@
         },
         "mark": "hunt-stale",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "7"
         },
         "page": {
           "#set": ["first", "second", "target"]
@@ -4885,6 +4933,9 @@
             "index": {
               "#bigint": "0"
             },
+            "occurrence": {
+              "#bigint": "5"
+            },
             "story": "a"
           }
         },
@@ -4892,7 +4943,7 @@
         "showing": {
           "tag": "Just",
           "value": {
-            "#bigint": "3"
+            "#bigint": "6"
           }
         },
         "slow": true,
@@ -5126,7 +5177,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "4"
+                  "#bigint": "7"
                 }
               }
             },
@@ -5137,10 +5188,13 @@
                   "index": {
                     "#bigint": "0"
                   },
+                  "occurrence": {
+                    "#bigint": "5"
+                  },
                   "story": "a"
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "6"
                 }
               }
             }
@@ -5148,7 +5202,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "8"
         },
         "page": {
           "#set": ["first", "second", "target"]

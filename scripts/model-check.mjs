@@ -35,6 +35,8 @@ const WITNESSES = [
   'erroring',
   'morphUnderSearch',
   'refused',
+  'emptyStory',
+  'staleOccurrence',
   'staleReport',
   'tearing',
   'startWhileTearing',
