@@ -525,8 +525,10 @@ describe('a story that says what follows it', () => {
 })
 
 describe('a call made from inside a report', () => {
-  // `branching.ts` in the sandbox rejoins a shared story this way: the `onStep`
-  // that says the first one ended starts the second.
+  // Three reports and three answers. Only the report of an ending with nowhere
+  // to go is a window a story can begin in, and the other two say which refusal
+  // they are, because a host reading one member for both would have to read
+  // `state` to find out which it was holding.
   //
   // **This is what `dispatch` being re-entrant pays for.** `start()` answers
   // whether the story it named is the one now running, and a call queued behind
@@ -550,6 +552,51 @@ describe('a call made from inside a report', () => {
     expect(answered).toBe(true)
     expect(tour.story?.id).toBe('second')
     expect(tour.step?.id).toBe('b')
+  })
+
+  test('start from a report naming a step is turned down for the tour it names', () => {
+    const problems: Problem<Fixture>[] = []
+    const first: Story = { id: 'first', steps: [{ id: 'a', target: 'first' }] }
+    const second: Story = { id: 'second', steps: [{ id: 'b', target: 'second' }] }
+    const answered: boolean[] = []
+    const tour = machine({
+      onStep: (step) => {
+        if (step !== undefined) answered.push(begin(tour, 'second'))
+      },
+      onDiagnostic: (problem) => problems.push(problem),
+    })
+    hold(tour, first)
+    hold(tour, second)
+
+    begin(tour, 'first')
+
+    // A report that names a step is a tour that is running, and `start` never
+    // ends one. Only the report of an ending is a window a story can begin in.
+    expect(answered).toEqual([false])
+    expect(problems).toEqual([{ kind: 'tour-running', story: second, running: first }])
+    expect(tour.story?.id).toBe('first')
+  })
+
+  test('start from the report of a chained ending gives way to the story on its way', () => {
+    const summary: Story = { id: 'summary', steps: [{ id: 'c', target: 'third' }] }
+    const rescue: Story = { id: 'rescue', steps: [{ id: 'r', target: 'second' }] }
+    const answered: boolean[] = []
+    const tour = machine({
+      onStep: (step) => {
+        if (step === undefined) answered.push(begin(tour, 'rescue'))
+      },
+    })
+    hold(tour, { id: 'first', next: summary, steps: [{ id: 'a', target: 'first' }] })
+    hold(tour, summary)
+    hold(tour, rescue)
+
+    begin(tour, 'first')
+    press(tour)
+
+    // The ending has somewhere to go, so the phase is still closed through its
+    // own report. `rescue` would be overwritten by the story already coming.
+    expect(answered).toEqual([false])
+    expect(tour.story?.id).toBe('summary')
   })
 })
 

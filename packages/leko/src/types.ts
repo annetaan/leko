@@ -562,9 +562,16 @@ export interface LekoOptions {
    * still in flight has never been drawn and is never named, so a run that ends
    * there says it came from nowhere rather than from a step nobody saw.
    *
-   * Starting or stopping a story from inside a handler is allowed. `start()`
-   * gives way to whatever a handler started while it was stopping the story
-   * before it, so the most recent call wins rather than the outermost.
+   * {@link Leko.stop} from in here is never turned down. {@link Leko.start} is
+   * turned down unless the tour has ended and has nowhere to go, which is the
+   * report after a `stop()` or after a story ran out of steps with no
+   * {@link LekoStory.next}. There the tour is already over, nothing runs after
+   * the report, and the story a handler starts is the story that runs.
+   *
+   * Everywhere else the refusal says which one it is. A report naming a step is
+   * a tour that is running, so that is `tour-running`. A report of an ending
+   * whose story already named the one that follows it is `call-refused`, and
+   * the story named in `next` is the one that runs.
    */
   onStep?: (step: LekoStep | undefined, previous: LekoStep | undefined, story: LekoStory) => void
 
