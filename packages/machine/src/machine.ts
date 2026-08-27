@@ -93,22 +93,22 @@ export class Machine<W extends World> {
   // ----------------------------------------------------------- what a host calls
 
   /**
-   * Show `story` from its first step, and answer whether it is the story now
-   * running. There is no way to begin anywhere else and no way back: DESIGN.md
-   * argues that under **A story is atomic, and stories are short**.
+   * Show `story` from its first step. There is no way to begin anywhere else
+   * and no way back: DESIGN.md argues that under **A story is atomic, and
+   * stories are short**.
    *
-   * A story the tour is already on starts again, because there is one meaning
-   * here and it is "put this up".
+   * A story that has run before goes up again from its first step, because
+   * there is one meaning here and it is "put this up". A story the tour is
+   * still on is a different thing and is turned down: `start` never ends a
+   * tour, and DESIGN.md argues that under **Starting a story**.
    *
-   * An empty story gets `false`, and so does a call made while the machine was
-   * inside the application, and a story whose `onEnter` threw. That is not the
-   * silence `reached()` keeps. DESIGN.md, **Saying that a call did nothing**.
+   * Every way this comes to nothing has a `Problem` of its own: an empty story,
+   * a tour already running, and a call the gate turned down. A story whose
+   * `onEnter` threw is the one that does not, and the reason is thrown again
+   * rather than reported. DESIGN.md, **Saying that a call did nothing**.
    */
-  start(story: W['story']): boolean {
+  start(story: W['story']): void {
     this.dispatch({ kind: 'start', story })
-    // Asked after the fact rather than assumed, because a story's `onEnter` can
-    // throw and end the run before this returns.
-    return this.#core.position?.story === story
   }
 
   /**

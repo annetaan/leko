@@ -392,28 +392,29 @@ test('a resize stands back while a step is being built, and lands once it is dra
 test('a story started from inside onLeave is refused, and the step that was arriving lands', () => {
   const [first, second] = pair()
   const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
-  const started: boolean[] = []
-  const leko = holding({
-    id: 'story',
-    steps: [
-      {
-        id: 'a',
-        target: () => first,
-        onLeave: () =>
-          void started.push(
-            leko.start({ id: 'elsewhere', steps: [{ id: 'c', target: () => third }] }),
-          ),
-      },
-      { id: 'b', target: () => second },
-    ],
-  })
+  const problems: LekoProblem[] = []
+  const leko = holding(
+    {
+      id: 'story',
+      steps: [
+        {
+          id: 'a',
+          target: () => first,
+          onLeave: () =>
+            void leko.start({ id: 'elsewhere', steps: [{ id: 'c', target: () => third }] }),
+        },
+        { id: 'b', target: () => second },
+      ],
+    },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
 
   begin(leko, 'story')
   press()
 
   // Leaving is a call into the application, and a story started from inside one
   // would be drawn over by the step this move was already on its way to.
-  expect(started).toEqual([false])
+  expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
   expect(leko.step?.id).toBe('b')
   expect(centre(second)).toBe(second)
 })
@@ -505,7 +506,7 @@ test("a fresh object under the running story's name is turned down", () => {
   // What a component re-rendering hands back. The `id` is not read and the call
   // does not end anything, so the hole stays where somebody is standing rather
   // than jumping to the steps of the newest render.
-  expect(leko.start({ id: 'story', steps: [{ id: 'one', target: () => other }] })).toBe(false)
+  leko.start({ id: 'story', steps: [{ id: 'one', target: () => other }] })
 
   expect(leko.state).toBe('running')
   expect(centre(target)).toBe(target)

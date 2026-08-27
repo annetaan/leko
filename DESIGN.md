@@ -352,13 +352,21 @@ refused, like every other call made while Leko is inside the application. That
 refusal is what makes the `next` argument to `onLeave` worth having: the story
 `onLeave` is told about is the story that runs.
 
-**`start()` answers whether the story it was given is the one now running.
-`reached()` still does not.** A `reached()` call is instrumentation, and most of
-the time no step waits for it. `start()` is the host giving an order, and an
-order that came to nothing has no symptom at all: a story with no steps in it, a
-call made mid-arrival, an `onEnter` that threw. A call meant as an order is
-answered, and one that is a report about the world is left alone. That is the
-asymmetry `awaits` and `reached()` already have, one layer down.
+**`start()` returns nothing, and `reached()` says nothing. Those are two
+different silences.** A `reached()` call is instrumentation, and most of the
+time no step waits for it, so answering would put a warning on every unrelated
+call. `start()` is the host giving an order, and an order that came to nothing
+is reported: `story-empty`, `tour-running`, `call-refused`. A call meant as an
+order is answered, and one that is a report about the world is left alone. That
+is the asymmetry `awaits` and `reached()` already have, one layer down.
+
+**A return value cannot carry that answer honestly.** A story whose `onEnter`
+throws synchronously ends the run inside the `start()` call, so the position is
+empty by the time the call returns. The same story written `async` has already
+put the position up, and the run ends a turn later. One failure and two answers,
+decided by how a handler happened to be written. That failure is also the one
+way out with no `Problem` of its own, and what a host gets there is the reason
+thrown again, which **What a step and a story assume** argues for.
 
 `previous` is the step a host was last **told about**, not the step the tour came
 from. `index` is there so a host never searches `story.steps`. A step is a plain
@@ -717,14 +725,25 @@ nothing follows that report. There are eight such windows and an event apiece,
 which is what keeps one reduction from spanning one.
 
 **`dispatch` is re-entrant, and that is load-bearing.** A call made from inside
-an effect runs down the stack rather than joining a queue. `start()` answers
-whether the call took, and it reads that answer off the state once the event has
-run. Queue the call and there is no answer to give:
-`start()` from inside an `onStep` says `false` and then starts the story a
-moment later, which is what the test named *start from inside onStep runs there,
-and answers truthfully* pins down. A queue is
-tidier to reason about and it costs two booleans the API cannot express any
-other way.
+an effect runs down the stack rather than joining a queue.
+
+The host does not ask for this. `plan.ts` hands back the event the machine owes
+itself alongside the calls it owes the application, and `dispatch` runs that
+event on the same stack. `ending` returns `left`, `left` returns `startInto`,
+`moveOn` returns `entering`, `opening` returns `openStory`, and `stepEntered`
+returns `drawn`. A press on the last step of a story that names what follows it
+runs `pressed`, `chained`, `left`, `startInto` and `openStory` down one stack.
+Re-entrancy is how the machine walks its own chain, and it would be here if no
+application ever called back in.
+
+What a host's calls get from it is ordering. A `start()` made from the report of
+an ending puts its story up inside the call that made the report, so a host
+watching sees one tour replaced by another. Queue it and the machine has gone
+idle by the time it runs, so the same host sees a tour that ended, a turn of
+nothing, and then a tour that began. The test named *start from inside onStep
+runs there, before stop returns* pins that down. A queue would also have to tell
+a host's `start` apart from a `drawn` the machine owes itself, which is a
+distinction nothing in `plan.ts` has to make today.
 
 ## Watching `state`
 

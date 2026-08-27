@@ -228,9 +228,8 @@ pick('.controls').addEventListener('click', (event) => {
   if (story) {
     problem = undefined
     // Logged before the call rather than after, so the diagnostic a refused
-    // start makes sits under the call that made it. There is no row for the
-    // answer, because every `false` `start` returns has a diagnostic of its own
-    // and that lands here too.
+    // start makes sits under the call that made it. `start` returns nothing,
+    // and a call that came to nothing is a diagnostic on the next row.
     note('call', `start('${story.id}')`)
     leko?.start(story)
   } else {

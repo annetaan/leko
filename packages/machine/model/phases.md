@@ -113,7 +113,7 @@ user is looking at it. A call about it means what it says, so `settling` and
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
 
-A refused `start()` answers `false` and reports `call-refused`. A matched `reached()` reports `signal-dropped` and is thrown
+A refused `start()` reports `call-refused`. A matched `reached()` reports `signal-dropped` and is thrown
 away. Holding it over would advance a step on something that happened before
 that step began.
 

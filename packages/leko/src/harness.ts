@@ -54,7 +54,7 @@ export function holding(story: LekoStory, options: LekoOptions = {}) {
 }
 
 /** Put up the story `leko` is holding under `id`. */
-export const begin = (leko: Leko, id: string): boolean => leko.start(staged.get(leko)!.get(id)!)
+export const begin = (leko: Leko, id: string): void => leko.start(staged.get(leko)!.get(id)!)
 
 /** One story, started, which is what most of these want. */
 export function start(steps: LekoStep[], options: LekoOptions = {}) {

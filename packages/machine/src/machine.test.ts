@@ -58,8 +58,7 @@ function hold(tour: Machine<Fixture>, story: Story): Story {
 }
 
 /** Put up the story `tour` was staged with under `id`. */
-const begin = (tour: Machine<Fixture>, id: string): boolean =>
-  tour.start(staged.get(tour)!.get(id)!)
+const begin = (tour: Machine<Fixture>, id: string): void => tour.start(staged.get(tour)!.get(id)!)
 
 function staging(story: Story, options: Options = {}) {
   const tour = machine(options)
@@ -503,13 +502,17 @@ describe('a story that says what follows it', () => {
 
   test('the chain is closed through its own report, so a start from there is refused', () => {
     const other: Story = { id: 'other', steps: [{ id: 'o', target: 'first' }] }
-    let answered: boolean | undefined
+    const problems: Problem<Fixture>[] = []
+    let tried = false
     const tour = staging(
       { id: 'first', next: summary, steps: [{ id: 'a', target: 'first' }] },
       {
         onStep: (step) => {
-          if (step === undefined && answered === undefined) answered = tour.start(other)
+          if (step !== undefined || tried) return
+          tried = true
+          tour.start(other)
         },
+        onDiagnostic: (problem) => problems.push(problem),
       },
     )
     hold(tour, other)
@@ -519,28 +522,30 @@ describe('a story that says what follows it', () => {
 
     // The story already on its way would overwrite anything begun here, so the
     // call is turned down and says so. `branching.ts` used to rejoin this way.
-    expect(answered).toBe(false)
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(tour.story?.id).toBe('summary')
   })
 })
 
 describe('a call made from inside a report', () => {
-  // Three reports and three answers. Only the report of an ending with nowhere
-  // to go is a window a story can begin in, and the other two say which refusal
-  // they are, because a host reading one member for both would have to read
+  // Three reports and three windows. Only the report of an ending with nowhere
+  // to go is one a story can begin in, and the other two say which refusal they
+  // are, because a host reading one diagnostic for both would have to read
   // `state` to find out which it was holding.
   //
-  // **This is what `dispatch` being re-entrant pays for.** `start()` answers
-  // whether the story it named is the one now running, and a call queued behind
-  // the event that is running cannot answer that yet: it would say `false` and
-  // then start the story anyway. Anything that puts a queue in front of
-  // `dispatch` fails here, which is the whole reason this test is written down.
-  test('start from inside onStep runs there, and answers truthfully', () => {
+  // **This is what `dispatch` being re-entrant pays for.** The story is up
+  // before the `stop()` that reported the ending has returned. Put a queue in
+  // front of `dispatch` and the three lines below run against an idle tour,
+  // with `second` arriving a turn later. That is a readout showing a tour that
+  // ended, a turn of nothing, and then a tour that began.
+  test('start from inside onStep runs there, before stop returns', () => {
     const second: Story = { id: 'second', steps: [{ id: 'b', target: 'second' }] }
-    let answered: boolean | undefined
+    let tried = false
     const tour = machine({
       onStep: (step) => {
-        if (step === undefined && answered === undefined) answered = begin(tour, 'second')
+        if (step !== undefined || tried) return
+        tried = true
+        begin(tour, 'second')
       },
     })
     hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
@@ -549,19 +554,18 @@ describe('a call made from inside a report', () => {
 
     tour.stop()
 
-    expect(answered).toBe(true)
     expect(tour.story?.id).toBe('second')
     expect(tour.step?.id).toBe('b')
+    expect(drawing().shown).toEqual(['a', 'b'])
   })
 
   test('start from a report naming a step is turned down for the tour it names', () => {
     const problems: Problem<Fixture>[] = []
     const first: Story = { id: 'first', steps: [{ id: 'a', target: 'first' }] }
     const second: Story = { id: 'second', steps: [{ id: 'b', target: 'second' }] }
-    const answered: boolean[] = []
     const tour = machine({
       onStep: (step) => {
-        if (step !== undefined) answered.push(begin(tour, 'second'))
+        if (step !== undefined) begin(tour, 'second')
       },
       onDiagnostic: (problem) => problems.push(problem),
     })
@@ -572,7 +576,6 @@ describe('a call made from inside a report', () => {
 
     // A report that names a step is a tour that is running, and `start` never
     // ends one. Only the report of an ending is a window a story can begin in.
-    expect(answered).toEqual([false])
     expect(problems).toEqual([{ kind: 'tour-running', story: second, running: first }])
     expect(tour.story?.id).toBe('first')
   })
@@ -580,11 +583,12 @@ describe('a call made from inside a report', () => {
   test('start from the report of a chained ending gives way to the story on its way', () => {
     const summary: Story = { id: 'summary', steps: [{ id: 'c', target: 'third' }] }
     const rescue: Story = { id: 'rescue', steps: [{ id: 'r', target: 'second' }] }
-    const answered: boolean[] = []
+    const problems: Problem<Fixture>[] = []
     const tour = machine({
       onStep: (step) => {
-        if (step === undefined) answered.push(begin(tour, 'rescue'))
+        if (step === undefined) begin(tour, 'rescue')
       },
+      onDiagnostic: (problem) => problems.push(problem),
     })
     hold(tour, { id: 'first', next: summary, steps: [{ id: 'a', target: 'first' }] })
     hold(tour, summary)
@@ -595,7 +599,7 @@ describe('a call made from inside a report', () => {
 
     // The ending has somewhere to go, so the phase is still closed through its
     // own report. `rescue` would be overwritten by the story already coming.
-    expect(answered).toEqual([false])
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(tour.story?.id).toBe('summary')
   })
 })
@@ -625,12 +629,17 @@ describe('starting a story', () => {
   })
 
   test('a story with no steps in it does not start', () => {
-    const { tour, seen } = watched({ id: 'empty', steps: [] })
+    const problems: Problem<Fixture>[] = []
+    const { tour, seen } = watched(
+      { id: 'empty', steps: [] },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
 
-    expect(begin(tour, 'empty')).toBe(false)
+    begin(tour, 'empty')
 
     // The bounds check on `at` used to catch this, because `0 >= 0`. Entering
     // anyway would report a run that began and ended in the same turn.
+    expect(problems.map((problem) => problem.kind)).toEqual(['story-empty'])
     expect(tour.state).toBe('idle')
     expect(seen).toEqual([])
     expect(drawing().shown).toEqual([])
@@ -648,8 +657,8 @@ describe('starting a story', () => {
 
     // The `id` is not read, and a component handing over freshly built steps on
     // every render is a host calling `start` on a tour that is running. It gets
-    // an answer rather than a run that restarts under somebody.
-    expect(tour.start({ id: 'onboarding', steps: twoSteps('after') })).toBe(false)
+    // a diagnostic rather than a run that restarts under somebody.
+    tour.start({ id: 'onboarding', steps: twoSteps('after') })
 
     expect(seen).toEqual([])
     expect(tour.step?.id).toBe('b')
@@ -673,13 +682,6 @@ describe('starting a story', () => {
     expect(problems).toEqual([{ kind: 'tour-running', story: other, running: onboarding }])
   })
 
-  test('start says whether the story it was given is the one now running', () => {
-    const tour = staging({ id: 'onboarding', steps: [{ id: 'a', target: 'first' }] })
-
-    expect(begin(tour, 'onboarding')).toBe(true)
-    expect(tour.step?.id).toBe('a')
-  })
-
   test('an empty story cannot end the story someone is in the middle of', () => {
     const { tour, seen } = watched({
       id: 'story',
@@ -693,9 +695,9 @@ describe('starting a story', () => {
     seen.length = 0
 
     // The silence `reached()` keeps is for instrumentation left in builds where
-    // no tour runs. A host giving an order has no other symptom to go on, so
-    // this answers, and it answers without tearing anything down.
-    expect(tour.start({ id: 'nothing-to-show', steps: [] })).toBe(false)
+    // no tour runs. A host giving an order is told, and it is told without
+    // anything being torn down.
+    tour.start({ id: 'nothing-to-show', steps: [] })
 
     expect(seen).toEqual([])
     expect(tour.story?.id).toBe('story')
@@ -1300,7 +1302,7 @@ describe('saying where the tour got to', () => {
     hold(tour, { id: 'into', steps: [{ id: 'b', target: 'second' }] })
 
     begin(tour, 'from')
-    expect(begin(tour, 'into')).toBe(false)
+    begin(tour, 'into')
     settle()
     await promise
 
@@ -1685,15 +1687,18 @@ describe('a call that arrives while the machine is inside the application', () =
   // file is written on top of.
 
   /** A tour held in the middle of the second step's `onEnter`. */
-  function parked() {
+  function parked(options: Options = {}) {
     const { promise, settle } = held()
-    const tour = staging({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise },
-      ],
-    })
+    const tour = staging(
+      {
+        id: 'story',
+        steps: [
+          { id: 'a', target: 'first' },
+          { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise },
+        ],
+      },
+      options,
+    )
     hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
     begin(tour, 'story')
     press(tour)
@@ -1701,12 +1706,13 @@ describe('a call that arrives while the machine is inside the application', () =
   }
 
   test('every way in is refused, and the arrival lands untouched', async () => {
-    const { tour, promise, settle } = parked()
+    const problems: Problem<Fixture>[] = []
+    const { tour, promise, settle } = parked({ onDiagnostic: (problem) => problems.push(problem) })
     expect(tour.state).toBe('transitioning')
 
     tour.reached('ready')
     press(tour)
-    expect(begin(tour, 'other')).toBe(false)
+    begin(tour, 'other')
 
     expect(tour.step?.id).toBe('b')
     settle()
@@ -1718,10 +1724,14 @@ describe('a call that arrives while the machine is inside the application', () =
     // the other way to get this wrong: a signal saved over is a step advancing
     // on something that happened before it began.
     expect(drawing().shown).toEqual(['a', 'b'])
-    // And the gate is what turned it down rather than the tour running, which
-    // is the difference the two diagnostics are there to draw.
+    // Two of the three calls report, and the gate is what turned the `start`
+    // down rather than the tour running, which is the difference `call-refused`
+    // and `tour-running` are there to draw. `press` is the silent one: a
+    // control nobody can see was not pressed by anybody.
+    expect(problems.map((problem) => problem.kind)).toEqual(['signal-dropped', 'call-refused'])
     tour.stop()
-    expect(begin(tour, 'other')).toBe(true)
+    begin(tour, 'other')
+    expect(tour.story?.id).toBe('other')
   })
 
   test('stop is the one call that does not ask, because a tour has to be turnable off', async () => {
@@ -1940,24 +1950,30 @@ describe('moving from one story to another', () => {
   test('a start made while a tour runs moves nothing and takes nothing down', () => {
     const heard: string[] = []
     const left: string[] = []
+    const problems: Problem<Fixture>[] = []
     const tour = staging(
       {
         id: 'from',
         onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
         steps: [{ id: 'a', target: 'first' }],
       },
-      { onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`) },
+      {
+        onStep: (step, _previous, story) => heard.push(`${story.id}:${step?.id}`),
+        onDiagnostic: (problem) => problems.push(problem),
+      },
     )
     hold(tour, { id: 'into', steps: [{ id: 'c', target: 'third' }] })
 
     begin(tour, 'from')
     heard.length = 0
 
-    expect(begin(tour, 'into')).toBe(false)
+    begin(tour, 'into')
 
-    // Nothing at all happened. The story showing keeps its step, no `onLeave`
-    // ran, and no report went out, so a readout watching this hears nothing to
-    // redraw for a call that came to nothing.
+    // Nothing at all happened, and the diagnostic is the only trace. The story
+    // showing keeps its step, no `onLeave` ran, and no report went out, so a
+    // readout watching this hears nothing to redraw for a call that came to
+    // nothing.
+    expect(problems.map((problem) => problem.kind)).toEqual(['tour-running'])
     expect(left).toEqual([])
     expect(heard).toEqual([])
     expect(tour.story?.id).toBe('from')
@@ -1967,7 +1983,7 @@ describe('moving from one story to another', () => {
   test('a story handing the tour on is still one operation, so onLeave is told the truth', () => {
     const heard: string[] = []
     const left: string[] = []
-    const started: boolean[] = []
+    const problems: Problem<Fixture>[] = []
     const into: Story = { id: 'into', steps: [{ id: 'c', target: 'third' }] }
     const tour = staging(
       {
@@ -1982,8 +1998,9 @@ describe('moving from one story to another', () => {
           // Reacting to the ending by sending the user somewhere else, which is
           // an ordinary thing for a host to do and is not one it can do from
           // the report of an ending that already has a story on its way.
-          if (story.id === 'from' && step === undefined) started.push(begin(tour, 'rescue'))
+          if (story.id === 'from' && step === undefined) begin(tour, 'rescue')
         },
+        onDiagnostic: (problem) => problems.push(problem),
       },
     )
     hold(tour, { id: 'rescue', steps: [{ id: 'b', target: 'second' }] })
@@ -1996,7 +2013,7 @@ describe('moving from one story to another', () => {
     // `from` was told `into` is next and skipped whatever the two share. A
     // `rescue` starting from that report would make `next` a lie, and would run
     // on state that was left behind for a story that never came.
-    expect(started).toEqual([false])
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(left).toEqual(['from->into'])
     expect(tour.story?.id).toBe('into')
     expect(heard).toEqual(['from:undefined', 'into:c'])
@@ -2004,12 +2021,15 @@ describe('moving from one story to another', () => {
 
   test('a story started from inside a step onLeave is refused, and the ending finishes', () => {
     const left: string[] = []
-    const started: boolean[] = []
-    const tour = staging({
-      id: 'from',
-      onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
-      steps: [{ id: 'a', target: 'first', onLeave: () => started.push(begin(tour, 'rescue')) }],
-    })
+    const problems: Problem<Fixture>[] = []
+    const tour = staging(
+      {
+        id: 'from',
+        onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
+        steps: [{ id: 'a', target: 'first', onLeave: () => begin(tour, 'rescue') }],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
     hold(tour, {
       id: 'rescue',
       onLeave: (story, next) => left.push(`${story.id}->${next?.id ?? 'end'}`),
@@ -2021,22 +2041,25 @@ describe('moving from one story to another', () => {
 
     // `rescue` starting here would be torn down by the lines that run after
     // this handler, and would leave `from` without the `onLeave` it is owed.
-    expect(started).toEqual([false])
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(left).toEqual(['from->end'])
     expect(tour.state).toBe('idle')
   })
 
   test('a story whose onEnter starts another story is refused, and carries on', () => {
     const log: string[] = []
-    const started: boolean[] = []
-    const tour = staging({
-      id: 'gate',
-      // A check that sends the user somewhere else, answered in the same turn
-      // because the answer was known already. It is inside this story's own
-      // setup, which is as early as a call can be made.
-      onEnter: () => void started.push(begin(tour, 'elsewhere')),
-      steps: [{ id: 'a', target: 'first' }],
-    })
+    const problems: Problem<Fixture>[] = []
+    const tour = staging(
+      {
+        id: 'gate',
+        // A check that sends the user somewhere else, answered in the same turn
+        // because the answer was known already. It is inside this story's own
+        // setup, which is as early as a call can be made.
+        onEnter: () => void begin(tour, 'elsewhere'),
+        steps: [{ id: 'a', target: 'first' }],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
     hold(tour, {
       id: 'elsewhere',
       steps: [
@@ -2051,15 +2074,15 @@ describe('moving from one story to another', () => {
 
     begin(tour, 'gate')
 
-    expect(started).toEqual([false])
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(tour.story?.id).toBe('gate')
     expect(tour.step?.id).toBe('a')
     expect(log).toEqual([])
 
-    // Once the tour is over, the same call takes. Both refusals are answered,
-    // and a host that reads the answer knows which fix it needs.
+    // Once the tour is over, the same call takes. Both refusals are reported,
+    // and a host reading them knows which fix it needs.
     tour.stop()
-    expect(begin(tour, 'elsewhere')).toBe(true)
+    begin(tour, 'elsewhere')
     expect(log).toEqual(['enter b'])
   })
 

@@ -89,23 +89,23 @@ export class Leko {
    * leko.start(other)
    * ```
    *
-   * **Answers whether this story is the one now running.** A story with no
-   * steps in it gets `false`, and so does one handed over while a tour runs.
+   * **A call that came to nothing says so on {@link LekoOptions.onDiagnostic}.**
+   * A story with no steps in it is `story-empty`. One handed over while a tour
+   * runs is `tour-running`, naming both stories. One that arrived while Leko
+   * was inside the application is `call-refused`.
    *
    * This is not the silence {@link reached} keeps, and the difference is the
    * point. A `reached()` call is instrumentation, written where a thing happens
    * and left in builds where no tour ever runs, so a name nobody awaits has to
    * cost nothing and say nothing. `start()` is the host giving an order, and an
-   * order that did nothing has no other symptom: nothing happens, and nothing
-   * anywhere says why.
+   * order that came to nothing is worth saying out loud.
    *
-   * `false` also comes back where the story's own `onEnter` threw, and where
-   * the call arrived while Leko was inside the application and could not act on
-   * anything. Every one of those has a {@link LekoProblem} of its own, so a
-   * host that wants to know which never has to guess.
+   * The story's own `onEnter` throwing is the one way out with no
+   * {@link LekoProblem}. The reason is thrown again instead, because the
+   * handler that threw is the place with the context.
    */
-  start(story: LekoStory): boolean {
-    return this.machine.start(story)
+  start(story: LekoStory): void {
+    this.machine.start(story)
   }
 
   /**
