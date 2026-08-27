@@ -75,7 +75,7 @@ export const signalTooEarly: Case = {
           id: 'receipt',
           // Two adjacent elements as one cutout, so the button below the line
           // is inside the hole and can still be pressed.
-          target: ['[data-status]', '[data-again]'],
+          target: [['[data-status]', '[data-again]']],
           message:
             'This step spent 900ms fetching the receipt. The order-sent ' +
             'call landed at 400ms, inside that window, and was dropped. ' +

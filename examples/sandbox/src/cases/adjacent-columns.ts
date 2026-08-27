@@ -51,11 +51,13 @@ export const adjacentColumns: Case = {
           // second column's last cell is exactly the block a person would draw.
           id: 'quantities',
           target: [
-            '[data-col="qty"]',
-            // The last of several matches, which no selector can say. A target
-            // is a question, and this is one the page has to answer each time.
-            () =>
-              [...document.querySelectorAll<HTMLElement>('[data-col-end="per"]')].at(-1) ?? null,
+            [
+              '[data-col="qty"]',
+              // The last of several matches, which no selector can say. A target
+              // is a question, and this is one the page has to answer each time.
+              () =>
+                [...document.querySelectorAll<HTMLElement>('[data-col-end="per"]')].at(-1) ?? null,
+            ],
           ],
           message: 'These two columns tell you the total and how it is packed.',
           padding: 2,

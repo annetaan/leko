@@ -203,13 +203,13 @@ export class Message {
   /**
    * Show `text` beside `cutouts`, which are in viewport coordinates.
    *
-   * `anchor` is the element the browser tracks — the step's action target, and
-   * `undefined` where there is no step to point at. The cutouts are what the
-   * message has to stay clear of, and they are a wider
-   * thing than the anchor: a union of several targets, plus any `related` holes.
-   * The gap between the two is turned into a margin here, once, and stays right
-   * for as long as the two move together — which they do, being cut from the
-   * same scrim.
+   * `anchor` is the element the browser tracks — the one element the step is
+   * about, and `undefined` where there is no step to point at. The cutouts are
+   * what the message has to stay clear of, and they are a wider thing than the
+   * anchor: every region the step named, each already unioned into a hole. The
+   * gap between the two is turned into a margin here, once, and stays right for
+   * as long as the two move together — which they do, being cut from the same
+   * scrim.
    */
   show(content: MessageContent, cutouts: Rect[], gap: number, at?: (side: Side) => void): void {
     this.fill(content)

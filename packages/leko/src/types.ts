@@ -25,9 +25,25 @@
  * target: () => sendRef.current
  * ```
  *
- * Pass an array when you mean several.
+ * One of these is one element. {@link LekoRegion} is how several become a hole.
  */
 export type LekoTarget = string | (() => HTMLElement | null)
+
+/**
+ * **One cutout.** A single target, or several to be unioned into one hole.
+ *
+ * The union is the bounding box of everything named, and whatever happens to
+ * sit between the elements is inside the hole along with them, so it becomes
+ * interactive too. Name elements that are next to each other: a label and its
+ * input, two neighbouring columns, the first and last row of a table. Two
+ * elements at opposite ends of the page make a hole the size of the page.
+ *
+ * ```ts
+ * '#save'
+ * ['#quantity-label', '#quantity']
+ * ```
+ */
+export type LekoRegion = LekoTarget | LekoTarget[]
 
 /**
  * The signal names this project reports. **Empty on purpose.**
@@ -132,29 +148,30 @@ export interface LekoStep {
   id: string
 
   /**
-   * What the user acts on.
+   * What this step cuts holes in the page for.
    *
-   * An array is **unioned into a single cutout**: its bounding box, including
-   * whatever happens to sit between the elements, which becomes interactive
-   * along with them. Pass elements that are adjacent — two neighbouring columns
-   * of a table, a label and its input. Two distant elements produce a hole the
-   * size of the page.
+   * **Each element of the list is one cutout**, and an element that is itself a
+   * list is unioned into one. A bare target on its own is the same as a list of
+   * one.
+   *
+   * ```ts
+   * target: '#save'                            // one hole
+   * target: [['#quantity-label', '#quantity']] // one hole around both
+   * target: ['#save', ['#tax', '#total']]      // two holes, three elements
+   * ```
+   *
+   * **The first region is the one the step is about.** Its first element is
+   * what {@link validate} is handed, what the message anchors beside, and the
+   * one Leko watches for: a step whose first region is not on the page is not
+   * drawn, and Leko looks for it. A later region that resolves to nothing is a
+   * hole this step does not cut, and nothing else happens. Those are there to
+   * be looked at rather than acted on, so a summary figure beside the row it
+   * was computed from goes second.
    *
    * A target that scrolls is fine: the wheel, clicks, focus and keys all reach
    * it through the cutout.
    */
-  target: LekoTarget | LekoTarget[]
-
-  /**
-   * Further cutouts, shown because they explain the target: a summary figure and
-   * the row it was computed from, say. Each stays its own hole rather than
-   * joining the target's bounding box, because the union of two distant regions
-   * is meaningless.
-   *
-   * These are never passed to {@link LekoStep.validate}. They are there to be
-   * looked at, not acted on.
-   */
-  related?: LekoTarget[]
+  target: LekoTarget | LekoRegion[]
 
   /** Message shown alongside the cutout. */
   message?: string
@@ -302,8 +319,8 @@ export interface LekoStep {
    * Reading the page to check would be a second source of truth for the same
    * question, and the second kind is what the second constraint keeps out.
    *
-   * Receives the action target — the first element of {@link LekoStep.target},
-   * never one of {@link LekoStep.related}.
+   * Receives the first element of the first region of {@link LekoStep.target},
+   * which is the one element the step is about. No later region reaches this.
    */
   validate?: (targetEl: HTMLElement) => boolean
 

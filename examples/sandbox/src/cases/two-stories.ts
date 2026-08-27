@@ -71,8 +71,7 @@ export const twoStories: Case = {
       steps: [
         {
           id: 'tax',
-          target: '[data-tax]',
-          related: ['[data-total]'],
+          target: ['[data-tax]', '[data-total]'],
           message:
             'Tax, worked out from the quantity. Press the button — this story ' +
             'declares no signal, so “order-placed” does nothing here.',

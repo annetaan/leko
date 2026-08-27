@@ -148,6 +148,29 @@ shadow root, where `document.querySelector` does not reach; a framework ref,
 where there is no stable class or attribute to match; a row picked out of a list
 by something only the application knows. See `inside-shadow-dom.ts`.
 
+**`target` is a list, and each element of it is one cutout.** An element written
+as a list of its own is unioned into a single hole, so
+`target: [['#label', '#input']]` lights the pair and the gap between them, and
+`target: ['#save', '#total']` cuts two holes with the page still dimmed between.
+One rule, and both readings are in the source where somebody can see them.
+
+Two properties would be the other shape: one that unions whatever it is given,
+and one beside it that cuts a hole per element. Neither name can say which merge
+it does, so a reader has to learn the pair, and the pair is the only place the
+difference is written down. The list writes it in the source instead. Nesting is
+the union, and the top level is the cutouts.
+
+**The first region is the one the step is about.** Its first element is what
+`validate` is handed and what the message anchors beside. It is also the one the
+search for a lost target is about. Later regions are looked at rather than acted
+on: a summary beside the row it was computed from, and `linked-regions.ts` is
+that case. One that resolves to nothing is a hole this step does not cut, and
+nothing else follows from it.
+
+`adjacent-columns.ts` is the union, and it says why two corners are enough. Two
+regions never union, because the bounding box of two distant ones covers
+everything between them and hands the user a hole the size of the page.
+
 **A function must be cheap and must not do anything.** It is called far more
 often than once, and it is called during layout work. It may answer `null`,
 which is not a failure: a target that is not there yet is what the search for a

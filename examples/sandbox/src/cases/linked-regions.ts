@@ -34,8 +34,10 @@ export const linkedRegions: Case = {
       steps: [
         {
           id: 'winning-amount',
-          target: '[data-row]',
-          related: ['[data-summary]'],
+          // Two regions, so two cutouts. One element each here. An element that
+          // is itself a list gets unioned into one hole instead, which is what
+          // `adjacent-columns` shows.
+          target: ['[data-row]', '[data-summary]'],
           message: 'This row is where the figure above comes from.',
         },
       ],

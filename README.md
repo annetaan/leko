@@ -74,8 +74,8 @@ export const firstOrder = {
     },
     {
       id: 'save',
-      target: 'button[type="submit"]',
-      related: ['#tax', '#total'], // further cutouts, shown because they explain the target
+      // Three regions, so three holes. The first is the one the step is about.
+      target: ['button[type="submit"]', '#tax', '#total'],
       message: 'Place the order.',
       awaits: 'order-saved',
     },
@@ -178,9 +178,10 @@ so a type error there would only talk you into deleting it.
 Skip all of it and nothing changes for you. `awaits` stays `string`, there is
 nothing to import, and nothing lands in your bundle.
 
-A step can highlight several adjacent elements as one hole (`target: [a, b]`),
-or bring along further holes that explain it (`related: [...]`). Every option is
-documented next to itself in
+`target` is a list, and each element of it is one hole. Write an element as a
+list of its own and those elements are unioned into a single hole, so
+`target: [['#label', '#input']]` lights the pair and the gap between them.
+Every option is documented next to itself in
 [`packages/leko/src/types.ts`](packages/leko/src/types.ts).
 
 ## What makes it different

@@ -4,6 +4,7 @@ export type {
   LekoKnownSignal,
   LekoOptions,
   LekoProblem,
+  LekoRegion,
   LekoSignal,
   LekoSignals,
   LekoState,

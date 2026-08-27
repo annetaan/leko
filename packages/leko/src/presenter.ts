@@ -15,7 +15,7 @@ import {
   union,
 } from '@annetaan/leko-spotlight'
 import { type Curtain, covering, DOWN, onset, owed } from './curtain.js'
-import type { LekoOptions, LekoStep, LekoTarget, LekoWorld } from './types.js'
+import type { LekoOptions, LekoRegion, LekoStep, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
 
@@ -27,13 +27,26 @@ const DEFAULTS = { padding: 8, radius: 8, duration: 320, curtain: 250 } as const
  */
 const SEARCH = 2000
 
-const asArray = (value: LekoTarget | LekoTarget[]): LekoTarget[] =>
-  Array.isArray(value) ? value : [value]
+/**
+ * The step's regions, as a list. One cutout each, in the order they were
+ * written, so a bare target reads as the list of one that it is.
+ */
+const regionsOf = (target: LekoStep['target']): LekoRegion[] =>
+  Array.isArray(target) ? target : [target]
 
-interface Resolved {
-  /** The element `validate` is given: the first of `target`. */
-  action: HTMLElement
-  cutouts: Cutout[]
+/** The elements one region unions together. */
+const targetsIn = (region: LekoRegion): LekoTarget[] => (Array.isArray(region) ? region : [region])
+
+/**
+ * The one element the step is about: the first target of its first region.
+ *
+ * `undefined` where the step named no region at all, which is a story with
+ * `target: []` in it and is answered the same way an element that is not on the
+ * page is.
+ */
+const actionTarget = (target: LekoStep['target']): LekoTarget | undefined => {
+  const first = Array.isArray(target) ? target[0] : target
+  return first === undefined ? undefined : targetsIn(first)[0]
 }
 
 /**
@@ -218,7 +231,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   resolve(step: LekoStep): HTMLElement | null {
-    return resolveTarget(asArray(step.target)[0]!)
+    const action = actionTarget(step.target)
+    return action === undefined ? null : resolveTarget(action)
   }
 
   /**
@@ -228,25 +242,23 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * same shapes in viewport coordinates, to work out which side of them has room
    * on screen. Same geometry, two readers, so the space is the parameter.
    */
-  private cutouts(step: LekoStep, measure: (el: HTMLElement) => Rect): Resolved | null {
-    const targets = resolveTargets(asArray(step.target))
-    const action = targets[0]
-    if (!action) return null
-
+  private cutouts(step: LekoStep, measure: (el: HTMLElement) => Rect): Cutout[] | null {
     const padding = this.setting(step, 'padding')
     const radius = this.setting(step, 'radius')
-
-    // The action target is one cutout — the union of however many elements were
-    // named. Everything in `related` stays separate, because the union of two
-    // distant regions covers everything between them.
-    const box = union(targets.map(measure))
-    if (!box) return null
-    const cutouts: Cutout[] = [{ ...grow(box, padding), radius }]
-
-    for (const el of resolveTargets(step.related ?? [])) {
-      cutouts.push({ ...grow(measure(el), padding), radius })
-    }
-    return { action, cutouts }
+    // One box per region. A region is unioned because the space between its
+    // elements is meant to be inside the hole with them. Two regions stay
+    // apart because the union of two distant ones would cover everything
+    // between them, which is a hole the size of the page.
+    const boxes = regionsOf(step.target).map((region) =>
+      union(resolveTargets(targetsIn(region)).map(measure)),
+    )
+    // The first region is the one the step is about, and a step with nothing to
+    // point at is not drawn at all. A later one that resolves to nothing is a
+    // hole this step does not cut, and nothing else follows from it.
+    if (!boxes[0]) return null
+    return boxes
+      .filter((box): box is Rect => box !== null)
+      .map((box) => ({ ...grow(box, padding), radius }))
   }
 
   /**
@@ -261,7 +273,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private say(step: LekoStep, content: Content): void {
     const onScreen = this.cutouts(step, (el) => el.getBoundingClientRect())
-    this.showClose(onScreen?.cutouts ?? [])
+    this.showClose(onScreen ?? [])
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       return
@@ -270,10 +282,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
     const within = inner && this.cutouts(step, (el) => rectWithin(el, inner.container))
-    const box = within && union(within.cutouts)
+    const box = within && union(within)
     this.message.show(
       content,
-      onScreen?.cutouts ?? [],
+      onScreen ?? [],
       gap,
       // Absent where there is no scrim to hang the anchor in, which is what
       // makes the box dock instead.
@@ -413,13 +425,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Before the morph, not after it. The scrim blocks the page from the moment
     // it is set, and a page that is blocked with no way out of it is the thing
     // this control exists to prevent, even for the length of one morph.
-    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect())?.cutouts ?? [])
+    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect()) ?? [])
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
     const duration = this.options.duration ?? DEFAULTS.duration
-    const morphing = inner.morph(resolved.cutouts, duration)
+    const morphing = inner.morph(resolved, duration)
     if (!morphing) {
       this.say(step, content)
       return
@@ -448,7 +460,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(DomPresenter.chainOf(anchor ?? document.body))
     const resolved = this.cutouts(step, (el) => rectWithin(el, inner.container))
-    if (resolved) inner.set(resolved.cutouts)
+    if (resolved) inner.set(resolved)
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again.
     if (anchor) this.say(step, content)

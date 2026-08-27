@@ -62,8 +62,7 @@ export const firstOrder = {
     },
     {
       id: 'save',
-      target: 'button[type="submit"]',
-      related: ['#tax', '#total'],
+      target: ['button[type="submit"]', '#tax', '#total'],
       message: '「購入する」をクリックしてください',
       awaits: 'order-saved',
     },
@@ -108,8 +107,9 @@ Leko は知りようがありません。ステップが残した状態を取り
 それは分割の合図です。2 つの経路が共有する部分も、両者が指す 1 ステップではなく
 ストーリーにします。理由は [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) に書いてあります。
 
-スポットライトの対象を複数要素 (`target: [a, b]`) にすることも可能です。
-また操作可能なスポットライトとは別の領域へ (`related: [...]`) スポットライトを向けることもできます。
+`target` はリストで、その要素 1 つが穴 1 つになります。要素自体をリストで書くと、
+その要素どうしは union されて 1 つの穴になります。`target: [['#label', '#input']]` は
+ラベルと入力欄とその間をまとめて 1 つの穴にします。
 使用できるオプションは [`packages/leko/src/types.ts`](packages/leko/src/types.ts) に、各フィールドの隣に書いてあります。
 
 ## 他のライブラリーと比較したLekoの強み

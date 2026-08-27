@@ -87,14 +87,15 @@ test.runIf(anchors)('the message clears the cutout rather than covering it', () 
 
 test.runIf(anchors)('the message clears every cutout, not just the one it is anchored to', () => {
   const target = box('target', { left: '200px', top: '200px', width: '160px', height: '40px' })
-  const related = box('related', { left: '200px', top: '260px', width: '160px', height: '40px' })
-  start([{ id: 'one', target: () => target, related: [() => related], message: 'Both of these.' }])
+  const second = box('second', { left: '200px', top: '260px', width: '160px', height: '40px' })
+  start([{ id: 'one', target: [() => target, () => second], message: 'Both of these.' }])
 
   const note = rect(message()!)
-  // The anchor is the target, but the shape to stay clear of is every hole in
-  // the scrim: sitting on the related one would hide half of what was explained.
+  // The anchor is the first region, but the shape to stay clear of is every
+  // hole in the scrim: sitting on the second would hide half of what was
+  // explained.
   expect(overlaps(note, rect(target))).toBe(false)
-  expect(overlaps(note, rect(related))).toBe(false)
+  expect(overlaps(note, rect(second))).toBe(false)
 })
 
 test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {

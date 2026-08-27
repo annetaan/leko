@@ -32,12 +32,13 @@ test('stopping puts the page back', () => {
   expect(centre(target)).toBe(target)
 })
 
-test('several targets become one cutout, and what sits between them opens up too', () => {
+test('one region of several targets is one cutout, and what sits between it opens too', () => {
   const left = box('left', { left: '100px', top: '100px', width: '100px', height: '40px' })
   const right = box('right', { left: '260px', top: '100px', width: '100px', height: '40px' })
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
-  start([{ id: 'columns', target: [() => left, () => right] }])
+  // One element of `target`, written as a list, so the two are unioned.
+  start([{ id: 'columns', target: [[() => left, () => right]] }])
 
   expect(centre(left)).toBe(left)
   expect(centre(right)).toBe(right)
@@ -45,12 +46,14 @@ test('several targets become one cutout, and what sits between them opens up too
   expect(centre(between)).toBe(between)
 })
 
-test('related regions get their own cutouts rather than joining the union', () => {
+test('two regions get a cutout each rather than being unioned', () => {
   const target = box('target', { left: '60px', top: '400px', width: '120px', height: '40px' })
   const summary = box('summary', { left: '60px', top: '60px', width: '120px', height: '40px' })
   const between = box('between', { left: '60px', top: '230px', width: '120px', height: '40px' })
 
-  start([{ id: 'linked', target: () => target, related: [() => summary] }])
+  // Two elements of `target`, so two holes. The same two written inside one
+  // element would be the test above, and would open everything between them.
+  start([{ id: 'linked', target: [() => target, () => summary] }])
 
   expect(centre(target)).toBe(target)
   expect(centre(summary)).toBe(summary)

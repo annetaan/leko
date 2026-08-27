@@ -81,7 +81,7 @@ export const storySetup: Case = {
           // Both rows, as one cutout. The sentence below says rows, and a
           // selector matching several takes the first, so naming the two
           // corners is what makes the screen agree with the message.
-          target: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'],
+          target: [['[data-rows] tr:first-child', '[data-rows] tr:last-child']],
           message:
             'These rows did not exist when Start was pressed. The story ' +
             'loaded them and waited before anything was measured.',

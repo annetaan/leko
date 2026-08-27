@@ -37,7 +37,7 @@ const intro = {
     },
     {
       id: 'choose',
-      target: ['[data-careful]', '[data-quick]'],
+      target: [['[data-careful]', '[data-quick]']],
       // A control would be a way past the choice, so this step has none and the
       // buttons report instead. Which story that opens is `next`'s answer.
       awaits: 'path-chosen',
@@ -82,8 +82,7 @@ const careful = {
       // it is a claim about get a cutout of their own rather than joining
       // the union, so the space between the two stays dimmed and stays
       // blocked.
-      target: '[data-check]',
-      related: ['[data-lines]'],
+      target: ['[data-check]', '[data-lines]'],
       message:
         'careful 1/2 in the footer. A branch counts from one, because ' +
         'the count belongs to the story that is running.',

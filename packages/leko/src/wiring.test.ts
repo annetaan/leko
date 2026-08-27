@@ -90,13 +90,14 @@ test('reached does nothing while idle, so it needs no guard either', () => {
   expect(scrim()).toBeNull()
 })
 
-test('validate is handed the action target, never a related one', () => {
+test('validate is handed the first element of the first region, and no other', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const related = box('related', { left: '100px', top: '300px', width: '120px', height: '40px' })
+  const beside = box('beside', { left: '240px', top: '100px', width: '120px', height: '40px' })
+  const later = box('later', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const validate = vi.fn(() => true)
 
   start([
-    { id: 'a', target: [() => target], related: [() => related], validate },
+    { id: 'a', target: [[() => target, () => beside], () => later], validate },
     { id: 'b', target: () => target },
   ])
   press()
