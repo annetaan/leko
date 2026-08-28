@@ -1,5 +1,4 @@
 import {
-  type Config,
   type Core,
   type Effect,
   type Event,
@@ -11,9 +10,6 @@ import {
   stepOf,
 } from './plan.js'
 import type { Host, MachineOptions, MachineState, Presenter, World } from './types.js'
-
-/** What the next control reads until an instance says otherwise. */
-const NEXT_LABEL = 'Next'
 
 /**
  * Which step a tour is on, and how it gets to the next one.
@@ -118,8 +114,7 @@ export class Machine<W extends World> {
    * is the machine as the event left it. `next` goes last.
    */
   private dispatch(event: Event<W>): Outcome<W> {
-    const config: Config = { nextLabel: this.options.nextLabel ?? NEXT_LABEL }
-    const outcome = reduce(this.#core, event, config)
+    const outcome = reduce(this.#core, event)
     this.#core = outcome.core
     for (const effect of outcome.effects) this.perform(effect)
     if (outcome.next) this.dispatch(outcome.next)
@@ -139,18 +134,14 @@ export class Machine<W extends World> {
         // A target that is not there is handed over all the same. What that
         // means is a drawing question, answered through `lost`.
         const anchor = this.presenter.resolve(effect.step)
-        return this.presenter.show(effect.step, anchor, effect.content, effect.animate)
+        return this.presenter.show(effect.step, anchor, effect.animate)
       }
 
       case 'place':
-        return this.presenter.place(
-          effect.step,
-          this.presenter.resolve(effect.step),
-          effect.content,
-        )
+        return this.presenter.place(effect.step, this.presenter.resolve(effect.step), effect.error)
 
       case 'retell':
-        return this.presenter.retell(effect.step, effect.content)
+        return this.presenter.retell(effect.step, effect.reason)
 
       case 'reject':
         return this.presenter.reject()

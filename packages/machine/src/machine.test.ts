@@ -185,22 +185,6 @@ describe('a signal, and the step waiting for it', () => {
     expect(validate).not.toHaveBeenCalled()
   })
 
-  test('a step that declares a signal is offered no control to press', () => {
-    const tour = start([
-      { id: 'first', target: 'first', awaits: 'order-saved' },
-      { id: 'second', target: 'second' },
-    ])
-
-    // The whole of what keeps a press off a step waiting for a signal, now that
-    // the presenter is the only presser. It presses the control it was given,
-    // and on this step it was given none.
-    expect(drawing().content?.next).toBeUndefined()
-
-    tour.reached('order-saved')
-
-    expect(drawing().content?.next).toBe('Next')
-  })
-
   test('a signal reported before its step is showing is not saved up', () => {
     const tour = start([
       { id: 'first', target: 'first' },
@@ -259,19 +243,21 @@ describe('what a failed attempt says', () => {
     // next control as a button that does nothing.
     expect(drawing().rejected).toBe(1)
     expect(tour.step?.id).toBe('one')
-    expect(drawing().content?.error).toBeUndefined()
+    expect(drawing().error).toBeUndefined()
   })
 
-  test('adds its reason, and leaves the instruction where it was', () => {
+  test('says the reason, on the step the attempt was made on', () => {
     const step = failing('one', 'first', 'Type your postcode.', 'That is not a postcode.')
     const tour = start([step, { id: 'two', target: 'second' }])
 
     press(tour)
 
-    // Under the instruction rather than over it. Somebody who has just been
-    // told they were wrong has to still be able to read what was asked for.
-    expect(drawing().content?.text).toBe('Type your postcode.')
-    expect(drawing().content?.error).toBe('That is not a postcode.')
+    // The one thing the machine says about what is on screen, because which
+    // attempt was the last one is the only part of it a presenter cannot work
+    // out for itself. Where the words go under the instruction is settled in
+    // `message.test.ts`.
+    expect(drawing().error).toBe('That is not a postcode.')
+    expect(drawing().retold).toEqual([{ step: 'one', reason: 'That is not a postcode.' }])
   })
 
   test('asks the function form once per attempt, on the anchor the guard was given', () => {
@@ -285,31 +271,17 @@ describe('what a failed attempt says', () => {
     const tour = start([step, { id: 'two', target: 'second' }])
 
     press(tour)
-    expect(drawing().content?.error).toBe('Attempt 1.')
+    expect(drawing().error).toBe('Attempt 1.')
 
     // Unlike `message`, the words are not read again when the step is redrawn:
     // they belong to the attempt they were written about.
     drawing().resize()
-    expect(drawing().content?.error).toBe('Attempt 1.')
+    expect(drawing().error).toBe('Attempt 1.')
 
     press(tour)
-    expect(drawing().content?.error).toBe('Attempt 2.')
+    expect(drawing().error).toBe('Attempt 2.')
     // The same element `validate` was handed, resolved once for the attempt.
     expect(seen).toEqual(['first', 'first'])
-  })
-
-  test('the step is read for its message every time, so an edit to it is seen', () => {
-    const step: Step = { id: 'one', target: 'first', message: 'Type your postcode.' }
-    start([step, { id: 'two', target: 'second' }])
-
-    expect(drawing().content?.text).toBe('Type your postcode.')
-
-    // The story belongs to the application, and the machine holds no copy of
-    // its text. This is why nothing here writes to `message` either.
-    step.message = 'Type the postcode on your bill.'
-    drawing().resize()
-
-    expect(drawing().content?.text).toBe('Type the postcode on your bill.')
   })
 
   test('an error is about the attempt, so entering the step again leaves it behind', () => {
@@ -318,7 +290,7 @@ describe('what a failed attempt says', () => {
 
     press(tour)
     press(tour)
-    expect(drawing().content?.error).toBe('That is not a postcode.')
+    expect(drawing().error).toBe('That is not a postcode.')
 
     // Running the story again is the only way back to a step, and it is a
     // fresh attempt at it.
@@ -326,8 +298,7 @@ describe('what a failed attempt says', () => {
     begin(tour, 'story')
     press(tour)
 
-    expect(drawing().content?.error).toBeUndefined()
-    expect(drawing().content?.text).toBe('Type your postcode.')
+    expect(drawing().error).toBeUndefined()
   })
 
   test('a guard that ends the tour from inside itself leaves no complaint behind', () => {

@@ -137,14 +137,15 @@ presenter may report back.
 
 Read the second half twice. Three rules live there and DESIGN.md states each under
 [Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
-The presenter never schedules itself. The presenter never decides whether there
-is a next control. The presenter is told and never asks back.
+The presenter never schedules itself. No words cross the seam, and the one
+string that does is the reason a guard gave. The presenter is told and never
+asks back.
 
 **3. `packages/machine/src/plan.ts`, then `machine.ts`**
 
 The hard part. Budget an hour.
 
-`plan.ts` opens with where the tour is: five fields as one `Core`, and the four
+`plan.ts` opens with where the tour is: three fields as one `Core`, and the
 readings taken off it. Read that and the section below on what each field means.
 
 The rest of `plan.ts` is every decision the machine makes. `reduce` takes the state and one

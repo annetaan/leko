@@ -1,4 +1,4 @@
-import type { Content, Host, Presenter } from '@annetaan/leko-machine'
+import type { Host, Presenter } from '@annetaan/leko-machine'
 import {
   Close,
   type Cutout,
@@ -6,6 +6,7 @@ import {
   FocusRing,
   grow,
   Message,
+  type MessageContent,
   paddingBoxWithin,
   type Rect,
   rectWithin,
@@ -18,6 +19,9 @@ import {
 import type { LekoOptions, LekoRegion, LekoStep, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
+
+/** What the next control reads until an instance says otherwise. */
+const NEXT_LABEL = 'Next'
 
 /**
  * How long a target that is not on the page is given to turn up.
@@ -123,7 +127,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * The last step handed over, kept so that a target which comes back can be
    * drawn again without the machine being told anything happened.
    */
-  private drawn: { step: LekoStep; content: Content } | undefined
+  private drawn: LekoStep | undefined
   /** The deadline on a target that is not on the page, while one is running. */
   private retrying: ReturnType<typeof setTimeout> | undefined
 
@@ -197,7 +201,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * holds the message beside it through every scroll that follows, with no
    * script involved.
    */
-  private say(step: LekoStep, content: Content): void {
+  private say(step: LekoStep, error: string | undefined): void {
+    const content = this.content(step, error)
     const onScreen = this.cutouts(step, (el) => el.getBoundingClientRect())
     this.showClose(onScreen ?? [])
     if (!content.text && !content.error && !content.next) {
@@ -221,6 +226,25 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Last, so the next control is showing by the time the ring is asked
     // whether the message is a stop.
     this.showRing(step)
+  }
+
+  /**
+   * Everything the box beside the cutout shows at once.
+   *
+   * **Which steps have a next control is derived here, and nowhere else.** A
+   * step that declares `awaits` never gets one, because pressing past it is the
+   * whole of what that step exists to prevent, and `nextLabel` only says what
+   * the control reads. DESIGN.md argues it under **The next control**.
+   *
+   * `message` is read every time the box is filled rather than copied when the
+   * story was written, so a host editing its own text is seen.
+   */
+  private content(step: LekoStep, error: string | undefined): MessageContent {
+    return {
+      text: step.message,
+      error,
+      next: step.awaits === undefined ? (this.options.nextLabel ?? NEXT_LABEL) : undefined,
+    }
   }
 
   /**
@@ -302,7 +326,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     })
   }
 
-  show(step: LekoStep, anchor: HTMLElement | null, content: Content, animate: boolean): void {
+  show(step: LekoStep, anchor: HTMLElement | null, animate: boolean): void {
     // Whatever was being waited for, the tour is somewhere else now. Dropped
     // here rather than left to run, so a target that turns up late is not drawn
     // over the step this call is about. It is also what leaves {@link retry}
@@ -311,8 +335,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Named a target and it is not on the page yet, which a step whose target
     // renders a moment after its `onEnter` returned is as much as one whose
     // target has gone. A step that named nothing is not looked for.
-    if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, content, animate)
-    this.reveal(step, anchor, content, animate)
+    if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, animate)
+    this.reveal(step, anchor, animate)
   }
 
   /**
@@ -322,12 +346,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * find for one of those, so the document carries it, and everything below
    * lands on the empty list of cutouts.
    */
-  private reveal(
-    step: LekoStep,
-    anchor: HTMLElement | null,
-    content: Content,
-    animate: boolean,
-  ): void {
+  private reveal(step: LekoStep, anchor: HTMLElement | null, animate: boolean): void {
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
@@ -345,14 +364,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
     const container = chain[0] ?? null
     const resolved = this.cutouts(step, (el) => rectWithin(el, container))
-    if (!resolved) return this.retry(step, content, animate)
+    if (!resolved) return this.retry(step, animate)
 
     const inner = this.layers[0]
-    if (!inner) return this.retry(step, content, animate)
+    if (!inner) return this.retry(step, animate)
 
     // Kept so that a target which comes back can be drawn again without the
     // machine hearing that anything happened.
-    this.drawn = { step, content }
+    this.drawn = step
 
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
@@ -391,14 +410,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const duration = this.options.duration ?? DEFAULTS.duration
     const morphing = inner.morph(resolved, duration)
     if (!morphing) {
-      this.say(step, content)
+      this.say(step, undefined)
       return
     }
     // The message comes back with the hole it belongs beside, and only if the
     // morph got there. Another arrival starting is the only thing that
     // interrupts one, and that arrival is drawing its own step already.
     void morphing.then((finished) => {
-      if (finished) this.say(step, content)
+      if (finished) this.say(step, undefined)
     })
   }
 
@@ -410,7 +429,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * the size of the page and converge again, so for a moment almost nothing
    * would be dimmed.
    */
-  place(step: LekoStep, anchor: HTMLElement | null, content: Content): void {
+  place(step: LekoStep, anchor: HTMLElement | null, error: string | undefined): void {
     const inner = this.layers[0]
     if (!inner) return
     for (const layer of this.layers) layer.resize()
@@ -421,7 +440,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again. The way out
     // is placed from the viewport, so it is chosen again too.
-    this.say(step, content)
+    this.say(step, error)
   }
 
   /**
@@ -430,13 +449,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * reading why they were stopped. A step that had no message until now has
    * nowhere to jump from, so that one is placed properly.
    */
-  retell(step: LekoStep, content: Content): void {
+  retell(step: LekoStep, reason: string): void {
     if (this.message?.visible) {
-      this.message.setText(content.text ?? '')
-      this.message.setError(content.error ?? '')
+      this.message.setText(step.message ?? '')
+      this.message.setError(reason)
       return
     }
-    this.say(step, content)
+    this.say(step, reason)
   }
 
   reject(): void {
@@ -464,11 +483,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // started now would never see it: the mutation that added it has already
       // been delivered, and an observer hears nothing about the past. So the
       // selector is run here, and a re-render costs a morph and nothing else.
-      const back = this.resolve(held.step)
-      if (back) return this.show(held.step, back, held.content, true)
+      const back = this.resolve(held)
+      if (back) return this.show(held, back, true)
       // Nothing is holding what this hands back. The machine hears about this
       // wait only if it runs out, and then it hears `lost`.
-      this.retry(held.step, held.content, true)
+      this.retry(held, true)
     })
   }
 
@@ -517,10 +536,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * last one, and the observer that starts the other one is armed only while
    * none is.
    */
-  private retry(step: LekoStep, content: Content, animate: boolean): void {
+  private retry(step: LekoStep, animate: boolean): void {
     this.watch(() => {
       const found = this.resolve(step)
-      if (found) this.show(step, found, content, animate)
+      if (found) this.show(step, found, animate)
     })
     this.retrying = setTimeout(() => {
       this.endRetry()

@@ -186,6 +186,22 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   expect(after.note - before.note).toBeCloseTo(after.target - before.target, 0)
 })
 
+test('the step is read for its words every time, so an edit to it is seen', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const step = { id: 'one', interactive: true, target: () => target, message: 'Type your name.' }
+  start([step, { id: 'two', interactive: true, target: () => target }])
+
+  expect(words()).toBe('Type your name.')
+
+  // The story belongs to the application, and nothing here holds a copy of its
+  // text. A resize is the plainest way to make the box be filled again without
+  // moving the tour.
+  step.message = 'Type the name on your card.'
+  window.dispatchEvent(new Event('resize'))
+
+  expect(words()).toBe('Type the name on your card.')
+})
+
 test('an error is written into the box that is already there', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([

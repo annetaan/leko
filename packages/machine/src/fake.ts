@@ -1,12 +1,4 @@
-import type {
-  Content,
-  Host,
-  MachineOptions,
-  Presenter,
-  StepBase,
-  StoryBase,
-  World,
-} from './types.js'
+import type { Host, MachineOptions, Presenter, StepBase, StoryBase, World } from './types.js'
 
 // The world both `machine.test.ts` and `replay.test.ts` drive the machine
 // against. Shared rather than declared twice: a replay driving a presenter that
@@ -23,9 +15,9 @@ export type Anchor = string
 export interface Step extends StepBase<Fixture> {
   target: string
   /**
-   * Writable here, the way `LekoStep` declares it. `StepBase` has it `readonly`
-   * to say the machine never writes it. The application owns the object and is
-   * free to edit its own text, and one test below does exactly that.
+   * **The machine never reads this.** A host's step has words on it and this
+   * fixture stands for one, so it is here to be carried through untouched. One
+   * test tells two objects with the same `id` apart by it.
    */
   message?: string
 }
@@ -56,10 +48,16 @@ export class Fake implements Presenter<Fixture> {
   readonly page = new Set(PAGE)
   /** Every step it was asked to draw, in order. */
   readonly shown: string[] = []
-  /** What it was last told to say. */
-  content: Content | undefined
+  /**
+   * The reason under the instruction, or nothing.
+   *
+   * Kept here rather than asked for, the way a real presenter keeps it: an
+   * arrival takes it away, a refusal writes it, and a resize is handed it again
+   * so that what is on screen survives one.
+   */
+  error: string | undefined
   /** Every retell, so a test can ask which step got rewritten, and with what. */
-  readonly retold: { step: string; content: Content }[] = []
+  readonly retold: { step: string; reason: string }[] = []
   rejected = 0
   torn = 0
 
@@ -69,23 +67,25 @@ export class Fake implements Presenter<Fixture> {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(step: Step, anchor: Anchor | null, content: Content): void {
+  show(step: Step, anchor: Anchor | null): void {
     // No retrying here. A presenter that gives a missing target time to appear
     // is answering a drawing question, and the machine is not asked about it
     // until the answer is in.
     if (anchor === null) return this.host.lost(step)
     this.shown.push(step.id)
-    this.content = content
+    // An arrival is a fresh attempt at the step, so whatever the last one was
+    // told goes with it.
+    this.error = undefined
   }
 
-  place(step: Step, _anchor: Anchor | null, content: Content): void {
+  place(step: Step, _anchor: Anchor | null, error: string | undefined): void {
     this.shown.push(`place:${step.id}`)
-    this.content = content
+    this.error = error
   }
 
-  retell(step: Step, content: Content): void {
-    this.retold.push({ step: step.id, content })
-    this.content = content
+  retell(step: Step, reason: string): void {
+    this.retold.push({ step: step.id, reason })
+    this.error = reason
   }
 
   reject(): void {

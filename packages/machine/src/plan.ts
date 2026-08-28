@@ -1,4 +1,4 @@
-import type { Content, MachineState, Problem, World } from './types.js'
+import type { MachineState, Problem, World } from './types.js'
 
 // The whole of what the machine knows and what an event does to it. Nothing
 // here calls anything, reads a clock or asks the page, which is what lets
@@ -45,11 +45,6 @@ export interface Core<W extends World> {
 type Step<W extends World> = W['step']
 type Story<W extends World> = W['story']
 
-/** The one thing a reduction needs that is not state. A setting, not a fact about the tour. */
-export interface Config {
-  readonly nextLabel: string
-}
-
 /** Nothing running, and nothing left over from anything that ran. */
 export const idle = <W extends World>(): Core<W> => ({
   position: undefined,
@@ -87,10 +82,11 @@ const stillAt = <W extends World>(core: Core<W>, at: Position<W>): boolean => co
 export type Effect<W extends World> =
   | { kind: 'teardown' }
   /** `resolve` then `show`. Answers with nothing, or `lost` where there is no anchor. */
-  | { kind: 'draw'; step: Step<W>; content: Content; animate: boolean }
+  | { kind: 'draw'; step: Step<W>; animate: boolean }
   /** `resolve` then `place`. Nothing about the tour changed, so nothing answers. */
-  | { kind: 'place'; step: Step<W>; content: Content }
-  | { kind: 'retell'; step: Step<W>; content: Content }
+  | { kind: 'place'; step: Step<W>; error: string | undefined }
+  /** The guard said no and the step had words for it. */
+  | { kind: 'retell'; step: Step<W>; reason: string }
   | { kind: 'reject' }
   /** `resolve`, `validate`, and the step's `error` where the answer was no. */
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
@@ -160,13 +156,6 @@ const owing = <W extends World>(core: Core<W>, ...effects: Effect<W>[]): Outcome
 
 const diagnosing = <W extends World>(core: Core<W>, problem: Problem<W>): Outcome<W> =>
   owing(core, { kind: 'diagnose', problem })
-
-/** A step that declares a signal never gets a control, and that is the whole rule. */
-const content = <W extends World>(core: Core<W>, step: W['step'], config: Config): Content => ({
-  text: step.message,
-  error: core.error,
-  next: step.awaits === undefined ? config.nextLabel : undefined,
-})
 
 /**
  * `end`. Empty the machine and take the presenter down, and owe the handlers.
@@ -257,11 +246,7 @@ const opening = <W extends World>(core: Core<W>, story: W['story']): Outcome<W> 
 // ------------------------------------------------------------------ the events
 
 /** What one event does to the machine, and what the machine owes the world for it. */
-export function reduce<W extends World>(
-  core: Core<W>,
-  event: Event<W>,
-  config: Config,
-): Outcome<W> {
+export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome<W> {
   switch (event.kind) {
     // --- what a host calls
 
@@ -312,7 +297,7 @@ export function reduce<W extends World>(
       const here = core.position
       const step = stepOf(core)
       if (!accepting(core) || !here || !step) return nothing(core)
-      return owing(core, { kind: 'place', step, content: content(core, step, config) })
+      return owing(core, { kind: 'place', step, error: core.error })
     }
 
     case 'lost': {
@@ -365,12 +350,7 @@ export function reduce<W extends World>(
       // may call into.
       const ready: Core<W> = { ...core, phase: 'ready' }
       return {
-        ...owing(ready, {
-          kind: 'draw',
-          step,
-          content: content(ready, step, config),
-          animate: event.animate,
-        }),
+        ...owing(ready, { kind: 'draw', step, animate: event.animate }),
         next: { kind: 'drawn', at: event.at },
       }
     }
@@ -413,11 +393,7 @@ export function reduce<W extends World>(
       // nothing would be worse than no control.
       if (event.reason === undefined) return owing(core, { kind: 'reject' })
       const said: Core<W> = { ...core, error: event.reason }
-      return owing(
-        said,
-        { kind: 'reject' },
-        { kind: 'retell', step, content: content(said, step, config) },
-      )
+      return owing(said, { kind: 'reject' }, { kind: 'retell', step, reason: event.reason })
     }
   }
 }

@@ -29,8 +29,6 @@ export interface World {
  */
 export interface StepBase<W extends World> {
   id: string
-  /** Read every time the machine draws and never written, so an edit is seen. */
-  readonly message?: string
   /** The signal this step waits for, or nothing where it advances on a control. */
   awaits?: string
   /**
@@ -94,21 +92,11 @@ export type Problem<W extends World> =
   | { kind: 'target-lost'; step: W['step']; story: W['story'] }
 
 export interface MachineOptions<W extends World> {
-  /** The words on a next control, where a step gets one. */
-  nextLabel?: string
   onStep?(step: W['step'] | undefined, story: W['story']): void
   onDiagnostic?(problem: Problem<W>): void
 }
 
 // --------------------------------------------------------- what draws the tour
-
-/** Everything the box beside the cutout can be asked to show at once. */
-export interface Content {
-  text: string | undefined
-  error: string | undefined
-  /** The words on the next control. Decided by the machine and never here. */
-  next: string | undefined
-}
 
 /**
  * What the machine is allowed to ask of whatever draws the tour.
@@ -116,6 +104,11 @@ export interface Content {
  * **Nothing here schedules itself.** A presenter that notices something says so
  * through {@link Host} and waits to be called back, because whether the tour may
  * be measured at all is a fact about the machine's state.
+ *
+ * **What a step says is on the step**, which is on every call here, so no
+ * instruction and no label crosses this seam. One string does: why the last
+ * attempt was turned down. A presenter cannot read that off a step, because
+ * which attempt was the last one is the machine's to know.
  */
 export interface Presenter<W extends World> {
   /**
@@ -134,11 +127,22 @@ export interface Presenter<W extends World> {
    * a drawing question, so a presenter may give it time and report
    * {@link Host.lost} once it has given up.
    */
-  show(step: W['step'], anchor: W['anchor'] | null, content: Content, animate: boolean): void
-  /** Put it where it belongs now, without animating: the surface moved, not the tour. */
-  place(step: W['step'], anchor: W['anchor'] | null, content: Content): void
-  /** The words changed and nothing moved. */
-  retell(step: W['step'], content: Content): void
+  show(step: W['step'], anchor: W['anchor'] | null, animate: boolean): void
+  /**
+   * Put it where it belongs now, without animating: the surface moved, not the
+   * tour. `error` is whatever the last attempt at this step was told, so a
+   * refusal on screen survives a resize.
+   */
+  place(step: W['step'], anchor: W['anchor'] | null, error: string | undefined): void
+  /**
+   * The guard said no, and this is what the step gave as the reason. Nothing has
+   * moved, so only the words change.
+   *
+   * The only thing the machine ever says about what is on screen. An arrival
+   * takes a reason away, and there is no call for that: a step being drawn again
+   * is a fresh attempt at it.
+   */
+  retell(step: W['step'], reason: string): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
   /** Everything this presenter put on the page goes. */

@@ -109,8 +109,10 @@ configure it.** `LekoOptions.nextLabel` only says what the control reads.
 **And pressing it is the only way anything advances a step without naming a
 signal.** The derivation above is worth nothing on its own: a second mover, in
 public or reachable from `renderClose`, is a control on a step that was never
-given one. So the presser is the thing that decides whether there is a control,
-`Host.next` is how it says so, and no method sits beside it.
+given one. So the presser is the thing that decides whether there is a control.
+Both are `packages/leko`: the presenter reads `awaits` when it fills the box,
+and `Host.next` is how the control it drew says it was pressed. No method sits
+beside that one.
 
 Without a control, two actions have to share one step. "Type 3, then place the
 order." The interface got coarser because the application had nothing to report.
@@ -1186,12 +1188,13 @@ What each half may ask of the other is `Presenter` and `Host` in
 `Host` and waits. Whether the tour may be measured at all is a fact about the
 machine's state, and one owner for that guard is the point.
 
-**The presenter never decides whether there is a next control.** `Content.next`
-is filled in by the machine, derived from `awaits`. The second constraint
-depends on that rule, and a presenter free to decide it would be a way to
-configure the rule back off.
+**No words cross the seam.** What a step says is on the step, and the step is on
+every call, so the machine builds no instruction and no label. One string does
+cross: the reason the last attempt was turned down, on `retell`. A presenter
+cannot work that out, because which attempt was the last one is the machine's to
+know.
 
-**The presenter is told, and never asks back.** None of `Host`'s five members
+**The presenter is told, and never asks back.** None of `Host`'s four members
 returns anything, and no member of `Presenter` takes a story. The drawing half
 is handed steps and never asks what one belongs to, which is what the two-tier
 read in **Settings, and where they are read from** pays for.

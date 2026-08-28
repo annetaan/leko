@@ -708,13 +708,11 @@ function watching(options = {}) {
   return { presenter, lost }
 }
 
-const CONTENT = { text: undefined, error: undefined, next: undefined }
-
 test('a target missing on arrival hands the machine nothing, and says nothing yet', () => {
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'late', interactive: true, target: '#not-here-yet' }
 
-  const nothing = presenter.show(step, null, CONTENT, false)
+  const nothing = presenter.show(step, null, false)
 
   // The step is drawn as far as the machine is concerned, and what is on screen
   // is whatever was there a moment ago. Only giving up is worth a call.
@@ -730,7 +728,7 @@ test('a target lost after the step was drawn is a wait the machine is never told
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'only', interactive: true, target: '#anchor' }
 
-  presenter.show(step, target, CONTENT, false)
+  presenter.show(step, target, false)
 
   target.remove()
   await observed()

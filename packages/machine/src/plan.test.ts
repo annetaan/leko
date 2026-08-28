@@ -3,7 +3,6 @@ import { describe, expect, test } from 'vitest'
 import type { Fixture, Step, Story } from './fake.js'
 import {
   accepting,
-  type Config,
   type Core,
   type Effect,
   type Event,
@@ -23,13 +22,11 @@ import {
 type C = Core<Fixture>
 type E = Effect<Fixture>
 
-const first: Step = { id: 'a', target: 'first', message: 'do the thing' }
+const first: Step = { id: 'a', target: 'first' }
 const second: Step = { id: 'b', target: 'second' }
 const story: Story = { id: 'tour', steps: [first, second] }
 const other: Story = { id: 'other', steps: [{ id: 'c', target: 'third' }] }
 const empty: Story = { id: 'empty', steps: [] }
-
-const config: Config = { nextLabel: 'Next' }
 
 /** Nothing running. */
 const nothing = (): C => idle<Fixture>()
@@ -43,7 +40,7 @@ const running = (index = 0, over: Partial<C> = {}): C => ({
   ...over,
 })
 
-const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, event, config)
+const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, event)
 
 /** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
@@ -191,7 +188,7 @@ describe('arriving at a step', () => {
     expect(outcome.next).toEqual({ kind: 'drawn', at: arriving.position })
   })
 
-  test('draws the words the step carries, and a control where it has no signal', () => {
+  test('hands the step over and says nothing about what it says', () => {
     const arriving: C = { ...running(), phase: 'step' }
 
     const [drawn] = put(arriving, {
@@ -200,20 +197,10 @@ describe('arriving at a step', () => {
       animate: true,
     }).effects as [E & { kind: 'draw' }]
 
-    expect(drawn.content).toEqual({ text: 'do the thing', error: undefined, next: 'Next' })
-  })
-
-  test('draws no control on a step that declares a signal', () => {
-    const waiting: Story = { id: 'tour', steps: [{ ...first, awaits: 'saved' }] }
-    const arriving: C = { ...nothing(), position: { story: waiting, index: 0 }, phase: 'step' }
-
-    const [drawn] = put(arriving, {
-      kind: 'stepEntered',
-      at: arriving.position!,
-      animate: false,
-    }).effects as [E & { kind: 'draw' }]
-
-    expect(drawn.content.next).toBeUndefined()
+    // The step and whether to animate, and that is the whole of it. What the
+    // box says is read off the step by whatever draws it, and whether that step
+    // gets a control is read off `awaits` in the same place.
+    expect(drawn).toEqual({ kind: 'draw', step: first, animate: true })
   })
 
   test('says where the tour got to only once the step is on screen', () => {
@@ -257,7 +244,7 @@ describe('a failed attempt', () => {
     // cannot disagree with the position it belongs to.
     const [, retold] = outcome.effects as [E, E & { kind: 'retell' }]
     expect(retold.step).toBe(guarded.steps[0])
-    expect(retold.content.error).toBe('not yet')
+    expect(retold.reason).toBe('not yet')
   })
 
   test('still says no where the step gave no words', () => {

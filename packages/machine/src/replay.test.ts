@@ -6,7 +6,7 @@ import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 import type { Anchor, Fixture, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
 import { Machine } from './machine.js'
-import type { Content, Problem } from './types.js'
+import type { Problem } from './types.js'
 
 // Every trace under `../model/traces/` driven into the real machine, call by
 // call, with the model's own state as the oracle at each one.
@@ -175,12 +175,12 @@ class Recorder extends Fake {
   drawn: Step | undefined
   presenterUp = false
 
-  override show(step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
+  override show(step: Step, anchor: Anchor | null): void {
     this.presenterUp = true
     // A missing anchor is `Host.lost` and nothing drawn, which is what the model
     // says too.
     if (anchor !== null) this.drawn = step
-    return super.show(step, anchor, content)
+    super.show(step, anchor)
   }
 
   override teardown(): void {
@@ -583,10 +583,9 @@ describe('every trace the model found', () => {
           expect(run.fake.retold.length, `${where}: the words never reached the presenter`).toBe(
             retoldBefore + 1,
           )
-          expect(
-            run.fake.retold.at(-1)?.content.error,
-            `${where}: and they went without the words`,
-          ).toBe(REASON)
+          expect(run.fake.retold.at(-1)?.reason, `${where}: and they went without the words`).toBe(
+            REASON,
+          )
         }
         if (now.mark === 'refuse-mute') {
           expect(
