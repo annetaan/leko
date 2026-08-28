@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-import { begin, box, control, frame, keep, press, start } from './harness.js'
+import { begin, box, control, frame, keep, observed, press, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -431,23 +431,25 @@ test('stopping takes the message with it, and gives the target its anchor name b
   expect(target.style.getPropertyValue('anchor-name')).toBe('--theirs')
 })
 
-test('the message goes when the target does', async () => {
+test('the message does not move when the target leaves the page', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.id = 'anchor'
-  // A selector, so the target is given time to come back and the tour is still
-  // standing when this looks. Without one it stops and the message would go
-  // with it, which would prove nothing.
+  // A selector, so the target is given a moment to come back and the tour is
+  // still standing when this looks. Without one it stops and the message would
+  // go with it, which would prove nothing.
   const leko = start([{ id: 'one', interactive: true, target: '#anchor', message: 'Press it.' }])
+  // Before the target goes, so the fade is not being raced against a deadline.
+  await appears()
+  const before = rect(message()!)
 
   target.remove()
-  await frame()
+  await observed()
 
-  // Still standing, because the target is being given time to come back, and
-  // reading as a tour between things while that runs. The presenter began this
-  // search on its own and says so, so both searches answer the same way.
-  expect(leko.state).toBe('transitioning')
+  // Nothing is redrawn while a target is looked for, and the box is not an
+  // exception. It hangs off a marker inside the scrim rather than off the
+  // target, so the element leaving the page moves nothing.
+  expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('one')
-  // An anchored element whose anchor has left the page falls back to normal
-  // positioning, which would drop the message somewhere arbitrary.
-  expect(visible()).toBe(false)
+  expect(visible()).toBe(true)
+  expect(rect(message()!)).toEqual(before)
 })

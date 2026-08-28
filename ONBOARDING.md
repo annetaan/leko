@@ -132,7 +132,7 @@ They are the same rule from two sides.
 
 What the machine needs of the world, and the seam. `World` is the three types a
 host brings, carried as the one parameter everything else takes. `Presenter` is
-what the machine may ask of whatever draws, and `Host` is the five things a
+what the machine may ask of whatever draws, and `Host` is the four things a
 presenter may report back.
 
 Read the second half twice. Three rules live there and DESIGN.md states each under
@@ -198,7 +198,7 @@ This is the trace worth walking with the files open. The application calls
 | 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `show`, then `reveal` | Pays out whatever a search's curtain still owes, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
+| 7 | `presenter.ts` `show`, then `reveal` | Drops whatever retry was running, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
@@ -212,16 +212,15 @@ survived being drawn. A progress readout that heard about a step while its
 `onEnter` was still running would be naming something the user cannot see. In
 `plan.ts` those are two events, so nothing can quietly put the report first.
 
-The other direction is five calls. `Host.lost` when a target has gone and is not
+The other direction is four calls. `Host.lost` when a target has gone and is not
 coming back, `Host.moved` on a resize, `Host.next` when the step's control is
-pressed, `Host.close` when the one that ends the tour is, and `Host.searching`
-while the presenter is looking for an anchor that left the page. The machine
-hands the presenter five closures in its constructor, so the presenter cannot
-reach anything else on the machine.
+pressed, and `Host.close` when the one that ends the tour is. The machine hands
+the presenter four closures in its constructor, so the presenter cannot reach
+anything else on the machine.
 
-`Host.searching` is the one to read the argument for. It reports a wait nobody
-asked for, and the machine decides what `state` says about it, the same way it
-decides for a target that was missing when the step arrived.
+`Host.lost` is the one to read the argument for. A target that goes missing is
+retried for 100ms before it is said, and the presenter redraws nothing while
+that runs, so a wait too short to act on never reaches the machine at all.
 
 ## The four fields in the machine
 
@@ -231,7 +230,7 @@ disagreeing about where the tour was.
 | Field | Holds |
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling`, `searching` or `ready` |
+| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
 | `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
@@ -279,7 +278,7 @@ here, ask whether it is a third way of saying something two fields already say.
 
 ```ts
 export const accepting = <S, St>(core: Core<S, St>): boolean =>
-  core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
+  core.phase === 'ready' || core.phase === 'settling'
 ```
 
 Every call into the application is a window where the tour could be taken
@@ -289,10 +288,9 @@ world moved, the machine refuses to act inside the window at all, so there is
 nothing to check. The `reached`, `start`, `pressed` and `moved` events all ask
 this first, in `plan.ts`.
 
-`settling` and `searching` are not those windows. A morph is a step that arrived
-and is still moving, and a search is a step that arrived and whose anchor has
-gone missing since. The machine is inside neither of them, so a call means what
-it says and goes through.
+`settling` is not one of those windows. A morph is a step that arrived and is
+still moving. The machine is not inside anything while it runs, so a call means
+what it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A handler that has decided
 the tour should not go on has nowhere else to go. So every event that can land
@@ -300,8 +298,8 @@ after a window carries the position it was planned at, and `plan.ts` asks
 `stillAt` before acting on one. A `stop()` can have thrown that arrival away
 while the machine was gone.
 
-There are seven of those asks. Six are about a position an arrival began at, and
-the last one is a different job: a `refused` landing after a `validate` that
+There are eight of those asks. Seven are about a position an arrival began at,
+and the last one is a different job: a `refused` landing after a `validate` that
 called `stop()` from inside itself. All seven are what is left of a counter that
 used to be checked in thirteen places.
 
@@ -347,14 +345,14 @@ grep -rn "addEventListener\|new MutationObserver" \
   packages/leko/src packages/spotlight/src packages/machine/src | grep -v "\.test\."
 ```
 
-Five lines come back. They are every listener the library installs, and none of
+Six lines come back. They are every listener the library installs, and none of
 them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts` `watchTarget` | A `MutationObserver` noticing the target left the page. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement |
-| `presenter.ts` `search` | The same observer, re-armed on a target that is not back yet. Reports `Host.searching` while it runs and `Host.lost` if it gives up |
+| `presenter.ts` `watch` | The one `MutationObserver`, armed on the step on screen and on a target that has not turned up. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement. Reports `Host.lost` where the retry runs out |
 | `presenter.ts` `watchViewport` | A `resize` listener. Reports `Host.moved` |
+| `focus.ts` constructor | `keydown` and `focusin`, both capturing. They keep Tab inside the ring and move nothing |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 | `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |
 
@@ -394,7 +392,7 @@ whether a browser could get the answer wrong.
 mentioned the DOM and no engine could disagree about any of them. They moved to
 `leko-wiring` and the suite went from 265 runs to 225 without deleting a claim.
 
-`machine.test.ts` is grouped into 9 `describe` blocks, one per axis the machine
+`machine.test.ts` is grouped into 11 `describe` blocks, one per axis the machine
 is asked about. Read them as a table. A group with two tests in it is a column
 nobody has crossed with the others, and that is where the next bug is.
 DESIGN.md says so under

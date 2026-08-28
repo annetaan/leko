@@ -11,12 +11,11 @@ takes an event and a state and answers with a state, which is the shape this
 model was always in.
 
 I wrote it because `machine.test.ts` had grown to 1901 lines and every one of
-them was an example I had thought of. It is 1859 now, because the presenter the
-tests drive moved to `src/fake.ts` so the replay could share it and because
-the searches keep coming back with something. Four bugs
-turned up in one week that I had not thought of. All four were reachable in
-under five calls. Reading does not scale past about 700 lines, so I wanted
-something that searches.
+them was an example I had thought of. It is 1943 now: the presenter the tests
+drive moved to `src/fake.ts` so the replay could share it, and the searches keep
+coming back with something. Four bugs turned up in one week that I had not
+thought of. All four were reachable in under five calls. Reading does not scale
+past about 700 lines, so I wanted something that searches.
 
 ## Running it
 
@@ -38,7 +37,7 @@ invariant. A bug deeper than the sample reached is still a bug it never saw.
 model to [Apalache](https://apalache.informal.systems/), which asks Z3 whether
 an invariant can be broken at all.
 
-I run it by hand after a change to the model. Last on 2026-08-28:
+I run it by hand after a change to the model. Last on 2026-08-29:
 
 ```bash
 brew install openjdk@21
@@ -49,32 +48,34 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 
 ```
-Step 8: picking a transition out of 11 transition(s)
+Step 8: picking a transition out of 9 transition(s)
 The outcome is: NoError
-[ok] No violation found (1910321ms).
+[ok] No violation found (826339ms).
 ```
 
-31 minutes 50 seconds. Nothing within 8 calls of `init` breaks either invariant,
+13 minutes 46 seconds. Nothing within 8 calls of `init` breaks either invariant,
 and that is a proof over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
-`step` offers 11 actions, which is the number Apalache prints on the line above.
-Count the `nondet` picks and it is 38 branches from a state with nothing in
+`step` offers 9 actions, which is the number Apalache prints on the line above.
+Count the `nondet` picks and it is 22 branches from a state with nothing in
 flight, and two more for every callback that is: `doSettle` and `doLeave` both
-pick out of `inflight`. So 8 steps is around 38^8, or 4.3 trillion paths.
-Apalache walks none of them. The picks stay as variables in the SMT problem and
-it asks about all 38 at once, which is the whole reason 8 steps finishes at all.
+pick out of `inflight`. So 8 steps is around 22^8, or 55 billion paths. Apalache
+walks none of them. The picks stay as variables in the SMT problem and it asks
+about all 22 at once, which is the whole reason 8 steps finishes at all.
 
-**The cost is one hard instance rather than a slope.** Timing the invariant
-checks at step 8 in that run gives 17s, 25s, 25s, 29s, and then 725s, then 21s.
-One check took 12 minutes and the rest look like every other step. A depth that
-finishes in twelve minutes today can take half an hour after a change that made
-the model smaller, so read a total as a sample of one.
+**Read a total as a sample of one.** Two runs of this model 20 minutes apart
+gave 906840ms and 826339ms. Inside the second, the nine invariant checks at step
+8 took 61s, 45s, 40s, 23s, 0.1s, 57s, 50s, 81s and 52s. Nine instances of the
+same question, and the slowest is over 500 times the fastest. What Z3 pays for
+is the shape of the instance it is handed.
 
-That is also why a smaller model is not a faster one. What Z3 pays for is the
-size of the transition relation, and folding an arrival into one synchronous
-action makes each transition deeper while making the reachable states fewer.
+What it also pays for is the size of the transition relation, which is why a
+smaller model is not automatically a faster one. Two actions came off here and
+the run halved. Folding an arrival into one synchronous action took actions off
+too and the run doubled, because it made each transition deeper while making the
+reachable states fewer.
 
 Do not put it in CI. `pnpm model:traces` searches 24 steps, and that is out of
 reach here.
@@ -179,12 +180,11 @@ model compared `b/0` with `b/0` and called it the same place; a real `Machine`
 was holding the `position` object from before the stop and did nothing at all.
 
 `Pos` carries an `occurrence` now, off the same counter the callbacks take their
-tokens from. That made something else wrong. `lost` and `searching` are answered
-against `stepOf(core)` in `plan.ts`, so they compare the step rather than the
-position, and `doLose` and `doHunt` were comparing the position. With an
-occurrence in there they would have started turning down reports the machine
-takes. Those two name a `Where` now, which is a story and an index and no
-occurrence.
+tokens from. That made something else wrong. `lost` is answered against
+`stepOf(core)` in `plan.ts`, so it compares the step rather than the
+position, and `doLose` was comparing the position. With an occurrence in there
+it would have started turning down reports the machine takes. It names a `Where`
+now, which is a story and an index and no occurrence.
 
 Neither invariant could see any of this. `runningIsDrawn` and `idleIsClean` both
 hold in the state the model reached, and no trace in the corpus went there
@@ -277,9 +277,10 @@ drift apart, which is the largest drift surface there is.
 ## Two searches
 
 `quint run` picks uniformly among the actions that are enabled. `stop` is
-enabled almost always, so a tour gets torn down roughly every thirteenth call
-and hardly ever reaches its third step. In 200000 traces of 30 steps, the state
-where a guard failed and the handler wrote a message came up 11 times.
+enabled almost always, so a tour gets torn down roughly every ninth call and
+hardly ever reaches its third step. In the 100000 traces `pnpm model` walks, the
+state where a guard failed and the handler wrote a message comes up in 247 of
+them.
 
 So there are two.
 
@@ -287,8 +288,8 @@ So there are two.
   where the four bugs the issue was opened for would have been. All four were
   reachable in under five calls.
 - `initRunning` with `stepInside` starts with story `a` already running and
-  leaves out `start` and `stop`. Under this one the same state came up 1422
-  times in 100000.
+  leaves out `start` and `stop`. Under this one the same state comes up in 11643
+  of the 100000.
 
 `pnpm model` runs both. Neither is enough on its own.
 
@@ -305,7 +306,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 17 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 15 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 
@@ -314,12 +315,11 @@ into a real `Machine` over the `Fake` presenter from `src/fake.ts`. After every
 call it holds the machine against the model: `state`, the story, the index, what
 is on screen, and the step `onStep` last named.
 
-A trace ends at the state its target names. That matters more than it sounds.
-The first version of the `morph-under-search` target named the state *before*
-the settle, so the trace stopped one call short of the call it existed to make,
-and the broken `machine.ts` passed. That is what `mark` in the model is for. It
-names which way an action went, so a target can be the state after the
-transition rather than the state before it.
+A trace ends at the state its target names. That matters more than it sounds. A
+target naming the state *before* the call it is about stops the trace one call
+short of that call, and a broken `machine.ts` passes. That is what `mark` in the
+model is for. It names which way an action went, so a target can be the state
+after the transition rather than the state before it.
 
 To add one, put an entry in `HARVEST` in `scripts/model-traces.mjs` with a
 target and a seed, then run `pnpm model:traces`. The seeds are fixed so the
@@ -348,7 +348,7 @@ model.
 ## When a replay diverges
 
 The failure names the state and the call: `state 8, after doSettle
-(morph-under-search)`. The model and the code disagree about what that call
+(morph-stale)`. The model and the code disagree about what that call
 does. One of them is wrong. Read the state in the `.itf.json` alongside the
 definition it is named after. Every pure function in `machine.qnt` carries the
 name of the thing it stands for, and there are two places to look.
@@ -376,8 +376,8 @@ same boundary.
   replay.
 - The `animate` flag, the words on a step, the diagnostic payloads. Only the
   count of diagnostics is checked.
-- A story that holds the same step object twice. `plan.ts` answers `lost` and
-  `searching` by comparing the step, and `Machine.index` says in its own doc
+- A story that holds the same step object twice. `plan.ts` answers `lost` by
+  comparing the step, and `Machine.index` says in its own doc
   that a story may hold one object twice. Every step in `WORLD` is a different
   record, so the model never sees that. Comparing the step and comparing the
   address give the same answer here, and in a world with a repeated object they

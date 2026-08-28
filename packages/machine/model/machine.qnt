@@ -18,8 +18,8 @@ module machine {
 
   type Maybe[a] = Just(a) | Nothing
 
-  /// `Phase` in plan.ts, with the same six values and the same meanings.
-  type Phase = Story | Step | Ending | Settling | Searching | Ready
+  /// `Phase` in plan.ts, with the same five values and the same meanings.
+  type Phase = Story | Step | Ending | Settling | Ready
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
@@ -33,8 +33,8 @@ module machine {
 
   /// A step in the world, by address. What a presenter names when it reports
   /// about the step it was shown, which is a step and never a position:
-  /// `Host.lost` and `Host.searching` are answered against `stepOf(core)` in
-  /// `plan.ts` rather than against `position`.
+  /// `Host.lost` is answered against `stepOf(core)` in `plan.ts` rather than
+  /// against `position`.
   type Where = { story: str, index: int }
 
   /// What a step is, reduced to the five things the machine reads off one.
@@ -206,7 +206,7 @@ module machine {
   /// `accepting` in `plan.ts`. The one thing a call from the application is answered
   /// against.
   pure def accepting(s: M): bool =
-    s.phase == Ready or s.phase == Settling or s.phase == Searching
+    s.phase == Ready or s.phase == Settling
 
   /// `stateOf` in `plan.ts`, derived from two fields and never stored.
   pure def stateOf(s: M): str =
@@ -223,8 +223,8 @@ module machine {
 
   /// Whether `w` names the step the tour is standing on, whichever occurrence
   /// of it. `stepOf(core) !== event.step` in `plan.ts`, which is what `lost`
-  /// and `searching` ask instead of {@link stillAt}: a presenter watches the
-  /// step it was shown, so what it can name is a step.
+  /// asks instead of {@link stillAt}: a presenter watches the step it was
+  /// shown, so what it can name is a step.
   pure def standingOn(s: M, w: Where): bool =
     match s.position {
       | Nothing => false
@@ -482,48 +482,26 @@ module machine {
       m.with("mark", if (accepting(m) and m.position != Nothing) "resize" else "resize-ignored"),
   }
 
-  // Neither of the two below asks where the tour is first. A presenter watches
-  // the step it was shown, and a step can leave the page after the tour has
-  // already started heading somewhere else, so a report about a step nobody is
-  // standing on is a report that really arrives. Deciding what it means is the
-  // machine's, and that is the half worth checking.
+  // The one below does not ask where the tour is first. A presenter watches the
+  // step it was shown, and a step can leave the page after the tour has already
+  // started heading somewhere else, so a report about a step nobody is standing
+  // on is a report that really arrives. Deciding what it means is the machine's,
+  // and that is the half worth checking.
   //
-  // All three name a {@link Where} rather than a {@link Pos}, because that is
-  // what the presenter has to name with: `lost` and `searching` carry a step,
-  // and `plan.ts` answers them against `stepOf(core)`. A step reported for the
-  // occurrence before the tour restarted is a report about the step the tour is
-  // on, and the machine takes it.
+  // It names a {@link Where} rather than a {@link Pos}, because that is what the
+  // presenter has to name with: `lost` carries a step, and `plan.ts` answers it
+  // against `stepOf(core)`. A step reported for the occurrence before the tour
+  // restarted is a report about the step the tour is on, and the machine takes
+  // it.
 
-  /// `Fake.lose`: the target left the page and the presenter has given up on it.
+  /// `Fake.lose`: the target left the page and did not come back inside the
+  /// retry, so the presenter has given up on it. The retry itself is not here:
+  /// nothing about it reaches the machine.
   action doLose(w: Where): bool = all {
     m' = {
       val gone = m.with("page", m.page.exclude(Set(stepAt(m, w).target)))
       if (standingOn(gone, w)) end(gone, Nothing).with("mark", "lose")
       else gone.with("mark", "lose-stale")
-    },
-  }
-
-  /// `Fake.hunt`: the target left the page and the presenter is still looking.
-  action doHunt(w: Where): bool = all {
-    m' = {
-      val gone = m.with("page", m.page.exclude(Set(stepAt(m, w).target)))
-      // A wait is only started for the step the tour is on, and only over a
-      // phase that says the step is on screen.
-      if (not(standingOn(gone, w))) gone.with("mark", "hunt-stale")
-      else if (gone.phase == Ready or gone.phase == Settling)
-        gone.with("phase", Searching).with("mark", "hunt")
-      else gone.with("mark", "hunt-ignored")
-    },
-  }
-
-  /// `Fake.found`: it came back. Ending a wait asks nothing, because by then the
-  /// tour may be on another step and the phase the wait wrote is the one that
-  /// has to come off.
-  action doFound(w: Where): bool = all {
-    m' = {
-      val back = m.with("page", m.page.union(Set(stepAt(m, w).target)))
-      if (back.phase == Searching) back.with("phase", Ready).with("mark", "found")
-      else back.with("mark", "found-ignored")
     },
   }
 
@@ -586,16 +564,13 @@ module machine {
       match cb {
         | Leaving(_) => awake
         | Morph(c) => {
-          // Only the morph nothing has replaced may call the step settled.
+          // Only the morph nothing has replaced may call the step settled. The
+          // one it replaced settles onto a token `enter` already let go of, and
+          // nothing else writes `showing`, so the phase this takes off is
+          // always the one it put on.
           if (awake.showing != Just(c.token)) awake.with("mark", "morph-stale")
-          else {
-            val done = awake.with("showing", Nothing)
-            // Only the phase this promise put on the machine is its to take off.
-            // A target that left the page while the morph ran has written
-            // `searching` over it, and that wait ends when the presenter says.
-            if (done.phase == Settling) done.with("phase", Ready).with("mark", "morph-landed")
-            else done.with("mark", "morph-under-search")
-          }
+          else
+            awake.with("showing", Nothing).with("phase", Ready).with("mark", "morph-landed")
         }
       }
     },
@@ -652,10 +627,6 @@ module machine {
     doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet huntPick = WHERES.oneOf()
-    doHunt(huntPick),
-    nondet foundPick = WHERES.oneOf()
-    doFound(foundPick),
     nondet slowPick = Bool.oneOf()
     doSetSlow(slowPick),
     nondet settlePick = m.inflight.oneOf()
@@ -669,7 +640,7 @@ module machine {
   ///
   /// Two searches rather than one, because a uniform choice over {@link step}
   /// makes `stop` about as likely as anything else, and a tour that is torn down
-  /// every thirteenth call almost never reaches its third step. The four bugs
+  /// every ninth call almost never reaches its third step. The four bugs
   /// this model was written for were all reachable in under five calls, which
   /// {@link step} covers well; this is what reaches the rest. Neither relation
   /// is the honest one on its own, and `pnpm model` runs both.
@@ -681,10 +652,6 @@ module machine {
     doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet huntPick = WHERES.oneOf()
-    doHunt(huntPick),
-    nondet foundPick = WHERES.oneOf()
-    doFound(foundPick),
     nondet slowPick = Bool.oneOf()
     doSetSlow(slowPick),
     nondet settlePick = m.inflight.oneOf()
@@ -743,20 +710,8 @@ module machine {
   /// A step on screen with a failed attempt behind it.
   val erroring: bool = m.hasError
 
-  /// The presenter looking for a target that left the page.
-  val hunting: bool = m.phase == Searching
-
   /// A step drawn and still moving.
   val settling: bool = m.phase == Settling
-
-  /// A morph that landed while the presenter was looking for a target that had
-  /// left. Both wrote the phase, and only the one that wrote it may take it off.
-  ///
-  /// The state to aim at is the one *after* that settle, not the one before it:
-  /// a harvested trace ends at the state its target names, so a target naming
-  /// the state before would stop the trace one call short of the call it exists
-  /// to make. That is what {@link M.mark} is for.
-  val morphUnderSearch: bool = m.mark == "morph-under-search"
 
   /// A refusal with words for it, which is the pair below with `error` written
   /// on the step.
@@ -805,8 +760,7 @@ module machine {
   /// can do because it watches the step it was shown rather than the tour.
   /// Standing somewhere, so that the report is about another step rather than
   /// about no tour at all.
-  val staleReport: bool =
-    (m.mark == "lose-stale" or m.mark == "hunt-stale") and m.position != Nothing
+  val staleReport: bool = m.mark == "lose-stale" and m.position != Nothing
 
   /// The tour got as far as the last step of the longest story, which is as
   /// deep as this world goes. By address, because which occurrence of it the

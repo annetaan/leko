@@ -1,13 +1,13 @@
 # The phases, drawn
 
-The machine has six phases and one state value with six fields in it. This file
-is the picture of them. `plan.ts` holds the phases, the state and what each event
-does to them, and `machine.ts` makes the calls that follow.
+The machine has five phases and one state value with four fields in it. This
+file is the picture of them. `plan.ts` holds the phases, the state and what each
+event does to them, and `machine.ts` makes the calls that follow.
 [`README.md`](README.md) beside this says how the model is searched, and
 `machine.qnt` is the same graph written down in a form a search can walk. When
 they disagree, the code is the one that is right.
 
-I drew this after the model was already green. Six phase names read off a union
+I drew this after the model was already green. Five phase names read off a union
 type told me nothing about which of them a call from the application survives,
 and that is the question I keep having.
 
@@ -18,10 +18,10 @@ There is no stored `state`. It is read off these every time it is asked.
 | | |
 | --- | --- |
 | `position` | the running story and the index in it, or `undefined` while nothing runs |
-| `phase` | one of the six below |
+| `phase` | one of the five below |
 
 `state` is `idle` when there is no position. Otherwise it is `running` if the
-phase is `ready`, and `transitioning` for the other five.
+phase is `ready`, and `transitioning` for the other four.
 
 Read that carefully around `ending`. A teardown empties the position before it
 calls a single handler, so a handler asking `state` from inside its own
@@ -50,9 +50,6 @@ stateDiagram-v2
 
   state arrived {
     settling --> ready : the morph landed
-    ready --> searching : Host.searching(step, true)
-    settling --> searching : Host.searching(step, true)
-    searching --> ready : Host.searching(step, false)
   }
 
   arrived --> step : advance, and a next step exists
@@ -70,7 +67,7 @@ stateDiagram-v2
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
 
-  class idle,ready,settling,searching open
+  class idle,ready,settling open
   class story,step,ending shut
 ```
 
@@ -78,17 +75,17 @@ A teal outline means a call from the application is acted on. A clay outline
 means the machine is inside a call into the application, and everything but
 `stop()` is turned away.
 
-`arrived` is a grouping and there is no such phase in the code. It holds the
-three that mean the step is on screen and the tour is standing on it. `advance`,
-`stop()` and `Host.lost` do the same thing from all three, so they are drawn
-once instead of nine times.
+`arrived` is a grouping and there is no such phase in the code. It holds the two
+that mean the step is on screen and the tour is standing on it. `advance`,
+`stop()` and `Host.lost` do the same thing from both, so they are drawn once
+instead of six times.
 
 | Phase | `state` | What is true |
 | --- | --- | --- |
 | `story` | `transitioning` | a run is starting. The story's own `onEnter` is running or about to be, and no step has been entered |
 | `step` | `transitioning` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is running, the anchor has not been looked for, nothing is drawn |
 | `settling` | `transitioning` | the step arrived and is drawn. The presenter is still moving it |
-| `searching` | `transitioning` | the step arrived, its anchor has since left the page, and the presenter is looking. The tour is still on that step. What is on screen is a curtain. A target that was missing when the step arrived is `settling` instead: that wait is one the machine was handed a promise for |
+| | | A target that leaves the page after the step was drawn has no phase of its own. The presenter retries for 100ms, redraws nothing while it does, and says nothing unless it gives up. A target that was missing when the step arrived is `settling`, because that wait is one the machine was handed a promise for |
 | | | A step that names no target at all is `ready`. It is drawn and still, and what it waits for is a signal |
 | `ready` | `running` | the step is drawn and still. The only phase `state` calls `running` |
 | `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
@@ -98,14 +95,14 @@ once instead of nine times.
 `accepting` in `plan.ts` is one line and it decides everything above.
 
 ```ts
-core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
+core.phase === 'ready' || core.phase === 'settling'
 ```
 
 `idle` is open too. Its phase is `ready` and it has no position.
 
 A step that is drawn and still moving has been through the whole arrival and the
-user is looking at it. A call about it means what it says, so `settling` and
-`searching` are open.
+user is looking at it. A call about it means what it says, so `settling` is
+open.
 
 | Call | Accepted in | What it does |
 | --- | --- | --- |
@@ -114,7 +111,6 @@ user is looking at it. A call about it means what it says, so `settling` and
 | `stop()` | anywhere | the one call the gate does not stand in front of. A step still arriving is thrown away rather than waited for |
 | `Host.next()` | open | private, and reachable only through the presenter. A step declaring `awaits` never gets a control |
 | `Host.moved()` | open | places the step where it belongs now, without animating. No phase change and no report |
-| `Host.searching(step, yes)` | `ready`, `settling` | starts a wait only for the step the tour is on, and only for a target lost after the step was drawn. Ending one asks nothing |
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
 
@@ -186,9 +182,9 @@ A refusal is not on this list. `validate` answers in the turn it is asked, and
 The `refused` event still asks where the tour got to, because `validate` is the
 application's own code and can call `stop()` from inside itself.
 
-The morph has one more check after that. It may only write `ready` if the phase
-is still `settling`. A target that left the page mid morph has written
-`searching` over it, and that wait ends when the presenter says it does.
+The morph has one more check after that. Only the morph nothing has replaced may
+write `ready`, and the one it replaced settles onto a token the arrival already
+let go of.
 
 ## Where to watch each of these happen
 
@@ -206,7 +202,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | `story` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
 | `step` | `step-setup` | press Next. Each `onEnter` runs inside the call that moved the tour |
 | `settling` | any case, `stepping` is plainest | the morph is 320ms, and the log says `transitioning` for that long on every move |
-| `searching` | `target-disappears` | press **Dismiss for a second**. The target comes back inside the window and nothing is reported |
+| a target that left the page | `target-disappears` | press **Dismiss for a moment**. The target comes back inside the retry, nothing is redrawn while it is away, and no phase says so |
 | a step that waits | `step-setup`, `story-setup` | press Next onto the step with no `target`. The page goes under, and the signal the step names is what ends it |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
 | `ending`, and then `story` | `branching` | press either path button. The story that ran out names the one that follows it |
@@ -214,7 +210,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
 | a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name. `machine.test.ts` has it |
 | a `start()` the gate turned down | none | the same one-call window as the row above. `machine.test.ts` has it |
-| `Host.lost` ending a run | `target-disappears` | press **Dismiss**. Two seconds under a curtain, then the tour stops |
+| `Host.lost` ending a run | `target-disappears` | press **Dismiss**. The hole stands where it was for 100ms, then the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
 | `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |
 | a story handing the tour on | `branching` | press either path button. `intro` runs out and its `next` answers with the branch the page recorded |
@@ -230,9 +226,6 @@ Worth knowing before trusting the table above.
   for the second, so the model covers both and the sandbox covers neither.
 - `story-not-found` and `story-empty`. Both are `start()` diagnostics and the
   footer only offers ids that exist.
-- A morph landing while the phase is `searching`. The model has a trace named
-  `morph-under-search` for it. Getting a target to leave the page inside a 320ms
-  morph by hand is not something a case can ask a person to do.
 - A `start()` made from an ending report. `branching` was the case for it and
   the rejoin is a `next` now, so nothing in the sandbox starts a story from
   inside a report any more. `machine.test.ts` still asks it, twice: once for the

@@ -319,12 +319,6 @@ function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
     case 'doLose':
       run.fake.lose(stepOf(run, pos(picks['losePick']!)))
       break
-    case 'doHunt':
-      run.fake.hunt(stepOf(run, pos(picks['huntPick']!)))
-      break
-    case 'doFound':
-      run.fake.found(stepOf(run, pos(picks['foundPick']!)))
-      break
     case 'doSetSlow':
       run.fake.slow = picks['slowPick'] as boolean
       break
@@ -592,7 +586,7 @@ describe('every trace the model found', () => {
         //    nothing, and neither does a report about a step it has walked away
         //    from. `position` is replaced on every move and on nothing else, so
         //    holding the object is holding the step occurrence.
-        if (['morph-stale', 'lose-stale', 'hunt-stale'].includes(now.mark)) {
+        if (['morph-stale', 'lose-stale'].includes(now.mark)) {
           expect(observe(run), `${where}: something the tour had left moved it`).toEqual(seenBefore)
         }
         // An unmatched `reached()` is free and silent, permanently, because

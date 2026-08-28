@@ -477,23 +477,6 @@ export interface LekoWorld {
  * DESIGN.md argues it under **Settings, and where they are read from**.
  */
 export interface LekoOptions {
-  /**
-   * What the page says while a target that has gone missing is looked for.
-   * Nothing by default.
-   *
-   * **The one window Leko covers the page for on its own.** A step whose target
-   * is not on the page, or whose target leaves after it was drawn, is given two
-   * seconds to find it again. The page is covered with no hole in it for that
-   * long, because a hole standing over nothing is worse than a covered page.
-   * Nothing here knows what the application is doing, so the words that belong
-   * here are the general ones a host would put on any wait of its own.
-   *
-   * A wait the application knows about is not this. That one is a step with no
-   * target, and it says what it is doing in its own
-   * {@link LekoStep.message}.
-   */
-  curtainLabel?: string
-
   /** Space between a target's border box and the cutout edge. Defaults to `8`. */
   padding?: number
 

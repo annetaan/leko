@@ -807,44 +807,6 @@ describe('what the tour says it is doing', () => {
     ])
   })
 
-  test('a target lost after its step was drawn reads as transitioning', () => {
-    const only: Step = { id: 'a', target: 'first' }
-    const { tour, seen } = watched({ id: 'story', steps: [only] })
-    begin(tour, 'story')
-
-    expect(tour.state).toBe('running')
-
-    drawing().hunt(only)
-
-    // The same window as a target missing when the step arrived, which reads
-    // this way already. What is on screen is a curtain either way, and a host
-    // that cannot see the wait cannot stand back for it.
-    expect(tour.state).toBe('transitioning')
-    // Nothing moved. The tour is on the step it was on, and no report was made
-    // about a wait that may yet come to nothing.
-    expect(tour.step?.id).toBe('a')
-    expect(seen).toEqual(['a'])
-
-    drawing().found(only)
-
-    expect(tour.state).toBe('running')
-    expect(seen).toEqual(['a'])
-  })
-
-  test('a signal is still acted on while a lost target is being looked for', () => {
-    const first: Step = { id: 'a', target: 'first', awaits: 'saved' }
-    const tour = start([first, { id: 'b', target: 'second' }])
-    drawing().hunt(first)
-
-    // A search is not a call into the application, so it is not a moment the
-    // gate closes for. The application knows what it knows, and the step it was
-    // waiting on is the one the user has been through.
-    tour.reached('saved')
-
-    expect(tour.step?.id).toBe('b')
-    expect(tour.state).toBe('running')
-  })
-
   test('watching state hears every crossing, and only the crossings', async () => {
     const seen: string[] = []
     const tour = staging({
@@ -894,24 +856,6 @@ describe('what the tour says it is doing', () => {
     expect(seen).toEqual(['running', 'idle'])
   })
 
-  test('a watcher hears the wait for a target that left the page', async () => {
-    const only: Step = { id: 'a', target: 'first' }
-    const seen: string[] = []
-    const tour = staging({ id: 'story', steps: [only] })
-    begin(tour, 'story')
-    tour.watch((state) => seen.push(state))
-
-    drawing().hunt(only)
-    await turn()
-
-    expect(seen).toEqual(['transitioning'])
-
-    drawing().found(only)
-    await turn()
-
-    expect(seen).toEqual(['transitioning', 'running'])
-  })
-
   test('watching stops when the unsubscribe is called, from inside or outside', async () => {
     const seen: string[] = []
     const tour = staging({
@@ -940,40 +884,6 @@ describe('what the tour says it is doing', () => {
     expect(seen).toEqual(['running', 'idle'])
   })
 
-  test('a wait the tour has already left leaves nothing behind', () => {
-    const first: Step = { id: 'a', target: 'first' }
-    const tour = start([first, { id: 'b', target: 'second' }])
-    drawing().hunt(first)
-    press(tour)
-
-    expect(tour.step?.id).toBe('b')
-    expect(tour.state).toBe('running')
-
-    // The presenter drops a search it no longer needs, and says so about the
-    // step it was armed on rather than the one showing. Reading it as anything
-    // about the current step would strand the tour on `transitioning`.
-    drawing().found(first)
-
-    expect(tour.state).toBe('running')
-  })
-
-  test('a search armed on a step the tour has left is not a search for this one', () => {
-    const first: Step = { id: 'a', target: 'first' }
-    const tour = start([first, { id: 'b', target: 'second' }])
-    press(tour)
-
-    // The presenter watches the step it was shown, and the tour can move while
-    // that observer is still armed. So a report of a target going away arrives
-    // for `a` while `b` is showing, and it is about neither the step on screen
-    // nor anything a host could act on.
-    drawing().hunt(first)
-
-    // A wait started here would be a wait the step it belongs to cannot end,
-    // and `b` would read `transitioning` for the rest of the run.
-    expect(tour.state).toBe('running')
-    expect(tour.step?.id).toBe('b')
-  })
-
   test('a target lost on a step the tour has left does not end the run', () => {
     const first: Step = { id: 'a', target: 'first' }
     const problems: Problem<Fixture>[] = []
@@ -991,30 +901,6 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('running')
     expect(tour.step?.id).toBe('b')
     expect(problems).toEqual([])
-  })
-
-  test('a morph landing under a search does not call the step arrived', async () => {
-    const only: Step = { id: 'a', target: 'first' }
-    const tour = staging({ id: 'story', steps: [only] })
-    drawing().slow = true
-
-    begin(tour, 'story')
-    expect(tour.state).toBe('transitioning')
-
-    // Two things wrote the phase. The morph put `settling` on it and the search
-    // put `searching` over that, and only the one that wrote it may take its own
-    // off again.
-    drawing().hunt(only)
-    drawing().land()
-    await turn()
-
-    // What is on screen is a curtain over a target that is not there. A tour
-    // reading `running` through that is one whose host stands back for nothing.
-    expect(tour.state).toBe('transitioning')
-
-    drawing().found(only)
-
-    expect(tour.state).toBe('running')
   })
 
   test('a target taken away by the step that assumed it ends the run', () => {

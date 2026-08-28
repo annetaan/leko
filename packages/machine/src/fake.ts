@@ -112,26 +112,14 @@ export class Fake implements Presenter<Fixture> {
     this.settle = undefined
   }
 
-  /** The step's target left the page, the way a MutationObserver would notice. */
+  /**
+   * The step's target left the page and did not come back. What the real
+   * presenter says once its retry has run out, which is the only part of a
+   * missing target the machine hears about.
+   */
   lose(step: Step): void {
     this.page.delete(step.target)
     this.host.lost(step)
-  }
-
-  /**
-   * The target left the page and this is looking for it, which is the half of
-   * the real presenter that nobody asked for. `lose` is what it says two
-   * seconds later, if it comes to that.
-   */
-  hunt(step: Step): void {
-    this.page.delete(step.target)
-    this.host.searching(step, true)
-  }
-
-  /** It came back, and the step is drawn again without the machine moving. */
-  found(step: Step): void {
-    this.page.add(step.target)
-    this.host.searching(step, false)
   }
 
   /** The surface moved under the tour, the way a resize would. */

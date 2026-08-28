@@ -48,7 +48,7 @@ const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, e
 /** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
 
-const PHASES: Phase[] = ['story', 'step', 'ending', 'settling', 'searching', 'ready']
+const PHASES: Phase[] = ['story', 'step', 'ending', 'settling', 'ready']
 
 describe('reading the state', () => {
   test('a call is acted on where the step is on screen and nowhere else', () => {
@@ -59,7 +59,6 @@ describe('reading the state', () => {
     expect(answers).toEqual({
       ready: true,
       settling: true,
-      searching: true,
       story: false,
       step: false,
       ending: false,
@@ -75,12 +74,11 @@ describe('reading the state', () => {
       PHASES.map((phase) => [phase, stateOf(running(0, { phase }))]),
     )
 
-    // `settling` and `searching` are both a step on screen, and a host standing
-    // back while the tour is between things has to hear about them.
+    // `settling` is a step on screen too, and a host standing back while the
+    // tour is between things has to hear about it.
     expect(answers).toEqual({
       ready: 'running',
       settling: 'transitioning',
-      searching: 'transitioning',
       story: 'transitioning',
       step: 'transitioning',
       ending: 'transitioning',
@@ -392,63 +390,9 @@ describe('a morph landing', () => {
     expect(outcome.core).toEqual({ ...shown.core, phase: 'ready', showing: undefined })
   })
 
-  test('leaves a search alone, because the search wrote the phase over it', () => {
-    // Both wrote the phase, and only the one that wrote it may take it off. The
-    // wait ends when the presenter says it does.
-    const before = running(0, { phase: 'searching', showing: morph })
-
-    expect(put(before, { kind: 'settled', showing: morph }).core).toEqual({
-      ...before,
-      showing: undefined,
-    })
-  })
-
   test('lets go of nothing where another arrival has already replaced it', () => {
     const before = running(0, { phase: 'settling', showing: Promise.resolve() })
 
     expect(put(before, { kind: 'settled', showing: morph }).core).toBe(before)
-  })
-})
-
-describe('the presenter looking for an anchor', () => {
-  const seek = (core: C, step: Step = first) => put(core, { kind: 'searching', step, yes: true })
-
-  test('starts a wait over a step that is on screen', () => {
-    for (const phase of ['ready', 'settling'] as const) {
-      expect(seek(running(0, { phase })).core.phase).toBe('searching')
-    }
-  })
-
-  test('starts nothing over an arrival, an ending, or a wait already running', () => {
-    for (const phase of ['story', 'step', 'ending', 'searching'] as const) {
-      const before = running(0, { phase })
-
-      // The same object, so nothing downstream of a commit has to look twice.
-      expect(seek(before).core).toBe(before)
-    }
-  })
-
-  test('starts nothing for a step the tour has already left', () => {
-    // A presenter can notice a loss after the tour has moved on, and that
-    // notice is about a step nobody is showing.
-    const before = running()
-
-    expect(seek(before, second).core).toBe(before)
-  })
-
-  test('ends a wait without asking where the tour is', () => {
-    const before = running(0, { phase: 'searching' })
-
-    const outcome = put(before, { kind: 'searching', step: second, yes: false })
-
-    expect(outcome.core).toEqual({ ...before, phase: 'ready' })
-  })
-
-  test('ends nothing where the wait was written over in the meantime', () => {
-    for (const phase of ['ready', 'settling', 'story', 'step', 'ending'] as const) {
-      const before = running(0, { phase })
-
-      expect(put(before, { kind: 'searching', step: first, yes: false }).core).toBe(before)
-    }
   })
 })

@@ -15,7 +15,7 @@ import type { Content, MachineState, Problem, World } from './types.js'
  * are both a step on screen. DESIGN.md argues the gate this feeds under
  * **One gate, and what it refuses**.
  */
-export type Phase = 'story' | 'step' | 'ending' | 'settling' | 'searching' | 'ready'
+export type Phase = 'story' | 'step' | 'ending' | 'settling' | 'ready'
 
 /**
  * Which story a tour is on and where in it. Replaced on every move and never on
@@ -60,7 +60,7 @@ export const idle = <W extends World>(): Core<W> => ({
 
 /** DESIGN.md argues this under **One gate, and what it refuses**. */
 export const accepting = <W extends World>(core: Core<W>): boolean =>
-  core.phase === 'ready' || core.phase === 'settling' || core.phase === 'searching'
+  core.phase === 'ready' || core.phase === 'settling'
 
 /** Derived, never stored. DESIGN.md argues it under **`state` is derived**. */
 export const stateOf = <W extends World>(core: Core<W>): MachineState => {
@@ -106,7 +106,7 @@ export type Effect<W extends World> =
   | { kind: 'rethrow'; reason: unknown }
 
 /**
- * Everything that happens to the machine, as data. The first seven are calls a
+ * Everything that happens to the machine, as data. The first six are calls a
  * host or a presenter makes. The rest are the machine carrying on, one for every
  * window where a call into the application sits between two writes.
  */
@@ -118,7 +118,6 @@ export type Event<W extends World> =
   | { kind: 'pressed' }
   | { kind: 'moved' }
   | { kind: 'lost'; step: Step<W> }
-  | { kind: 'searching'; step: Step<W>; yes: boolean }
   // --- the machine carrying on, one per window it has to stop at
   /** The `onLeave` calls are done and the report is owed. */
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
@@ -333,19 +332,6 @@ export function reduce<W extends World>(
       ])
     }
 
-    case 'searching': {
-      // **Ending a wait asks nothing.** The phase the wait wrote is the phase
-      // that comes off, wherever the tour has got to since.
-      if (!event.yes) {
-        return core.phase === 'searching' ? nothing({ ...core, phase: 'ready' }) : nothing(core)
-      }
-      // **Started only for the step the tour is on**, and only over a phase that
-      // says that step is on screen.
-      if (stepOf(core) !== event.step) return nothing(core)
-      if (core.phase !== 'ready' && core.phase !== 'settling') return nothing(core)
-      return nothing({ ...core, phase: 'searching' })
-    }
-
     // --- the machine carrying on
 
     case 'left':
@@ -408,15 +394,12 @@ export function reduce<W extends World>(
       return nothing({ ...core, phase: 'settling', showing: event.showing })
 
     case 'settled':
-      // Only the morph nothing has replaced may call the step settled, and only
-      // the phase it put on is its to take off. A search wrote `searching` over
-      // it, and that wait ends when the presenter says it does.
+      // Only the morph nothing has replaced may call the step settled. The one
+      // it replaced settles onto a promise `entering` already let go of, and
+      // nothing else writes this field, so the phase this takes off is always
+      // the one it put on.
       if (core.showing !== event.showing) return nothing(core)
-      return nothing({
-        ...core,
-        showing: undefined,
-        phase: core.phase === 'settling' ? 'ready' : core.phase,
-      })
+      return nothing({ ...core, showing: undefined, phase: 'ready' })
 
     case 'entryFailed': {
       // DESIGN.md, **What a step and a story assume**: the reason is thrown

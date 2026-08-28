@@ -193,7 +193,7 @@ the union, and the top level is the cutouts.
 
 **The first region is the one the step is about.** Its first element is what
 `validate` is handed and what the message anchors beside. It is also the one the
-search for a lost target is about. Later regions are looked at rather than acted
+retry for a lost target is about. Later regions are looked at rather than acted
 on: a summary beside the row it was computed from, and `linked-regions.ts` is
 that case. One that resolves to nothing is a hole this step does not cut, and
 nothing else follows from it.
@@ -210,7 +210,7 @@ that waits** argues it.
 
 **A function must be cheap and must not do anything.** It is called far more
 often than once, and it is called during layout work. It may answer `null`,
-which is not a failure: a target that is not there yet is what the search for a
+which is not a failure: a target that is not there yet is what the retry for a
 lost target is for, and `null` is how a host says so.
 
 **The message anchors to a marker of Leko's own, never to the target.** A
@@ -543,19 +543,18 @@ hand back something a host gets for free.
 object with no identity of its own, and a story holding the same one twice makes
 `indexOf` return the first of them.
 
-**A lost target is given two seconds to come back, and then the tour stops.**
-No hook decides otherwise. The target is *resolved again* rather than the old
-element re-checked, because a framework replacing a node with an identical one
+**A lost target is given 100ms to come back, and then the tour stops.** No hook
+decides otherwise. The target is *resolved again* rather than the old element
+re-checked, because a framework replacing a node with an identical one
 disconnects the old one, and `isConnected` on a replaced node is false for ever.
 A correct application loses its anchor every time it renders over the step, and
 ending the tour there would be punishing it for working normally.
 
-The search rides the `MutationObserver` that noticed the loss, so it costs no
-polling, and the page is under a curtain while it runs: a hole standing over
-nothing for two seconds is the state the wait exists to avoid showing anybody.
-It covers a target missing when the step arrives as well as one lost after it
-was drawn, because a user cannot tell those apart. A step that names no target
-at all is neither, and **A step that waits** is that one.
+The retry rides the `MutationObserver` that noticed the loss, so it costs no
+polling. It covers a target missing when the step arrives as well as one lost
+after it was drawn, because a user cannot tell those apart. A step that names no
+target at all is neither, and **A step that waits** is that one. What is on
+screen while it runs is the section below.
 
 **A replacement that arrives with the removal is not a wait at all.** A
 framework swaps the node in one batch of mutations, and an observer armed after
@@ -651,10 +650,9 @@ which is the whole reason the wait is written this way.
 **Waiting for a promise from `onEnter` is the shape this replaces, and it cannot
 be made safe.** Holding the arrival open holds the gate shut, for as long as the
 application takes and with no bound on it. A `reached()` arriving in that window
-is dropped through no fault of the caller, and covering the page while it
-happens narrows that race without closing it. Both waits Leko has are waits it
-can hear a signal through: this one, and the search under **A target is a
-question**.
+is dropped through no fault of the caller, and nothing Leko can draw over that
+window closes it. Both waits Leko has are waits it can hear a signal through:
+this one, and the retry under **A target is a question**.
 
 **Something that never reports leaves the tour standing there.** Nothing bounds
 a wait. An application whose work can fail has to say so, by catching it and
@@ -719,10 +717,10 @@ to.
 ## Settings, and where they are read from
 
 `padding` and `radius` are read from the step, then from the instance.
-`duration`, `nextLabel`, `closeLabel` and `curtainLabel` are read from the
-instance alone. Whichever it is, the nearer one that says anything wins, and
-`??` does the reading rather than `||`, so a step writing `0` beats an instance
-writing a number.
+`duration`, `nextLabel` and `closeLabel` are read from the instance alone.
+Whichever it is, the nearer one that says anything wins, and `??` does the
+reading rather than `||`, so a step writing `0` beats an instance writing a
+number.
 
 **A story carries none of them.** A tier there says one thing: this value for
 every step of this story. A host says the same thing with a `.map()` over
@@ -735,62 +733,48 @@ nothing else in there wants one. No member of `Presenter` takes a story.
 story tier is `packages/leko` alone putting its own data through a seam the
 machine has no use for.
 
-**`curtainLabel` has no step tier, because the window it covers is not about a
-step.** A search is a target that is not on the page when its step is drawn, or
-that has left since. Nothing about that is something the step knew when it was
-written, so the words that belong there are the general ones a host would put on
-any wait of its own. A wait the application does know about is a step with no
-target, and that one says what it is doing in its own `message`.
+## Nothing is drawn for a retry
 
-## The curtain
+**The one wait Leko has on its own account is a target that is not on the
+page**: one that has not rendered when its step is drawn, or one that has left
+since. **Nothing on screen changes while it runs.** Whatever was drawn last
+stays exactly where it was, and a target that comes back costs a morph and
+nothing else.
 
-The scrim with no hole in it. **The one window Leko covers the page for on its
-own is a search**: a target that is not on the page when its step is drawn, or
-that has left since. See **A target is a question**.
+That leaves a hole standing over the gap the target left, which is a state worth
+looking at squarely. It lasts 100ms. A target is missing because something is
+rendering, and a framework paints a frame or two after the handler that started
+it returned, so the window is about six frames. The ordinary outcome is that
+nobody sees anything at all.
 
-The page used to look exactly as it had a moment before, with the hole still on
-the step the tour had left and everything outside it still clickable. A hole
-standing over nothing for two seconds is worse than a covered page, and
-`start()` on a story whose first target has not rendered drew nothing at all, so
-somebody pressed Start, watched nothing happen, and pressed it again.
+**Covering the page costs more than the fault does.** A scrim with no hole in it
+has to be held long enough to be read, or it is a flash of black. So a target
+that was missing for one frame gets a cut to a covered page, a hold, and a cut
+back, and the recovery is louder than the thing it recovers from. It also has to
+say something, and there is nothing here to say: what the application is doing
+is not something Leko knows.
 
-**`complementRects` with no holes is one rectangle over the whole surface**,
-which makes the curtain the empty case of what the scrim does every day rather
-than a second way of covering things. The control from **The way out** is above
-it and reachable through it.
+**A step that waits is a different thing.** That one is drawn: it names no
+target, cuts no hole, and the scrim converges on nothing with the step's own
+`message` beside it. The section above argues it. What separates the two is off
+screen. A retry is a wait Leko is having, a waiting step is a wait the
+application declared, and only the second has anything worth saying about
+itself.
 
-**Nothing configures it away.** A search is not a wait anybody asked for and it
-is not one anybody can act on, so there is no flag for leaving the page open
-through one. What a host may set is what it says, and `curtainLabel` on the
-instance is that.
+**The machine hears about a retry only where it was already holding one.** A
+target missing when the step arrives goes through `show`, which hands a promise
+back, and the machine reads that as a step still arriving. A target lost after
+the step was drawn is noticed by the presenter, changes nothing on screen, and
+is not reported at all: a host cannot catch a window that short and could do
+nothing with it if it did. What both of them report is giving up, and
+`Host.lost` is that.
 
-**A curtain that was seen stays for a minimum.** A target that comes back in the
-next frame would otherwise leave the page dark for 16ms, which reads as a fault
-rather than as waiting. The minimum is measured from the frame the curtain was
-first painted in, so one set and replaced inside a single task owes nothing: no
-frame ever carried it, and there is nothing for a minimum to protect anybody
-from.
-
-**It is cut rather than morphed.** The morph is 320ms, and a search is already a
-wait nobody asked for. Spending another 320ms closing the hole would add to the
-problem it is there to cover.
-
-**Its lifetime is one value.** `Curtain` in `packages/leko/src/curtain.ts` is
-down, painting or up, and each state carries the handle it has running, so which
-way to stop it is a question the compiler answers rather than one the presenter
-remembers. What used to say this was four fields, three of them handles, and any
-two of them set at once was a state with no name. The decisions taken off it —
-whether the page is covered, and what a lift still owes — are pure functions with
-a test of their own, and no browser can get any of them wrong.
-
-The box docks, because there is no hole to sit beside.
-
-**A step that waits reaches the same covered page and is not this.** That one is
-drawn: it cuts no hole, so the scrim converges on nothing and the message beside
-it is the step's own. The section above argues it. The difference that matters
-is not what is on screen. It is that a search is a wait Leko is having and a
-waiting step is a wait the application declared, and only the second one has
-anything worth saying about itself.
+**`start()` on a story whose first target has not rendered blocks nothing for
+those 100ms.** Blocking is the one thing a covered page would do here that is
+not decoration, and this is where it is given up. The window is short, the tour
+has drawn nothing, and the page is exactly as it was a moment before, so there
+is nothing for a stray click to interrupt. The step that follows opens with the
+page blocked, the way every step does.
 
 ## One gate, and what it refuses
 
@@ -889,23 +873,13 @@ replaced rather than edited on every move, so holding the object is holding the
 step occurrence. `phase` is how far along the machine is with what it is doing,
 and it is the same field the gate above reads.
 
-**`transitioning` means the tour is between things, and a wait the presenter
-started on its own counts.** A target missing when the step arrives goes through
-`show`, which hands a promise back, so the machine hears about that one without
-being told. A target lost after the step was drawn is noticed by the presenter
-and nobody asked for the search, so it is reported through `Host.searching` and
-the phase says `searching` while it runs. The two waits put the same curtain on
-the same screen, and answering them differently would leave a host unable to
-stand back for one of them. That is the reading `state` is about the machine and
-not about the screen would have allowed, and the cost of it is a fifth member on
-`Host`.
-
-**`Host.searching` is said on the second of those and not on the first.** The
-presenter used to say it on both, and on the first the phase it wrote was
-overwritten by the `settling` the promise put on, in the same turn. A call whose
-effect is undone before anything can read it is a call that reads as though it
-does something. `unasked` in `DomPresenter.search` is which of the two waits
-this is.
+**`transitioning` means the tour is between things.** A target missing when the
+step arrives goes through `show`, which hands a promise back, so the machine
+hears about that wait without being told. A target lost after the step was drawn
+is a wait nothing on screen shows, and nothing here is told about it, so `state`
+says `running` throughout. Reporting it would buy a host the chance to stand
+back from about six frames, and cost a member on `Host`, a phase of its own, and
+a rule about which of two writers may take that phase off again.
 
 **A teardown says `idle`, and the gate is still shut.** `end` empties the
 position before it calls anything, so a handler reading `state` from inside its

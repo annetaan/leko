@@ -143,11 +143,6 @@ function show(next: Case): void {
   // given it — an application exports its instance and reports to that, rather
   // than being handed a tour once one starts.
   leko = createLeko({
-    // Leko puts no words of its own on the curtain, because it cannot know what
-    // an onEnter is doing. This one can: every slow handler in these cases is
-    // standing in for a request.
-    curtainLabel: 'Setting the step up…',
-
     // Nothing is logged by the library, so this is where a project decides.
     // The sandbox puts it in the footer, because a call that did nothing is
     // exactly the thing a person reading a case wants to see.

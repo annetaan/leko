@@ -10,6 +10,7 @@ import {
   frame,
   holding,
   holes,
+  observed,
   pair,
   press,
   scrim,
@@ -128,9 +129,10 @@ test('a target that never turns up stops the tour instead of pointing at nothing
 
   begin(leko, 'story')
 
-  // Given time to appear first, under a curtain, because a step whose target
-  // renders a moment after its onEnter settled is the same situation.
-  expect(scrim()).not.toBeNull()
+  // Given a moment to turn up first, because a step whose target renders just
+  // after its `onEnter` returned is the same situation. Nothing is drawn for
+  // it: what was on screen a moment ago stays there, and here that is nothing.
+  expect(scrim()).toBeNull()
   expect(leko.state).toBe('transitioning')
 
   await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
@@ -203,8 +205,8 @@ test('a target replaced by an identical one is found again, and nothing ends', a
   fresh.id = 'anchor'
 
   // Long enough for the loss to be noticed and answered. The replacement is
-  // already on the page by then, so it is resolved on the spot: no curtain, and
-  // the two-second deadline never starts.
+  // already on the page by then, so it is resolved on the spot and the retry
+  // never starts.
   await new Promise((r) => setTimeout(r, 50))
 
   expect(centre(fresh)).toBe(fresh)
@@ -214,46 +216,46 @@ test('a target replaced by an identical one is found again, and nothing ends', a
   expect(seen).toEqual([])
 })
 
-test('a watcher hears the crossings onStep never mentions', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const { leko, seen } = watched({
-    id: 'story',
-    steps: [{ id: 'only', interactive: true, target: '#anchor' }],
-  })
+test('a watcher hears the morph land, which onStep never mentions', async () => {
+  const [first, second] = pair()
+  const { leko, seen } = watched(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', interactive: true, target: () => first },
+        { id: 'b', interactive: true, target: () => second },
+      ],
+    },
+    // The rest of this file draws with no morph at all, which is the one
+    // setting under which `state` never leaves `running` once a step is up.
+    { duration: 60 },
+  )
   const states: LekoState[] = []
   const stop = leko.watch((state) => states.push(state))
 
   begin(leko, 'story')
   await vi.waitUntil(() => states.at(-1) === 'running', { timeout: 2000 })
 
-  // One crossing for the whole arrival. The first draw has nothing to morph
-  // from, so it is cut rather than animated, and a watcher is told the answer
-  // the turn ended on rather than everything it passed through.
-  expect(states).toEqual(['running'])
-  expect(seen).toEqual(['only'])
+  // The step was reported the moment it was drawn, and it went on moving for
+  // 60ms after that. Nothing `onStep` says tells a host when it stopped.
+  expect(states).toEqual(['transitioning', 'running'])
+  expect(seen).toEqual(['a'])
 
-  target.remove()
-  await vi.waitUntil(() => states.at(-1) === 'transitioning', { timeout: 1000 })
+  press()
+  await vi.waitUntil(() => states.length === 4, { timeout: 2000 })
 
-  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  fresh.id = 'anchor'
-  await vi.waitUntil(() => states.at(-1) === 'running', { timeout: 3000 })
-
-  // Two more crossings, and the tour never moved. Nothing in `onStep` could
-  // have told a host any of this, which is the whole reason for `watch`.
-  expect(states).toEqual(['running', 'transitioning', 'running'])
-  expect(seen).toEqual(['only'])
+  expect(states).toEqual(['transitioning', 'running', 'transitioning', 'running'])
+  expect(seen).toEqual(['a', 'b'])
 
   stop()
   leko.stop()
   await new Promise((r) => setTimeout(r, 0))
 
-  expect(states).toEqual(['running', 'transitioning', 'running'])
+  expect(states).toHaveLength(4)
   expect(leko.state).toBe('idle')
 })
 
-test('a tour stopped while a curtain is owed does not draw itself back', async () => {
+test('a tour stopped while a target is being waited for does not draw itself back', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const leko = holding({
@@ -263,24 +265,22 @@ test('a tour stopped while a curtain is owed does not draw itself back', async (
 
   begin(leko, 'story')
   target.remove()
-  await vi.waitUntil(() => leko.state === 'transitioning', { timeout: 1000 })
+  await observed()
 
+  // Stopped with a deadline running and an observer armed on a target that has
+  // not come back. Nothing Leko owns may outlive the tour: a timer that fires
+  // or an observer that answers after this would draw the step onto a page with
+  // nothing left to take it away again.
+  leko.stop()
   const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   fresh.id = 'anchor'
-  await vi.waitUntil(() => leko.state === 'running', { timeout: 3000 })
-
-  // The target is back and the step is waiting out the rest of the curtain's
-  // minimum before it is drawn again. A `stop()` inside that window used to
-  // leave the timer running, and the tour rebuilt itself on a page that had
-  // nothing left to take it away.
-  leko.stop()
-  await new Promise((r) => setTimeout(r, 600))
+  await new Promise((r) => setTimeout(r, 300))
 
   expect(document.querySelectorAll('[class^=leko-]').length).toBe(0)
   expect(leko.state).toBe('idle')
 })
 
-test('a target that comes back late is picked up by the search', async () => {
+test('a target that comes back inside the retry is drawn again', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const { leko, seen } = watched({
@@ -291,20 +291,20 @@ test('a target that comes back late is picked up by the search', async () => {
   begin(leko, 'story')
   seen.length = 0
 
+  // Nothing to resolve in the batch that took it away, so this one waits. The
+  // hole is left standing where it was: nothing is redrawn while a retry runs,
+  // and the machine is not told a thing.
   target.remove()
-  await new Promise((r) => setTimeout(r, 100))
+  await observed()
 
-  // Nothing to resolve when the loss was noticed, so this one is a search. The
-  // curtain is up rather than a hole standing over the gap the target left, and
-  // the tour reads as being between things while it waits.
-  expect(scrim()).not.toBeNull()
-  expect(leko.state).toBe('transitioning')
+  expect(holes()).toBe(1)
+  expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('doomed')
 
   const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   fresh.id = 'anchor'
 
-  // A later batch, which is what the search's own observer is armed for.
+  // A later batch, which is what the retry's own observer is armed for.
   await vi.waitUntil(() => centre(fresh) === fresh, { timeout: 2000 })
 
   expect(leko.state).toBe('running')
@@ -326,9 +326,9 @@ test('moving on to a target that has gone waits, then reports the ending', async
   seen.length = 0
   press()
 
-  // `b` is where the tour is, under a curtain, while its target is given time
-  // to turn up. The machine drew it, so it is named. Whether the presenter
-  // found an anchor for it is the presenter's problem.
+  // `b` is where the tour is while its target is given a moment to turn up. The
+  // machine drew it, so it is named. Whether the presenter found an anchor for
+  // it is the presenter's problem.
   expect(seen).toEqual(['b'])
   expect(leko.state).toBe('transitioning')
 
@@ -668,19 +668,16 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
   expect(undone).toEqual(['unmounted'])
 })
 
-// The curtain. An arrival is a window where Leko acts on nothing a host calls,
-// and the page used to look exactly as it had a moment before: the hole still
-// on the step the tour had left, and everything outside it still clickable.
+// The retry. A target that is not on the page when its step is drawn and a
+// target that leaves after it was drawn are the same situation: something is
+// rendering. Both are given a moment, and **nothing on screen changes while the
+// moment passes** — whatever was drawn last stays exactly as it was.
+//
+// The page used to go under a scrim with no hole in it for two seconds, and a
+// target back in the next frame still held that for 400ms. A target missing for
+// one frame is not worth a covered page.
 
-// The curtain: the scrim with no hole in it. The one window Leko covers the page
-// for on its own is a search, which is a target that is not on the page when its
-// step is drawn or has left since. A step that points at nothing reaches the
-// same covered page by being drawn, and is not this.
-
-/** What the curtain is saying, or `null` while it says nothing. */
-const said = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent ?? null
-
-test('a target that goes missing puts the page under a curtain', async () => {
+test('a target that goes missing leaves what was drawn where it was', async () => {
   const [first, second] = pair()
   second.id = 'anchor'
   const leko = holding({
@@ -691,35 +688,23 @@ test('a target that goes missing puts the page under a curtain', async () => {
   begin(leko, 'story')
   expect(centre(second)).toBe(second)
 
-  // A hole standing over nothing for two seconds is what this exists to avoid
-  // showing anybody, so nothing is reachable while the search runs.
   second.remove()
-  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
+  await observed()
+
+  // The hole stands over the gap the target left, for as long as the retry
+  // runs. Everything else is where it was too: the page outside the hole is
+  // still blocked, and the way out is still reachable.
+  expect(holes()).toBe(1)
   expect(absorbed(first)).toBe(true)
-  expect(leko.state).toBe('transitioning')
-})
-
-test('the curtain leaves the way out reachable', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const leko = holding({
-    id: 'story',
-    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
-  })
-
-  begin(leko, 'story')
-  target.remove()
-  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
-
   const out = closer()!.querySelector('button')!
   expect(centre(out)).toBe(out)
-  out.click()
 
-  expect(leko.state).toBe('idle')
+  // And then it runs out. The tour ends the way it always did.
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: 2000 })
   expect(scrim()).toBeNull()
 })
 
-test('a target that is not there yet draws a curtain over a page with no scrim yet', async () => {
+test('a target that is not there yet leaves the page alone until it is', async () => {
   const leko = holding({
     id: 'story',
     steps: [{ id: 'late', interactive: true, target: '.late' }],
@@ -728,91 +713,28 @@ test('a target that is not there yet draws a curtain over a page with no scrim y
   expect(scrim()).toBeNull()
   begin(leko, 'story')
 
-  // `start()` on a story whose first target has not rendered used to draw
-  // nothing at all, so somebody pressed Start, watched nothing happen, and
-  // pressed it again.
-  expect(scrim()).not.toBeNull()
-  expect(holes()).toBe(0)
+  // Nothing is drawn and nothing is blocked. The window is a few frames long
+  // and the page is exactly as it was a moment before, which is the trade for
+  // never showing a covered page over a fault the viewer never saw.
+  expect(scrim()).toBeNull()
 
   const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.className = 'late'
   await vi.waitUntil(() => centre(target) === target, { timeout: 1000 })
-})
 
-test('a curtain says what a host gave it to say, and docks', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const leko = holding(
-    { id: 'story', steps: [{ id: 'doomed', interactive: true, target: '#anchor' }] },
-    // The instance and nowhere else. Nothing here knows what the application is
-    // doing, and neither does the step: it was drawn, and only then did its
-    // target leave. A wait the application knows about is a step of its own,
-    // and that one says what it is doing in its own `message`.
-    { curtainLabel: 'Looking for it' },
-  )
-
-  begin(leko, 'story')
-  target.remove()
-  await vi.waitUntil(() => said() === 'Looking for it', { timeout: 1000 })
-
-  // There is no hole to sit beside, so it goes where a message goes when it
-  // cannot be anchored at all.
-  const at = document.querySelector<HTMLElement>('.leko-message-text')!.getBoundingClientRect()
-  expect(at.top).toBeGreaterThan(window.innerHeight / 2)
-})
-
-test('a curtain that was seen stays for its minimum', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const leko = holding({
-    id: 'story',
-    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
-  })
-
-  begin(leko, 'story')
-  target.remove()
-  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
-
-  // Painted, and then found again far short of the minimum. Without one this
-  // would be a covered page for three frames, which reads as a fault rather
-  // than as waiting.
-  document.body.append(target)
-  await new Promise((r) => setTimeout(r, 150))
-  expect(holes()).toBe(0)
-
-  await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
-  expect(leko.state).toBe('running')
-})
-
-test('a curtain nobody could have seen owes nothing', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const leko = holding({
-    id: 'story',
-    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
-  })
-
-  begin(leko, 'story')
-
-  // Taken off and put back inside one task, so the curtain the search set is
-  // replaced before any frame carries it and there is nothing for a minimum to
-  // protect anybody from.
-  target.remove()
-  document.body.append(target)
-
-  await vi.waitUntil(() => centre(target) === target, { timeout: 500 })
-  expect(leko.state).toBe('running')
+  // A turn later than the hole, because what the machine is holding is the
+  // promise the retry handed back and a promise settles in a microtask.
+  await vi.waitUntil(() => leko.state === 'running', { timeout: 1000 })
 })
 
 // --- what the presenter reports on its own account
 //
-// Driven one layer below the rest of this file, because the two waits below are
-// the same three letters to a host — `state` says `transitioning` for both — and
-// which of them reaches `Host.searching` is the whole claim.
+// Driven one layer below the rest of this file, because what the two retries
+// below hand the machine is the whole claim, and a `Leko` in front of them
+// answers with the same word either way.
 
 /** A `DomPresenter` with a `Host` that records rather than a machine. */
 function watching(options = {}) {
-  const reported: [string, boolean][] = []
   const lost: string[] = []
   const presenter = new DomPresenter(
     { duration: 0, ...options },
@@ -821,44 +743,45 @@ function watching(options = {}) {
       moved: () => {},
       next: () => {},
       close: () => {},
-      searching: (step, yes) => void reported.push([step.id, yes]),
     },
   )
-  return { presenter, reported, lost }
+  return { presenter, lost }
 }
 
 const CONTENT = { text: undefined, error: undefined, next: undefined }
 
 test('a target missing on arrival is a wait the machine hears about through the promise', () => {
-  const { presenter, reported } = watching()
+  const { presenter, lost } = watching()
   const step: LekoStep = { id: 'late', interactive: true, target: '#not-here-yet' }
 
   const waiting = presenter.show(step, null, CONTENT, false)
 
-  // Handed back, and the machine reads that as a step still arriving: it writes
-  // `settling`, which is the phase `Host.searching` would have written. Saying
-  // both put a phase on and took it off again in the same turn.
+  // Handed back, and the machine reads that as a step still arriving. That is
+  // the whole of what it is told: a retry that ends in the target turning up
+  // costs the machine nothing but a promise settling.
   expect(typeof (waiting as Promise<void>)?.then).toBe('function')
-  expect(reported).toEqual([])
+  expect(lost).toEqual([])
 
   presenter.teardown()
 })
 
-test('a target lost after the step was drawn is the wait nobody asked for', async () => {
+test('a target lost after the step was drawn is a wait the machine is never told about', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const { presenter, reported } = watching()
+  const { presenter, lost } = watching()
   const step: LekoStep = { id: 'only', interactive: true, target: '#anchor' }
 
   presenter.show(step, target, CONTENT, false)
-  expect(reported).toEqual([])
 
   target.remove()
-  await vi.waitUntil(() => reported.length > 0, { timeout: 1000 })
+  await observed()
 
-  // Nobody is holding a promise for this one, so the call is the only way the
-  // machine can see it at all. DESIGN.md argues it under **`state` is derived**.
-  expect(reported).toEqual([['only', true]])
+  // Nobody asked for this one and nothing on screen changed for it, so there is
+  // nothing a host could act on and nothing is said. Giving up is the one part
+  // of it the machine hears.
+  expect(lost).toEqual([])
+  await vi.waitUntil(() => lost.length > 0, { timeout: 1000 })
+  expect(lost).toEqual(['only'])
 
   presenter.teardown()
 })

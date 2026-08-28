@@ -289,9 +289,9 @@ export class Message {
   private place(cutouts: Rect[], gap: number, at: ((side: Side) => void) | undefined): void {
     const style = this.element.style
     const box = union(cutouts)
-    // No cutouts, or nowhere to put the anchor, is the curtain: there is no hole
-    // to sit beside, so the box goes where it goes when the browser cannot track
-    // one either.
+    // No cutouts, or nowhere to put the anchor, is a step that points at
+    // nothing: there is no hole to sit beside, so the box goes where it goes
+    // when the browser cannot track one either.
     if (!this.anchored || !box || !at) return this.dock()
 
     for (const margin of MARGINS) style[margin] = '0px'

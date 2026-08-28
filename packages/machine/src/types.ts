@@ -151,7 +151,7 @@ export interface Presenter<W extends World> {
 }
 
 /**
- * What a presenter is allowed to tell the machine. Five things it noticed, and
+ * What a presenter is allowed to tell the machine. Four things it noticed, and
  * nothing to ask.
  *
  * The machine hands one of these to the factory that builds the presenter
@@ -159,7 +159,15 @@ export interface Presenter<W extends World> {
  * of the machine's own public API and {@link next} is one that must not be.
  */
 export interface Host<W extends World> {
-  /** The anchor of `step` left the page. Named, because the tour may have moved on. */
+  /**
+   * The anchor of `step` left the page and did not come back. Named, because
+   * the tour may have moved on.
+   *
+   * A target that is missing is retried for a moment first, and nothing here is
+   * told about that: a retry entered from {@link Presenter.show} is already a
+   * wait the machine holds a promise for, and one entered after the step was
+   * drawn changes nothing on screen. This is the give-up.
+   */
   lost(step: W['step']): void
   /** The surface moved under the tour, and nothing about the tour changed. */
   moved(): void
@@ -167,17 +175,4 @@ export interface Host<W extends World> {
   next(): void
   /** The control that ends the tour was used. Means what `stop` means. */
   close(): void
-  /**
-   * `step`'s anchor is not on the page and the presenter has not given up yet.
-   * `yes` is `false` once it is back. A report, not a request: what `state` says
-   * meanwhile is the machine's to decide. The give-up is {@link lost}.
-   *
-   * **Only for a wait the machine cannot see any other way.** A target missing
-   * when the step arrives is waited for inside {@link Presenter.show}, and the
-   * promise that hands back is already a wait the machine reads. Saying this as
-   * well would put a phase on and take it off again in the same turn. The one
-   * worth saying is a target lost after the step was drawn, because nobody
-   * asked for that search and nobody is holding a promise for it.
-   */
-  searching(step: W['step'], yes: boolean): void
 }

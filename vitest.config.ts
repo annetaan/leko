@@ -72,16 +72,6 @@ export default defineConfig({
       },
       {
         test: {
-          // The pure half of `packages/leko`. What decides which file a test
-          // belongs in is whether the browser could get it wrong, and no engine
-          // has an opinion about a tagged union and three functions over it.
-          name: 'leko-core',
-          include: ['packages/leko/src/curtain.test.ts'],
-          environment: 'node',
-        },
-      },
-      {
-        test: {
           name: 'machine',
           include: ['packages/machine/src/**/*.test.ts'],
           environment: 'node',

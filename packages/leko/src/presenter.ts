@@ -15,18 +15,23 @@ import {
   type Side,
   union,
 } from '@annetaan/leko-spotlight'
-import { type Curtain, covering, DOWN, owed } from './curtain.js'
 import type { LekoOptions, LekoRegion, LekoStep, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
 
 /**
- * How long a target that has left the page is given to come back.
+ * How long a target that is not on the page is given to turn up.
  *
- * Long enough for a route transition, short enough that a tour ending does not
- * read as a hang.
+ * About six frames. `onEnter` returns synchronously and a framework paints at
+ * least a frame after that, so a target the application is rendering right now
+ * lands well inside this. Nothing is redrawn while it runs, so the window costs
+ * the viewer nothing and there is no reason to make it long enough to notice.
+ *
+ * A wait the application knows it is having is a step of its own, with no
+ * `target` and an `awaits`. This is for the gap between a step arriving and its
+ * target existing, and for a target that goes away again afterwards.
  */
-const SEARCH = 2000
+const RETRY = 100
 
 /**
  * The step's regions, as a list. One cutout each, in the order they were
@@ -109,22 +114,22 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private ring: FocusRing | undefined
   private onViewportChange: (() => void) | undefined
+  /**
+   * The one observer this owns, watching the step on screen or the step being
+   * waited for. Both jobs are the same job, and neither may be armed twice.
+   */
   private watcher: MutationObserver | undefined
-  /** Where the curtain is. `curtain.ts` says what each state means. */
-  private curtain: Curtain = DOWN
-  /** The rest of the minimum a curtain still owes, while a step waits it out. */
-  private owing: ReturnType<typeof setTimeout> | undefined
   /**
    * The last step handed over, kept so that a target which comes back can be
    * drawn again without the machine being told anything happened.
    */
   private drawn: { step: LekoStep; content: Content } | undefined
-  /** The deadline on a target that has left the page, while one is running. */
-  private searching: ReturnType<typeof setTimeout> | undefined
-  /** The step that deadline is about, so a search the tour left can be told. */
-  private sought: LekoStep | undefined
-  /** Ends the promise a search hands back, whichever way the search went. */
-  private settled: (() => void) | undefined
+  /**
+   * The retry that is running, if one is: its deadline, and the end of the wait
+   * it handed back. One value rather than two fields, because either of them
+   * set without the other is a state nothing has a name for.
+   */
+  private retrying: { until: ReturnType<typeof setTimeout>; settle: () => void } | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
@@ -139,70 +144,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private setting(step: LekoStep, key: 'padding' | 'radius'): number {
     return step[key] ?? this.options[key] ?? DEFAULTS[key]
-  }
-
-  /** Stop whatever the curtain has running. Which way is the state's to say. */
-  private lower(): void {
-    const curtain = this.curtain
-    if (curtain.kind === 'painting') cancelAnimationFrame(curtain.frame)
-    this.curtain = DOWN
-  }
-
-  /**
-   * Everything, with no hole in it, while a target that has gone missing is
-   * looked for.
-   *
-   * `complementRects` with no holes is one rectangle over the whole surface, so
-   * this is the empty case of what the scrim does every day rather than a
-   * second way of covering things. A search that begins before anything is
-   * drawn has no scrim yet, which is the case where this builds one.
-   *
-   * A step that points at nothing does not come through here. That one is
-   * drawn, and it reaches the same covered page by morphing its last hole shut.
-   */
-  private drawCurtain(): void {
-    // A frame already queued is a second curtain this one would leak.
-    this.lower()
-    if (this.layers.length === 0) {
-      this.layers = [new Scrim(null)]
-      this.watchViewport()
-    }
-    // Cut rather than morphed. Nobody asked for this wait, and spending another
-    // 320ms closing the hole would add to the problem.
-    for (const layer of this.layers) layer.set([])
-    this.curtain = {
-      kind: 'painting',
-      frame: requestAnimationFrame(() => {
-        this.curtain = { kind: 'up', since: performance.now() }
-      }),
-    }
-    this.showClose([])
-    const text = this.options.curtainLabel
-    if (text !== undefined) {
-      this.message ??= new Message(() => this.host.next())
-      // No anchor and no cutouts, so the box docks and the gap between it and a
-      // hole is a measurement about nothing.
-      this.message.show({ text, error: undefined, next: undefined }, [], 0)
-    }
-    // Nothing is drawn to reach, so the way out is the only stop there is.
-    this.showRing(undefined)
-  }
-
-  /**
-   * How long the curtain still owes the viewer, and the end of it either way.
-   *
-   * Called once per arrival, from {@link show}, because it clears the mark it
-   * measures against.
-   */
-  private lift(): number {
-    const left = owed(this.curtain, performance.now())
-    this.lower()
-    // A step still waiting out the last curtain is a step nothing is heading
-    // for any more. Left running, its timer draws it over whatever this
-    // arrival is about to put on screen.
-    clearTimeout(this.owing)
-    this.owing = undefined
-    return left
   }
 
   /** Whether this step has anything to point at. A step that has not is a wait. */
@@ -327,17 +268,16 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * Say what Tab may reach, now.
    *
    * Called wherever the chrome or the step changes, because every one of those
-   * moves a stop. `step` is `undefined` under a curtain, where nothing has been
-   * drawn and the way out is the only thing to reach.
+   * moves a stop.
    *
    * The message goes in whether or not it is showing. A hidden one has nothing
    * Tab would land on, so `FocusRing` drops it, and a step with no next control
    * on its message drops out the same way.
    */
-  private showRing(step: LekoStep | undefined): void {
+  private showRing(step: LekoStep): void {
     this.ring ??= new FocusRing()
     this.ring.set([
-      step ? openElements(step) : [],
+      openElements(step),
       this.message ? [this.message.element] : [],
       this.close ? [this.close.element] : [],
     ])
@@ -372,31 +312,20 @@ export class DomPresenter implements Presenter<LekoWorld> {
     content: Content,
     animate: boolean,
   ): Promise<void> | void {
-    // A search armed on a step the tour has left. Dropping it here is what
-    // keeps a target that comes back late from being drawn over the step now
-    // showing, and it is where the machine is told that wait is over.
-    if (this.sought !== undefined && this.sought !== step) {
-      const stale = this.sought
-      this.endSearch()
-      this.host.searching(stale, false)
-    }
+    // Whatever was being waited for, the tour is somewhere else now. Dropped
+    // here rather than left to run, so a target that turns up late is not drawn
+    // over the step this call is about. It is also what leaves {@link retry}
+    // with only one of itself to think about.
+    this.endRetry()
     // Named a target and it is not on the page yet, which a step whose target
     // renders a moment after its `onEnter` returned is as much as one whose
     // target has gone. A step that named nothing is not looked for.
-    if (!anchor && DomPresenter.pointsAt(step)) return this.search(step, content)
-    // The curtain is what the hole opens out of when there was one. Blowing the
-    // scrim up to a hole larger than the page first, which is how a tour that
-    // has drawn nothing opens, would flash the whole page clear on the way.
-    const covered = covering(this.curtain)
-    const left = this.lift()
-    if (left === 0) return this.reveal(step, anchor, content, animate || covered)
-    return new Promise<void>((settle) => {
-      this.owing = setTimeout(settle, left)
-    }).then(() => this.reveal(step, anchor, content, true))
+    if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, content, animate)
+    return this.reveal(step, anchor, content, animate)
   }
 
   /**
-   * Draw the step. Called once the curtain, if there was one, has paid its dues.
+   * Draw the step.
    *
    * `anchor` is `null` on a step that points at nothing. There is no scroller to
    * find for one of those, so the document carries it, and everything below
@@ -425,10 +354,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
     const container = chain[0] ?? null
     const resolved = this.cutouts(step, (el) => rectWithin(el, container))
-    if (!resolved) return this.search(step, content)
+    if (!resolved) return this.retry(step, content, animate)
 
     const inner = this.layers[0]
-    if (!inner) return this.search(step, content)
+    if (!inner) return this.retry(step, content, animate)
 
     // Kept so that a target which comes back can be drawn again without the
     // machine hearing that anything happened.
@@ -454,7 +383,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // armed on the step before would report against this one.
     this.watcher?.disconnect()
     this.watcher = undefined
-    if (anchor) this.watchTarget(step, anchor)
+    if (anchor) this.watchTarget(anchor)
 
     // Before the morph, not after it. The scrim blocks the page from the moment
     // it is set, and a page that is blocked with no way out of it is the thing
@@ -528,39 +457,56 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * Notice when the step's target leaves the page.
    *
-   * Without this the cutout would sit over the gap where the element used to
-   * be, which is the worst of both: the page is dimmed, and the one thing the
-   * user was told to act on is not there. Mutations are watched rather than
-   * polled, so this stays off the frame budget.
+   * The cutout stands over the gap the element left until this answers, and
+   * without it that is where the tour would stay: the page dimmed, and the one
+   * thing the user was told to act on not there. Mutations are watched rather
+   * than polled, so this stays off the frame budget.
+   *
+   * The step is read off {@link drawn} rather than closed over, because what has
+   * to be drawn again is whatever was drawn last.
    */
-  private watchTarget(step: LekoStep, action: HTMLElement): void {
-    this.watcher?.disconnect()
-    this.watcher = new MutationObserver(() => {
+  private watchTarget(action: HTMLElement): void {
+    this.watch(() => {
       if (action.isConnected) return
       const held = this.drawn
       if (!held) return
       // The batch that disconnected this node usually carries its replacement,
-      // and that is the whole of a framework rendering over the step. A search
+      // and that is the whole of a framework rendering over the step. A retry
       // started now would never see it: the mutation that added it has already
       // been delivered, and an observer hears nothing about the past. So the
-      // selector is run here, and a re-render costs a morph rather than two
-      // seconds of curtain and an ending.
+      // selector is run here, and a re-render costs a morph and nothing else.
       const back = this.resolve(held.step)
       if (back) return void this.show(held.step, back, held.content, true)
-      // Nothing is holding the promise this hands back, so this is the one
-      // search the machine is told about.
-      this.search(held.step, held.content, true)
+      // Nothing is holding what this hands back. The machine hears about this
+      // wait only if it runs out, and then it hears `lost`.
+      this.retry(held.step, held.content, true)
     })
+  }
+
+  /**
+   * Arm the one observer on the whole document.
+   *
+   * Both things this watches for are the same event: a batch of mutations that
+   * may have taken the step's target away or brought it back. One observer, so
+   * neither job can leave a second one running behind the other.
+   */
+  private watch(run: () => void): void {
+    this.watcher?.disconnect()
+    this.watcher = new MutationObserver(run)
     this.watcher.observe(document.body, { childList: true, subtree: true })
   }
 
   /**
-   * A target that is not on the page is given time to come back.
+   * A target that is not on the page is given a moment to turn up.
    *
-   * A framework replacing a node with an identical one disconnects the old one,
-   * so a correct application loses its anchor for a frame every time it renders
-   * over the step. Ending the tour there is the library punishing an
-   * application for working normally.
+   * Two things arrive here. A target that is not there when the step is drawn,
+   * which is a framework that has not painted yet, and a target that leaves
+   * after the step was drawn, which is a framework rendering over it.
+   *
+   * **Nothing on screen changes while this runs.** Whatever was drawn a moment
+   * ago stays exactly as it was, so a target that comes back costs a morph and
+   * nothing else. The hole stands over the gap the target left while it does,
+   * and DESIGN.md argues that trade under **Nothing is drawn for a retry**.
    *
    * **The target is resolved again rather than the old element re-checked.**
    * `isConnected` on a node that has been replaced is false for ever, and a
@@ -568,59 +514,44 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * has no selector to run again, so it cannot be recovered and this waits out
    * the deadline for nothing.
    *
-   * The search rides the same `MutationObserver` that noticed the loss, so it
-   * costs no polling: every change to the page is another chance. Found in
-   * time, the step is drawn again and nothing about the tour has changed. Not
-   * found, `Host.lost` means what it has always meant.
+   * The retry rides the same observer that noticed the loss, so it costs no
+   * polling and the deadline is a bound rather than a wait anybody sits
+   * through. Found in time, the step is drawn again and nothing about the tour
+   * has changed. Not found, `Host.lost` means what it has always meant.
    *
-   * **`unasked` is whether the machine will hear about this wait any other
-   * way.** A search reached from `show` hands its promise back, and the machine
-   * reads that as a step still arriving: it writes `settling` and the phase
-   * `Host.searching` would have written is gone in the same turn. Only a target
-   * lost after the step was drawn is a wait nobody asked for and nobody is
-   * holding a promise for, and that is the one worth a call.
+   * Only one of these can be running. Every call into {@link show} ends the
+   * last one, and the observer that starts the other one is armed only while
+   * none is.
    */
-  private search(step: LekoStep, content: Content, unasked = false): Promise<void> | void {
-    if (this.searching !== undefined) return
-    // A hole standing over nothing for two seconds is the state this search
-    // exists to avoid showing anybody, so the page is covered whatever else is
-    // configured. The step's own words are about a step that is on screen, and
-    // this one is not, so the curtain says whatever the host says generally.
-    this.message?.hide()
-    this.drawCurtain()
-    this.watcher?.disconnect()
-    this.watcher = new MutationObserver(() => {
+  private retry(step: LekoStep, content: Content, animate: boolean): Promise<void> | void {
+    this.watch(() => {
       const found = this.resolve(step)
-      if (!found) return
-      this.endSearch()
-      this.host.searching(step, false)
-      void this.show(step, found, content, true)
+      if (found) void this.show(step, found, content, animate)
     })
-    this.watcher.observe(document.body, { childList: true, subtree: true })
     // Handed back, so an arrival that came in here has something to wait on. A
     // tour waiting for a target to turn up is between things in the same way a
-    // tour waiting for a morph is.
-    const waiting = new Promise<void>((settled) => {
-      this.settled = settled
-      this.searching = setTimeout(() => {
-        this.endSearch()
-        this.host.lost(step)
-      }, SEARCH)
+    // tour waiting for a morph is. A retry entered from the observer above is
+    // not holding anybody, and nothing is waiting on what it gives back.
+    return new Promise<void>((settle) => {
+      this.retrying = {
+        settle,
+        until: setTimeout(() => {
+          this.endRetry()
+          this.host.lost(step)
+        }, RETRY),
+      }
     })
-    // Said last, so the search is fully armed before the machine hears about it.
-    this.sought = step
-    if (unasked) this.host.searching(step, true)
-    return waiting
   }
 
-  private endSearch(): void {
-    clearTimeout(this.searching)
-    this.searching = undefined
-    this.sought = undefined
+  /** End the retry, whichever way it went. The observer is armed again by whatever draws next. */
+  private endRetry(): void {
+    const retrying = this.retrying
+    if (!retrying) return
+    this.retrying = undefined
+    clearTimeout(retrying.until)
     this.watcher?.disconnect()
     this.watcher = undefined
-    this.settled?.()
-    this.settled = undefined
+    retrying.settle()
   }
 
   /**
@@ -646,13 +577,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   teardown(): void {
-    // Every timer this owns goes, including the one a step was waiting out. A
-    // tour that has been stopped drawing itself back onto the page 300ms later
-    // is the worst of the lot, because nothing is left to take it away again.
-    this.lower()
-    clearTimeout(this.owing)
-    this.owing = undefined
-    this.endSearch()
+    // The retry goes with everything else. A tour that has been stopped drawing
+    // itself back onto the page 100ms later is the worst of the lot, because
+    // nothing is left to take it away again.
+    this.endRetry()
     this.drawn = undefined
     this.destroyLayers()
     this.message?.destroy()

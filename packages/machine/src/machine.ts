@@ -49,7 +49,7 @@ export class Machine<W extends World> {
   /**
    * The presenter is built here rather than handed in, because it needs a
    * {@link Host} and only this object can answer one. What goes to the factory
-   * is five closures rather than `this`, so nothing else can reach the next
+   * is four closures rather than `this`, so nothing else can reach the next
    * control at all.
    */
   constructor(options: MachineOptions<W>, presenter: (host: Host<W>) => Presenter<W>) {
@@ -59,7 +59,6 @@ export class Machine<W extends World> {
       moved: () => this.dispatch({ kind: 'moved' }),
       next: () => this.dispatch({ kind: 'pressed' }),
       close: () => this.stop(),
-      searching: (step, yes) => this.dispatch({ kind: 'searching', step, yes }),
     })
   }
 
