@@ -16,18 +16,6 @@ import type { Host, MachineOptions, MachineState, Presenter, World } from './typ
 const NEXT_LABEL = 'Next'
 
 /**
- * Whether the presenter gave back something to wait for. Asked of the value,
- * because a JavaScript call site returns whatever it likes and `await`ing a
- * number would cost a turn for nothing.
- *
- * A morph is the only thing the machine waits on. An `onEnter` hands nothing
- * back, so no call into the application holds an arrival open. DESIGN.md argues
- * that under **A step that waits**.
- */
-const isThenable = (value: unknown): value is Promise<void> =>
-  typeof (value as Promise<void> | undefined)?.then === 'function'
-
-/**
  * Which step a tour is on, and how it gets to the next one.
  *
  * **Nothing here decides anything.** `plan.ts` answers an event with the next
@@ -41,10 +29,6 @@ export class Machine<W extends World> {
   #core: Core<W> = idle()
   private readonly options: MachineOptions<W>
   private readonly presenter: Presenter<W>
-  /** Everything watching {@link state}, and nothing else is told about it. */
-  private readonly watchers = new Set<(state: MachineState) => void>()
-  /** What `state` read when this turn first moved it, while one is queued. */
-  private queued: MachineState | undefined
 
   /**
    * The presenter is built here rather than handed in, because it needs a
@@ -64,7 +48,7 @@ export class Machine<W extends World> {
 
   // ------------------------------------------------------------ what a host reads
 
-  /** Derived from two fields and never stored. DESIGN.md, **`state` is derived**. */
+  /** Whether a story is running. Derived from one field. DESIGN.md, **`state` is derived**. */
   get state(): MachineState {
     return stateOf(this.#core)
   }
@@ -85,12 +69,6 @@ export class Machine<W extends World> {
    */
   get index(): number | undefined {
     return this.#core.position?.index
-  }
-
-  /** With {@link state} as the snapshot, both halves of `useSyncExternalStore`. */
-  watch(watcher: (state: MachineState) => void): () => void {
-    this.watchers.add(watcher)
-    return () => void this.watchers.delete(watcher)
   }
 
   // ----------------------------------------------------------- what a host calls
@@ -135,43 +113,17 @@ export class Machine<W extends World> {
   // ---------------------------------------------------------------- the shell
 
   /**
-   * **The state is committed before any effect runs.** Three of them call into
+   * **The state is written before any effect runs.** Three of them call into
    * the application, which is free to call straight back in, and what it finds
    * is the machine as the event left it. `next` goes last.
    */
   private dispatch(event: Event<W>): Outcome<W> {
     const config: Config = { nextLabel: this.options.nextLabel ?? NEXT_LABEL }
     const outcome = reduce(this.#core, event, config)
-    this.commit(outcome.core)
+    this.#core = outcome.core
     for (const effect of outcome.effects) this.perform(effect)
     if (outcome.next) this.dispatch(outcome.next)
     return outcome
-  }
-
-  /** The one place the state changes, which is why {@link announce} sits here. */
-  private commit(next: Core<W>): void {
-    const now = this.#core
-    if (next === now) return
-    if (next.position !== now.position || next.phase !== now.phase) this.announce()
-    this.#core = next
-  }
-
-  /**
-   * Say that `state` changed, once the turn that changed it is over. A turn and
-   * not a write, and never from inside a machine operation. DESIGN.md argues
-   * both under **Watching `state`**.
-   */
-  private announce(): void {
-    if (this.watchers.size === 0 || this.queued !== undefined) return
-    const before = this.state
-    this.queued = before
-    queueMicrotask(() => {
-      this.queued = undefined
-      const now = this.state
-      if (now === before) return
-      // Copied, because a watcher is free to unsubscribe from inside itself.
-      for (const watcher of Array.from(this.watchers)) watcher(now)
-    })
   }
 
   /**
@@ -187,11 +139,7 @@ export class Machine<W extends World> {
         // A target that is not there is handed over all the same. What that
         // means is a drawing question, answered through `lost`.
         const anchor = this.presenter.resolve(effect.step)
-        const showing = this.presenter.show(effect.step, anchor, effect.content, effect.animate)
-        if (!isThenable(showing)) return
-        this.dispatch({ kind: 'shown', at: effect.at, showing })
-        void showing.then(() => this.dispatch({ kind: 'settled', showing }))
-        return
+        return this.presenter.show(effect.step, anchor, effect.content, effect.animate)
       }
 
       case 'place':

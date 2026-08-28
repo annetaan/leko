@@ -19,7 +19,7 @@ import {
 } from './harness.js'
 import { DomPresenter } from './presenter.js'
 import type { Leko } from './leko.js'
-import type { LekoProblem, LekoState, LekoStep } from './types.js'
+import type { LekoProblem, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
 // the presenter a test writes. What each of these pins down is which step the
@@ -132,8 +132,11 @@ test('a target that never turns up stops the tour instead of pointing at nothing
   // Given a moment to turn up first, because a step whose target renders just
   // after its `onEnter` returned is the same situation. Nothing is drawn for
   // it: what was on screen a moment ago stays there, and here that is nothing.
+  // The story is running all the same, and the step it is on is the one being
+  // waited for.
   expect(scrim()).toBeNull()
-  expect(leko.state).toBe('transitioning')
+  expect(leko.state).toBe('running')
+  expect(leko.step?.id).toBe('ghost')
 
   await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
 
@@ -216,45 +219,6 @@ test('a target replaced by an identical one is found again, and nothing ends', a
   expect(seen).toEqual([])
 })
 
-test('a watcher hears the morph land, which onStep never mentions', async () => {
-  const [first, second] = pair()
-  const { leko, seen } = watched(
-    {
-      id: 'story',
-      steps: [
-        { id: 'a', interactive: true, target: () => first },
-        { id: 'b', interactive: true, target: () => second },
-      ],
-    },
-    // The rest of this file draws with no morph at all, which is the one
-    // setting under which `state` never leaves `running` once a step is up.
-    { duration: 60 },
-  )
-  const states: LekoState[] = []
-  const stop = leko.watch((state) => states.push(state))
-
-  begin(leko, 'story')
-  await vi.waitUntil(() => states.at(-1) === 'running', { timeout: 2000 })
-
-  // The step was reported the moment it was drawn, and it went on moving for
-  // 60ms after that. Nothing `onStep` says tells a host when it stopped.
-  expect(states).toEqual(['transitioning', 'running'])
-  expect(seen).toEqual(['a'])
-
-  press()
-  await vi.waitUntil(() => states.length === 4, { timeout: 2000 })
-
-  expect(states).toEqual(['transitioning', 'running', 'transitioning', 'running'])
-  expect(seen).toEqual(['a', 'b'])
-
-  stop()
-  leko.stop()
-  await new Promise((r) => setTimeout(r, 0))
-
-  expect(states).toHaveLength(4)
-  expect(leko.state).toBe('idle')
-})
-
 test('a tour stopped while a target is being waited for does not draw itself back', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
@@ -330,7 +294,7 @@ test('moving on to a target that has gone waits, then reports the ending', async
   // machine drew it, so it is named. Whether the presenter found an anchor for
   // it is the presenter's problem.
   expect(seen).toEqual(['b'])
-  expect(leko.state).toBe('transitioning')
+  expect(leko.state).toBe('running')
 
   await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
 
@@ -672,10 +636,6 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
 // target that leaves after it was drawn are the same situation: something is
 // rendering. Both are given a moment, and **nothing on screen changes while the
 // moment passes** — whatever was drawn last stays exactly as it was.
-//
-// The page used to go under a scrim with no hole in it for two seconds, and a
-// target back in the next frame still held that for 400ms. A target missing for
-// one frame is not worth a covered page.
 
 test('a target that goes missing leaves what was drawn where it was', async () => {
   const [first, second] = pair()
@@ -729,9 +689,9 @@ test('a target that is not there yet leaves the page alone until it is', async (
 
 // --- what the presenter reports on its own account
 //
-// Driven one layer below the rest of this file, because what the two retries
-// below hand the machine is the whole claim, and a `Leko` in front of them
-// answers with the same word either way.
+// Driven one layer below the rest of this file, because what the machine is
+// told about a retry is the whole claim, and a `Leko` in front of it answers
+// the same either way.
 
 /** A `DomPresenter` with a `Host` that records rather than a machine. */
 function watching(options = {}) {
@@ -750,16 +710,15 @@ function watching(options = {}) {
 
 const CONTENT = { text: undefined, error: undefined, next: undefined }
 
-test('a target missing on arrival is a wait the machine hears about through the promise', () => {
+test('a target missing on arrival hands the machine nothing, and says nothing yet', () => {
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'late', interactive: true, target: '#not-here-yet' }
 
-  const waiting = presenter.show(step, null, CONTENT, false)
+  const nothing = presenter.show(step, null, CONTENT, false)
 
-  // Handed back, and the machine reads that as a step still arriving. That is
-  // the whole of what it is told: a retry that ends in the target turning up
-  // costs the machine nothing but a promise settling.
-  expect(typeof (waiting as Promise<void>)?.then).toBe('function')
+  // The step is drawn as far as the machine is concerned, and what is on screen
+  // is whatever was there a moment ago. Only giving up is worth a call.
+  expect(nothing).toBeUndefined()
   expect(lost).toEqual([])
 
   presenter.teardown()

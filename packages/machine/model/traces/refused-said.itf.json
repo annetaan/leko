@@ -49,13 +49,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -253,19 +246,7 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -320,13 +301,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -508,7 +482,7 @@
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "Some",
-          "value": true
+          "value": false
         },
         "leavePick": {
           "tag": "None",
@@ -522,19 +496,7 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -589,13 +551,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -793,19 +748,7 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -834,7 +777,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "slow",
+        "mark": "resize",
         "nextToken": {
           "#bigint": "2"
         },
@@ -860,13 +803,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -1044,7 +980,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSetSlow",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -1064,21 +1000,11 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
-        },
-        "slowPick": {
-          "tag": "Some",
-          "value": false
         }
       }
     },
@@ -1103,7 +1029,7 @@
         "inflight": {
           "#set": []
         },
-        "mark": "slow",
+        "mark": "unmatched",
         "nextToken": {
           "#bigint": "2"
         },
@@ -1129,13 +1055,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -1313,7 +1232,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSetSlow",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -1333,21 +1252,9 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
           "tag": "Some",
-          "value": false
+          "value": "sent"
         }
       }
     },
@@ -1372,12 +1279,12 @@
         "inflight": {
           "#set": []
         },
-        "mark": "lose-stale",
+        "mark": "unmatched",
         "nextToken": {
           "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second", "third"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1398,13 +1305,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -1582,7 +1482,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLose",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -1597,31 +1497,14 @@
           }
         },
         "losePick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "b"
-          }
-        },
-        "settlePick": {
           "tag": "None",
           "value": {
             "#tup": []
           }
         },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "none"
         }
       }
     },
@@ -1651,7 +1534,7 @@
           "#bigint": "3"
         },
         "page": {
-          "#set": ["first", "second", "third"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1672,13 +1555,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -1876,21 +1752,9 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
           "tag": "Some",
           "value": "saved"
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
         }
       }
     },
@@ -1915,12 +1779,12 @@
         "inflight": {
           "#set": []
         },
-        "mark": "unmatched",
+        "mark": "resize",
         "nextToken": {
           "#bigint": "3"
         },
         "page": {
-          "#set": ["first", "second", "third"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1941,13 +1805,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": false,
         "world": {
           "#map": [
             [
@@ -2125,7 +1982,7 @@
           ]
         }
       },
-      "mbt::actionTaken": "doReached",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -2145,17 +2002,7 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "Some",
-          "value": "none"
-        },
-        "slowPick": {
           "tag": "None",
           "value": {
             "#tup": []
@@ -2180,544 +2027,6 @@
             "story": "a"
           }
         },
-        "hasError": false,
-        "inflight": {
-          "#set": []
-        },
-        "mark": "slow",
-        "nextToken": {
-          "#bigint": "3"
-        },
-        "page": {
-          "#set": ["first", "second", "third"]
-        },
-        "phase": {
-          "tag": "Ready",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "occurrence": {
-              "#bigint": "2"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "next": {
-                  "tag": "Just",
-                  "value": "e"
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "a1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a2",
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": true,
-                    "id": "a3",
-                    "target": "third",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a4",
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b1",
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b2",
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "c1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "e",
-              {
-                "id": "e",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "e1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doSetSlow",
-      "mbt::nondetPicks": {
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "leavePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "Some",
-          "value": true
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 9
-      },
-      "m": {
-        "drawn": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "occurrence": {
-              "#bigint": "2"
-            },
-            "story": "a"
-          }
-        },
-        "hasError": false,
-        "inflight": {
-          "#set": []
-        },
-        "mark": "unmatched",
-        "nextToken": {
-          "#bigint": "3"
-        },
-        "page": {
-          "#set": ["first", "second", "third"]
-        },
-        "phase": {
-          "tag": "Ready",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "occurrence": {
-              "#bigint": "2"
-            },
-            "story": "a"
-          }
-        },
-        "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "next": {
-                  "tag": "Just",
-                  "value": "e"
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "a1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a2",
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": true,
-                    "id": "a3",
-                    "target": "third",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a4",
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b1",
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b2",
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "c1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "e",
-              {
-                "id": "e",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "e1",
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doReached",
-      "mbt::nondetPicks": {
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "leavePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "Some",
-          "value": "none"
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 10
-      },
-      "m": {
-        "drawn": {
-          "tag": "Just",
-          "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "occurrence": {
-              "#bigint": "2"
-            },
-            "story": "a"
-          }
-        },
         "hasError": true,
         "inflight": {
           "#set": []
@@ -2727,7 +2036,7 @@
           "#bigint": "3"
         },
         "page": {
-          "#set": ["first", "second", "third"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -2748,13 +2057,6 @@
           }
         },
         "presenterUp": true,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
         "world": {
           "#map": [
             [
@@ -2950,19 +2252,7 @@
             "#tup": []
           }
         },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
           "tag": "None",
           "value": {
             "#tup": []

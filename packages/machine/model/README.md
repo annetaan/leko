@@ -48,34 +48,35 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 
 ```
-Step 8: picking a transition out of 9 transition(s)
+Step 8: picking a transition out of 7 transition(s)
 The outcome is: NoError
-[ok] No violation found (826339ms).
+[ok] No violation found (303590ms).
 ```
 
-13 minutes 46 seconds. Nothing within 8 calls of `init` breaks either invariant,
+5 minutes 4 seconds. Nothing within 8 calls of `init` breaks either invariant,
 and that is a proof over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
-`step` offers 9 actions, which is the number Apalache prints on the line above.
-Count the `nondet` picks and it is 22 branches from a state with nothing in
-flight, and two more for every callback that is: `doSettle` and `doLeave` both
-pick out of `inflight`. So 8 steps is around 22^8, or 55 billion paths. Apalache
-walks none of them. The picks stay as variables in the SMT problem and it asks
-about all 22 at once, which is the whole reason 8 steps finishes at all.
+`step` offers 7 actions, which is the number Apalache prints on the line above.
+Count the `nondet` picks and it is 20 branches from a state with nothing in
+flight, and one more for every teardown window that is open, because `doLeave`
+picks out of `inflight`. So 8 steps is around 20^8, or 26 billion paths.
+Apalache walks none of them. The picks stay as variables in the SMT problem and
+it asks about all 20 at once, which is the whole reason 8 steps finishes at all.
 
-**Read a total as a sample of one.** Two runs of this model 20 minutes apart
-gave 906840ms and 826339ms. Inside the second, the nine invariant checks at step
-8 took 61s, 45s, 40s, 23s, 0.1s, 57s, 50s, 81s and 52s. Nine instances of the
-same question, and the slowest is over 500 times the fastest. What Z3 pays for
-is the shape of the instance it is handed.
+**Read a total as a sample of one.** The seven invariant checks at step 8 in
+that run took 18s, 24s, 34s, 8s, 0.0s, 27s and 19s. Seven instances of the same
+question, and one of them was answered before the clock could measure it. What
+Z3 pays for is the shape of the instance it is handed, so a run that finishes in
+five minutes today can take half an hour after a change that made the model
+smaller.
 
-What it also pays for is the size of the transition relation, which is why a
-smaller model is not automatically a faster one. Two actions came off here and
-the run halved. Folding an arrival into one synchronous action took actions off
-too and the run doubled, because it made each transition deeper while making the
-reachable states fewer.
+Taking actions off the transition relation is what has moved this number. The
+morph and its two actions went and the run fell from 826339ms to 303590ms;
+before that, dropping the search phase took it from 1910321ms to 826339ms.
+Folding an arrival into one synchronous action went the other way, because it
+made each transition deeper while making the reachable states fewer.
 
 Do not put it in CI. `pnpm model:traces` searches 24 steps, and that is out of
 reach here.
@@ -102,7 +103,7 @@ being asked is the real class:
 | --- | --- |
 | 3 | every `onEnter` is followed by exactly one `onLeave`, steps and stories |
 | 4 | no signal advances a step the presenter has never been given |
-| 5 | a callback settling for a position the tour has left changes nothing |
+| 5 | a report about a step the tour has left changes nothing |
 | 6 | while the phase is closed no call from the application changes anything |
 | 7 | a refusal always reaches the presenter, and says why only where the step says so |
 
@@ -188,8 +189,8 @@ now, which is a story and an index and no occurrence.
 
 Neither invariant could see any of this. `runningIsDrawn` and `idleIsClean` both
 hold in the state the model reached, and no trace in the corpus went there
-either. The morph is the one callback that can still land after a restart, and
-`stale-morph` is the trace for it.
+either. What can still arrive after a restart is a report from the presenter
+about the step it was shown, and `stale-report` is the trace for it.
 
 The second was `holding`. `doSetError` and `doShake` each took the utils back
 out of the set, so a handler got one answer and no more. `ErrorUtils` is two
@@ -231,20 +232,19 @@ the search could reach five.
 
 `end` parks a `Leaving` now, and `doLeave` is the rest of it. Between the two,
 the machine is emptied and the phase is closed, which is exactly where
-`machine.ts` stands while it runs handlers. All 15 actions are offered there.
+`machine.ts` stands while it runs handlers. Every action is offered there.
 
-That is more permissive than the code. A real `onLeave` cannot receive a morph
-landing, and the model will offer one. Nothing is lost by it. With the position
-empty and the phase closed, every one of the 15 is refused, finds nothing to act
-on, or is a knob on the world, so none of them can make a state the code would
-never reach.
+That is more permissive than the code, which runs the whole of a teardown inside
+the call that began it. Nothing is lost by it. With the position empty and the
+phase closed, every action is refused, finds nothing to act on, or is a knob on
+the world, so none of them can make a state the code would never reach.
 
 Driving it took more work than modelling it. There is no moment out in the
 driver where a call made from inside `onLeave` could be made. So
 `replay.test.ts` reads ahead, queues the calls the trace puts in the window, and
 `drain` makes them from the handler. It knows it is in a teardown by asking
-`tour.state`, which answers `idle` there and `transitioning` in the `onLeave` of
-a step the tour is merely walking away from.
+`tour.state`, which answers `idle` there and `running` in the `onLeave` of a
+step the tour is merely walking away from.
 
 Three of the traces put a call in the window, one per way into the machine. A
 window only one call has been tried in is a window nobody has really looked
@@ -277,9 +277,9 @@ drift apart, which is the largest drift surface there is.
 ## Two searches
 
 `quint run` picks uniformly among the actions that are enabled. `stop` is
-enabled almost always, so a tour gets torn down roughly every ninth call and
+enabled almost always, so a tour gets torn down roughly every seventh call and
 hardly ever reaches its third step. In the 100000 traces `pnpm model` walks, the
-state where a guard failed and the handler wrote a message comes up in 247 of
+state where a guard failed and the handler wrote a message comes up in 237 of
 them.
 
 So there are two.
@@ -288,7 +288,7 @@ So there are two.
   where the four bugs the issue was opened for would have been. All four were
   reachable in under five calls.
 - `initRunning` with `stepInside` starts with story `a` already running and
-  leaves out `start` and `stop`. Under this one the same state comes up in 11643
+  leaves out `start` and `stop`. Under this one the same state comes up in 12381
   of the 100000.
 
 `pnpm model` runs both. Neither is enough on its own.
@@ -306,7 +306,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 15 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 12 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 
@@ -347,8 +347,8 @@ model.
 
 ## When a replay diverges
 
-The failure names the state and the call: `state 8, after doSettle
-(morph-stale)`. The model and the code disagree about what that call
+The failure names the state and the call: `state 8, after doLose
+(lose-stale)`. The model and the code disagree about what that call
 does. One of them is wrong. Read the state in the `.itf.json` alongside the
 definition it is named after. Every pure function in `machine.qnt` carries the
 name of the thing it stands for, and there are two places to look.
@@ -372,8 +372,6 @@ same boundary.
 - Any depth at all, in the sense of a finished search. `park` increments
   `nextToken` and nothing resets it, so the state space is infinite and no
   exhaustive walk of it can stop. A bound is the only thing on offer.
-- `watch()` and the microtask that carries it. No watchers are attached in the
-  replay.
 - The `animate` flag, the words on a step, the diagnostic payloads. Only the
   count of diagnostics is checked.
 - A story that holds the same step object twice. `plan.ts` answers `lost` by

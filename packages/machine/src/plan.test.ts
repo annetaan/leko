@@ -48,7 +48,7 @@ const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, e
 /** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
 
-const PHASES: Phase[] = ['story', 'step', 'ending', 'settling', 'ready']
+const PHASES: Phase[] = ['story', 'step', 'ending', 'ready']
 
 describe('reading the state', () => {
   test('a call is acted on where the step is on screen and nowhere else', () => {
@@ -58,7 +58,6 @@ describe('reading the state', () => {
 
     expect(answers).toEqual({
       ready: true,
-      settling: true,
       story: false,
       step: false,
       ending: false,
@@ -69,19 +68,19 @@ describe('reading the state', () => {
     for (const phase of PHASES) expect(stateOf({ ...nothing(), phase })).toBe('idle')
   })
 
-  test('running is the one phase where the step arrived and stopped moving', () => {
+  test('running is a story being on, whatever the machine is in the middle of', () => {
     const answers = Object.fromEntries(
       PHASES.map((phase) => [phase, stateOf(running(0, { phase }))]),
     )
 
-    // `settling` is a step on screen too, and a host standing back while the
-    // tour is between things has to hear about it.
+    // The phase says which window the machine is in, and a host is told none of
+    // that. A teardown reads `idle` here only because it empties the position
+    // before it calls anything, which is the test below.
     expect(answers).toEqual({
       ready: 'running',
-      settling: 'transitioning',
-      story: 'transitioning',
-      step: 'transitioning',
-      ending: 'transitioning',
+      story: 'running',
+      step: 'running',
+      ending: 'running',
     })
   })
 
@@ -356,43 +355,18 @@ describe('a position is the occurrence, not the place', () => {
 })
 
 describe('an arrival throws away what belonged to the step being left', () => {
-  test('drops the attempt and the morph', () => {
-    const before = running(0, { error: 'not yet', showing: Promise.resolve() })
+  test('drops the attempt', () => {
+    const before = running(0, { error: 'not yet' })
 
     const outcome = put(before, { kind: 'entering', at: at(0), leaving: undefined, animate: true })
 
-    expect(outcome.core).toEqual({
-      ...before,
-      phase: 'step',
-      error: undefined,
-      showing: undefined,
-    })
+    expect(outcome.core).toEqual({ ...before, phase: 'step', error: undefined })
   })
 
-  test("a story's own arrival has no step, so there is neither to throw away", () => {
+  test("a story's own arrival has no step, so there is nothing to throw away", () => {
     const outcome = put(nothing(), { kind: 'start', story })
     const opened = put(outcome.core, outcome.next!)
 
     expect(opened.core).toEqual({ ...outcome.core, phase: 'story' })
-  })
-})
-
-describe('a morph landing', () => {
-  const morph = Promise.resolve()
-
-  test('takes off the phase it put on', () => {
-    const arrived = running(0, { phase: 'step' })
-    const shown = put(arrived, { kind: 'shown', at: arrived.position!, showing: morph })
-    expect(shown.core.phase).toBe('settling')
-
-    const outcome = put(shown.core, { kind: 'settled', showing: morph })
-
-    expect(outcome.core).toEqual({ ...shown.core, phase: 'ready', showing: undefined })
-  })
-
-  test('lets go of nothing where another arrival has already replaced it', () => {
-    const before = running(0, { phase: 'settling', showing: Promise.resolve() })
-
-    expect(put(before, { kind: 'settled', showing: morph }).core).toBe(before)
   })
 })

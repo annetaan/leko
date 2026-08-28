@@ -26,9 +26,6 @@ const out = join(root, 'packages/machine/model/traces')
  * there are two.
  */
 const HARVEST = [
-  { name: 'settling', target: 'settling', seed: '0x2' },
-  { name: 'stale-morph', target: 'staleMorph', seed: '0x4' },
-  { name: 'two-in-flight', target: 'twoInFlight', seed: '0x5' },
   { name: 'refused', target: 'refused', seed: '0x9' },
   { name: 'start-tearing', target: 'startWhileTearing', seed: '0xe' },
   { name: 'start-running', target: 'startWhileRunning', seed: '0x15' },

@@ -2,24 +2,24 @@
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// `position`, `phase`, `hasError` and `showing` are the four fields of its
-// `Core`, under those names except that `hasError` is `error` as a bit.
+// `position`, `phase` and `hasError` are the three fields of its `Core`, under
+// those names except that `hasError` is `error` as a bit.
 // `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
 // a model has to say out loud. Every definition that mirrors one in `plan.ts`
 // names it in its doc, because three of them are spelled differently there:
 // `end` is `ending`, `enter` is `entering`, and `enterStory` is `opening`.
 //
-// **No `onEnter` hands anything back.** An arrival runs start to finish inside
-// one action, so the `Story` and `Step` phases are never a state this rests in
-// and nothing is parked for one. The only late things left are a morph and the
+// **Nothing the machine calls hands anything back.** An arrival runs start to
+// finish inside one action, so the `Story` and `Step` phases are never a state
+// this rests in and nothing is parked for one. The one late thing left is the
 // window a teardown opens.
 module machine {
   // ---------------------------------------------------------------- the world
 
   type Maybe[a] = Just(a) | Nothing
 
-  /// `Phase` in plan.ts, with the same five values and the same meanings.
-  type Phase = Story | Step | Ending | Settling | Ready
+  /// `Phase` in plan.ts, with the same four values and the same meanings.
+  type Phase = Story | Step | Ending | Ready
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
@@ -67,22 +67,20 @@ module machine {
     throwsOnEnter: bool,
   }
 
-  /// A promise the machine is waiting on, and the one window the code opens
-  /// without one.
+  /// The one window the code opens and comes back to.
   ///
-  /// Every callback carries a token. Two arrivals at the same position are two
+  /// A teardown that has emptied the machine and not yet run the handlers it
+  /// owes. `machine.ts` does the whole of that inside one call and never
+  /// returns to the event loop in the middle, so this is not a promise. It is a
+  /// window: `onLeave` and the ending `onStep` are application code, and an
+  /// application inside one can call straight back in.
+  ///
+  /// `into` is the story a `start` is displacing this one with. It decides
+  /// whether the curtain goes up before the report, and what happens after.
+  ///
+  /// It carries a token because two teardowns at the same position are two
   /// occurrences, and a set keyed on position alone would silently keep one.
-  type Callback =
-    | Morph({ token: int, at: Pos })
-    // A teardown that has emptied the machine and not yet run the handlers it
-    // owes. `machine.ts` does the whole of that inside one call and never
-    // returns to the event loop in the middle, so this is not a promise. It is
-    // a window: `onLeave` and the ending `onStep` are application code, and an
-    // application inside one can call straight back in.
-    //
-    // `into` is the story a `start` is displacing this one with. It decides
-    // whether the curtain goes up before the report, and what happens after.
-    | Leaving({ token: int, into: Maybe[str] })
+  type Callback = Leaving({ token: int, into: Maybe[str] })
 
   /// Every field at once, so that the definitions below can be pure functions of
   /// the shape `M => M` and read like the methods they stand for.
@@ -92,8 +90,6 @@ module machine {
     phase: Phase,
     // `error`, as a bit. Nothing reads the string.
     hasError: bool,
-    // The token of the morph `draw` last handed back, or nothing.
-    showing: Maybe[int],
     // --- what the code keeps implicitly
     // The step the presenter was last given and has on screen. Cleared by
     // `hold` and by `teardown`, because both take it off.
@@ -107,8 +103,6 @@ module machine {
     world: str -> StorySpec,
     // Which targets are on the page. `Fake.page` in `machine.test.ts`.
     page: Set[str],
-    // Whether the presenter has a morph to run. `Fake.slow`.
-    slow: bool,
     // What the last action did, in enough detail to aim at. `mbt::actionTaken`
     // already names which action ran; this says which way it went, which is
     // what a harvest has to be able to ask for. Nothing reads it but
@@ -205,14 +199,13 @@ module machine {
 
   /// `accepting` in `plan.ts`. The one thing a call from the application is answered
   /// against.
-  pure def accepting(s: M): bool =
-    s.phase == Ready or s.phase == Settling
+  pure def accepting(s: M): bool = s.phase == Ready
 
   /// `stateOf` in `plan.ts`, derived from two fields and never stored.
   pure def stateOf(s: M): str =
     match s.position {
       | Nothing => "idle"
-      | Just(_) => if (s.phase == Ready) "running" else "transitioning"
+      | Just(_) => "running"
     }
 
   /// Whether `at` still names the step occurrence the tour is standing on.
@@ -263,7 +256,6 @@ module machine {
           s.with("phase", Ending)
            .with("position", Nothing)
            .with("hasError", false)
-           .with("showing", Nothing)
            // teardown()
            .with("presenterUp", false)
            .with("drawn", Nothing)
@@ -284,23 +276,16 @@ module machine {
   pure def lose(s: M, at: Pos): M =
     if (stillAt(s, at)) end(s, Nothing) else s
 
-  /// The `stepEntered` event. Hands the step over, and only the morph nothing has
-  /// replaced may call it settled.
+  /// The `stepEntered` event. Hands the step over, and that is the whole of it:
+  /// `Presenter.show` gives nothing back and nothing waits for it.
   pure def draw(s: M, at: Pos): M = {
     val step = stepAt(s, at)
-    // `Fake.show` answers a missing anchor with `Host.lost` and hands nothing
-    // back, so the run can be over before `show` returns.
+    // `Fake.show` answers a missing anchor with `Host.lost`, so the run can be
+    // over before `show` returns.
     if (not(s.page.contains(step.target)))
       lose(s.with("presenterUp", true), at)
-    else {
-      val shown = s.with("presenterUp", true).with("drawn", Just(at))
-      if (not(shown.slow))
-        shown
-      else
-        park(shown, (t) => Morph({ token: t, at: at }))
-          .with("showing", Just(shown.nextToken))
-          .with("phase", Settling)
-    }
+    else
+      s.with("presenterUp", true).with("drawn", Just(at))
   }
 
   /// The `drawn` event. Draw the step, then say the tour moved, in that order.
@@ -326,7 +311,7 @@ module machine {
           // Nothing is drawn for this window and nothing is taken down for it
           // either. `onEnter` answers in the turn, so no frame carries it.
           val held =
-            s.with("hasError", false).with("showing", Nothing).with("phase", Step)
+            s.with("hasError", false).with("phase", Step)
           if (step.throwsOnEnter) failed(held, at)
           else arrive(held, at)
         }
@@ -505,11 +490,6 @@ module machine {
     },
   }
 
-  /// Whether the presenter has a morph to run at all. `Fake.slow`.
-  action doSetSlow(yes: bool): bool = all {
-    m' = m.with("slow", yes).with("mark", "slow"),
-  }
-
   // --- what a teardown owes
 
   /// The rest of an ending: the two `onLeave` calls, the curtain where there is
@@ -527,10 +507,6 @@ module machine {
   /// is refused, finds nothing to act on, or is a knob on the world.
   action doLeave(cb: Callback): bool = all {
     m.inflight.contains(cb),
-    match cb {
-      | Leaving(_) => true
-      | Morph(_) => false
-    },
     m' = {
       val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
       match cb {
@@ -546,32 +522,6 @@ module machine {
               enterStory(standOn(awake, at), at).with("mark", "left-into")
             }
           }
-        | Morph(_) => awake
-      }
-    },
-  }
-
-  // --- what lands late
-
-  action doSettle(cb: Callback): bool = all {
-    m.inflight.contains(cb),
-    match cb {
-      | Leaving(_) => false
-      | Morph(_) => true
-    },
-    m' = {
-      val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
-      match cb {
-        | Leaving(_) => awake
-        | Morph(c) => {
-          // Only the morph nothing has replaced may call the step settled. The
-          // one it replaced settles onto a token `enter` already let go of, and
-          // nothing else writes `showing`, so the phase this takes off is
-          // always the one it put on.
-          if (awake.showing != Just(c.token)) awake.with("mark", "morph-stale")
-          else
-            awake.with("showing", Nothing).with("phase", Ready).with("mark", "morph-landed")
-        }
       }
     },
   }
@@ -582,14 +532,12 @@ module machine {
     position: Nothing,
     phase: Ready,
     hasError: false,
-    showing: Nothing,
     drawn: Nothing,
     presenterUp: false,
     inflight: Set(),
     nextToken: 0,
     world: WORLD,
     page: TARGETS,
-    slow: false,
     mark: "init",
   }
 
@@ -627,10 +575,6 @@ module machine {
     doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet slowPick = Bool.oneOf()
-    doSetSlow(slowPick),
-    nondet settlePick = m.inflight.oneOf()
-    doSettle(settlePick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
   }
@@ -640,7 +584,7 @@ module machine {
   ///
   /// Two searches rather than one, because a uniform choice over {@link step}
   /// makes `stop` about as likely as anything else, and a tour that is torn down
-  /// every ninth call almost never reaches its third step. The four bugs
+  /// every seventh call almost never reaches its third step. The four bugs
   /// this model was written for were all reachable in under five calls, which
   /// {@link step} covers well; this is what reaches the rest. Neither relation
   /// is the honest one on its own, and `pnpm model` runs both.
@@ -652,10 +596,6 @@ module machine {
     doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
-    nondet slowPick = Bool.oneOf()
-    doSetSlow(slowPick),
-    nondet settlePick = m.inflight.oneOf()
-    doSettle(settlePick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
   }
@@ -672,7 +612,7 @@ module machine {
     stateOf(m) == "running" implies m.drawn == m.position
 
   /// 2. `state == "idle"` implies the presenter has been torn down, and
-  ///    `position`, `error` and `showing` are all empty.
+  ///    `position` and `error` are both empty.
   ///
   /// This used to ask for `phase == Ready` as well, and it held because nothing
   /// could reach a teardown from the outside. `end` empties the position before
@@ -685,7 +625,6 @@ module machine {
       m.phase == Ready or m.phase == Ending,
       not(m.presenterUp),
       not(m.hasError),
-      m.showing == Nothing,
       m.drawn == Nothing,
     }
 
@@ -695,23 +634,8 @@ module machine {
   // run reporting 0% for one of them is a model whose actions have stopped
   // describing the code. `pnpm model` passes them to `quint run --witnesses`.
 
-  /// A morph settling for a position the tour has already left.
-  val staleMorph: bool =
-    m.inflight.exists((cb) =>
-      match cb {
-        | Morph(c) => not(stillAt(m, c.at))
-        | Leaving(_) => false
-      }
-    )
-
-  /// A morph outstanding at the same time as the window a teardown opens.
-  val twoInFlight: bool = m.inflight.size() > 1
-
   /// A step on screen with a failed attempt behind it.
   val erroring: bool = m.hasError
-
-  /// A step drawn and still moving.
-  val settling: bool = m.phase == Settling
 
   /// A refusal with words for it, which is the pair below with `error` written
   /// on the step.

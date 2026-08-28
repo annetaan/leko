@@ -1,32 +1,34 @@
 # The phases, drawn
 
-The machine has five phases and one state value with four fields in it. This
+The machine has four phases and one state value with three fields in it. This
 file is the picture of them. `plan.ts` holds the phases, the state and what each
 event does to them, and `machine.ts` makes the calls that follow.
 [`README.md`](README.md) beside this says how the model is searched, and
 `machine.qnt` is the same graph written down in a form a search can walk. When
 they disagree, the code is the one that is right.
 
-I drew this after the model was already green. Five phase names read off a union
-type told me nothing about which of them a call from the application survives,
+I drew this after the model was already green. Four phase names read off a union
+type tell me nothing about which of them a call from the application survives,
 and that is the question I keep having.
 
 ## The two fields
 
-There is no stored `state`. It is read off these every time it is asked.
+There is no stored `state`, and the two fields answer different questions.
 
 | | |
 | --- | --- |
 | `position` | the running story and the index in it, or `undefined` while nothing runs |
-| `phase` | one of the five below |
+| `phase` | which of the four windows below the machine is in |
 
-`state` is `idle` when there is no position. Otherwise it is `running` if the
-phase is `ready`, and `transitioning` for the other four.
+`state` is read off `position` alone: `idle` where there is none, `running`
+where there is. A host is never told which phase the machine is in, because
+three of the four last one synchronous call and there is nothing to do inside
+one.
 
 Read that carefully around `ending`. A teardown empties the position before it
 calls a single handler, so a handler asking `state` from inside its own
 `onLeave` is told `idle`. The phase underneath is still shut, and that is what
-refuses a `start()` made from in there. The two answer different questions.
+refuses a `start()` made from in there.
 
 `position` is replaced on every move and on nothing else. That is what makes its
 identity the step occurrence the tour is standing on. Every event that can land
@@ -45,15 +47,10 @@ stateDiagram-v2
 
   story --> step : the story's onEnter returned
 
-  step --> ready : arrive, with nothing to morph
-  step --> settling : arrive, and the presenter handed back a morph
+  step --> ready : the step is handed to the presenter
 
-  state arrived {
-    settling --> ready : the morph landed
-  }
-
-  arrived --> step : advance, and a next step exists
-  arrived --> ending : past the last step, stop(), Host.lost
+  ready --> step : advance, and a next step exists
+  ready --> ending : past the last step, stop(), Host.lost
   story --> ending : stop()
   step --> ending : stop(), onEnter threw, the anchor went during show
   note right of step
@@ -67,7 +64,7 @@ stateDiagram-v2
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
 
-  class idle,ready,settling open
+  class idle,ready open
   class story,step,ending shut
 ```
 
@@ -75,19 +72,12 @@ A teal outline means a call from the application is acted on. A clay outline
 means the machine is inside a call into the application, and everything but
 `stop()` is turned away.
 
-`arrived` is a grouping and there is no such phase in the code. It holds the two
-that mean the step is on screen and the tour is standing on it. `advance`,
-`stop()` and `Host.lost` do the same thing from both, so they are drawn once
-instead of six times.
-
 | Phase | `state` | What is true |
 | --- | --- | --- |
-| `story` | `transitioning` | a run is starting. The story's own `onEnter` is running or about to be, and no step has been entered |
-| `step` | `transitioning` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is running, the anchor has not been looked for, nothing is drawn |
-| `settling` | `transitioning` | the step arrived and is drawn. The presenter is still moving it |
-| | | A target that leaves the page after the step was drawn has no phase of its own. The presenter retries for 100ms, redraws nothing while it does, and says nothing unless it gives up. A target that was missing when the step arrived is `settling`, because that wait is one the machine was handed a promise for |
-| | | A step that names no target at all is `ready`. It is drawn and still, and what it waits for is a signal |
-| `ready` | `running` | the step is drawn and still. The only phase `state` calls `running` |
+| `story` | `running` | a run is starting. The story's own `onEnter` is running or about to be, and no step has been entered |
+| `step` | `running` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is running, the anchor has not been looked for, nothing is drawn |
+| `ready` | `running` | the step has been handed to the presenter. The only phase a call from the application is acted on in |
+| | | Nothing about the drawing is here. A morph still running, a target being retried for 100ms, and a step waiting for its signal are all `ready`: the machine handed the step over and is done with it |
 | `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
 
 ## The gate
@@ -95,14 +85,13 @@ instead of six times.
 `accepting` in `plan.ts` is one line and it decides everything above.
 
 ```ts
-core.phase === 'ready' || core.phase === 'settling'
+core.phase === 'ready'
 ```
 
 `idle` is open too. Its phase is `ready` and it has no position.
 
-A step that is drawn and still moving has been through the whole arrival and the
-user is looking at it. A call about it means what it says, so `settling` is
-open.
+A step whose drawing is still moving is `ready` as well. The machine handed it
+over and the user is looking at it, so a call about it means what it says.
 
 | Call | Accepted in | What it does |
 | --- | --- | --- |
@@ -139,27 +128,23 @@ flowchart TD
   D --> E["leaving.onLeave(leaving, step)"]
   E --> F["step.onEnter(step)"]
   F -- "threw" --> Z
-  F -- "a promise" --> G["wait. The gate stays shut"]
-  F -- "nothing" --> H["the stepEntered event"]
-  G --> H
+  F -- "returned" --> H["the stepEntered event"]
   H --> I{"still on this position?"}
   I -- "no. stop(), or a fresh start()" --> X["dropped"]
   I -- "yes" --> J["phase: ready"]
   J --> K["presenter.resolve(step)"]
   K -- "null" --> L["the presenter decides.<br>Wait, or Host.lost, which ends the run"]
   K -- "an anchor" --> M["presenter.show(...)"]
-  M -- "nothing back" --> P["onStep(step, story)"]
-  M -- "a promise" --> O["phase: settling"]
-  O --> P
+  M --> P["onStep(step, story)"]
 
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
-  class C,D,E,F,G,H,Y shut
-  class J,O,P open
+  class C,D,E,F,H,Y shut
+  class J,P open
 ```
 
-A handler that hands back nothing costs no turn. The whole path can run inside
-the call that started it.
+No handler hands anything back and neither does `show`, so the whole path runs
+inside the call that started it.
 
 `phase` goes to `ready` before the draw rather than after. A step whose anchor
 turns out to be missing can end the run from inside `show`, and the `onStep`
@@ -167,24 +152,21 @@ that reports that ending has to find a machine a host may call into. In
 `plan.ts` that is the `stepEntered` event committing `opened` and owing a
 `draw`, in that order, and there is no way to write it the other way round.
 
-## What lands late
+## What can find the tour somewhere else
 
-Three things resolve after the turn that started them. Each one can find the
-tour standing somewhere else, and each one checks a different thing.
+Nothing the machine calls hands anything back, so nothing resolves after the
+turn that started it. What is left is application code calling `stop()` from
+inside a call the machine made, which empties the machine half way through its
+own chain of events.
 
-| What | What it compares |
-| --- | --- |
-| an `onEnter` that called `stop()` | the captured `position` object against the current one |
-| a morph | the token in `showing`, because two arrivals at the same position are two occurrences |
+So every event the machine owes itself carries the `position` object it was
+planned at, and `plan.ts` compares that object with the current one before
+acting, at the eight places named above.
 
-A refusal is not on this list. `validate` answers in the turn it is asked, and
-`error` is read in the same turn, so there is nothing left over to land later.
-The `refused` event still asks where the tour got to, because `validate` is the
-application's own code and can call `stop()` from inside itself.
-
-The morph has one more check after that. Only the morph nothing has replaced may
-write `ready`, and the one it replaced settles onto a token the arrival already
-let go of.
+`validate` is the one that reads oddly. It answers in the turn it is asked, so
+nothing is left over to land later, and the `refused` event asks all the same,
+because `validate` is the application's own code and can have called `stop()`
+from inside itself.
 
 ## Where to watch each of these happen
 
@@ -201,7 +183,6 @@ say. One table pointed the other way is one place, and it shows the holes.
 | --- | --- | --- |
 | `story` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
 | `step` | `step-setup` | press Next. Each `onEnter` runs inside the call that moved the tour |
-| `settling` | any case, `stepping` is plainest | the morph is 320ms, and the log says `transitioning` for that long on every move |
 | a target that left the page | `target-disappears` | press **Dismiss for a moment**. The target comes back inside the retry, nothing is redrawn while it is away, and no phase says so |
 | a step that waits | `step-setup`, `story-setup` | press Next onto the step with no `target`. The page goes under, and the signal the step names is what ends it |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |

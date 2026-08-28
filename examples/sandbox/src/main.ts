@@ -60,11 +60,9 @@ let opened = performance.now()
 /**
  * One line in the footer log.
  *
- * The order is the order a host really sees, and it is not the order things
- * happened in. `onStep` is called inside the operation that moved the tour, and
- * `watch` is a microtask, so a move prints its step before it prints the state
- * it left the machine in. Reordering them here would be the sandbox teaching
- * something the API does not do.
+ * The order is the order a host really sees. Every row here is written from
+ * inside the call or the hook that produced it, so nothing is reordered and
+ * nothing is inferred.
  */
 function note(kind: 'call' | 'state' | 'step' | 'problem', text: string): void {
   const row = document.createElement('div')
@@ -91,7 +89,6 @@ function note(kind: 'call' | 'state' | 'step' | 'problem', text: string): void {
 }
 
 let teardown: (() => void) | undefined
-let unwatch: (() => void) | undefined
 let leko: Leko | undefined
 let problem: string | undefined
 /** The case on screen, which is where the footer's start buttons find a story. */
@@ -125,8 +122,6 @@ function report(): void {
 
 function show(next: Case): void {
   leko?.stop()
-  unwatch?.()
-  unwatch = undefined
   problem = undefined
   teardown?.()
 
@@ -173,19 +168,14 @@ function show(next: Case): void {
       // names a step that went up.
       const from = told ? `“${told.id}” → ` : ''
       note('step', `${story.id}: ${from}${step ? `“${step.id}”` : 'the run ended'}`)
+      // The whole of the state readout, from the hook that already names every
+      // crossing of it. `step === undefined` is the ending, and there is no
+      // other way for a tour to stop being on.
+      note('state', step ? 'running' : 'idle')
       told = step
       report()
       caseStep?.(step, story)
     },
-  })
-
-  // `state` moves when no step does: a morph landing, a story's onEnter in
-  // flight, a target being looked for again. This read the instance on every
-  // frame for as long as a story ran before `watch` existed, which is what the
-  // hook was written to replace.
-  unwatch = leko.watch((state) => {
-    note('state', state)
-    report()
   })
 
   stageRoot.replaceChildren()
@@ -239,8 +229,8 @@ pick('.controls').addEventListener('click', (event) => {
     if (!action) return
     actions[action.dataset['action'] ?? '']?.()
   }
-  // The note beside the chip carries the diagnostic, which `watch` knows
-  // nothing about. The state half of the readout looks after itself now.
+  // The note beside the chip carries the diagnostic, which nothing else here
+  // knows about.
   report()
 })
 

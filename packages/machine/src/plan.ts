@@ -8,14 +8,16 @@ import type { Content, MachineState, Problem, World } from './types.js'
 // -------------------------------------------------------------------- the state
 
 /**
- * How far along the machine is. `story` and `step` are an arrival, two rather
- * than one because the step's `onLeave` is owed in the second and not the
- * first. Both last one synchronous call into the application and no longer,
- * because no handler hands anything back to wait for. `settling` and `ready`
- * are both a step on screen. DESIGN.md argues the gate this feeds under
- * **One gate, and what it refuses**.
+ * Which window the machine is in, and nothing else. `story` and `step` are an
+ * arrival, two rather than one because the step's `onLeave` is owed in the
+ * second and not the first. `ending` is a teardown. All three last one
+ * synchronous call into the application and no longer, because no handler hands
+ * anything back to wait for, and `ready` is every other moment there is.
+ *
+ * **Nothing here is about what the screen is doing.** DESIGN.md argues the gate
+ * this feeds under **One gate, and what it refuses**.
  */
-export type Phase = 'story' | 'step' | 'ending' | 'settling' | 'ready'
+export type Phase = 'story' | 'step' | 'ending' | 'ready'
 
 /**
  * Which story a tour is on and where in it. Replaced on every move and never on
@@ -37,8 +39,6 @@ export interface Core<W extends World> {
   readonly phase: Phase
   /** What the last attempt at the current step was told was wrong with it. */
   readonly error: string | undefined
-  /** Whatever `Presenter.show` last handed back, so a morph settling late can tell. */
-  readonly showing: Promise<void> | undefined
 }
 
 /** What the unions below read through, so a member fits on its own line. */
@@ -55,18 +55,17 @@ export const idle = <W extends World>(): Core<W> => ({
   position: undefined,
   phase: 'ready',
   error: undefined,
-  showing: undefined,
 })
 
 /** DESIGN.md argues this under **One gate, and what it refuses**. */
-export const accepting = <W extends World>(core: Core<W>): boolean =>
-  core.phase === 'ready' || core.phase === 'settling'
+export const accepting = <W extends World>(core: Core<W>): boolean => core.phase === 'ready'
 
-/** Derived, never stored. DESIGN.md argues it under **`state` is derived**. */
-export const stateOf = <W extends World>(core: Core<W>): MachineState => {
-  if (core.position === undefined) return 'idle'
-  return core.phase === 'ready' ? 'running' : 'transitioning'
-}
+/**
+ * Whether a story is running, which is the whole of what a host is told. Derived
+ * from the one field that answers it. DESIGN.md, **`state` is derived**.
+ */
+export const stateOf = <W extends World>(core: Core<W>): MachineState =>
+  core.position === undefined ? 'idle' : 'running'
 
 /** The step the tour is standing on, or `undefined` while idle. */
 export const stepOf = <W extends World>(core: Core<W>): W['step'] | undefined => {
@@ -87,8 +86,8 @@ const stillAt = <W extends World>(core: Core<W>, at: Position<W>): boolean => co
  */
 export type Effect<W extends World> =
   | { kind: 'teardown' }
-  /** `resolve` then `show`. Answers with `shown`, or `lost` where there is no anchor. */
-  | { kind: 'draw'; at: Position<W>; step: Step<W>; content: Content; animate: boolean }
+  /** `resolve` then `show`. Answers with nothing, or `lost` where there is no anchor. */
+  | { kind: 'draw'; step: Step<W>; content: Content; animate: boolean }
   /** `resolve` then `place`. Nothing about the tour changed, so nothing answers. */
   | { kind: 'place'; step: Step<W>; content: Content }
   | { kind: 'retell'; step: Step<W>; content: Content }
@@ -131,8 +130,6 @@ export type Event<W extends World> =
   | { kind: 'entryFailed'; at: Position<W>; reason: unknown }
   /** The step is on screen and the report of the move is owed. */
   | { kind: 'drawn'; at: Position<W> }
-  | { kind: 'shown'; at: Position<W>; showing: Promise<void> }
-  | { kind: 'settled'; showing: Promise<void> }
   | { kind: 'validated'; at: Position<W> }
   /** The guard said no, and `reason` is whatever the step's `error` gave back. */
   | { kind: 'refused'; at: Position<W>; reason: string | undefined }
@@ -199,8 +196,7 @@ const ending = <W extends World>(
 
 /**
  * `enter`. The phase says the arrival began before any handler is called, and
- * what belonged to the step being left goes: its failed attempt, and its morph,
- * which now settles onto a promise nothing is holding.
+ * the failed attempt that belonged to the step being left goes with it.
  */
 const entering = <W extends World>(
   core: Core<W>,
@@ -213,7 +209,7 @@ const entering = <W extends World>(
   const effects: Effect<W>[] = []
   if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
   effects.push({ kind: 'callStepEnter', at, step, animate })
-  return { core: { ...core, phase: 'step', error: undefined, showing: undefined }, effects }
+  return { core: { ...core, phase: 'step', error: undefined }, effects }
 }
 
 /**
@@ -371,7 +367,6 @@ export function reduce<W extends World>(
       return {
         ...owing(ready, {
           kind: 'draw',
-          at: event.at,
           step,
           content: content(ready, step, config),
           animate: event.animate,
@@ -386,20 +381,6 @@ export function reduce<W extends World>(
       if (!stillAt(core, event.at) || !step) return nothing(core)
       return owing(core, { kind: 'report', story: event.at.story, step })
     }
-
-    case 'shown':
-      // `lost` can end the run before `show` returns, and calling the step
-      // settled after that would put `running` back on a tour that is over.
-      if (!stillAt(core, event.at)) return nothing(core)
-      return nothing({ ...core, phase: 'settling', showing: event.showing })
-
-    case 'settled':
-      // Only the morph nothing has replaced may call the step settled. The one
-      // it replaced settles onto a promise `entering` already let go of, and
-      // nothing else writes this field, so the phase this takes off is always
-      // the one it put on.
-      if (core.showing !== event.showing) return nothing(core)
-      return nothing({ ...core, showing: undefined, phase: 'ready' })
 
     case 'entryFailed': {
       // DESIGN.md, **What a step and a story assume**: the reason is thrown

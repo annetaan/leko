@@ -347,7 +347,7 @@ hold than two.
 the field and call `reached()` once it likes what it sees. That listener has no
 job outside the tour. It sits in application code, it is written against one
 step, and it is the code **Signals and steps** exists to keep out of there. A
-guard the step declares costs one of the four fields in `Core` and costs the
+guard the step declares costs one of the three fields in `Core` and costs the
 application nothing.
 
 **A refusal is never silent.** The cutout shakes on every no. Which half of a
@@ -643,9 +643,9 @@ that awaits it is dropped and the step waits for ever. Start the work in an
 it cannot: an arrival runs start to finish inside one synchronous call, so the
 step is standing before any of the work can come back.
 
-**The tour is `running` while it waits, not `transitioning`.** The step is drawn
-and still. Every call a host makes lands on a machine that is accepting them,
-which is the whole reason the wait is written this way.
+**The tour is `running` while it waits.** The step is drawn, and every call a
+host makes lands on a machine that is accepting them, which is the whole reason
+the wait is written this way.
 
 **Waiting for a promise from `onEnter` is the shape this replaces, and it cannot
 be made safe.** Holding the arrival open holds the gate shut, for as long as the
@@ -801,10 +801,11 @@ tour should not go on has nowhere else to go, and finishing the arrival first is
 not an answer. Ending is also the one thing that needs nothing of the arrival.
 It throws the arrival away rather than acting on it.
 
-**A morph is not an arrival.** A step that is drawn and still moving has been
-through the whole window and the user is looking at it, so every call goes
-through. Dropping one there would be Leko deciding the user did not mean the
-button they pressed.
+**The machine does not know a morph is running.** A step is on screen the moment
+`show` returns, and how long the drawing takes to settle after that is the
+presenter's business alone. So a press that lands during those 320ms goes
+through, and it has to: dropping one would be Leko deciding the user did not
+mean the button they pressed.
 
 What the gate buys is that no callback has to ask afterwards whether the world
 moved while it ran. Where that question was written by hand at every crossing,
@@ -857,29 +858,32 @@ the host wants done about it.
 
 ## `state` is derived
 
-`state` is derived rather than stored. Two fields each say one thing, and it is
-read off them.
+`state` is derived rather than stored, and it answers one question: is a story
+running.
 
 ```ts
-export const stateOf = <S, St>(core: Core<S, St>): MachineState => {
-  if (core.position === undefined) return 'idle'
-  return core.phase === 'ready' ? 'running' : 'transitioning'
-}
+export const stateOf = <W extends World>(core: Core<W>): MachineState =>
+  core.position === undefined ? 'idle' : 'running'
 ```
 
 `position` is where the tour is, and being idle is it being `undefined`. It
 holds the story and the index together because they are one fact, and it is
 replaced rather than edited on every move, so holding the object is holding the
-step occurrence. `phase` is how far along the machine is with what it is doing,
-and it is the same field the gate above reads.
+step occurrence.
 
-**`transitioning` means the tour is between things.** A target missing when the
-step arrives goes through `show`, which hands a promise back, so the machine
-hears about that wait without being told. A target lost after the step was drawn
-is a wait nothing on screen shows, and nothing here is told about it, so `state`
-says `running` throughout. Reporting it would buy a host the chance to stand
-back from about six frames, and cost a member on `Host`, a phase of its own, and
-a rule about which of two writers may take that phase off again.
+**It says nothing about what the screen is doing.** A step still animating in, a
+target being looked for again, and a step waiting for its signal all read
+`running`, because in every one of them a story is on and the machine is
+accepting calls. `phase` says which window the machine is in and the gate above
+reads it, and no host is told about that: a window it could see is one
+synchronous call wide, and there is nothing to do inside one.
+
+**A third value would buy less than it costs.** `transitioning`, meaning the
+tour is between things, has to be kept honest about a morph in flight, and that
+is a field for the morph the presenter is running, two events to move it, a
+phase of its own, and a rule about which of two writers may take that phase off
+again. What a host gets for it is the chance to grey out a control for 320ms
+while every call it could make still works.
 
 **A teardown says `idle`, and the gate is still shut.** `end` empties the
 position before it calls anything, so a handler reading `state` from inside its
@@ -889,29 +893,29 @@ into. The phase underneath is still closed, which is what refuses a `start()`
 made from in there.
 
 **Nothing can forget to write an answer that nobody stores.** Before adding a
-field here, check whether it is a third way of saying what two fields already
+field here, check whether it is a third way of saying what the fields already
 say.
 
-**Everything the machine knows is one value.** Four fields in `plan.ts` as
-`Core`: where the tour is, the phase, the words of the last failed attempt, and
-the morph the presenter is running. The class holds one `#core` and one `commit`
-that writes it, and every event is answered with the whole of the next `Core`
-rather than with a field to set.
+**Everything the machine knows is one value.** Three fields in `plan.ts` as
+`Core`: where the tour is, the phase, and the words of the last failed attempt.
+The class holds one `#core`, and every event is answered with the whole of the
+next `Core` rather than with a field to set.
 
-**None of the four is a list of stories.** `start` is handed the one it is to
+**None of the three is a list of stories.** `start` is handed the one it is to
 run, so there is nothing to look up and nothing to keep between runs. The state
 is what a tour is doing, and the stories a project happens to have written are
-not that. `packages/machine/model/machine.qnt` has the same four.
+not that. `packages/machine/model/machine.qnt` has the same three.
 
-**None of the four is there to be handed back.** A field the machine keeps only
+**None of the three is there to be handed back.** A field the machine keeps only
 so that a hook can read it is a field two places have to agree about. Where a
-host can keep it and cannot get it wrong, the host keeps it.
+host can keep it and cannot get it wrong, the host keeps it. The morph the
+presenter is running would be such a field, and the only thing that could read
+it is `state`.
 
 **A move is written where it is decided.** `plan.ts` holds the shape, the
 readings taken off it, and then one spread per case. Giving each of those a name
 of its own bought a second vocabulary for the same set of transitions, so a
-reader had to know that the `shown` event calls `settling()` and the `settled`
-event calls `settled()`. One vocabulary is the event names.
+reader had to learn both. One vocabulary is the event names.
 
 **The machine is three files.** `types.ts` is what a host brings and what a
 presenter owes. `plan.ts` is the state and what an event does to it, and it is
@@ -958,40 +962,27 @@ runs there, before stop returns* pins that down. A queue would also have to tell
 a host's `start` apart from a `drawn` the machine owes itself, which is a
 distinction nothing in `plan.ts` has to make today.
 
-## Watching `state`
+## There is nothing to subscribe to
 
-`watch(listener)` says when `state` changed and hands back the way to stop. With
-`state` itself as the snapshot, that is both halves of a React
-`useSyncExternalStore`. Without it a host that wants to disable its own controls
-while the tour is between things has to read `state` on a timer, because
-`onStep` fires when the tour arrives somewhere and `state` moves twice that no
-arrival explains: a morph landing, and a target being looked for again.
+`state` is a getter and there is no `watch`. Every crossing of it is a crossing
+`onStep` already reports: it fires when a step goes up and again when the run
+ends with `step` as `undefined`, and a story being on is exactly the difference
+between those two.
 
-**It fires on the derived value, not on the fields it is read from.** `settling`
-to `ready` is a crossing a watcher should hear. `story` to `step` is not, and
-neither is a call that wrote a field the answer does not depend on.
+```ts
+createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
+```
 
-**One call per turn.** `enter` writes the phase twice on its way to a step that
-is not on screen yet, and a story handing the tour on commits three times before
-the story that follows is up. A watcher told
-about each write would see a flicker that never existed for anybody, so the
-answer is compared with what it was when the turn started and reported only if
-the two differ. A run that starts and settles inside one turn says `running`
-once.
+That is the `subscribe` half of a React `useSyncExternalStore`, with `state` as
+the snapshot, and it carries which step went up as well.
 
-**Nothing is called from inside a machine operation.** A watcher is application
-code, and one calling `stop()` would be doing it half way through an arrival,
-which is the reentrancy the gate above exists to keep out. The call goes in a
-microtask, which is after the operation and still before the next task.
-
-**It carries the state and nothing else.** `onStep` carries the step and the one
-before it. A watcher carrying both would be one hook doing two jobs, and a
-listener could not tell which of them woke it.
-
-The notify has one place to live. Every field the machine holds is replaced
-through `commit`, and `commit` is what calls it, so a new write cannot forget to
-announce itself. That is the same bargain `state` being derived struck, one
-level up.
+A `watch(listener)` needs three things: a notify in the one place the state is
+written, a microtask so that no listener runs inside a machine operation, and a
+comparison against the value the turn opened with, or a story handing the tour
+on reports three times for one move. What it would be for is the crossings
+`onStep` does not mention, and there are none. A morph landing and a target
+being looked for again are the two that would qualify, and the machine is told
+about neither.
 
 ## Gathering the vocabulary from the call sites
 

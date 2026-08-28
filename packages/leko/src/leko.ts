@@ -17,6 +17,14 @@ export class Leko {
     this.machine = new Machine<LekoWorld>(options, (host) => new DomPresenter(options, host))
   }
 
+  /**
+   * Whether a story is running.
+   *
+   * A snapshot, and there is nothing to subscribe to. Every crossing of this is
+   * a crossing {@link LekoOptions.onStep} already reports:
+   * `onStep: (step) => setTourRunning(step !== undefined)` is a `useSyncExternalStore`
+   * away from a React host, and it is told about every step as well.
+   */
   get state(): LekoState {
     return this.machine.state
   }
@@ -123,31 +131,6 @@ export class Leko {
    */
   reached(name: LekoSignal): void {
     this.machine.reached(name)
-  }
-
-  /**
-   * Be told when {@link state} changes, and get back the way to stop.
-   *
-   * ```ts
-   * const stop = leko.watch((state) => setBusy(state === 'transitioning'))
-   * ```
-   *
-   * `state` moves in ways {@link LekoOptions.onStep} never mentions: a morph
-   * landing, a story's `onEnter` in flight before any step exists, a target
-   * that left the page and is being looked for again. The tour has not moved in
-   * any of them, so nothing is reported and a host reading `state` on a timer
-   * is what is left without this.
-   *
-   * It fires once per turn and only where the answer changed, so a run that
-   * starts and settles in the same turn says `running` once rather than
-   * flickering through what it passed on the way. The call lands in a
-   * microtask, after whatever moved the tour has finished with it.
-   *
-   * With {@link state} as the snapshot, this is the `subscribe` half of a React
-   * `useSyncExternalStore`.
-   */
-  watch(watcher: (state: LekoState) => void): () => void {
-    return this.machine.watch(watcher)
   }
 
   /**

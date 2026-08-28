@@ -222,7 +222,7 @@ anything else on the machine.
 retried for 100ms before it is said, and the presenter redraws nothing while
 that runs, so a wait too short to act on never reaches the machine at all.
 
-## The four fields in the machine
+## The three fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
@@ -230,18 +230,17 @@ disagreeing about where the tour was.
 | Field | Holds |
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | How far along the machine is. `story`, `step`, `ending`, `settling` or `ready` |
+| `phase` | Which window the machine is in. `story`, `step`, `ending` or `ready` |
 | `error` | What the last attempt at this step was told was wrong |
-| `showing` | Whatever `show` last handed back, so an interrupted morph can tell |
 
-All four are `Core` in `plan.ts`, replaced together rather than written one at a
-time, and `commit` in `machine.ts` is the only thing that writes one. There is
-no list of stories among them: `start` is handed the one it is to run, so there
-is nothing to look up and nothing to keep between runs. There is nothing a hook
-reads either: a field the machine keeps only so a host can be handed it is a
-field two places have to agree about.
+All three are `Core` in `plan.ts`, replaced together rather than written one at
+a time, and `dispatch` in `machine.ts` is the only thing that writes one. There
+is no list of stories among them: `start` is handed the one it is to run, so
+there is nothing to look up and nothing to keep between runs. There is nothing
+a hook reads either: a field the machine keeps only so a host can be handed it
+is a field two places have to agree about.
 
-These four and the six values of `phase` are written down again, as a state
+These three and the four values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
@@ -250,35 +249,29 @@ Read [that directory's README](packages/machine/model/README.md) before changing
 either half, because a model that has drifted away from the code is worse than
 no model.
 
-`watch` adds two more, and they are about telling somebody rather than about the
-tour: `watchers` holds the listeners, and `before` holds what `state` read when
-this turn first wrote to `position` or `phase`. `commit` is the only thing that
-writes the core, and `commit` is what raises the notification, so no write can
-forget to announce itself.
-
-`state` is derived rather than stored.
+`state` is derived rather than stored, and it reads one of the three.
 
 ```ts
-export const stateOf = <S, St>(core: Core<S, St>): MachineState => {
-  if (core.position === undefined) return 'idle'
-  return core.phase === 'ready' ? 'running' : 'transitioning'
-}
+export const stateOf = <W extends World>(core: Core<W>): MachineState =>
+  core.position === undefined ? 'idle' : 'running'
 ```
 
 It used to be a field called `currentState`, written at the handful of places
-that knew it had changed. One of them did not know, and left `transitioning` on
-a tour that was never going to settle, so a host could not tell a slow step from
-a stuck one. The suite asserted `state` 26 times before that fix and every one
-of them sat somewhere the write did happen.
+that knew it had changed. One of them did not know, and left the wrong answer on
+a tour that was never going to settle. The suite asserted `state` 26 times
+before that fix and every one of them sat somewhere the write did happen.
 
 Nothing can forget to write an answer that nobody stores. If you add a field
-here, ask whether it is a third way of saying something two fields already say.
+here, ask whether it is a second way of saying something a field already says.
+There is no `watch` for the same reason one field is enough: `onStep` fires when
+a step goes up and again when the run ends, and a story being on is the
+difference between those two.
 
 `accepting` is the pattern to learn. It is in `plan.ts` beside `stateOf`.
 
 ```ts
-export const accepting = <S, St>(core: Core<S, St>): boolean =>
-  core.phase === 'ready' || core.phase === 'settling'
+export const accepting = <W extends World>(core: Core<W>): boolean =>
+  core.phase === 'ready'
 ```
 
 Every call into the application is a window where the tour could be taken
@@ -288,9 +281,9 @@ world moved, the machine refuses to act inside the window at all, so there is
 nothing to check. The `reached`, `start`, `pressed` and `moved` events all ask
 this first, in `plan.ts`.
 
-`settling` is not one of those windows. A morph is a step that arrived and is
-still moving. The machine is not inside anything while it runs, so a call means
-what it says and goes through.
+A morph is not one of those windows, and the machine is not told one is running.
+A step is on screen the moment `show` returns, so a call made while the drawing
+is still moving means what it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A handler that has decided
 the tour should not go on has nowhere else to go. So every event that can land
@@ -411,7 +404,7 @@ DESIGN.md says so under
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |
 
-`Target` and the three state literals are written out twice, in
+`Target` and the two state literals are written out twice, in
 `@annetaan/leko` and in the package underneath it. That is deliberate while
 those packages are private, and DESIGN.md explains it under
 [Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).

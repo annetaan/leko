@@ -686,8 +686,8 @@ export type LekoProblem =
    */
   | { kind: 'tour-running'; story: LekoStory; running: LekoStory }
   /**
-   * A step's target was not on the page and did not come back within two
-   * seconds, so the run stopped.
+   * A step's target was not on the page and did not come back within 100ms, so
+   * the run stopped.
    *
    * A loss is given that long because a framework replacing a node with an
    * identical one disconnects the old one, and the tour should not end because
@@ -699,11 +699,16 @@ export type LekoProblem =
   | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
 
 /**
- * `idle` — no story running. `reached()` is a no-op.
- * `running` — a step is currently displayed.
- * `transitioning` — the tour is between things, with nothing settled: a morph
- * still running, or a target that has left the page and is being looked for
- * again. A step with no target that is waiting for its signal is `running`,
- * because it is drawn and still.
+ * Whether a story is running.
+ *
+ * `idle` — none is. `reached()` is a no-op, and so is `stop()`.
+ * `running` — one is, from the moment `start()` accepts it until the ending is
+ * reported. It says nothing about what the screen is doing: a step still
+ * animating in, a target being looked for again, and a step waiting for its
+ * signal are all `running`, because in every one of them a story is on.
+ *
+ * {@link LekoOptions.onStep} reports the same fact, with the step that changed.
+ * `onStep: (step) => setTourRunning(step !== undefined)` is the whole of what a
+ * host needs to stand back while a tour is up.
  */
-export type LekoState = 'idle' | 'running' | 'transitioning'
+export type LekoState = 'idle' | 'running'

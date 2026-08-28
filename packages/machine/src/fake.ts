@@ -48,9 +48,9 @@ export const PAGE = ['first', 'second', 'third', 'target']
  * Stands in for whatever draws the tour, and keeps a note of what it was asked
  * for.
  *
- * It settles in the turn it was called in, which is what a presenter with
- * nothing to animate does. {@link Fake.slow} makes it wait instead, so the gap
- * between a step arriving and a step settling can be looked at.
+ * Nothing here is asynchronous, and nothing needs to be. The machine hands a
+ * step over and is done with it, so how long a real presenter takes to finish
+ * drawing is not something a test of the machine can observe.
  */
 export class Fake implements Presenter<Fixture> {
   readonly page = new Set(PAGE)
@@ -60,10 +60,8 @@ export class Fake implements Presenter<Fixture> {
   content: Content | undefined
   /** Every retell, so a test can ask which step got rewritten, and with what. */
   readonly retold: { step: string; content: Content }[] = []
-  slow = false
   rejected = 0
   torn = 0
-  private settle: (() => void) | undefined
 
   constructor(private readonly host: Host<Fixture>) {}
 
@@ -71,21 +69,13 @@ export class Fake implements Presenter<Fixture> {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
-    // No searching here. A presenter that gives a missing target time to appear
+  show(step: Step, anchor: Anchor | null, content: Content): void {
+    // No retrying here. A presenter that gives a missing target time to appear
     // is answering a drawing question, and the machine is not asked about it
     // until the answer is in.
     if (anchor === null) return this.host.lost(step)
     this.shown.push(step.id)
     this.content = content
-    // Whatever was in flight is interrupted and settles all the same, which is
-    // what a real morph does rather than hanging.
-    this.settle?.()
-    this.settle = undefined
-    if (!this.slow) return
-    return new Promise<void>((resolve) => {
-      this.settle = resolve
-    })
   }
 
   place(step: Step, _anchor: Anchor | null, content: Content): void {
@@ -104,12 +94,6 @@ export class Fake implements Presenter<Fixture> {
 
   teardown(): void {
     this.torn += 1
-  }
-
-  /** The morph reached the end, the way a real one does after 320ms. */
-  land(): void {
-    this.settle?.()
-    this.settle = undefined
   }
 
   /**

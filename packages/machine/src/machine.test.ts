@@ -80,18 +80,6 @@ function watched(story: Story, options: Omit<Options, 'onStep'> = {}) {
   return { tour, seen }
 }
 
-/**
- * Empty the microtask queue, which is where a watcher is called.
- *
- * Three, because a settling morph takes one to reach the `then` in `draw`, the
- * write in there takes another to reach the microtask `announce` queues, and
- * the third is slack. There is no `setTimeout` in this package: it takes no
- * `lib.dom`, and a test is not a reason to start.
- */
-const turn = async (): Promise<void> => {
-  for (let i = 0; i < 3; i += 1) await Promise.resolve()
-}
-
 /** A promise the test settles by hand, so the gap can be looked at. */
 function held(): { promise: Promise<void>; settle: () => void } {
   let settle!: () => void
@@ -752,25 +740,6 @@ describe('what the tour says it is doing', () => {
   // the tour has already walked away from, and every one of them was green here
   // with the rule they are about taken out of `machine.ts`.
 
-  test('interrupting a draw does not mark the next step as already settled', async () => {
-    const tour = staging({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second' },
-      ],
-    })
-    drawing().slow = true
-
-    begin(tour, 'story')
-    press(tour) // while the first step is still on its way
-    await Promise.resolve()
-
-    // The interrupted one settles too, and used to hand 'running' to a step that
-    // had not arrived yet.
-    expect(tour.state).toBe('transitioning')
-  })
-
   test('a target that is not there ends the run, whatever a host would prefer', () => {
     const problems: Problem<Fixture>[] = []
     const tour = staging(
@@ -805,83 +774,6 @@ describe('what the tour says it is doing', () => {
         },
       },
     ])
-  })
-
-  test('watching state hears every crossing, and only the crossings', async () => {
-    const seen: string[] = []
-    const tour = staging({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first', awaits: 'saved' },
-        { id: 'b', target: 'second' },
-      ],
-    })
-    drawing().slow = true
-    tour.watch((state) => seen.push(state))
-
-    begin(tour, 'story')
-    await turn()
-
-    // One call for a turn that wrote `phase` three times on its way to a step
-    // that has not settled. A watcher told about each write would see a flicker
-    // that never existed for anybody.
-    expect(seen).toEqual(['transitioning'])
-
-    drawing().land()
-    await turn()
-
-    expect(seen).toEqual(['transitioning', 'running'])
-
-    // A name nothing waits for moves nothing, so there is nothing to say.
-    tour.reached('unrelated')
-    await turn()
-
-    expect(seen).toEqual(['transitioning', 'running'])
-  })
-
-  test('a run that starts and settles in one turn says running once', async () => {
-    const seen: string[] = []
-    const tour = staging({ id: 'story', steps: [{ id: 'a', target: 'first' }] })
-    tour.watch((state) => seen.push(state))
-
-    begin(tour, 'story')
-    await turn()
-
-    expect(tour.state).toBe('running')
-    expect(seen).toEqual(['running'])
-
-    tour.stop()
-    await turn()
-
-    expect(seen).toEqual(['running', 'idle'])
-  })
-
-  test('watching stops when the unsubscribe is called, from inside or outside', async () => {
-    const seen: string[] = []
-    const tour = staging({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second' },
-      ],
-    })
-    const stop = tour.watch((state) => {
-      seen.push(state)
-      // From inside itself, which is why the set is copied before it is walked.
-      if (state === 'idle') stop()
-    })
-
-    begin(tour, 'story')
-    await turn()
-    tour.stop()
-    await turn()
-
-    expect(seen).toEqual(['running', 'idle'])
-
-    begin(tour, 'story')
-    await turn()
-
-    expect(seen).toEqual(['running', 'idle'])
   })
 
   test('a target lost on a step the tour has left does not end the run', () => {
@@ -928,10 +820,13 @@ describe('what the tour says it is doing', () => {
     expect(seen).toEqual([undefined])
   })
 
-  test('a step still arriving says transitioning, whatever its handlers answered', () => {
+  test('a handler is told the tour is running, and the gate is shut all the same', () => {
     const seen: string[] = []
     const tour = staging({
       id: 'story',
+      onEnter: () => {
+        seen.push(`story:${tour.state}`)
+      },
       steps: [
         {
           id: 'a',
@@ -952,26 +847,11 @@ describe('what the tour says it is doing', () => {
     begin(tour, 'story')
     press(tour)
 
-    // Both are calls into the application, made with `b` not built, not
-    // measured and never drawn. Only a handler that returned a promise used to
-    // put the machine in `transitioning`, so a tour whose handlers answered on
-    // the spot said `running` about a step the presenter had never been given.
-    expect(seen).toEqual(['onLeave:transitioning:b', 'onEnter:transitioning:b'])
-    expect(tour.state).toBe('running')
-  })
-
-  test('a story still arriving says transitioning while its own onEnter runs', () => {
-    const seen: string[] = []
-    const tour = staging({
-      id: 'story',
-      steps: [{ id: 'a', target: 'first' }],
-      onEnter: () => {
-        seen.push(tour.state)
-      },
-    })
-    begin(tour, 'story')
-
-    expect(seen).toEqual(['transitioning'])
+    // `state` answers one question: is a story running. One is, from the moment
+    // `start()` finds a story with steps in it, and the position already names
+    // the step being entered. Whether a call made from in here is acted on is
+    // the gate's question and not this one, and the group below asks it.
+    expect(seen).toEqual(['story:running', 'onLeave:running:b', 'onEnter:running:b'])
     expect(tour.state).toBe('running')
   })
 
@@ -1599,26 +1479,6 @@ describe('a call that arrives while the machine is inside the application', () =
     // the last step, so that is the end of the run.
     tour.reached('ready')
     expect(tour.state).toBe('idle')
-  })
-
-  test('a morph is not an arrival, and every call goes through one', () => {
-    const tour = staging({
-      id: 'story',
-      steps: [
-        { id: 'a', target: 'first' },
-        { id: 'b', target: 'second' },
-      ],
-    })
-    drawing().slow = true
-    begin(tour, 'story')
-
-    // Drawn, on screen, and still moving. Dropping a call here would be the
-    // library deciding the user did not mean the button they pressed.
-    expect(tour.state).toBe('transitioning')
-    press(tour)
-
-    expect(tour.step?.id).toBe('b')
-    expect(drawing().shown).toEqual(['a', 'b'])
   })
 })
 

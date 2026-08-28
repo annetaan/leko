@@ -65,7 +65,6 @@ interface Snapshot {
   position: Pos | undefined
   phase: string
   hasError: boolean
-  showing: number | undefined
   drawn: Pos | undefined
   presenterUp: boolean
   /**
@@ -76,7 +75,6 @@ interface Snapshot {
    * that happened *during* that call, which is the whole of why they are here.
    */
   leaving: Set<number>
-  slow: boolean
   /** Which way the action went. See `mark` in the model. */
   mark: string
 }
@@ -100,18 +98,15 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     position: maybe(m['position'], pos),
     phase: tag(m['phase']),
     hasError: m['hasError'] as boolean,
-    showing: maybe(m['showing'], int),
     drawn: maybe(m['drawn'], pos),
     presenterUp: m['presenterUp'] as boolean,
     leaving,
-    slow: m['slow'] as boolean,
     mark: m['mark'] as string,
   }
 }
 
 /** `Machine.state`, derived the way the model derives it. */
-const stateOf = (s: Snapshot): string =>
-  s.position === undefined ? 'idle' : s.phase === 'Ready' ? 'running' : 'transitioning'
+const stateOf = (s: Snapshot): string => (s.position === undefined ? 'idle' : 'running')
 
 // ------------------------------------------------------------------- the world
 //
@@ -141,7 +136,6 @@ const REASON = 'not yet'
 /** One call the trace says arrived while the machine was inside a teardown. */
 interface Windowed {
   now: Snapshot
-  before: Snapshot
   where: string
 }
 
@@ -285,8 +279,8 @@ const observe = (run: Run): Observed => ({
 const stepOf = (run: Run, at: Pos): Step => run.stories.get(at.story)!.steps[at.index]!
 
 /** Make the call this state of the trace says was made. */
-async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void> {
-  makeCall(run, now, before)
+async function dispatch(run: Run, now: Snapshot): Promise<void> {
+  makeCall(run, now)
   await turn()
 }
 
@@ -297,7 +291,7 @@ async function dispatch(run: Run, now: Snapshot, before: Snapshot): Promise<void
  * anything: the machine is part way through one of its own operations and the
  * microtask queue does not run until it is finished.
  */
-function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
+function makeCall(run: Run, now: Snapshot): void {
   const { picks } = now
   switch (now.action) {
     case 'doStart':
@@ -318,12 +312,6 @@ function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
       break
     case 'doLose':
       run.fake.lose(stepOf(run, pos(picks['losePick']!)))
-      break
-    case 'doSetSlow':
-      run.fake.slow = picks['slowPick'] as boolean
-      break
-    case 'doSettle':
-      settle(run, picks['settlePick']!, before)
       break
     case 'doLeave':
       // Not a call at all. `end` runs its handlers and its report inside
@@ -346,13 +334,14 @@ function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
  */
 function drain(run: Run): void {
   // Only from inside a teardown. `end` empties the position before it calls
-  // anything, so a handler asking where the tour is gets `idle`; the `onLeave`
-  // of a step being walked away from gets `transitioning` and is not this.
+  // anything, so a handler asking where the tour is gets `idle`. The `onLeave`
+  // of a step the tour is merely walking away from gets `running`, because a
+  // story is still on, and it is not this.
   if (run.window.length === 0 || run.tour.state !== 'idle') return
-  for (const { now, before, where } of run.window.splice(0)) {
+  for (const { now, where } of run.window.splice(0)) {
     const seen = observe(run)
     const problems = run.problems.length
-    makeCall(run, now, before)
+    makeCall(run, now)
     // Every one of them is refused, finds nothing to act on, or is a knob on
     // the world. What has to be true is that not one of them moved anything.
     expect(observe(run), `${where}: a call moved the machine during a teardown`).toEqual(seen)
@@ -360,21 +349,6 @@ function drain(run: Run): void {
       expect(run.problems.length, `${where}: refused in silence`).toBe(problems + 1)
     }
   }
-}
-
-/**
- * Land the morph the trace says landed.
- *
- * A morph is the only thing the machine waits on. No `onEnter` hands anything
- * back, so nothing else can be outstanding.
- */
-function settle(run: Run, callback: Itf, before: Snapshot): void {
-  const body = payload(callback) as { token: Itf }
-  // The model keeps a morph outstanding until something settles it. `Fake`
-  // resolves the one it is holding the moment the next `show` starts, so by
-  // here a stale token has already landed and done nothing. Landing the
-  // current morph would then be landing the wrong one.
-  if (before.showing === int(body.token)) run.fake.land()
 }
 
 // ---------------------------------------------------------------- the checking
@@ -553,12 +527,12 @@ describe('every trace the model found', () => {
             last += 1
             const inner = states[last]!
             if (inner.action === 'doLeave') continue
-            run.window.push({ now: inner, before: states[last - 1]!, where: nameOf(last) })
+            run.window.push({ now: inner, where: nameOf(last) })
           }
         }
         const queued = run.window.length
 
-        await dispatch(run, opening, before)
+        await dispatch(run, opening)
 
         expect(run.window, `${nameOf(index)}: the teardown ran no handler`).toHaveLength(0)
         if (queued > 0) exercised.teardownCalls += queued
@@ -586,7 +560,7 @@ describe('every trace the model found', () => {
         //    nothing, and neither does a report about a step it has walked away
         //    from. `position` is replaced on every move and on nothing else, so
         //    holding the object is holding the step occurrence.
-        if (['morph-stale', 'lose-stale'].includes(now.mark)) {
+        if (now.mark === 'lose-stale') {
           expect(observe(run), `${where}: something the tour had left moved it`).toEqual(seenBefore)
         }
         // An unmatched `reached()` is free and silent, permanently, because

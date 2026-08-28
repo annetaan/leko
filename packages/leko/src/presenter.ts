@@ -124,12 +124,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * drawn again without the machine being told anything happened.
    */
   private drawn: { step: LekoStep; content: Content } | undefined
-  /**
-   * The retry that is running, if one is: its deadline, and the end of the wait
-   * it handed back. One value rather than two fields, because either of them
-   * set without the other is a state nothing has a name for.
-   */
-  private retrying: { until: ReturnType<typeof setTimeout>; settle: () => void } | undefined
+  /** The deadline on a target that is not on the page, while one is running. */
+  private retrying: ReturnType<typeof setTimeout> | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
@@ -306,12 +302,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     })
   }
 
-  show(
-    step: LekoStep,
-    anchor: HTMLElement | null,
-    content: Content,
-    animate: boolean,
-  ): Promise<void> | void {
+  show(step: LekoStep, anchor: HTMLElement | null, content: Content, animate: boolean): void {
     // Whatever was being waited for, the tour is somewhere else now. Dropped
     // here rather than left to run, so a target that turns up late is not drawn
     // over the step this call is about. It is also what leaves {@link retry}
@@ -321,7 +312,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // renders a moment after its `onEnter` returned is as much as one whose
     // target has gone. A step that named nothing is not looked for.
     if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, content, animate)
-    return this.reveal(step, anchor, content, animate)
+    this.reveal(step, anchor, content, animate)
   }
 
   /**
@@ -336,7 +327,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     anchor: HTMLElement | null,
     content: Content,
     animate: boolean,
-  ): Promise<void> | void {
+  ): void {
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
@@ -403,13 +394,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
       this.say(step, content)
       return
     }
-    // Nothing back where the morph was interrupted. Another one starting is the
-    // only thing that interrupts this, and the machine let go of the promise
-    // this call handed back to begin it, so the settlement below is dropped
-    // there either way.
-    return morphing.then((finished) => {
-      if (!finished) return
-      this.say(step, content)
+    // The message comes back with the hole it belongs beside, and only if the
+    // morph got there. Another arrival starting is the only thing that
+    // interrupts one, and that arrival is drawing its own step already.
+    void morphing.then((finished) => {
+      if (finished) this.say(step, content)
     })
   }
 
@@ -476,7 +465,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // been delivered, and an observer hears nothing about the past. So the
       // selector is run here, and a re-render costs a morph and nothing else.
       const back = this.resolve(held.step)
-      if (back) return void this.show(held.step, back, held.content, true)
+      if (back) return this.show(held.step, back, held.content, true)
       // Nothing is holding what this hands back. The machine hears about this
       // wait only if it runs out, and then it hears `lost`.
       this.retry(held.step, held.content, true)
@@ -519,39 +508,33 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * through. Found in time, the step is drawn again and nothing about the tour
    * has changed. Not found, `Host.lost` means what it has always meant.
    *
+   * **Nothing is handed back and nobody is waiting.** As far as the machine is
+   * concerned the step is on screen, and it is: what is on screen is whatever
+   * this was showing a moment ago. `Host.lost` is the only part of this the
+   * machine ever hears.
+   *
    * Only one of these can be running. Every call into {@link show} ends the
    * last one, and the observer that starts the other one is armed only while
    * none is.
    */
-  private retry(step: LekoStep, content: Content, animate: boolean): Promise<void> | void {
+  private retry(step: LekoStep, content: Content, animate: boolean): void {
     this.watch(() => {
       const found = this.resolve(step)
-      if (found) void this.show(step, found, content, animate)
+      if (found) this.show(step, found, content, animate)
     })
-    // Handed back, so an arrival that came in here has something to wait on. A
-    // tour waiting for a target to turn up is between things in the same way a
-    // tour waiting for a morph is. A retry entered from the observer above is
-    // not holding anybody, and nothing is waiting on what it gives back.
-    return new Promise<void>((settle) => {
-      this.retrying = {
-        settle,
-        until: setTimeout(() => {
-          this.endRetry()
-          this.host.lost(step)
-        }, RETRY),
-      }
-    })
+    this.retrying = setTimeout(() => {
+      this.endRetry()
+      this.host.lost(step)
+    }, RETRY)
   }
 
   /** End the retry, whichever way it went. The observer is armed again by whatever draws next. */
   private endRetry(): void {
-    const retrying = this.retrying
-    if (!retrying) return
+    if (this.retrying === undefined) return
+    clearTimeout(this.retrying)
     this.retrying = undefined
-    clearTimeout(retrying.until)
     this.watcher?.disconnect()
     this.watcher = undefined
-    retrying.settle()
   }
 
   /**

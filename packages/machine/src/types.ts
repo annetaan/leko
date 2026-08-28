@@ -78,7 +78,7 @@ export interface StoryBase<W extends World> {
   onLeave?(story: W['story'], next: W['story'] | undefined): void
 }
 
-export type MachineState = 'idle' | 'running' | 'transitioning'
+export type MachineState = 'idle' | 'running'
 
 /**
  * Something a call meant to do and did not, with no other symptom. A `reached()`
@@ -125,21 +125,16 @@ export interface Presenter<W extends World> {
    */
   resolve(step: W['step']): W['anchor'] | null
   /**
-   * Draw the step, and hand back something that settles once it has arrived.
-   * Nothing back means it is there already and the step settles in this turn.
+   * Draw the step. **Nothing is handed back and nothing waits for this.** The
+   * step is on screen as far as the machine is concerned the moment this
+   * returns, and how long the drawing takes to settle is the presenter's own
+   * business.
    *
    * A `null` anchor is handed over all the same. What a missing target means is
    * a drawing question, so a presenter may give it time and report
-   * {@link Host.lost} once it has given up. One interrupted part way through may
-   * settle late or never, and the machine lets go of this the moment another
-   * arrival begins.
+   * {@link Host.lost} once it has given up.
    */
-  show(
-    step: W['step'],
-    anchor: W['anchor'] | null,
-    content: Content,
-    animate: boolean,
-  ): Promise<void> | void
+  show(step: W['step'], anchor: W['anchor'] | null, content: Content, animate: boolean): void
   /** Put it where it belongs now, without animating: the surface moved, not the tour. */
   place(step: W['step'], anchor: W['anchor'] | null, content: Content): void
   /** The words changed and nothing moved. */
