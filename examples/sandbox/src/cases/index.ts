@@ -9,7 +9,6 @@ import { lookThenUse } from './look-then-use.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
-import { signalTooEarly } from './signal-too-early.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
@@ -28,7 +27,6 @@ export const cases: Case[] = [
   asyncCompletion,
   stepSetup,
   storySetup,
-  signalTooEarly,
   twoStories,
   branching,
   adjacentColumns,

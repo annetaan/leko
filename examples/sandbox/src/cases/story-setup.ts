@@ -6,6 +6,7 @@ import { at, html, type Case } from '../case.js'
  * steps — which is what having no `meta` on a step is for.
  */
 const CHAPTERS: Record<string, string> = {
+  loading: 'The draft',
   lines: 'The draft',
   quantity: 'The draft',
   submit: 'Sending it',
@@ -17,22 +18,26 @@ const CHAPTERS: Record<string, string> = {
 // that decides where it goes: a story's `onLeave` runs when the run ends, and
 // the first step's runs the moment the tour reaches the second, with the rows
 // still in use.
+//
+// Set by `mount`, which is where the instance to report to is.
 const EMPTY = '<tr><td colspan="2" class="hint">No draft loaded.</td></tr>'
 const DRAFT = `
   <tr><td>Enclosure, 2U</td><td>4</td></tr>
   <tr><td>Rail kit</td><td>4</td></tr>
 `
+let loadDraft: () => Promise<void> = async () => {}
 
 export const storySetup: Case = {
   id: 'story-setup',
   title: 'A story that sets its own scene',
 
   proves:
-    'The story onEnter runs before the first step exists and is waited for, ' +
-    'and onLeave clears up after the last one. Chapters are a table this page ' +
-    'keys by step id; Leko has no concept of one.',
+    'The story onEnter runs before the first step exists, a step with no ' +
+    'target holds the page while the load finishes, and onLeave clears up ' +
+    'after the last one. Chapters are a table this page keys by step id; Leko ' +
+    'has no concept of one.',
 
-  mount(root) {
+  mount(root, leko) {
     const panel = html(`
       <div class="panel">
         <h2>Draft order</h2>
@@ -50,6 +55,15 @@ export const storySetup: Case = {
       </div>
     `)
     root.append(panel)
+
+    // The application's own function. It reports what happened when it
+    // happened, and knows nothing about which step is showing.
+    loadDraft = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      at('[data-rows]').innerHTML = DRAFT
+      leko.reached('draft-loaded')
+    }
+
     return () => panel.remove()
   },
 
@@ -57,12 +71,11 @@ export const storySetup: Case = {
     {
       id: 'story-setup',
 
-      // Nothing below runs until this settles — not the first step's own
-      // onEnter, and not resolving its target. The 600ms is whatever the
-      // application really does: a fetch, a seed, a session.
-      onEnter: async () => {
-        await new Promise((resolve) => setTimeout(resolve, 600))
-        at('[data-rows]').innerHTML = DRAFT
+      // Runs before the first step is entered, and hands nothing back. Leko
+      // waits for no handler, so a load that has to finish before anything is
+      // measured is started by the step that waits for it rather than here.
+      onEnter: () => {
+        at('[data-chapter]').textContent = '—'
       },
 
       // The matching half, and the reason it is worth having one place for
@@ -77,14 +90,26 @@ export const storySetup: Case = {
 
       steps: [
         {
+          // No target, so the page goes under with no hole in it. The tour is
+          // drawn and still here rather than between things, which is why a
+          // `reached()` landing now is acted on instead of dropped.
+          id: 'loading',
+          message: 'Loading the draft order…',
+          awaits: 'draft-loaded',
+          // The wait starts the work it waits for, so the report cannot arrive
+          // before the step that names it.
+          onEnter: () => void loadDraft(),
+        },
+        {
           id: 'lines',
           // Both rows, as one cutout. The sentence below says rows, and a
           // selector matching several takes the first, so naming the two
           // corners is what makes the screen agree with the message.
           target: [['[data-rows] tr:first-child', '[data-rows] tr:last-child']],
           message:
-            'These rows did not exist when Start was pressed. The story ' +
-            'loaded them and waited before anything was measured.',
+            'These rows did not exist when Start was pressed. The step ' +
+            'before this one loaded them and waited before anything was ' +
+            'measured.',
         },
         {
           id: 'quantity',

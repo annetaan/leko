@@ -25,13 +25,12 @@ afterEach(() => {
 })
 
 /**
- * Duration 0 and no curtain unless a test says otherwise. These are about what
- * ends up on screen rather than how long it took to get there, and a curtain
- * that came down because a machine was busy for 250ms would put a scrim into
- * assertions that are not about one.
+ * Duration 0 unless a test says otherwise. These are about what ends up on
+ * screen rather than how long it took to get there, and a morph still running
+ * would put a half-drawn hole into assertions that are not about one.
  */
 export function instance(options: LekoOptions = {}) {
-  const leko = createLeko({ duration: 0, curtain: false, ...options })
+  const leko = createLeko({ duration: 0, ...options })
   instances.push(leko)
   return leko
 }

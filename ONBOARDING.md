@@ -52,10 +52,10 @@ Fifteen cases sit in the left rail. Take them in this order on the first day.
    story cannot be entered part way through, so the shared part is a story
    rather than a step two paths point at. Watch the footer counter, then press
    the way out on a branch and watch the summary not open.
-5. **signal-too-early**. Press Send and read the footer. The application
-   reported something true while the step waiting for it was still being built,
-   and the call was dropped. This is the one case where the interesting thing
-   is what did *not* happen.
+5. **step-setup**. Press Next and watch the page go under with no hole in it.
+   That is a step with no `target`: it opened the section, started the fetch,
+   and named the signal it is waiting for. Leko waits for no handler, so a wait
+   is a step somebody can read in the story.
 
 Every case states in one sentence what it proves. Read that line before you
 drive the case.
@@ -195,10 +195,10 @@ This is the trace worth walking with the files open. The application calls
 | 1 | `leko.ts` `Leko.reached` | Hands the name straight to the machine |
 | 2 | `machine.ts` `reached` | Hands the name to `dispatch` and does nothing else |
 | 3 | `plan.ts` the `reached` event | Reads the current step. If `step.awaits !== name` it answers with nothing whatsoever, silently. Most calls end here. A name that matched and arrived while the phase was closed is dropped and reported |
-| 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the `hold`, the last step's `onLeave` and this step's `onEnter` |
+| 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `show`, then `reveal` | Pays out whatever the curtain still owes, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers |
+| 7 | `presenter.ts` `show`, then `reveal` | Pays out whatever a search's curtain still owes, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
@@ -267,11 +267,10 @@ export const stateOf = <S, St>(core: Core<S, St>): MachineState => {
 ```
 
 It used to be a field called `currentState`, written at the handful of places
-that knew it had changed. One of them did not know. A target lost after a slow
-`onEnter` left `transitioning` on a tour that was never going to settle, and
-a host could not tell a slow step from a stuck one. The suite asserted `state`
-26 times before that fix and every one of them sat somewhere the write did
-happen.
+that knew it had changed. One of them did not know, and left `transitioning` on
+a tour that was never going to settle, so a host could not tell a slow step from
+a stuck one. The suite asserted `state` 26 times before that fix and every one
+of them sat somewhere the write did happen.
 
 Nothing can forget to write an answer that nobody stores. If you add a field
 here, ask whether it is a third way of saying something two fields already say.
@@ -295,11 +294,11 @@ and is still moving, and a search is a step that arrived and whose anchor has
 gone missing since. The machine is inside neither of them, so a call means what
 it says and goes through.
 
-`stop()` does not ask, and that is the one exception. A tour nobody can turn off
-until an application's `onEnter` settles is worse than the race. So every event
-that can land after a window carries the position it was planned at, and
-`plan.ts` asks `stillAt` before acting on one. A `stop()` can have thrown that
-arrival away while the machine was gone.
+`stop()` does not ask, and that is the one exception. A handler that has decided
+the tour should not go on has nowhere else to go. So every event that can land
+after a window carries the position it was planned at, and `plan.ts` asks
+`stillAt` before acting on one. A `stop()` can have thrown that arrival away
+while the machine was gone.
 
 There are seven of those asks. Six are about a position an arrival began at, and
 the last one is a different job: a `refused` landing after a `validate` that

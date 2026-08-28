@@ -8,8 +8,8 @@ import {
   closer,
   control,
   frame,
-  held,
   holding,
+  holes,
   pair,
   press,
   scrim,
@@ -17,6 +17,7 @@ import {
   watched,
 } from './harness.js'
 import { DomPresenter } from './presenter.js'
+import type { Leko } from './leko.js'
 import type { LekoProblem, LekoState, LekoStep } from './types.js'
 
 // The public API driven through the real `DomPresenter`, rather than through
@@ -361,49 +362,61 @@ test('onEnter builds the state the step assumes, before the target is looked for
   expect(centre(target)).toBe(target)
 })
 
-test('a promise from onEnter is waited for, and nothing is drawn until it settles', async () => {
-  const { promise, settle } = held()
-  const leko = holding({
+test('a step that waits is drawn at once, and the signal it names moves the tour', async () => {
+  const [first, second] = pair()
+  const { leko, seen } = watched({
     id: 'story',
-    steps: [{ id: 'late', interactive: true, target: '.late', onEnter: () => promise }],
+    steps: [
+      // No target, so the whole page goes under. This is where work that has to
+      // finish before anything is measured is waited for, and the wait is a
+      // step rather than a promise the machine holds.
+      { id: 'loading', message: 'Loading…', awaits: 'loaded', onEnter: () => void 0 },
+      { id: 'a', interactive: true, target: () => first },
+    ],
   })
 
   begin(leko, 'story')
 
-  expect(leko.state).toBe('transitioning')
-  expect(scrim()).toBeNull()
-
-  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.className = 'late'
-  settle()
-  await promise
-
+  // Drawn and still, rather than between things. Every call a host makes now is
+  // acted on, which is the whole reason the wait is written this way.
   expect(leko.state).toBe('running')
-  expect(centre(target)).toBe(target)
+  expect(holes()).toBe(0)
+  expect(absorbed(first)).toBe(true)
+  expect(absorbed(second)).toBe(true)
+  expect(seen).toEqual(['loading'])
+
+  leko.reached('loaded')
+  await frame()
+
+  expect(leko.step?.id).toBe('a')
+  expect(centre(first)).toBe(first)
 })
 
-test('a resize stands back while a step is being built, and lands once it is drawn', async () => {
+test('a resize stands back while a step is being built, and lands once it is drawn', () => {
   const [first, second] = pair()
-  const { promise, settle } = held()
   const leko = holding({
     id: 'story',
     steps: [
       { id: 'a', interactive: true, target: () => first },
-      { id: 'b', interactive: true, target: () => second, onEnter: () => promise },
+      {
+        id: 'b',
+        interactive: true,
+        target: () => second,
+        onEnter: () => {
+          second.style.top = '500px'
+          window.dispatchEvent(new Event('resize'))
+          // Nothing of `b` has been measured yet, and measuring it from in here
+          // would be reading its anchor early by another route. The hole is
+          // still `a`'s.
+          expect(centre(first)).toBe(first)
+        },
+      },
     ],
   })
 
   begin(leko, 'story')
   press()
-  second.style.top = '500px'
-  window.dispatchEvent(new Event('resize'))
 
-  // Nothing of `b` has been measured yet, and measuring it here would be
-  // reading its anchor early by another route. The hole is still `a`'s.
-  expect(centre(first)).toBe(first)
-
-  settle()
-  await promise
   second.style.top = '600px'
   window.dispatchEvent(new Event('resize'))
 
@@ -444,12 +457,14 @@ test('a story started from inside onLeave is refused, and the step that was arri
   expect(centre(second)).toBe(second)
 })
 
-test('a promise from a story onEnter holds back the first step entirely', async () => {
-  const { promise, settle } = held()
+test('a story builds what it assumes before its first step is looked for', () => {
   const entered: string[] = []
   const leko = holding({
     id: 'story',
-    onEnter: () => promise,
+    onEnter: () => {
+      box('late', { left: '100px', top: '100px', width: '120px', height: '40px' }).className =
+        'late'
+    },
     steps: [
       { id: 'late', interactive: true, target: '.late', onEnter: () => void entered.push('step') },
     ],
@@ -457,28 +472,25 @@ test('a promise from a story onEnter holds back the first step entirely', async 
 
   begin(leko, 'story')
 
-  // Not just undrawn: the step's own handler has not run either.
-  expect(leko.state).toBe('transitioning')
-  expect(entered).toEqual([])
-  expect(scrim()).toBeNull()
-
-  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.className = 'late'
-  settle()
-  await promise
-
+  // Outermost first, and all of it inside the call that started the story. The
+  // element did not exist when `start()` was called.
+  const target = document.querySelector<HTMLElement>('.late')!
   expect(entered).toEqual(['step'])
   expect(leko.state).toBe('running')
   expect(centre(target)).toBe(target)
 })
 
-test('a story waiting on its onEnter does not let a step be moved past either', async () => {
+test('a story being opened does not let a step be moved past', () => {
   const [first, second] = pair()
-  const { promise, settle } = held()
   const entered: string[] = []
   const leko = holding({
     id: 'story',
-    onEnter: () => promise,
+    onEnter: () => {
+      // No step has been entered, so there is none here to move away from and
+      // no control anywhere for this to have reached.
+      press()
+      expect(entered).toEqual([])
+    },
     steps: [
       { id: 'a', interactive: true, target: () => first, onEnter: () => void entered.push('a') },
       { id: 'b', interactive: true, target: () => second, onEnter: () => void entered.push('b') },
@@ -486,28 +498,17 @@ test('a story waiting on its onEnter does not let a step be moved past either', 
   })
 
   begin(leko, 'story')
-  press()
 
-  // Every step of this story is waiting on the same handler, so there is no
-  // step here to move away from.
-  expect(leko.index).toBe(0)
-  expect(leko.state).toBe('transitioning')
-  expect(scrim()).toBeNull()
-  expect(entered).toEqual([])
-
-  settle()
-  await promise
-
+  expect(entered).toEqual(['a'])
   expect(leko.step?.id).toBe('a')
   expect(centre(first)).toBe(first)
 })
 
-test('moving on works again once the story has settled', async () => {
+test('moving on works once the story is open', () => {
   const [first, second] = pair()
-  const { promise, settle } = held()
   const leko = holding({
     id: 'story',
-    onEnter: () => promise,
+    onEnter: () => {},
     steps: [
       { id: 'a', interactive: true, target: () => first },
       { id: 'b', interactive: true, target: () => second },
@@ -515,8 +516,6 @@ test('moving on works again once the story has settled', async () => {
   })
 
   begin(leko, 'story')
-  settle()
-  await promise
   press()
 
   expect(leko.step?.id).toBe('b')
@@ -543,29 +542,28 @@ test("a fresh object under the running story's name is turned down", () => {
   expect(centre(other)).not.toBe(other)
 })
 
-test('a diagnostic reaches the host, with the step the signal was for', async () => {
+test('a diagnostic reaches the host, with the step the signal was for', () => {
   const [first, second] = pair()
-  const { promise, settle } = held()
   const problems: LekoProblem[] = []
+  let leko!: Leko
   const step: LekoStep = {
     id: 'b',
     interactive: true,
     target: () => second,
     awaits: 'saved',
-    onEnter: () => promise,
+    // The narrow way left to drop a signal: reported from inside the handler
+    // building the step that awaits it, with nothing of that step on screen.
+    onEnter: () => leko.reached('saved'),
   }
-  const leko = holding(
+  leko = holding(
     { id: 'story', steps: [{ id: 'a', interactive: true, target: () => first }, step] },
     { onDiagnostic: (problem) => problems.push(problem) },
   )
 
   begin(leko, 'story')
   press()
-  leko.reached('saved')
 
   expect(problems).toEqual([{ kind: 'signal-dropped', name: 'saved', step }])
-  settle()
-  await promise
   expect(leko.step?.id).toBe('b')
 })
 
@@ -593,27 +591,23 @@ test('a tour draws a way out of itself, and using it ends the tour', () => {
   expect(centre(target)).toBe(target)
 })
 
-test('the way out is there while a step is still being built', async () => {
-  const [first, second] = pair()
-  const { promise, settle } = held()
+test('the way out is there on a step with nothing to point at', () => {
+  const [first] = pair()
   const leko = holding({
     id: 'story',
     steps: [
       { id: 'a', interactive: true, target: () => first },
-      { id: 'b', interactive: true, target: () => second, onEnter: () => promise },
+      { id: 'waiting', message: 'Saving…', awaits: 'saved' },
     ],
   })
 
   begin(leko, 'story')
   press()
 
-  // The message went with the step that is over, and the page is still dimmed
-  // and still blocked. This is the moment somebody most wants out.
-  expect(leko.state).toBe('transitioning')
-  expect(closer()).not.toBeNull()
-
-  settle()
-  await promise
+  // The page is covered with no hole in it, so nothing on it can be pressed.
+  // This is the moment somebody most wants out.
+  expect(leko.state).toBe('running')
+  expect(holes()).toBe(0)
   expect(closer()).not.toBeNull()
 })
 
@@ -678,47 +672,44 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
 // and the page used to look exactly as it had a moment before: the hole still
 // on the step the tour had left, and everything outside it still clickable.
 
-test('an arrival that lasts draws a curtain, and the page goes under it', async () => {
+// The curtain: the scrim with no hole in it. The one window Leko covers the page
+// for on its own is a search, which is a target that is not on the page when its
+// step is drawn or has left since. A step that points at nothing reaches the
+// same covered page by being drawn, and is not this.
+
+/** What the curtain is saying, or `null` while it says nothing. */
+const said = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent ?? null
+
+test('a target that goes missing puts the page under a curtain', async () => {
   const [first, second] = pair()
-  const { promise, settle } = held()
+  second.id = 'anchor'
   const leko = holding({
     id: 'story',
-    steps: [
-      { id: 'a', interactive: true, target: () => first },
-      { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
-    ],
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
   })
 
   begin(leko, 'story')
-  expect(centre(first)).toBe(first)
+  expect(centre(second)).toBe(second)
 
-  press()
-
-  // `curtain: true` is a step saying it already knows it is slow, so there is
-  // no delay to wait out. Nothing is reachable now, including the step the tour
-  // has left.
+  // A hole standing over nothing for two seconds is what this exists to avoid
+  // showing anybody, so nothing is reachable while the search runs.
+  second.remove()
+  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
   expect(absorbed(first)).toBe(true)
-  expect(absorbed(second)).toBe(true)
-  expect(scrim()).not.toBeNull()
-
-  settle()
-  await vi.waitUntil(() => centre(second) === second)
-  expect(absorbed(first)).toBe(true)
+  expect(leko.state).toBe('transitioning')
 })
 
-test('the curtain leaves the way out reachable', () => {
-  const [first, second] = pair()
-  const { promise } = held()
+test('the curtain leaves the way out reachable', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
   const leko = holding({
     id: 'story',
-    steps: [
-      { id: 'a', interactive: true, target: () => first },
-      { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
-    ],
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
   })
 
   begin(leko, 'story')
-  press()
+  target.remove()
+  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
 
   const out = closer()!.querySelector('button')!
   expect(centre(out)).toBe(out)
@@ -728,196 +719,89 @@ test('the curtain leaves the way out reachable', () => {
   expect(scrim()).toBeNull()
 })
 
-test('a story setting its own scene draws a curtain over a page with no scrim yet', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const { promise, settle } = held()
-  const leko = holding(
-    {
-      id: 'story',
-      onEnter: () => promise,
-      steps: [{ id: 'one', interactive: true, target: () => target }],
-    },
-    // The instance, because a story's own arrival has no step to ask and no
-    // tier of its own to read. It is the only thing that can cover this window.
-    { curtain: true },
-  )
+test('a target that is not there yet draws a curtain over a page with no scrim yet', async () => {
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'late', interactive: true, target: '.late' }],
+  })
 
   expect(scrim()).toBeNull()
   begin(leko, 'story')
 
-  // `start()` on a story with a slow onEnter used to draw nothing at all, so
-  // somebody pressed Start, watched nothing happen, and pressed it again.
+  // `start()` on a story whose first target has not rendered used to draw
+  // nothing at all, so somebody pressed Start, watched nothing happen, and
+  // pressed it again.
   expect(scrim()).not.toBeNull()
-  expect(absorbed(target)).toBe(true)
+  expect(holes()).toBe(0)
 
-  settle()
-  await vi.waitUntil(() => centre(target) === target)
+  const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.className = 'late'
+  await vi.waitUntil(() => centre(target) === target, { timeout: 1000 })
 })
 
-/** What the curtain is saying, or `null` while it says nothing. */
-const said = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent ?? null
-
-test('a curtain says what a host gave it to say, and docks', () => {
-  const [first, second] = pair()
-  const { promise } = held()
+test('a curtain says what a host gave it to say, and docks', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
   const leko = holding(
-    {
-      id: 'story',
-      steps: [
-        { id: 'a', interactive: true, target: () => first },
-        { id: 'b', interactive: true, target: () => second, curtain: true, onEnter: () => promise },
-      ],
-    },
-    { curtainLabel: 'Fetching the receipt' },
+    { id: 'story', steps: [{ id: 'doomed', interactive: true, target: '#anchor' }] },
+    // The instance and nowhere else. Nothing here knows what the application is
+    // doing, and neither does the step: it was drawn, and only then did its
+    // target leave. A wait the application knows about is a step of its own,
+    // and that one says what it is doing in its own `message`.
+    { curtainLabel: 'Looking for it' },
   )
 
   begin(leko, 'story')
-  press()
+  target.remove()
+  await vi.waitUntil(() => said() === 'Looking for it', { timeout: 1000 })
 
-  expect(said()).toBe('Fetching the receipt')
   // There is no hole to sit beside, so it goes where a message goes when it
   // cannot be anchored at all.
   const at = document.querySelector<HTMLElement>('.leko-message-text')!.getBoundingClientRect()
   expect(at.top).toBeGreaterThan(window.innerHeight / 2)
 })
 
-test('the step arriving says what its own wait is, over anything more general', () => {
-  const [first, second] = pair()
-  const { promise } = held()
-  const leko = holding(
-    {
-      id: 'story',
-      steps: [
-        { id: 'a', interactive: true, target: () => first },
-        {
-          id: 'b',
-          interactive: true,
-          target: () => second,
-          curtain: true,
-          curtainLabel: 'Searching every order in the account',
-          onEnter: () => promise,
-        },
-      ],
-    },
-    { curtainLabel: 'Working…' },
-  )
-
-  begin(leko, 'story')
-  press()
-
-  // Step, then instance. The step is where the handler being waited for is
-  // written, so it is the one that knows what the wait is about.
-  expect(said()).toBe('Searching every order in the account')
-})
-
-test("a story's own arrival wears the instance's words, having no step to ask", async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  const { promise, settle } = held()
-  const leko = holding(
-    {
-      id: 'story',
-      onEnter: () => promise,
-      steps: [{ id: 'one', interactive: true, target: () => target, curtainLabel: 'Never seen' }],
-    },
-    { curtain: true, curtainLabel: 'Working…' },
-  )
-
-  begin(leko, 'story')
-
-  // `onEnter` on a story runs before any step has been entered, so the first
-  // step's words are not about this wait and are not borrowed for it. There is
-  // no tier between the two, so what covers this window is the instance.
-  expect(said()).toBe('Working…')
-
-  settle()
-  await vi.waitUntil(() => centre(target) === target)
-})
-
-test('a search does not wear the words of the step whose target went missing', async () => {
+test('a curtain that was seen stays for its minimum', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
-  const leko = holding(
-    {
-      id: 'story',
-      steps: [
-        { id: 'doomed', interactive: true, target: '#anchor', curtainLabel: 'Loading the order' },
-      ],
-    },
-    { curtainLabel: 'Working…' },
-  )
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
+  })
 
   begin(leko, 'story')
-  // The step's `onEnter` is long finished: it was drawn, and only then did its
-  // target leave. Its words are about a wait that is over, so the curtain the
-  // search puts up falls through to the general ones instead.
   target.remove()
-  await vi.waitUntil(() => said() === 'Working…', { timeout: 1000 })
-})
+  await vi.waitUntil(() => holes() === 0, { timeout: 1000 })
 
-test('curtain false leaves the window exactly as it was', () => {
-  const [first, second] = pair()
-  const { promise } = held()
-  const leko = holding({
-    id: 'story',
-    steps: [
-      { id: 'a', interactive: true, target: () => first },
-      { id: 'b', interactive: true, target: () => second, curtain: false, onEnter: () => promise },
-    ],
-  })
-
-  begin(leko, 'story')
-  press()
-
-  // The hole is still where the tour was, which is the thing the curtain is
-  // there to stop, kept available for a host that wants it.
-  expect(centre(first)).toBe(first)
-})
-
-test('a curtain that was seen stays for its minimum', async () => {
-  const [first, second] = pair()
-  const leko = holding({
-    id: 'story',
-    steps: [
-      { id: 'a', interactive: true, target: () => first },
-      {
-        id: 'b',
-        interactive: true,
-        target: () => second,
-        curtain: true,
-        // Long enough to be painted, far short of the minimum. Without one this
-        // would be a black page for three frames, which reads as a fault.
-        onEnter: () => new Promise<void>((settle) => setTimeout(settle, 50)),
-      },
-    ],
-  })
-
-  begin(leko, 'story')
-  press()
-
-  await vi.waitUntil(() => absorbed(second), { timeout: 1000 })
-  // The handler is long done and the step is still under the curtain.
+  // Painted, and then found again far short of the minimum. Without one this
+  // would be a covered page for three frames, which reads as a fault rather
+  // than as waiting.
+  document.body.append(target)
   await new Promise((r) => setTimeout(r, 150))
-  expect(absorbed(second)).toBe(true)
+  expect(holes()).toBe(0)
 
-  await vi.waitUntil(() => centre(second) === second, { timeout: 2000 })
+  await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
+  expect(leko.state).toBe('running')
 })
 
 test('a curtain nobody could have seen owes nothing', async () => {
-  const [first, second] = pair()
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
   const leko = holding({
     id: 'story',
-    steps: [
-      { id: 'a', interactive: true, target: () => first },
-      // Declared slow and answering in the turn, so the curtain is set and
-      // replaced inside one task and no frame ever carries it.
-      { id: 'b', interactive: true, target: () => second, curtain: true },
-    ],
+    steps: [{ id: 'doomed', interactive: true, target: '#anchor' }],
   })
 
   begin(leko, 'story')
-  press()
 
-  expect(centre(second)).toBe(second)
+  // Taken off and put back inside one task, so the curtain the search set is
+  // replaced before any frame carries it and there is nothing for a minimum to
+  // protect anybody from.
+  target.remove()
+  document.body.append(target)
+
+  await vi.waitUntil(() => centre(target) === target, { timeout: 500 })
+  expect(leko.state).toBe('running')
 })
 
 // --- what the presenter reports on its own account
@@ -931,7 +815,7 @@ function watching(options = {}) {
   const reported: [string, boolean][] = []
   const lost: string[] = []
   const presenter = new DomPresenter(
-    { duration: 0, curtain: false, ...options },
+    { duration: 0, ...options },
     {
       lost: (step) => void lost.push(step.id),
       moved: () => {},

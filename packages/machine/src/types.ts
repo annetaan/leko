@@ -33,7 +33,13 @@ export interface StepBase<W extends World> {
   readonly message?: string
   /** The signal this step waits for, or nothing where it advances on a control. */
   awaits?: string
-  onEnter?(step: W['step']): void | Promise<void>
+  /**
+   * Build what this step assumes, and hand nothing back. **Leko does not wait
+   * for this.** A wait belongs to a step of its own, which declares `awaits`
+   * and stands on an accepting machine while the answer comes. DESIGN.md argues
+   * it under **A step that waits**.
+   */
+  onEnter?(step: W['step']): void
   onLeave?(step: W['step'], next: W['step'] | undefined): void
   /** The guard on advancing. **Ignored on a step that declares `awaits`.** */
   validate?(anchor: W['anchor']): boolean
@@ -67,7 +73,8 @@ export interface StoryBase<W extends World> {
    * position to go wrong, so this needs none of what `StepBase.error` needs.
    */
   next?: W['story'] | (() => W['story'] | undefined)
-  onEnter?(story: W['story']): void | Promise<void>
+  /** Built and handed back, the same bargain {@link StepBase.onEnter} strikes. */
+  onEnter?(story: W['story']): void
   onLeave?(story: W['story'], next: W['story'] | undefined): void
 }
 
@@ -111,7 +118,11 @@ export interface Content {
  * be measured at all is a fact about the machine's state.
  */
 export interface Presenter<W extends World> {
-  /** The step's anchor, or `null` when it is not on the page. */
+  /**
+   * The step's anchor, or `null` where it is not on the page and `null` again
+   * where the step names nothing to point at. Which of the two it was is a
+   * drawing question, and {@link show} is where it is answered.
+   */
   resolve(step: W['step']): W['anchor'] | null
   /**
    * Draw the step, and hand back something that settles once it has arrived.
@@ -129,13 +140,6 @@ export interface Presenter<W extends World> {
     content: Content,
     animate: boolean,
   ): Promise<void> | void
-  /**
-   * An arrival began and nothing about the step it heads for has been built,
-   * looked for or drawn. `step` is `undefined` while a story's own `onEnter`
-   * runs. Released by the next {@link show} or {@link teardown}, because there
-   * is no other route out.
-   */
-  hold(step: W['step'] | undefined): void
   /** Put it where it belongs now, without animating: the surface moved, not the tour. */
   place(step: W['step'], anchor: W['anchor'] | null, content: Content): void
   /** The words changed and nothing moved. */

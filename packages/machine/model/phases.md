@@ -43,7 +43,7 @@ stateDiagram-v2
   [*] --> idle
   idle --> story : start(id) found a story with steps
 
-  story --> step : the story's onEnter settled
+  story --> step : the story's onEnter returned
 
   step --> ready : arrive, with nothing to morph
   step --> settling : arrive, and the presenter handed back a morph
@@ -59,6 +59,10 @@ stateDiagram-v2
   arrived --> ending : past the last step, stop(), Host.lost
   story --> ending : stop()
   step --> ending : stop(), onEnter threw, the anchor went during show
+  note right of step
+    story and step last one
+    synchronous call each
+  end note
 
   ending --> idle : nothing follows
   ending --> story : the story that ran out named this one in next
@@ -81,10 +85,11 @@ once instead of nine times.
 
 | Phase | `state` | What is true |
 | --- | --- | --- |
-| `story` | `transitioning` | a run is starting. The story's own `onEnter` is running or about to be, no step has been entered, and a curtain is up |
-| `step` | `transitioning` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is in flight, the anchor has not been looked for, nothing is drawn |
+| `story` | `transitioning` | a run is starting. The story's own `onEnter` is running or about to be, and no step has been entered |
+| `step` | `transitioning` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is running, the anchor has not been looked for, nothing is drawn |
 | `settling` | `transitioning` | the step arrived and is drawn. The presenter is still moving it |
 | `searching` | `transitioning` | the step arrived, its anchor has since left the page, and the presenter is looking. The tour is still on that step. What is on screen is a curtain. A target that was missing when the step arrived is `settling` instead: that wait is one the machine was handed a promise for |
+| | | A step that names no target at all is `ready`. It is drawn and still, and what it waits for is a signal |
 | `ready` | `running` | the step is drawn and still. The only phase `state` calls `running` |
 | `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
 
@@ -134,7 +139,7 @@ flowchart TD
   N -- "a story" --> Y["the ending, into that story.<br>phase: ending, and it stays closed<br>through its own report"]
   N -- "nothing" --> Z
   B -- "no" --> C["position = index + 1<br>phase: step"]
-  C --> D["presenter.hold(step)<br>a curtain, nothing drawn"]
+  C --> D["nothing drawn for this window"]
   D --> E["leaving.onLeave(leaving, step)"]
   E --> F["step.onEnter(step)"]
   F -- "threw" --> Z
@@ -173,7 +178,7 @@ tour standing somewhere else, and each one checks a different thing.
 
 | What | What it compares |
 | --- | --- |
-| a slow `onEnter`, story or step | the captured `position` object against the current one |
+| an `onEnter` that called `stop()` | the captured `position` object against the current one |
 | a morph | the token in `showing`, because two arrivals at the same position are two occurrences |
 
 A refusal is not on this list. `validate` answers in the turn it is asked, and
@@ -198,16 +203,17 @@ say. One table pointed the other way is one place, and it shows the holes.
 
 | Phase or transition | Where to watch it | What to do |
 | --- | --- | --- |
-| `story` | `story-setup` | start it. The story's `onEnter` takes 600ms and no step exists for any of it |
-| `step` | `step-setup`, `signal-too-early` | start it. `signal-too-early`'s second step spends 900ms in `onEnter` |
+| `story` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
+| `step` | `step-setup` | press Next. Each `onEnter` runs inside the call that moved the tour |
 | `settling` | any case, `stepping` is plainest | the morph is 320ms, and the log says `transitioning` for that long on every move |
 | `searching` | `target-disappears` | press **Dismiss for a second**. The target comes back inside the window and nothing is reported |
+| a step that waits | `step-setup`, `story-setup` | press Next onto the step with no `target`. The page goes under, and the signal the step names is what ends it |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
 | `ending`, and then `story` | `branching` | press either path button. The story that ran out names the one that follows it |
 | a `start()` turned down for a tour that is running | `two-stories` | press the other `start()` button while a story runs. Nothing moves, and the footer says which tour it left alone |
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
-| a `reached()` the gate turned down | `signal-too-early` | send the order. The call lands 400ms into a 900ms `onEnter` and is dropped |
-| a `start()` the gate turned down | `story-setup` | press `start()` again inside the 600ms window. The log says it was not acted on |
+| a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name. `machine.test.ts` has it |
+| a `start()` the gate turned down | none | the same one-call window as the row above. `machine.test.ts` has it |
 | `Host.lost` ending a run | `target-disappears` | press **Dismiss**. Two seconds under a curtain, then the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
 | `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |

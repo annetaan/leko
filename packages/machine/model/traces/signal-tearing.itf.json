@@ -54,7 +54,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -66,7 +65,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -78,7 +76,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -92,7 +89,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -106,7 +102,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -124,7 +119,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -134,7 +128,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -148,7 +141,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -166,7 +158,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -178,7 +169,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -196,7 +186,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -211,7 +200,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -223,7 +211,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -236,12 +223,6 @@
       },
       "mbt::actionTaken": "init",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -304,18 +285,24 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "start",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -327,12 +314,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -350,7 +343,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -362,7 +354,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -374,7 +365,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -388,7 +378,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -402,7 +391,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -420,7 +408,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -430,7 +417,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -444,7 +430,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -462,7 +447,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -474,7 +458,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -492,7 +475,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -507,7 +489,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -519,7 +500,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -530,14 +510,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -587,10 +561,8 @@
           }
         },
         "startPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "a"
         }
       }
     },
@@ -600,18 +572,24 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "unmatched",
+        "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -623,12 +601,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -646,7 +630,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -658,7 +641,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -670,7 +652,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -684,7 +665,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -698,7 +678,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -716,7 +695,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -726,7 +704,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -740,7 +717,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -758,7 +734,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -770,7 +745,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -788,7 +762,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -803,7 +776,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -815,7 +787,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -826,18 +797,15 @@
           ]
         }
       },
-      "mbt::actionTaken": "doReached",
+      "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
         "guardOk": {
@@ -871,8 +839,10 @@
           }
         },
         "signalPick": {
-          "tag": "Some",
-          "value": "sent"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "slowPick": {
           "tag": "None",
@@ -894,9 +864,15 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
@@ -905,7 +881,7 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "1"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -917,12 +893,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -940,7 +922,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -952,7 +933,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -964,7 +944,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -978,7 +957,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -992,7 +970,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -1010,7 +987,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -1020,7 +996,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -1034,7 +1009,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -1052,7 +1026,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1064,7 +1037,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1082,7 +1054,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -1097,7 +1068,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1109,7 +1079,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1122,17 +1091,11 @@
       },
       "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "0"
+              "#bigint": "1"
             },
             "story": "a"
           }
@@ -1193,21 +1156,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "hunt-stale",
+        "mark": "press",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second", "target"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1216,12 +1185,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1239,7 +1214,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1251,7 +1225,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -1263,7 +1236,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -1277,7 +1249,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -1291,7 +1262,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -1309,7 +1279,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -1319,7 +1288,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -1333,7 +1301,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -1351,7 +1318,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1363,7 +1329,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1381,7 +1346,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -1396,7 +1360,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1408,7 +1371,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1419,14 +1381,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doHunt",
+      "mbt::actionTaken": "doPress",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -1434,18 +1390,13 @@
           }
         },
         "guardOk": {
+          "tag": "Some",
+          "value": true
+        },
+        "huntPick": {
           "tag": "None",
           "value": {
             "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "3"
-            },
-            "story": "a"
           }
         },
         "leavePick": {
@@ -1492,21 +1443,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "hunt-stale",
+        "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1515,12 +1472,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1538,7 +1501,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1550,7 +1512,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -1562,7 +1523,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -1576,7 +1536,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -1590,7 +1549,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -1608,7 +1566,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -1618,7 +1575,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -1632,7 +1588,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -1650,7 +1605,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1662,7 +1616,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1680,7 +1633,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -1695,7 +1647,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1707,7 +1658,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1718,18 +1668,15 @@
           ]
         }
       },
-      "mbt::actionTaken": "doHunt",
+      "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "b"
           }
         },
         "guardOk": {
@@ -1739,12 +1686,9 @@
           }
         },
         "huntPick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "b"
+            "#tup": []
           }
         },
         "leavePick": {
@@ -1791,21 +1735,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "found-ignored",
+        "mark": "start-running",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -1814,12 +1764,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -1837,7 +1793,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1849,7 +1804,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -1861,7 +1815,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -1875,7 +1828,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -1889,7 +1841,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -1907,7 +1858,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -1917,7 +1867,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -1931,7 +1880,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -1949,7 +1897,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -1961,7 +1908,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -1979,7 +1925,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -1994,7 +1939,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2006,7 +1950,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2017,21 +1960,12 @@
           ]
         }
       },
-      "mbt::actionTaken": "doFound",
+      "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
+        "foundPick": {
           "tag": "None",
           "value": {
             "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "a"
           }
         },
         "guardOk": {
@@ -2077,10 +2011,8 @@
           }
         },
         "startPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "c"
         }
       }
     },
@@ -2090,21 +2022,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -2113,12 +2051,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2136,7 +2080,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2148,7 +2091,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -2160,7 +2102,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -2174,7 +2115,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -2188,7 +2128,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -2206,7 +2145,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -2216,7 +2154,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -2230,7 +2167,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -2248,7 +2184,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2260,7 +2195,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2278,7 +2212,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -2293,7 +2226,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2305,7 +2237,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2316,14 +2247,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -2361,10 +2286,8 @@
           }
         },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "none"
         },
         "slowPick": {
           "tag": "None",
@@ -2386,9 +2309,15 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
@@ -2397,10 +2326,10 @@
         },
         "mark": "found-ignored",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -2409,12 +2338,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2432,7 +2367,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2444,7 +2378,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -2456,7 +2389,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -2470,7 +2402,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -2484,7 +2415,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -2502,7 +2432,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -2512,7 +2441,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -2526,7 +2454,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -2544,7 +2471,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2556,7 +2482,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2574,7 +2499,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -2589,7 +2513,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2601,7 +2524,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2614,19 +2536,13 @@
       },
       "mbt::actionTaken": "doFound",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "Some",
           "value": {
             "index": {
               "#bigint": "0"
             },
-            "story": "c"
+            "story": "e"
           }
         },
         "guardOk": {
@@ -2685,21 +2601,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "unmatched",
+        "mark": "start-running",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["first", "second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -2708,12 +2630,18 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
@@ -2731,7 +2659,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2743,7 +2670,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -2755,7 +2681,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -2769,7 +2694,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -2783,7 +2707,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -2801,7 +2724,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -2811,7 +2733,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -2825,7 +2746,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -2843,7 +2763,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2855,7 +2774,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2873,7 +2791,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -2888,7 +2805,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -2900,7 +2816,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -2911,14 +2826,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doReached",
+      "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -2956,8 +2865,10 @@
           }
         },
         "signalPick": {
-          "tag": "Some",
-          "value": "saved"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "slowPick": {
           "tag": "None",
@@ -2966,10 +2877,8 @@
           }
         },
         "startPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "d"
         }
       }
     },
@@ -2979,21 +2888,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "slow",
+        "mark": "lose-stale",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -3002,19 +2917,25 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3025,7 +2946,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3037,7 +2957,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -3049,7 +2968,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -3063,7 +2981,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -3077,7 +2994,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -3095,7 +3011,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -3105,7 +3020,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -3119,7 +3033,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -3137,7 +3050,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3149,7 +3061,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3167,7 +3078,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -3182,7 +3092,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3194,7 +3103,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3205,14 +3113,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doSetSlow",
+      "mbt::actionTaken": "doLose",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -3238,9 +3140,12 @@
           }
         },
         "losePick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "story": "c"
           }
         },
         "settlePick": {
@@ -3256,8 +3161,10 @@
           }
         },
         "slowPick": {
-          "tag": "Some",
-          "value": true
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "startPick": {
           "tag": "None",
@@ -3273,21 +3180,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "found-ignored",
+        "mark": "start-running",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -3296,19 +3209,25 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3319,7 +3238,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3331,7 +3249,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -3343,7 +3260,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -3357,7 +3273,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -3371,7 +3286,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -3389,7 +3303,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -3399,7 +3312,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -3413,7 +3325,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -3431,7 +3342,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3443,7 +3353,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3461,7 +3370,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -3476,7 +3384,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3488,7 +3395,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3499,21 +3405,12 @@
           ]
         }
       },
-      "mbt::actionTaken": "doFound",
+      "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
+        "foundPick": {
           "tag": "None",
           "value": {
             "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "c"
           }
         },
         "guardOk": {
@@ -3559,10 +3456,8 @@
           }
         },
         "startPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "a"
         }
       }
     },
@@ -3572,21 +3467,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "stop",
+        "mark": "unmatched",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -3595,19 +3496,25 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3618,7 +3525,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3630,7 +3536,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -3642,7 +3547,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -3656,7 +3560,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -3670,7 +3573,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -3688,7 +3590,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -3698,7 +3599,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -3712,7 +3612,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -3730,7 +3629,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3742,7 +3640,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3760,7 +3657,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -3775,7 +3671,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3787,7 +3682,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -3798,14 +3692,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doStop",
+      "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -3843,10 +3731,8 @@
           }
         },
         "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "sent"
         },
         "slowPick": {
           "tag": "None",
@@ -3868,21 +3754,27 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
           "#set": []
         },
-        "mark": "lose-stale",
+        "mark": "resize",
         "nextToken": {
-          "#bigint": "0"
+          "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
           "tag": "Ready",
@@ -3891,19 +3783,25 @@
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -3914,7 +3812,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -3926,7 +3823,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -3938,7 +3834,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -3952,7 +3847,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -3966,7 +3860,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -3984,7 +3877,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -3994,7 +3886,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -4008,7 +3899,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -4026,7 +3916,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4038,7 +3927,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4056,7 +3944,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -4071,7 +3958,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4083,7 +3969,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4094,14 +3979,8 @@
           ]
         }
       },
-      "mbt::actionTaken": "doLose",
+      "mbt::actionTaken": "doResize",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -4127,12 +4006,9 @@
           }
         },
         "losePick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "index": {
-              "#bigint": "2"
-            },
-            "story": "a"
+            "#tup": []
           }
         },
         "settlePick": {
@@ -4167,57 +4043,54 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
-        "mark": "start",
+        "mark": "start-running",
         "nextToken": {
           "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "target", "third"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -4228,7 +4101,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4240,7 +4112,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -4252,7 +4123,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -4266,7 +4136,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -4280,7 +4149,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -4298,7 +4166,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -4308,7 +4175,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -4322,7 +4188,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -4340,7 +4205,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4352,7 +4216,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4370,7 +4233,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -4385,7 +4247,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4397,7 +4258,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4410,12 +4270,6 @@
       },
       "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -4466,7 +4320,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "c"
+          "value": "e"
         }
       }
     },
@@ -4476,57 +4330,54 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "hasError": false,
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
-        "mark": "refused-start",
+        "mark": "lose-stale",
         "nextToken": {
           "#bigint": "2"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["second", "third"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
-        "presenterUp": false,
+        "presenterUp": true,
         "showing": {
           "tag": "Nothing",
           "value": {
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -4537,7 +4388,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4549,7 +4399,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -4561,7 +4410,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -4575,7 +4423,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -4589,7 +4436,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -4607,7 +4453,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -4617,7 +4462,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -4631,7 +4475,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -4649,7 +4492,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4661,7 +4503,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4679,7 +4520,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -4694,7 +4534,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -4706,7 +4545,298 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doLose",
+      "mbt::nondetPicks": {
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "leavePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "Some",
+          "value": {
+            "index": {
+              "#bigint": "0"
+            },
+            "story": "b"
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "startPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 16
+      },
+      "m": {
+        "drawn": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "hasError": false,
+        "inflight": {
+          "#set": []
+        },
+        "mark": "start-running",
+        "nextToken": {
+          "#bigint": "2"
+        },
+        "page": {
+          "#set": ["second", "third"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Just",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "occurrence": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "presenterUp": true,
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "a1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a2",
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": true,
+                    "id": "a3",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b1",
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b2",
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "c1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -4719,12 +4849,6 @@
       },
       "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {
@@ -4775,321 +4899,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "c"
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 16
-      },
-      "m": {
-        "drawn": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "hasError": false,
-        "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
-        },
-        "mark": "hunt-stale",
-        "nextToken": {
-          "#bigint": "2"
-        },
-        "page": {
-          "#set": ["first", "second"]
-        },
-        "phase": {
-          "tag": "Ending",
-          "value": {
-            "#tup": []
-          }
-        },
-        "position": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "presenterUp": false,
-        "showing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slow": true,
-        "world": {
-          "#map": [
-            [
-              "a",
-              {
-                "id": "a",
-                "next": {
-                  "tag": "Just",
-                  "value": "e"
-                },
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "a1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "saved"
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a2",
-                    "slowEnter": true,
-                    "target": "second",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": true,
-                    "id": "a3",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": true,
-                    "hasWords": false,
-                    "id": "a4",
-                    "slowEnter": false,
-                    "target": "third",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "b",
-              {
-                "id": "b",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "slowEnter": true,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Just",
-                      "value": "sent"
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b1",
-                    "slowEnter": false,
-                    "target": "target",
-                    "throwsOnEnter": false
-                  },
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "b2",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": true
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "c",
-              {
-                "id": "c",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "c1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": true
-              }
-            ],
-            [
-              "d",
-              {
-                "id": "d",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "slowEnter": false,
-                "steps": [],
-                "throwsOnEnter": false
-              }
-            ],
-            [
-              "e",
-              {
-                "id": "e",
-                "next": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "slowEnter": false,
-                "steps": [
-                  {
-                    "awaits": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "hasGuard": false,
-                    "hasWords": false,
-                    "id": "e1",
-                    "slowEnter": false,
-                    "target": "first",
-                    "throwsOnEnter": false
-                  }
-                ],
-                "throwsOnEnter": false
-              }
-            ]
-          ]
-        }
-      },
-      "mbt::actionTaken": "doHunt",
-      "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "foundPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "guardOk": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "huntPick": {
-          "tag": "Some",
-          "value": {
-            "index": {
-              "#bigint": "0"
-            },
-            "story": "b"
-          }
-        },
-        "leavePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "losePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settlePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "signalPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "slowPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "startPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "value": "b"
         }
       }
     },
@@ -5117,18 +4927,18 @@
                   }
                 },
                 "token": {
-                  "#bigint": "1"
+                  "#bigint": "2"
                 }
               }
             }
           ]
         },
-        "mark": "unmatched",
+        "mark": "lose",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["first", "second"]
+          "#set": ["third"]
         },
         "phase": {
           "tag": "Ending",
@@ -5149,7 +4959,7 @@
             "#tup": []
           }
         },
-        "slow": true,
+        "slow": false,
         "world": {
           "#map": [
             [
@@ -5160,7 +4970,6 @@
                   "tag": "Just",
                   "value": "e"
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -5172,7 +4981,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "a1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   },
@@ -5184,7 +4992,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a2",
-                    "slowEnter": true,
                     "target": "second",
                     "throwsOnEnter": false
                   },
@@ -5198,7 +5005,6 @@
                     "hasGuard": true,
                     "hasWords": true,
                     "id": "a3",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   },
@@ -5212,7 +5018,6 @@
                     "hasGuard": true,
                     "hasWords": false,
                     "id": "a4",
-                    "slowEnter": false,
                     "target": "third",
                     "throwsOnEnter": false
                   }
@@ -5230,7 +5035,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": true,
                 "steps": [
                   {
                     "awaits": {
@@ -5240,7 +5044,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b1",
-                    "slowEnter": false,
                     "target": "target",
                     "throwsOnEnter": false
                   },
@@ -5254,7 +5057,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "b2",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": true
                   }
@@ -5272,7 +5074,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -5284,7 +5085,6 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "c1",
-                    "slowEnter": false,
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -5302,7 +5102,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [],
                 "throwsOnEnter": false
               }
@@ -5317,7 +5116,6 @@
                     "#tup": []
                   }
                 },
-                "slowEnter": false,
                 "steps": [
                   {
                     "awaits": {
@@ -5329,7 +5127,593 @@
                     "hasGuard": false,
                     "hasWords": false,
                     "id": "e1",
-                    "slowEnter": false,
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doLose",
+      "mbt::nondetPicks": {
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "leavePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "Some",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "startPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 18
+      },
+      "m": {
+        "drawn": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "hasError": false,
+        "inflight": {
+          "#set": [
+            {
+              "tag": "Leaving",
+              "value": {
+                "into": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "token": {
+                  "#bigint": "2"
+                }
+              }
+            }
+          ]
+        },
+        "mark": "stop",
+        "nextToken": {
+          "#bigint": "3"
+        },
+        "page": {
+          "#set": ["third"]
+        },
+        "phase": {
+          "tag": "Ending",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "presenterUp": false,
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "a1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a2",
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": true,
+                    "id": "a3",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b1",
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b2",
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "c1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ]
+          ]
+        }
+      },
+      "mbt::actionTaken": "doStop",
+      "mbt::nondetPicks": {
+        "foundPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "huntPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "leavePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settlePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slowPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "startPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 19
+      },
+      "m": {
+        "drawn": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "hasError": false,
+        "inflight": {
+          "#set": [
+            {
+              "tag": "Leaving",
+              "value": {
+                "into": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "token": {
+                  "#bigint": "2"
+                }
+              }
+            }
+          ]
+        },
+        "mark": "unmatched",
+        "nextToken": {
+          "#bigint": "3"
+        },
+        "page": {
+          "#set": ["third"]
+        },
+        "phase": {
+          "tag": "Ending",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "presenterUp": false,
+        "showing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "slow": false,
+        "world": {
+          "#map": [
+            [
+              "a",
+              {
+                "id": "a",
+                "next": {
+                  "tag": "Just",
+                  "value": "e"
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "a1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "saved"
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a2",
+                    "target": "second",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": true,
+                    "id": "a3",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": true,
+                    "hasWords": false,
+                    "id": "a4",
+                    "target": "third",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "b",
+              {
+                "id": "b",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Just",
+                      "value": "sent"
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b1",
+                    "target": "target",
+                    "throwsOnEnter": false
+                  },
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "b2",
+                    "target": "first",
+                    "throwsOnEnter": true
+                  }
+                ],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "c",
+              {
+                "id": "c",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "c1",
+                    "target": "first",
+                    "throwsOnEnter": false
+                  }
+                ],
+                "throwsOnEnter": true
+              }
+            ],
+            [
+              "d",
+              {
+                "id": "d",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [],
+                "throwsOnEnter": false
+              }
+            ],
+            [
+              "e",
+              {
+                "id": "e",
+                "next": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "steps": [
+                  {
+                    "awaits": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "hasGuard": false,
+                    "hasWords": false,
+                    "id": "e1",
                     "target": "first",
                     "throwsOnEnter": false
                   }
@@ -5342,12 +5726,6 @@
       },
       "mbt::actionTaken": "doReached",
       "mbt::nondetPicks": {
-        "failPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
         "foundPick": {
           "tag": "None",
           "value": {

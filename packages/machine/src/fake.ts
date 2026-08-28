@@ -102,13 +102,6 @@ export class Fake implements Presenter<Fixture> {
     this.rejected += 1
   }
 
-  /** Every arrival it was told about, as the step's id or `-` for a story's own. */
-  readonly held: string[] = []
-
-  hold(step: Step | undefined): void {
-    this.held.push(step?.id ?? '-')
-  }
-
   teardown(): void {
     this.torn += 1
   }

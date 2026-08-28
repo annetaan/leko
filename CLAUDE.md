@@ -59,6 +59,12 @@ DESIGN.md. Do not do any of them without reading that page first.
   only exception. That rule is what pays for a state core of six fields with no
   run counter in it, and every exception puts a "did the world move" check back
   into a callback. DESIGN.md argues it.
+- **Waiting for a promise a handler hands back.** `onEnter` returns `void`, and
+  Leko draws the step the moment it returns. A handler that could hold the
+  arrival open would hold the gate shut for as long as the application took, and
+  a `reached()` landing in that window is dropped through no fault of the
+  caller. A wait is a step with no `target` and an `awaits`, and DESIGN.md
+  argues that under **A step that waits**.
 - **Adding a back control, or a way to start a story part-way through.** A step
   that declares `awaits` cannot be returned to: the signal fired once and will
   not fire again, so the tour waits for ever. A story is atomic, and the answer

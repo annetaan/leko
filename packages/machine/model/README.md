@@ -162,12 +162,9 @@ step occurrence. The model compared the story and the index and had no
 occurrence to compare with. Those two agree until a tour ends and starts the
 same story again.
 
-Five calls reach the gap. `start("b")` parks the slow story `onEnter`. `stop()`.
-The teardown finishes. `start("b")` again. Then the first `onEnter` lands.
-`b/0` reads the same both times, so the model entered `b1` and went to
-`running`. I drove the same five calls into a real `Machine`. It did nothing at
-all, because the `position` object it was holding was the one from before the
-stop. `state` stayed `transitioning` and `Fake.shown` was empty.
+The gap needed a callback outstanding across a teardown and a restart. The
+model compared `b/0` with `b/0` and called it the same place; a real `Machine`
+was holding the `position` object from before the stop and did nothing at all.
 
 `Pos` carries an `occurrence` now, off the same counter the callbacks take their
 tokens from. That made something else wrong. `lost` and `searching` are answered
@@ -178,10 +175,9 @@ takes. Those two name a `Where` now, which is a story and an index and no
 occurrence.
 
 Neither invariant could see any of this. `runningIsDrawn` and `idleIsClean` both
-hold in the state the model reached. `pnpm model` ran 200000 traces and said
-nothing, and it was right to. No trace in the corpus went there either.
-`stale-occurrence` is that trace now. 24 states, and it ends on the settle that
-has to come to nothing.
+hold in the state the model reached, and no trace in the corpus went there
+either. The morph is the one callback that can still land after a restart, and
+`stale-morph` is the trace for it.
 
 The second was `holding`. `doSetError` and `doShake` each took the utils back
 out of the set, so a handler got one answer and no more. `ErrorUtils` is two
@@ -250,8 +246,8 @@ one more that nothing waits for. Four targets on the page.
 
 | Story | Steps | What it is for |
 | --- | --- | --- |
-| `a` | `a1`, `a2`, `a3` | the ordinary run. A control, then a signal through a slow `onEnter`, then a control behind a guard |
-| `b` | `b1`, `b2` | a story whose own `onEnter` is slow, and a step that throws on the way in |
+| `a` | `a1`, `a2`, `a3` | the ordinary run. A control, then a signal, then a control behind a guard |
+| `b` | `b1`, `b2` | a step that throws on the way in |
 | `c` | `c1` | a story whose own `onEnter` throws |
 | `d` | none | `start` has to refuse it without tearing down whatever is running |
 
@@ -371,13 +367,10 @@ same boundary.
   record, so the model never sees that. Comparing the step and comparing the
   address give the same answer here, and in a world with a repeated object they
   would not.
-- The moment inside `opening` where `position` is written and the phase has not
-  moved yet. `presenter.hold` is called in there, and a presenter reading
-  `state` from inside it is told `running` with nothing drawn. `runningIsDrawn`
-  says that cannot happen, and for that one call it can. The model writes both
-  fields at once and has no such moment. No presenter reads `state` from
-  `hold`, so this is a hole in what the model can describe rather than a bug I
-  am sitting on.
+- A `reached()` or a `start()` made from inside an `onEnter`. That is the whole
+  of what the gate turns down now, and nothing here calls back into the machine
+  from a handler. `machine.test.ts` carries those.
+- A step that names no target. The machine has no notion of one: `StepBase` has
+  no `target`, and what a missing anchor means is a drawing question.
 - A misconception shared by the model and the code. Nothing can catch that. The
-  model is 897 lines and small enough to read, and that is the whole of the
-  defence.
+  model is small enough to read, and that is the whole of the defence.

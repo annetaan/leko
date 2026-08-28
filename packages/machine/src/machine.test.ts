@@ -1017,29 +1017,25 @@ describe('what the tour says it is doing', () => {
     expect(tour.state).toBe('running')
   })
 
-  test('a target lost while its step was still being built ends the run too', async () => {
-    const { promise, settle } = held()
+  test('a target taken away by the step that assumed it ends the run', () => {
     const { tour, seen } = watched({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', onEnter: () => promise },
+        {
+          id: 'b',
+          target: 'second',
+          // The anchor is resolved after `onEnter` returns, so a handler that
+          // takes its own target off the page is the one route to a lost target
+          // that arrives from inside the arrival itself.
+          onEnter: () => void drawing().page.delete('second'),
+        },
       ],
     })
     begin(tour, 'story')
-    press(tour)
-    // Waiting on `onEnter`, which is what `transitioning` says here.
-    expect(tour.state).toBe('transitioning')
     seen.length = 0
+    press(tour)
 
-    drawing().page.delete('second')
-    settle()
-    await promise
-
-    // The anchor is resolved after `onEnter` settles, so this is the one route
-    // to a lost target that arrives with the machine already saying
-    // `transitioning`. A tour reading `transitioning` for ever is a tour whose
-    // host cannot tell a slow step from a stuck one.
     expect(tour.state).toBe('idle')
     // `b` was never drawn, so the ending leaves from the step a host was told
     // about rather than from the one it was walking into.
@@ -1226,13 +1222,16 @@ describe('saying where the tour got to', () => {
     ])
   })
 
-  test('the move is reported once the step has arrived, not when the position changed', async () => {
-    const { promise, settle } = held()
+  test('the move is reported once the step has arrived, not when the position changed', () => {
+    const inEnter: (string | undefined)[][] = []
     const { tour, seen } = watched({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', onEnter: () => promise },
+        // The position is already on `b` here, and nothing of it has been
+        // measured or drawn. A progress readout that heard about `b` from in
+        // here would be naming a step the user cannot see yet.
+        { id: 'b', target: 'second', onEnter: () => void inEnter.push([...seen]) },
       ],
     })
 
@@ -1240,13 +1239,7 @@ describe('saying where the tour got to', () => {
     seen.length = 0
     press(tour)
 
-    // A progress readout that heard about `b` here would be naming a step the
-    // user cannot see yet.
-    expect(seen).toEqual([])
-
-    settle()
-    await promise
-
+    expect(inEnter).toEqual([[]])
     expect(seen).toEqual(['b'])
   })
 
@@ -1340,35 +1333,35 @@ describe('what a step assumes', () => {
   // `onEnter` and `onLeave` on a step, and what the machine does to a call that
   // arrives while one of them is still running.
 
-  test('a step waiting on its onEnter is not advanced past, and the call is not saved', async () => {
-    const { promise, settle } = held()
+  test('a step being built is not advanced past, and the presses are not saved', () => {
     const { tour, seen } = watched({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', onEnter: () => promise },
+        {
+          id: 'b',
+          target: 'second',
+          // `b` has built nothing and has never been on screen, so there is
+          // nothing here to advance away from.
+          onEnter: () => {
+            press(tour)
+            press(tour)
+          },
+        },
         { id: 'c', target: 'first' },
       ],
     })
 
     begin(tour, 'story')
     press(tour)
-    expect(tour.state).toBe('transitioning')
 
-    // `b` has built nothing and has never been on screen, so there is nothing
-    // here to advance away from.
-    press(tour)
-    press(tour)
-
-    settle()
-    await promise
-
-    // Dropped rather than queued: settling lands on `b`, and `c` is still ahead.
+    // Dropped rather than queued: the arrival lands on `b`, and `c` is still
+    // ahead.
     expect(tour.step?.id).toBe('b')
     expect(seen).toEqual(['a', 'b'])
   })
 
-  test('a signal reported from inside onEnter is dropped, promise or no promise', () => {
+  test('a signal reported from inside onEnter is dropped, and the step still arrives', () => {
     const { tour, seen } = watched({
       id: 'story',
       steps: [
@@ -1377,8 +1370,8 @@ describe('what a step assumes', () => {
           id: 'b',
           target: 'second',
           awaits: 'order-saved',
-          // Nothing here waits, and nothing here is ready either: the tour is
-          // inside the handler, and `b` has never been on screen.
+          // Nothing here is ready: the tour is inside the handler, and `b` has
+          // never been on screen.
           onEnter: () => {
             tour.reached('order-saved')
           },
@@ -1390,9 +1383,7 @@ describe('what a step assumes', () => {
     begin(tour, 'story')
     press(tour)
 
-    // The same call from inside an `async` handler was dropped and this one
-    // advanced, so which step a signal moved depended on how the handler above
-    // it happened to be written. `b` arrives and `c` is still ahead.
+    // `b` arrives and `c` is still ahead.
     expect(tour.step?.id).toBe('b')
     expect(seen).toEqual(['a', 'b'])
   })
@@ -1415,7 +1406,7 @@ describe('what a step assumes', () => {
     ])
   })
 
-  test('an onEnter that fails stops the tour, and does not swallow the reason', async () => {
+  test('an onEnter that fails stops the tour, and does not swallow the reason', () => {
     const boom = new Error('the panel would not open')
     // Caught rather than let go, because an uncaught error fails the run. What is
     // being asserted is that the machine hands the reason on rather than keeping it.
@@ -1428,14 +1419,14 @@ describe('what a step assumes', () => {
       {
         id: 'b',
         target: 'second',
-        onEnter: () => Promise.reject(boom),
+        onEnter: () => {
+          throw boom
+        },
         onLeave: (_step, next) => left.push(next?.id),
       },
     ])
 
     press(tour)
-    await Promise.resolve()
-    await Promise.resolve()
 
     expect(tour.state).toBe('idle')
     // The half-built step is still cleaned up: the handler may have registered
@@ -1445,29 +1436,28 @@ describe('what a step assumes', () => {
     expect(() => escaped[0]!()).toThrow(boom)
   })
 
-  test('a step abandoned while its onEnter is in flight is still left properly', async () => {
-    const { promise, settle } = held()
+  test('a step abandoned from inside its own onEnter is still left properly', () => {
     const left: [string, string | undefined][] = []
-    const tour = start([
+    let tour!: Machine<Fixture>
+    tour = start([
       { id: 'a', target: 'first' },
       {
         id: 'b',
         target: 'second',
         awaits: 'moved-on',
-        onEnter: () => promise,
+        // The tour is dropped from inside the handler that was building `b`.
+        onEnter: () => tour.stop(),
         onLeave: (step, next) => left.push([step.id, next?.id]),
       },
       { id: 'c', target: 'first' },
     ])
 
     press(tour)
-    tour.stop() // the tour is dropped while `b` is still entering
-    settle()
-    await promise
-    await Promise.resolve()
 
+    // The half-built step is owed its `onLeave` all the same.
     expect(left).toEqual([['b', undefined]])
-    // The handler settling afterwards does not draw a step the tour has left.
+    // And the arrival that was in the middle of it draws nothing.
+    expect(drawing().shown).toEqual(['a'])
     expect(tour.step).toBeUndefined()
     expect(tour.state).toBe('idle')
   })
@@ -1488,12 +1478,17 @@ describe('what a step assumes', () => {
     expect(tour.state).toBe('running')
   })
 
-  test('a story waiting on its onEnter does not let a step advance underneath it', async () => {
-    const { promise, settle } = held()
+  test('a story being opened does not let a step advance underneath it', () => {
     const entered: string[] = []
-    const tour = staging({
+    let tour!: Machine<Fixture>
+    tour = staging({
       id: 'story',
-      onEnter: () => promise,
+      onEnter: () => {
+        onThePage('late')
+        // No step has been entered, so there is none here to move.
+        press(tour)
+        tour.reached('saved')
+      },
       steps: [
         { id: 'a', target: 'late', awaits: 'saved', onEnter: () => void entered.push('a') },
         { id: 'b', target: 'late', onEnter: () => void entered.push('b') },
@@ -1501,15 +1496,6 @@ describe('what a step assumes', () => {
     })
 
     begin(tour, 'story')
-    press(tour)
-    tour.reached('saved')
-
-    expect(tour.state).toBe('transitioning')
-    expect(entered).toEqual([])
-
-    onThePage('late')
-    settle()
-    await promise
 
     // What the story assumes was built first, and the tour is on the step that
     // was waiting for it rather than one past it.
@@ -1557,7 +1543,7 @@ describe('what a step assumes', () => {
     expect(tour.state).toBe('idle')
   })
 
-  test('a story onEnter that fails stops the tour, and is still left properly', async () => {
+  test('a story onEnter that fails stops the tour, and is still left properly', () => {
     const boom = new Error('the fixtures would not load')
     const escaped: (() => void)[] = []
     vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((fn) => void escaped.push(fn))
@@ -1566,14 +1552,14 @@ describe('what a step assumes', () => {
     const entered: string[] = []
     const tour = staging({
       id: 'story',
-      onEnter: () => Promise.reject(boom),
+      onEnter: () => {
+        throw boom
+      },
       onLeave: (_story, next) => void left.push(next?.id),
       steps: [{ id: 'a', target: 'first', onEnter: () => void entered.push('step') }],
     })
 
     begin(tour, 'story')
-    await Promise.resolve()
-    await Promise.resolve()
 
     expect(tour.state).toBe('idle')
     // The step was never entered, so nothing of it needs undoing; the story's own
@@ -1584,35 +1570,32 @@ describe('what a step assumes', () => {
     expect(() => escaped[0]!()).toThrow(boom)
   })
 
-  test('a story stopped while its onEnter is in flight is still left properly', async () => {
-    const { promise, settle } = held()
+  test('a story stopped from inside its own onEnter is still left properly', () => {
     const left: (string | undefined)[] = []
     const entered: string[] = []
-    const tour = staging({
+    let tour!: Machine<Fixture>
+    tour = staging({
       id: 'story',
-      onEnter: () => promise,
+      onEnter: () => tour.stop(),
       onLeave: (_story, next) => void left.push(next?.id),
       steps: [{ id: 'a', target: 'never', onEnter: () => void entered.push('step') }],
     })
 
     begin(tour, 'story')
-    tour.stop()
-    settle()
-    await promise
-    await Promise.resolve()
 
     expect(left).toEqual([undefined])
-    // The handler settling afterwards does not enter a story the tour has left.
+    // No step was ever entered, so there is no step half-built to undo.
     expect(entered).toEqual([])
     expect(tour.state).toBe('idle')
   })
 
-  test('a story waiting on its onEnter does not let a step be moved past either', async () => {
-    const { promise, settle } = held()
+  test('the first step is entered and drawn inside the call that started the story', () => {
     const entered: string[] = []
-    const tour = staging({
+    const inside: { index: number | undefined; shown: number }[] = []
+    let tour!: Machine<Fixture>
+    tour = staging({
       id: 'story',
-      onEnter: () => promise,
+      onEnter: () => void inside.push({ index: tour.index, shown: drawing().shown.length }),
       steps: [
         { id: 'a', target: 'first', onEnter: () => void entered.push('a') },
         { id: 'b', target: 'second', onEnter: () => void entered.push('b') },
@@ -1620,27 +1603,18 @@ describe('what a step assumes', () => {
     })
 
     begin(tour, 'story')
-    press(tour)
 
-    // Every step of this story is waiting on the same handler, so there is no
-    // step here to move away from.
-    expect(tour.index).toBe(0)
-    expect(tour.state).toBe('transitioning')
-    expect(drawing().shown).toEqual([])
-    expect(entered).toEqual([])
-
-    settle()
-    await promise
-
-    expect(tour.step?.id).toBe('a')
+    // The position is already on the first step while the story's own handler
+    // runs, and nothing of it has been drawn.
+    expect(inside).toEqual([{ index: 0, shown: 0 }])
+    expect(entered).toEqual(['a'])
     expect(drawing().shown).toEqual(['a'])
   })
 
-  test('moving on works again once the story has settled', async () => {
-    const { promise, settle } = held()
+  test('moving on works once the story is open', () => {
     const tour = staging({
       id: 'story',
-      onEnter: () => promise,
+      onEnter: () => {},
       steps: [
         { id: 'a', target: 'first' },
         { id: 'b', target: 'second' },
@@ -1648,12 +1622,8 @@ describe('what a step assumes', () => {
     })
 
     begin(tour, 'story')
-    settle()
-    await promise
-
     press(tour)
 
-    // The guard is about the handler being in flight and nothing else.
     expect(tour.step?.id).toBe('b')
     expect(drawing().shown).toEqual(['a', 'b'])
   })
@@ -1661,23 +1631,26 @@ describe('what a step assumes', () => {
 
 describe('a call that arrives while the machine is inside the application', () => {
   // One rule, asked of every way in. The machine never acts on a call while it
-  // is inside a call into the application: an `onEnter` in flight, whether it
-  // answered in the turn or handed back a promise, and an `onLeave` running as
-  // a run is torn down.
+  // is inside a call into the application: an `onEnter` building a step, and an
+  // `onLeave` running as a run is torn down.
+  //
+  // The window is one synchronous call wide, because no handler hands anything
+  // back to wait for. So every call below is made from inside the handler
+  // itself, which is the only place there is to make one from.
   //
   // The groups above ask what one entry point does about it. This one asks
   // whether any of them is an exception, which is the claim the rest of the
   // file is written on top of.
 
-  /** A tour held in the middle of the second step's `onEnter`. */
-  function parked(options: Options = {}) {
-    const { promise, settle } = held()
-    const tour = staging(
+  /** A tour that makes `calls` from inside the second step's `onEnter`. */
+  function inside(calls: (tour: Machine<Fixture>) => void, options: Options = {}) {
+    let tour!: Machine<Fixture>
+    tour = staging(
       {
         id: 'story',
         steps: [
           { id: 'a', target: 'first' },
-          { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise },
+          { id: 'b', target: 'second', awaits: 'ready', onEnter: () => calls(tour) },
         ],
       },
       options,
@@ -1685,21 +1658,19 @@ describe('a call that arrives while the machine is inside the application', () =
     hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
     begin(tour, 'story')
     press(tour)
-    return { tour, promise, settle }
+    return tour
   }
 
-  test('every way in is refused, and the arrival lands untouched', async () => {
+  test('every way in is refused, and the arrival lands untouched', () => {
     const problems: Problem<Fixture>[] = []
-    const { tour, promise, settle } = parked({ onDiagnostic: (problem) => problems.push(problem) })
-    expect(tour.state).toBe('transitioning')
-
-    tour.reached('ready')
-    press(tour)
-    begin(tour, 'other')
-
-    expect(tour.step?.id).toBe('b')
-    settle()
-    await promise
+    const tour = inside(
+      (running) => {
+        running.reached('ready')
+        press(running)
+        begin(running, 'other')
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
 
     expect(tour.state).toBe('running')
     expect(tour.step?.id).toBe('b')
@@ -1717,35 +1688,29 @@ describe('a call that arrives while the machine is inside the application', () =
     expect(tour.story?.id).toBe('other')
   })
 
-  test('stop is the one call that does not ask, because a tour has to be turnable off', async () => {
-    const { tour, promise, settle } = parked()
+  test('stop is the one call that does not ask, because a tour has to be turnable off', () => {
+    const tour = inside((running) => running.stop())
 
-    tour.stop()
-
-    // A component unmounting mid-arrival has nowhere else to go, and waiting on
-    // an `onEnter` somebody else wrote is not an answer.
+    // A handler that has decided the tour should not go on has nowhere else to
+    // go, and finishing the arrival first is not an answer.
     expect(tour.state).toBe('idle')
     expect(drawing().torn).toBe(1)
-
-    settle()
-    await promise
-
-    // And the handler landing afterwards finds nothing standing where it left.
-    expect(tour.state).toBe('idle')
+    // And the arrival it walked out of draws nothing.
     expect(drawing().shown).toEqual(['a'])
   })
 
-  test('a refused signal is still refused when the step is the one awaiting it', async () => {
-    const { tour, promise, settle } = parked()
-
-    tour.reached('ready')
-    settle()
-    await promise
+  test('a refused signal is still refused when the step is the one awaiting it', () => {
+    const tour = inside((running) => running.reached('ready'))
 
     // `b` declares this name and is the step the tour is on by every internal
-    // measure. It has never been on screen, so there is no step here to advance
-    // away from, and the call is dropped where it stands.
+    // measure. It had never been on screen when the call was made, so there was
+    // no step there to advance away from, and the call was dropped where it
+    // stood rather than saved for the moment the step arrived.
     expect(tour.step?.id).toBe('b')
+    expect(tour.state).toBe('running')
+
+    // Reported again now that the step is standing, it moves the tour. `b` is
+    // the last step, so that is the end of the run.
     tour.reached('ready')
     expect(tour.state).toBe('idle')
   })
@@ -1798,77 +1763,80 @@ describe('saying that a call did nothing', () => {
     expect(problems).toEqual([{ kind: 'story-empty', story: empty }])
   })
 
-  test('a signal the step was waiting for, dropped because it was still arriving', async () => {
-    const { promise, settle } = held()
-    const step: Step = { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise }
-    const { tour, problems } = heard({
-      id: 'story',
-      steps: [{ id: 'a', target: 'first' }, step],
-    })
+  test('a signal the step was waiting for, reported from inside its own onEnter', () => {
+    let tour!: Machine<Fixture>
+    const step: Step = {
+      id: 'b',
+      target: 'second',
+      awaits: 'ready',
+      onEnter: () => tour.reached('ready'),
+    }
+    const heardIt = heard({ id: 'story', steps: [{ id: 'a', target: 'first' }, step] })
+    tour = heardIt.tour
 
     begin(tour, 'story')
     press(tour)
-    tour.reached('ready')
 
-    // The one a correct application hits. The user did the thing, the code
-    // reported it, and the step it was for goes on waiting for ever.
-    expect(problems).toEqual([{ kind: 'signal-dropped', name: 'ready', step }])
-
-    settle()
-    await promise
+    // The narrow way left to reach this. The step is the one that awaits the
+    // name and has never been on screen, so the call is dropped and the step
+    // goes on waiting for a report that has already been made.
+    expect(heardIt.problems).toEqual([{ kind: 'signal-dropped', name: 'ready', step }])
     expect(tour.step?.id).toBe('b')
   })
 
-  test('a name nothing is waiting for stays silent, whatever the machine is doing', async () => {
-    const { promise, settle } = held()
-    const { tour, problems } = heard({
+  test('a name nothing is waiting for stays silent, whatever the machine is doing', () => {
+    let tour!: Machine<Fixture>
+    const heardIt = heard({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => promise },
+        // Reported from inside the arrival, which is the one moment the gate is
+        // closed. A name nobody awaits is silent there too.
+        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => tour.reached('anything') },
       ],
     })
+    tour = heardIt.tour
 
     tour.reached('anything') // idle
     begin(tour, 'story')
     tour.reached('anything') // running, and no step waits for it
     press(tour)
-    tour.reached('anything') // arriving
 
     // Instrumentation is meant to stay in the source permanently, including in
     // builds where no tour runs, so something free to leave in cannot complain
     // about being left in.
-    expect(problems).toEqual([])
-    settle()
-    await promise
+    expect(heardIt.problems).toEqual([])
   })
 
-  test('a start refused inside an arrival is reported once per call', async () => {
-    const { promise, settle } = held()
-    const { tour, problems } = heard({
+  test('a start refused inside an arrival is reported once per call', () => {
+    let tour!: Machine<Fixture>
+    const heardIt = heard({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
-        { id: 'b', target: 'second', onEnter: () => promise },
+        {
+          id: 'b',
+          target: 'second',
+          onEnter: () => {
+            press(tour)
+            begin(tour, 'other')
+            tour.stop()
+          },
+        },
       ],
     })
+    tour = heardIt.tour
     hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
 
     begin(tour, 'story')
     press(tour)
-
-    press(tour)
-    begin(tour, 'other')
-    tour.stop()
 
     // `stop` is not among them. It is the one call that asks nothing, so there
     // is never anything to report about it. Nor is the press: the control is
     // not a call a host made, and the presenter takes it off the screen for the
     // whole of an arrival anyway. So `start` is the only call that lands here,
     // which is why the problem has nothing on it to read.
-    expect(problems).toEqual([{ kind: 'call-refused' }])
-    settle()
-    await promise
+    expect(heardIt.problems).toEqual([{ kind: 'call-refused' }])
   })
 })
 

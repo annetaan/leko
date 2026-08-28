@@ -36,6 +36,21 @@ thing happened, after its API call resolved, after its own validation passed.
 
 ## Signals and steps
 
+**A tour is meant to be forgettable.** An application with a tour bolted onto it
+should read the way it read before. Code that has to know which step is showing
+does not. A reader following `saveOrder` would have to hold a story in their
+head to follow the function, and the story is not what that function is about.
+
+So the story owns the story. Which step follows which, and what each one waits
+for. None of that is written in the application.
+
+`reached()` is the one place the two sides touch, and it is kept as thin as a
+touch can be. A call site says that something happened. It says nothing about
+what a tour should do about it, and it does not know whether one is running.
+`leko.reached('order-saved')` is a true statement on the line where it sits, and
+it stays true in a build with no story in it. That is the concession, and it is
+the only one.
+
 A call site names the event. It never names a step. "Advance whatever is
 showing" would force the call site to know where in the tour it sits, so that
 inserting a step makes an existing call fire at the wrong moment. There is no
@@ -176,6 +191,12 @@ nothing else follows from it.
 regions never union, because the bounding box of two distant ones covers
 everything between them and hands the user a hole the size of the page.
 
+**A step may name nothing at all.** `target` is optional, and a step without one
+is not a step whose target Leko failed to find. It is a step that points at
+nothing on purpose. The page goes under with no hole in it and the message docks
+at the foot of the viewport. That is the step to write for a wait, and **A step
+that waits** argues it.
+
 **A function must be cheap and must not do anything.** It is called far more
 often than once, and it is called during layout work. It may answer `null`,
 which is not a failure: a target that is not there yet is what the search for a
@@ -309,6 +330,14 @@ application already said the thing happened, and reading the page to check is a
 second source of truth for the same question. The second kind is what the second
 constraint exists to keep out, and one rule derived from `awaits` is easier to
 hold than two.
+
+**The alternative costs the application more than it costs Leko.** Without
+`validate`, a step that has to check something needs the application to watch
+the field and call `reached()` once it likes what it sees. That listener has no
+job outside the tour. It sits in application code, it is written against one
+step, and it is the code **Signals and steps** exists to keep out of there. A
+guard the step declares costs one of the four fields in `Core` and costs the
+application nothing.
 
 **A refusal is never silent.** The cutout shakes on every no. Which half of a
 refusal happens is read off the step and is not a choice anything makes at the
@@ -484,19 +513,19 @@ is reported: `story-empty`, `tour-running`, `call-refused`. A call meant as an
 order is answered, and one that is a report about the world is left alone. That
 is the asymmetry `awaits` and `reached()` already have, one layer down.
 
-**A return value cannot carry that answer honestly.** A story whose `onEnter`
-throws synchronously ends the run inside the `start()` call, so the position is
-empty by the time the call returns. The same story written `async` has already
-put the position up, and the run ends a turn later. One failure and two answers,
-decided by how a handler happened to be written. That failure is also the one
-way out with no `Problem` of its own, and what a host gets there is the reason
-thrown again, which **What a step and a story assume** argues for.
+**A return value cannot carry that answer honestly.** Four of the five ways a
+`start()` comes to nothing are known before the call returns and one is not: a
+story whose `onEnter` throws ends the run from inside the call, and a host
+reading a boolean would have to tell that apart from a story that never went up.
+That failure is also the one way out with no `Problem` of its own, and what a
+host gets there is the reason thrown again, which **What a step and a story
+assume** argues for.
 
 **`onStep` names the step and the story, and nothing else.** It named where the
 tour came from as well, off a field the machine kept for it. A host that wants
 the pair keeps the last `step` it was handed, and that line is right by
 construction: the hook only ever names a step that went up, so a step whose
-`onEnter` is still in flight cannot get into it. The machine was doing work to
+`onEnter` threw on the way in cannot get into it. The machine was doing work to
 hand back something a host gets for free.
 
 `index` is there so a host never searches `story.steps`. A step is a plain
@@ -511,10 +540,11 @@ A correct application loses its anchor every time it renders over the step, and
 ending the tour there would be punishing it for working normally.
 
 The search rides the `MutationObserver` that noticed the loss, so it costs no
-polling, and the curtain is down while it runs: a hole standing over nothing for
-two seconds is the state the wait exists to avoid showing anybody. It covers a
-target missing when the step arrives as well as one lost after it was drawn,
-because a user cannot tell those apart.
+polling, and the page is under a curtain while it runs: a hole standing over
+nothing for two seconds is the state the wait exists to avoid showing anybody.
+It covers a target missing when the step arrives as well as one lost after it
+was drawn, because a user cannot tell those apart. A step that names no target
+at all is neither, and **A step that waits** is that one.
 
 **A replacement that arrives with the removal is not a wait at all.** A
 framework swaps the node in one batch of mutations, and an observer armed after
@@ -545,9 +575,15 @@ closed in `story.onLeave` is one pair split across two levels, and nobody should
 have to read that. So `LekoStory` and `LekoStep` each have an `onEnter` and an
 `onLeave`, and the story's runs first.
 
-**`onEnter` runs first, and the target is resolved after it settles.** Resolve
+**`onEnter` runs first, and the target is resolved after it returns.** Resolve
 first and the selector reads a page the step has not set up yet. That order is
 the whole reason the hook is worth having.
+
+**Whatever a handler hands back is dropped.** It answers in the turn it was
+called in or it throws, and the step is drawn the moment it returns. So an
+`async` handler runs its first line here and the rest of it after the step is on
+screen. Work that has to finish before anything is measured goes on a step of
+its own, which the section below argues.
 
 **A tour goes in outermost first and comes out innermost first.**
 
@@ -557,7 +593,7 @@ story onEnter → step onEnter → resolve the target → draw → onStep
 
 The ending mirrors it. The report goes last because a progress readout hearing
 about a step while its `onEnter` still runs is naming something the user cannot
-see. A handler that returns nothing costs no turn.
+see. The whole of it happens inside the call that moved the tour.
 
 **Every `onEnter` gets its `onLeave`.** It runs where the handler failed
 halfway, and where a `stop()` walked out of it, because a handler that set
@@ -565,11 +601,66 @@ something up before it fell over is owed one. `onLeave` is given where
 the tour is going, since a panel that two steps use in turn is worth leaving
 open. Starting another story counts as ending.
 
-**A rejection stops the tour, and the reason is thrown again.** The state the
+**A throw stops the tour, and the reason is thrown again.** The state the
 step assumes was never built, so drawing it would point the user at something
-that is not ready. There is no hook for that failure. The rejection came from
+that is not ready. There is no hook for that failure. The throw came from
 the application's own code, and the place with the context to do something about
 it is the handler that threw. See `step-setup.ts` and `story-setup.ts`.
+
+## A step that waits
+
+**Leko waits for nothing a host hands it.** No handler holds an arrival open. A
+step that has to wait for something is a step of its own: it names no `target`,
+it declares `awaits`, and it starts the work it is waiting for in its own
+`onEnter`.
+
+```ts
+{
+  id: 'load-draft',
+  message: 'Loading the draft order…',
+  onEnter: () => void loadDraft(),
+  awaits: 'draft-loaded',
+}
+```
+
+`loadDraft` is the application's own function and calls `reached('draft-loaded')`
+when it comes back. It says what happened. It does not know a tour is running.
+
+**The wait starts the work it waits for, and that placement is the rule.** A
+signal is not buffered, so a report that lands before the tour reaches the step
+that awaits it is dropped and the step waits for ever. Start the work in an
+`onEnter` two steps earlier and that is exactly what happens. Start it here and
+it cannot: an arrival runs start to finish inside one synchronous call, so the
+step is standing before any of the work can come back.
+
+**The tour is `running` while it waits, not `transitioning`.** The step is drawn
+and still. Every call a host makes lands on a machine that is accepting them,
+which is the whole reason the wait is written this way.
+
+**Waiting for a promise from `onEnter` is the shape this replaces, and it cannot
+be made safe.** Holding the arrival open holds the gate shut, for as long as the
+application takes and with no bound on it. A `reached()` arriving in that window
+is dropped through no fault of the caller, and covering the page while it
+happens narrows that race without closing it. Both waits Leko has are waits it
+can hear a signal through: this one, and the search under **A target is a
+question**.
+
+**Something that never reports leaves the tour standing there.** Nothing bounds
+a wait. An application whose work can fail has to say so, by catching it and
+calling `stop()`. The control from **The way out** is on screen the whole time
+either way, so a user is never trapped by one.
+
+Two things fall out of a step with no target and neither is an accident. It gets
+no next control, because it declares `awaits` and **The next control** derives
+that. And `validate` never runs on it, because **A failed attempt** ignores a
+guard on a step that declares `awaits`. A step with no target and no `awaits` is
+a full-page message with a next control, which is a legitimate thing to write
+and needs no rule of its own.
+
+**It counts as a step.** `story.steps.length` includes it and so does `index`, so
+a progress readout counts a wait the user does nothing on. A host that wants a
+different count keys a table by step id, the way `story-setup.ts` keys chapters.
+Leko grows no flag for it.
 
 ## A story is atomic, and stories are short
 
@@ -616,10 +707,11 @@ to.
 
 ## Settings, and where they are read from
 
-`padding`, `radius`, `curtain` and `curtainLabel` are read from the step, then
-from the instance. `duration` is read from the instance alone. Whichever it is,
-the nearer one that says anything wins, and `??` does the reading rather than
-`||`, so a step writing `false` beats an instance writing a number.
+`padding` and `radius` are read from the step, then from the instance.
+`duration`, `nextLabel`, `closeLabel` and `curtainLabel` are read from the
+instance alone. Whichever it is, the nearer one that says anything wins, and
+`??` does the reading rather than `||`, so a step writing `0` beats an instance
+writing a number.
 
 **A story carries none of them.** A tier there says one thing: this value for
 every step of this story. A host says the same thing with a `.map()` over
@@ -632,92 +724,69 @@ nothing else in there wants one. No member of `Presenter` takes a story.
 story tier is `packages/leko` alone putting its own data through a seam the
 machine has no use for.
 
-**Two windows have no step to ask, and the instance is the only tier they
-have.** A story's own `onEnter` runs before any step has been entered. A search
-for a target lost after its step was drawn is a wait that step's `onEnter`
-finished with long ago. Both read the instance and nothing else, which is why
-that tier stays.
+**`curtainLabel` has no step tier, because the window it covers is not about a
+step.** A search is a target that is not on the page when its step is drawn, or
+that has left since. Nothing about that is something the step knew when it was
+written, so the words that belong there are the general ones a host would put on
+any wait of its own. A wait the application does know about is a step with no
+target, and that one says what it is doing in its own `message`.
 
 ## The curtain
 
-An arrival is a window where Leko acts on nothing a host calls. The page used to
-look exactly as it had a moment before: the hole still on the step the tour had
-left, the message gone, and everything outside the hole still clickable. Three
-things were wrong with that, and they are the same thing three times over.
+The scrim with no hole in it. **The one window Leko covers the page for on its
+own is a search**: a target that is not on the page when its step is drawn, or
+that has left since. See **A target is a question**.
 
-Nothing said the gate was refusing calls. The hole pointed at a step the tour
-had finished with, with nothing beside it to explain why. And `start()` on a
-story with a slow `onEnter` drew nothing at all, so somebody pressed Start,
-watched nothing happen, and pressed it again.
+The page used to look exactly as it had a moment before, with the hole still on
+the step the tour had left and everything outside it still clickable. A hole
+standing over nothing for two seconds is worse than a covered page, and
+`start()` on a story whose first target has not rendered drew nothing at all, so
+somebody pressed Start, watched nothing happen, and pressed it again.
 
-**So the scrim covers everything, with no hole in it, while an arrival is in
-flight.** `complementRects` with no holes is one rectangle over the whole
-surface, which makes the curtain the empty case of what the scrim does every day
-rather than a second way of covering things. The control from **The way out** is
-above it and reachable through it.
+**`complementRects` with no holes is one rectangle over the whole surface**,
+which makes the curtain the empty case of what the scrim does every day rather
+than a second way of covering things. The control from **The way out** is above
+it and reachable through it.
 
-**`curtain` is declared, never called.** `true` puts it down at once, a number
-is how long an arrival has to last first, and `false` is never. It reads step,
-then instance, the way `padding` and `radius` do.
+**Nothing configures it away.** A search is not a wait anybody asked for and it
+is not one anybody can act on, so there is no flag for leaving the page open
+through one. What a host may set is what it says, and `curtainLabel` on the
+instance is that.
 
-A handler cannot ask for it. Nothing is known inside `onEnter` that is not known
-where the step is written, the runtime case is already covered by the delay, and
-a call made from in there is a call made while the gate is closed.
+**A curtain that was seen stays for a minimum.** A target that comes back in the
+next frame would otherwise leave the page dark for 16ms, which reads as a fault
+rather than as waiting. The minimum is measured from the frame the curtain was
+first painted in, so one set and replaced inside a single task owes nothing: no
+frame ever carried it, and there is nothing for a minimum to protect anybody
+from.
 
-**It is on by default, at 250ms.** The window is confusing in every project
-rather than only the ones that noticed, and a developer who has not noticed is
-the one who will not set a flag.
-
-**A curtain that was seen stays for a minimum.** A threshold has a band just
-above it, and a curtain up for 40ms reads as a fault rather than as waiting. The
-minimum is measured from the frame the curtain was first painted in, so a step
-that declares `curtain: true` and hands back nothing owes nothing: it was set
-and replaced inside one task and no frame ever carried it.
+**It is cut rather than morphed.** The morph is 320ms, and a search is already a
+wait nobody asked for. Spending another 320ms closing the hole would add to the
+problem it is there to cover.
 
 **Its lifetime is one value.** `Curtain` in `packages/leko/src/curtain.ts` is
-down, waiting, painting or up, and each state carries the handle it has running,
-so which way to stop it is a question the compiler answers rather than one the
-presenter remembers. What used to say this was four fields, three of them
-handles, and any two of them set at once was a state with no name. The decisions
-taken off it — whether the page is covered, what an arrival asks for, what a
-lift still owes — are pure functions with a test of their own, and no browser
-can get any of them wrong.
-
-**Leko puts no words on it, and a step usually should.** Leko does not know what
-an `onEnter` is doing, and a library that guesses at that is the guessing this
-one exists to avoid. The step does know. That handler is written on the step, so
-`curtainLabel` reads step, then instance, the way `curtain` does.
-
-Nothing bounds an `onEnter`. A search that takes 15 seconds is waited out for 15
-seconds, and a grey sheet held that long with nothing on it reads as a tour that
-has broken. That is what the step-level words are for.
-
-**The instance's are the foot of it, and they cover the curtain nobody
-declared.** `curtain` is on by default at 250ms, so an arrival that turns out to
-be slow draws one in a project that never asked for it. Nothing at that level
-knows what is being waited for. The step that would have known said nothing. So
-what belongs on the instance is the general wording a host would put on any wait
-of its own.
+down, painting or up, and each state carries the handle it has running, so which
+way to stop it is a question the compiler answers rather than one the presenter
+remembers. What used to say this was four fields, three of them handles, and any
+two of them set at once was a state with no name. The decisions taken off it —
+whether the page is covered, and what a lift still owes — are pure functions with
+a test of their own, and no browser can get any of them wrong.
 
 The box docks, because there is no hole to sit beside.
 
-**A search borrows none of it.** A target that goes missing after its step was
-drawn puts up the same curtain, and by then that step's `onEnter` is long
-finished. Those words are about a wait that is over, so the search reads the
-instance instead.
-
-**It narrows the race and does not close it.** A request already in flight comes
-back inside the window whatever is on screen, and its signal is dropped. See
-`signal-too-early.ts`, where the reply lands 400ms into a 900ms arrival. That is
-what `onDiagnostic` reports and why it stays.
+**A step that waits reaches the same covered page and is not this.** That one is
+drawn: it cuts no hole, so the scrim converges on nothing and the message beside
+it is the step's own. The section above argues it. The difference that matters
+is not what is on screen. It is that a search is a wait Leko is having and a
+waiting step is a wait the application declared, and only the second one has
+anything worth saying about itself.
 
 ## One gate, and what it refuses
 
 **Leko never acts on a call while it is inside a call into the application.**
 
 An arrival is such a window. It runs from the moment a move begins until the
-step has been handed to whatever draws it, and `onEnter` is inside it whether it
-answers in the turn or hands back a promise that lands half a second later. A
+step has been handed to whatever draws it, and `onEnter` is inside it. A
 teardown is another: `onLeave` is running and the run is half taken apart.
 
 Inside either, `reached()` and `start()` both do nothing, and so does a press on
@@ -727,12 +796,15 @@ step there to act on. The call is dropped where it stands rather than saved for
 when the arrival lands, because a signal saved over is a step advancing on
 something that happened before it began.
 
-**`stop()` is the exception, and asks nothing.** A tour that cannot be turned
-off until an `onEnter` somebody else wrote decides to settle is worse than any
-race this keeps out, and a component unmounting mid-arrival has nowhere else to
-go. Ending is also the one thing that needs nothing of the arrival. It throws
-the arrival away rather than acting on it, and the handler landing afterwards
-finds nothing standing where it left.
+**The window is one synchronous call wide.** No handler hands anything back to
+wait for, so the only way to make a call inside one is to make it from inside
+the handler itself. What keeps it that narrow is that a wait is a step rather
+than a promise, which **A step that waits** argues.
+
+**`stop()` is the exception, and asks nothing.** A handler that has decided the
+tour should not go on has nowhere else to go, and finishing the arrival first is
+not an answer. Ending is also the one thing that needs nothing of the arrival.
+It throws the arrival away rather than acting on it.
 
 **A morph is not an arrival.** A step that is drawn and still moving has been
 through the whole window and the user is looking at it, so every call goes
@@ -756,9 +828,9 @@ something that must be free to leave in cannot complain about being left in.
 Reported through `onDiagnostic`: a `start()` given a story with no steps in it,
 a `start()` made while a tour is running, and any call refused by the gate
 above. There is no version of starting an empty story a working application
-meant, and a call refused mid-arrival came from an application doing everything
-right at a moment nothing could be done with it. None of them has any other
-symptom. The tour does not move, and nothing anywhere says why.
+meant, and a call refused mid-arrival is a call made from inside a handler at a
+moment nothing could be done with it. None of them has any other symptom. The
+tour does not move, and nothing anywhere says why.
 
 **The two refused `start()` calls are separate members, and the fix is why.** A
 `call-refused` is the gate, and the same call a moment later goes through. A
@@ -774,10 +846,11 @@ and nothing for one to do about it.
 
 **A `reached()` that matched and was dropped is reported**, and that is the
 split worth holding on to. A name nobody waits for is normal. A name the step
-showing declared, arriving while that step was still being built, means the step
-now waits for something the application has already been through. `awaits` is
-the same string on both sides and the vocabulary is gathered from the call sites
-either way, so silence there is a step that hangs for no visible reason.
+showing declared, reported from inside the `onEnter` building that same step,
+means the step now waits for something the application has already been through.
+`awaits` is the same string on both sides and the vocabulary is gathered from
+the call sites either way, so silence there is a step that hangs for no visible
+reason. The fix is to report it after the handler returns.
 
 **Nothing is logged.** The core has no build-time environment to strip a
 development branch with, so anything written to the console is written in
@@ -867,17 +940,17 @@ four lines of header on functions with fifteen-line bodies, and a host declares
 its `World` once and never sees it again.
 
 **The calls out are a value too.** `plan.ts` answers an event with the next
-`Core` and a list of the calls the machine owes: hold, teardown, draw, the
-handlers, the report. `machine.ts` commits the state and then makes them, in
-that order and no other. Three of those calls are into the application, which is
-free to call straight back in, and what such a call finds is the machine as the
-event left it. That used to be a rule kept by hand at seven places, each with a
+`Core` and a list of the calls the machine owes: teardown, draw, the handlers,
+the report. `machine.ts` commits the state and then makes them, in that order
+and no other. Three of those calls are into the application, which is free to
+call straight back in, and what such a call finds is the machine as the event
+left it. That used to be a rule kept by hand at seven places, each with a
 comment saying why the line above it came first.
 
 An event stops where the machine hands control over. `end` is two of them,
-because the curtain goes up between the last `onLeave` and the report where
-nothing follows that report. There are eight such windows and an event apiece,
-which is what keeps one reduction from spanning one.
+because the phase opens between the last `onLeave` and the report where nothing
+follows that report. There are eight such windows and an event apiece, which is
+what keeps one reduction from spanning one.
 
 **`dispatch` is re-entrant, and that is load-bearing.** A call made from inside
 an effect runs down the stack rather than joining a queue.
@@ -906,9 +979,8 @@ distinction nothing in `plan.ts` has to make today.
 `state` itself as the snapshot, that is both halves of a React
 `useSyncExternalStore`. Without it a host that wants to disable its own controls
 while the tour is between things has to read `state` on a timer, because
-`onStep` fires when the tour arrives somewhere and `state` moves three times
-that no arrival explains: a morph landing, a story's `onEnter` in flight before
-any step exists, and a target being looked for again.
+`onStep` fires when the tour arrives somewhere and `state` moves twice that no
+arrival explains: a morph landing, and a target being looked for again.
 
 **It fires on the derived value, not on the fields it is read from.** `settling`
 to `ready` is a crossing a watcher should hear. `story` to `step` is not, and

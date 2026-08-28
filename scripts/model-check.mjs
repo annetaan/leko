@@ -27,7 +27,6 @@ const INVARIANTS = ['runningIsDrawn', 'idleIsClean']
  * since then has been green about nothing.
  */
 const WITNESSES = [
-  'arriving',
   'settling',
   'hunting',
   'staleMorph',
@@ -36,7 +35,6 @@ const WITNESSES = [
   'morphUnderSearch',
   'refused',
   'emptyStory',
-  'staleOccurrence',
   'staleReport',
   'tearing',
   'startWhileTearing',

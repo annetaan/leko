@@ -10,8 +10,10 @@ import type { Content, MachineState, Problem, World } from './types.js'
 /**
  * How far along the machine is. `story` and `step` are an arrival, two rather
  * than one because the step's `onLeave` is owed in the second and not the
- * first. `settling` and `ready` are both a step on screen. DESIGN.md argues the
- * gate this feeds under **One gate, and what it refuses**.
+ * first. Both last one synchronous call into the application and no longer,
+ * because no handler hands anything back to wait for. `settling` and `ready`
+ * are both a step on screen. DESIGN.md argues the gate this feeds under
+ * **One gate, and what it refuses**.
  */
 export type Phase = 'story' | 'step' | 'ending' | 'settling' | 'searching' | 'ready'
 
@@ -84,7 +86,6 @@ const stillAt = <W extends World>(core: Core<W>, at: Position<W>): boolean => co
  * resolved, used and dropped.
  */
 export type Effect<W extends World> =
-  | { kind: 'hold'; step: Step<W> | undefined }
   | { kind: 'teardown' }
   /** `resolve` then `show`. Answers with `shown`, or `lost` where there is no anchor. */
   | { kind: 'draw'; at: Position<W>; step: Step<W>; content: Content; animate: boolean }
@@ -123,7 +124,7 @@ export type Event<W extends World> =
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
   /** The report is done and the story that displaced this one may go up. */
   | { kind: 'startInto'; story: Story<W> }
-  /** The curtain is up for a story and its own `onEnter` is owed. */
+  /** The position is on the story's first step and its own `onEnter` is owed. */
   | { kind: 'openStory'; at: Position<W> }
   | { kind: 'storyEntered'; at: Position<W> }
   | { kind: 'entering'; at: Position<W>; leaving: Step<W> | undefined; animate: boolean }
@@ -210,7 +211,7 @@ const entering = <W extends World>(
 ): Outcome<W> => {
   const step = stepOf(core)
   if (!core.position || !step) return ending(core, undefined, [])
-  const effects: Effect<W>[] = [{ kind: 'hold', step }]
+  const effects: Effect<W>[] = []
   if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
   effects.push({ kind: 'callStepEnter', at, step, animate })
   return { core: { ...core, phase: 'step', error: undefined, showing: undefined }, effects }
@@ -244,12 +245,16 @@ const advance = <W extends World>(core: Core<W>, step: W['step']): Outcome<W> =>
   return moveOn(core, here, step)
 }
 
-/** `enterStory`. The story goes up: the position first, then the curtain. */
+/**
+ * `enterStory`. The story goes up, and nothing is drawn for it: the story's own
+ * `onEnter` answers in the turn, so the first step is on screen before any
+ * frame is painted.
+ */
 const opening = <W extends World>(core: Core<W>, story: W['story']): Outcome<W> => {
   const at: Position<W> = { story, index: 0 }
   return {
     core: { ...core, position: at },
-    effects: [{ kind: 'hold', step: undefined }],
+    effects: [],
     next: { kind: 'openStory', at },
   }
 }

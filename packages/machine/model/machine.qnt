@@ -8,6 +8,11 @@
 // a model has to say out loud. Every definition that mirrors one in `plan.ts`
 // names it in its doc, because three of them are spelled differently there:
 // `end` is `ending`, `enter` is `entering`, and `enterStory` is `opening`.
+//
+// **No `onEnter` hands anything back.** An arrival runs start to finish inside
+// one action, so the `Story` and `Step` phases are never a state this rests in
+// and nothing is parked for one. The only late things left are a morph and the
+// window a teardown opens.
 module machine {
   // ---------------------------------------------------------------- the world
 
@@ -48,7 +53,6 @@ module machine {
     awaits: Maybe[str],
     hasGuard: bool,
     hasWords: bool,
-    slowEnter: bool,
     throwsOnEnter: bool,
   }
 
@@ -60,18 +64,15 @@ module machine {
     id: str,
     steps: List[StepSpec],
     next: Maybe[str],
-    slowEnter: bool,
     throwsOnEnter: bool,
   }
 
-  /// A promise the machine is waiting on, and the one the code is not: a `hold`
-  /// that never lands is the same as one that lands late, and both are here.
+  /// A promise the machine is waiting on, and the one window the code opens
+  /// without one.
   ///
   /// Every callback carries a token. Two arrivals at the same position are two
   /// occurrences, and a set keyed on position alone would silently keep one.
   type Callback =
-    | EnterStory({ token: int, at: Pos })
-    | EnterStep({ token: int, at: Pos })
     | Morph({ token: int, at: Pos })
     // A teardown that has emptied the machine and not yet run the handlers it
     // owes. `machine.ts` does the whole of that inside one call and never
@@ -125,61 +126,60 @@ module machine {
   // of the trace, rather than from a second copy written by hand.
 
   pure val WORLD: str -> StorySpec = Map(
-    // Runs. Its first step advances on a control, its second on a signal and
-    // through a slow `onEnter`, and its last two on a control behind a guard —
+    // Runs. Its first step advances on a control, its second on a signal, and
+    // its last two on a control behind a guard —
     // one with `error` written on it and one without, because a refusal with
     // nothing to say still has to shake the cutout.
     "a" -> {
       id: "a",
       // Hands the tour on when it runs out, which is the whole of `chain-into`.
       next: Just("e"),
-      slowEnter: false,
+     
       throwsOnEnter: false,
       steps: [
-        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
+        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
         // A step with both. The guard is ignored on a step that declares
         // `awaits`, and this is the pair that says so.
-        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, hasWords: false, slowEnter: true, throwsOnEnter: false },
-        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, hasWords: true, slowEnter: false, throwsOnEnter: false },
-        { id: "a4", target: "third", awaits: Nothing, hasGuard: true, hasWords: false, slowEnter: false, throwsOnEnter: false },
+        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, hasWords: false, throwsOnEnter: false },
+        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, hasWords: true, throwsOnEnter: false },
+        { id: "a4", target: "third", awaits: Nothing, hasGuard: true, hasWords: false, throwsOnEnter: false },
       ],
     },
-    // A story whose own `onEnter` is slow, so the `story` phase is a window a
-    // call can arrive in.
+    // A story whose second step throws on the way in.
     "b" -> {
       id: "b",
       next: Nothing,
-      slowEnter: true,
+     
       throwsOnEnter: false,
       steps: [
-        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
+        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, hasWords: false, throwsOnEnter: false },
         // Throws on the way in, which is the only way `enter`'s catch is reached.
-        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: true },
+        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: true },
       ],
     },
     // Throws in its own `onEnter`, which is a different catch from the one above.
     "c" -> {
       id: "c",
       next: Nothing,
-      slowEnter: false,
+     
       throwsOnEnter: true,
       steps: [
-        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
+        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
       ],
     },
     // Nothing in it. `start` must refuse it without tearing down the tour that
     // is running.
-    "d" -> { id: "d", steps: [], next: Nothing, slowEnter: false, throwsOnEnter: false },
+    "d" -> { id: "d", steps: [], next: Nothing, throwsOnEnter: false },
     // Where "a" hands the tour to, and the end of the chain. One step, nothing
     // in the way of it, so a run that gets here runs out and `chain-ends` is
     // what that looks like.
     "e" -> {
       id: "e",
       next: Nothing,
-      slowEnter: false,
+     
       throwsOnEnter: false,
       steps: [
-        { id: "e1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, slowEnter: false, throwsOnEnter: false },
+        { id: "e1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
       ],
     },
   )
@@ -229,21 +229,6 @@ module machine {
     match s.position {
       | Nothing => false
       | Just(at) => stepAt(s, at) == stepAt(s, w)
-    }
-
-  /// Which way an `onEnter` was stale, for a settle {@link stillAt} turned
-  /// down. `settle-restarted` is the narrow one worth aiming at: the tour ended
-  /// and started the same story again, so the story and the index read the same
-  /// as the ones the callback was made at and the occurrence does not. It is
-  /// the only case where the two ways of asking "is this still where we are"
-  /// give different answers, and `plan.ts` compares the object, so nothing
-  /// happens.
-  pure def staleMark(s: M, at: Pos): str =
-    match s.position {
-      | Nothing => "settle-stale"
-      | Just(here) =>
-        if (here.story == at.story and here.index == at.index) "settle-restarted"
-        else "settle-stale"
     }
 
   // ------------------------------------------------------------ the machinery
@@ -338,16 +323,11 @@ module machine {
         if (at.index >= story.steps.length()) end(s, Nothing)
         else {
           val step = stepAt(s, at)
+          // Nothing is drawn for this window and nothing is taken down for it
+          // either. `onEnter` answers in the turn, so no frame carries it.
           val held =
-            s.with("hasError", false)
-             .with("showing", Nothing)
-             .with("phase", Step)
-             // hold(): a curtain, so nothing of this step is drawn
-             .with("presenterUp", true)
-             .with("drawn", Nothing)
+            s.with("hasError", false).with("showing", Nothing).with("phase", Step)
           if (step.throwsOnEnter) failed(held, at)
-          else if (step.slowEnter)
-            park(held, (t) => EnterStep({ token: t, at: at }))
           else arrive(held, at)
         }
       }
@@ -357,11 +337,8 @@ module machine {
   /// anything about its first step.
   pure def enterStory(s: M, at: Pos): M = {
     val story = storyOf(s, at)
-    // hold(undefined): a curtain, and nothing of this story is drawn.
-    val held = s.with("presenterUp", true).with("phase", Story).with("drawn", Nothing)
+    val held = s.with("phase", Story)
     if (story.throwsOnEnter) failed(held, at)
-    else if (story.slowEnter)
-      park(held, (t) => EnterStory({ token: t, at: at }))
     else if (stillAt(held, at)) enter(held)
     else held
   }
@@ -574,8 +551,6 @@ module machine {
     m.inflight.contains(cb),
     match cb {
       | Leaving(_) => true
-      | EnterStory(_) => false
-      | EnterStep(_) => false
       | Morph(_) => false
     },
     m' = {
@@ -593,8 +568,6 @@ module machine {
               enterStory(standOn(awake, at), at).with("mark", "left-into")
             }
           }
-        | EnterStory(_) => awake
-        | EnterStep(_) => awake
         | Morph(_) => awake
       }
     },
@@ -606,19 +579,11 @@ module machine {
     m.inflight.contains(cb),
     match cb {
       | Leaving(_) => false
-      | EnterStory(_) => true
-      | EnterStep(_) => true
       | Morph(_) => true
     },
     m' = {
       val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
       match cb {
-        | EnterStory(c) =>
-          if (stillAt(awake, c.at)) enter(awake).with("mark", "settle-story")
-          else awake.with("mark", staleMark(awake, c.at))
-        | EnterStep(c) =>
-          if (stillAt(awake, c.at)) arrive(awake, c.at).with("mark", "settle-step")
-          else awake.with("mark", staleMark(awake, c.at))
         | Leaving(_) => awake
         | Morph(c) => {
           // Only the morph nothing has replaced may call the step settled.
@@ -632,27 +597,6 @@ module machine {
             else done.with("mark", "morph-under-search")
           }
         }
-      }
-    },
-  }
-
-  /// A slow `onEnter` that rejected. The reason is rethrown on its own, which no
-  /// field sees.
-  action doFail(cb: Callback): bool = all {
-    m.inflight.contains(cb),
-    match cb {
-      | EnterStory(_) => true
-      | EnterStep(_) => true
-      | Morph(_) => false
-      | Leaving(_) => false
-    },
-    m' = {
-      val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
-      match cb {
-        | EnterStory(c) => failed(awake, c.at).with("mark", "fail-story")
-        | EnterStep(c) => failed(awake, c.at).with("mark", "fail-step")
-        | Morph(_) => awake
-        | Leaving(_) => awake
       }
     },
   }
@@ -716,8 +660,6 @@ module machine {
     doSetSlow(slowPick),
     nondet settlePick = m.inflight.oneOf()
     doSettle(settlePick),
-    nondet failPick = m.inflight.oneOf()
-    doFail(failPick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
   }
@@ -747,8 +689,6 @@ module machine {
     doSetSlow(slowPick),
     nondet settlePick = m.inflight.oneOf()
     doSettle(settlePick),
-    nondet failPick = m.inflight.oneOf()
-    doFail(failPick),
     nondet leavePick = m.inflight.oneOf()
     doLeave(leavePick),
   }
@@ -793,16 +733,11 @@ module machine {
     m.inflight.exists((cb) =>
       match cb {
         | Morph(c) => not(stillAt(m, c.at))
-        | EnterStory(_) => false
-        | EnterStep(_) => false
         | Leaving(_) => false
       }
     )
 
-  /// An arrival in flight, which is the window the gate closes.
-  val arriving: bool = m.phase == Story or m.phase == Step
-
-  /// A slow `onEnter` outstanding at the same time as a morph.
+  /// A morph outstanding at the same time as the window a teardown opens.
   val twoInFlight: bool = m.inflight.size() > 1
 
   /// A step on screen with a failed attempt behind it.
@@ -852,8 +787,11 @@ module machine {
   val signalWhileTearing: bool = m.phase == Ending and m.mark == "unmatched"
   val stoppedWhileTearing: bool = m.phase == Ending and m.mark == "stop"
 
-  /// A call the gate turned down.
-  val refused: bool = m.mark == "refused-start" or m.mark == "refused-signal"
+  /// A call the gate turned down. Only a `start` can reach this: the window the
+  /// gate closes is a teardown, and by then the position is empty, so a signal
+  /// arriving in one is unmatched rather than refused. `signal-dropped` is left
+  /// to a `reached()` made from inside an `onEnter`, which nothing here models.
+  val refused: bool = m.mark == "refused-start"
 
   /// A `start` made while a tour was running. Not the gate: the phase was open
   /// and the answer is still no, because ending a tour is `stop()`'s job.
@@ -862,13 +800,6 @@ module machine {
   /// A `start` on a story with nothing in it. Refused like the two above and
   /// for a different reason, and the run that was showing has to survive it.
   val emptyStory: bool = m.mark == "empty-story"
-
-  /// An `onEnter` landing for a step occurrence the tour has left and come back
-  /// to, so that the story and the index read the same and the occurrence does
-  /// not. The one state where asking "is this where we are" by address and by
-  /// occurrence disagree, and `plan.ts` asks by occurrence: it holds the
-  /// `position` object the callback was made under and compares it with `===`.
-  val staleOccurrence: bool = m.mark == "settle-restarted"
 
   /// The presenter reporting about a step the tour has already left, which it
   /// can do because it watches the step it was shown rather than the tour.

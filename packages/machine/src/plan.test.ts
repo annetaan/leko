@@ -303,11 +303,14 @@ describe('starting', () => {
     expect(owed(outcome)).toEqual(['diagnose'])
   })
 
-  test('puts the position up before the curtain, and the curtain before onEnter', () => {
+  test('puts the position up before the story is asked to open, and draws nothing for it', () => {
     const outcome = put(nothing(), { kind: 'start', story })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
-    expect(outcome.effects).toEqual([{ kind: 'hold', step: undefined }])
+    // Nothing owed. The story's own `onEnter` answers in the turn, so the first
+    // step is on screen before any frame is painted and there is no window here
+    // worth covering.
+    expect(outcome.effects).toEqual([])
 
     const opened = put(outcome.core, outcome.next!)
     expect(opened.core.phase).toBe('story')

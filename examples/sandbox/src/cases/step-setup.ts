@@ -1,20 +1,18 @@
 import { at, html, type Case } from '../case.js'
 
-// The step's target does not exist when the story starts. `onEnter` opens the
-// section that holds it and waits for the fetch behind it, and only then does
-// Leko look for the element. Resolving first would find nothing and lose the
-// step before the application had a chance to build it.
+// The step's target does not exist when the story starts. The step before it
+// opens the section, starts the fetch behind it, and waits for the application
+// to report that the fetch came back. Only then does Leko look for the element.
 export const stepSetup: Case = {
   id: 'step-setup',
   title: 'A step that sets its own scene',
 
   proves:
-    'onEnter builds the state the step assumes and the target is resolved ' +
-    'after it settles. The curtain over that wait wears the step’s own ' +
-    'words rather than the instance’s. onLeave puts the panel back on the ' +
-    'way out.',
+    'A wait is a step of its own: no target, its own words on the covered ' +
+    'page, and the signal it declares is what ends it. onLeave puts the panel ' +
+    'back on the way out.',
 
-  mount(root) {
+  mount(root, leko) {
     const panel = html(`
       <div class="panel">
         <h2>Delivery</h2>
@@ -32,6 +30,16 @@ export const stepSetup: Case = {
       details.hidden = !details.hidden
     })
     root.append(panel)
+
+    // The application's own function, written where the application would write
+    // it. It reports what happened when it happened, and knows nothing about
+    // which step is showing.
+    loadAddress = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      at('input[name="postcode"]').setAttribute('value', '150-0001')
+      leko.reached('address-loaded')
+    }
+
     return () => panel.remove()
   },
 
@@ -47,26 +55,27 @@ export const stepSetup: Case = {
             'closed. Press Next and watch who opens it.',
         },
         {
+          // A step with nothing to point at. The page goes under with no hole
+          // in it, this message is what it says, and `awaits` is what ends it.
+          // Leko waits for no handler, so the wait is written here instead.
+          id: 'reading',
+          message: 'Reading the address off the account…',
+          awaits: 'address-loaded',
+
+          // The wait starts the work it waits for. Started anywhere earlier and
+          // the report could land before the tour got here, and a signal is
+          // never saved for a step that has not arrived.
+          onEnter: () => {
+            at('[data-details]').hidden = false
+            void loadAddress()
+          },
+        },
+        {
           id: 'postcode',
-          // A selector, so this is genuinely resolved after `onEnter` rather
-          // than captured while the story was being built.
+          // A selector, so this is genuinely resolved after the step above
+          // rather than captured while the story was being built.
           target: 'input[name="postcode"]',
           message: 'The tour opened the section, waited, and then measured.',
-
-          // The instance sets a general “Setting the step up…”, which is all a
-          // host can say about a wait it does not recognise. This step knows,
-          // because the handler being waited for is written right below it,
-          // and what it says beats the general one.
-          curtainLabel: 'Reading the address off the account…',
-
-          // Everything a step assumes, arranged in one place. The 700ms is
-          // whatever the application actually does here — a request, an
-          // animation — and the step waits for it.
-          onEnter: async () => {
-            at('[data-details]').hidden = false
-            await new Promise((resolve) => setTimeout(resolve, 700))
-            at('input[name="postcode"]').setAttribute('value', '150-0001')
-          },
 
           // The matching half. Without it the section stays open for the rest
           // of the tour, and the user is left with a page the tour rearranged.
@@ -83,3 +92,6 @@ export const stepSetup: Case = {
     },
   ],
 }
+
+/** Set by {@link stepSetup.mount}, which is where the instance to report to is. */
+let loadAddress: () => Promise<void> = async () => {}

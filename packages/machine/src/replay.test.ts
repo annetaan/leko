@@ -68,8 +68,6 @@ interface Snapshot {
   showing: number | undefined
   drawn: Pos | undefined
   presenterUp: boolean
-  /** Every outstanding `onEnter`, by the token the model gave it. */
-  entering: Map<number, Pos>
   /**
    * Every teardown the model has begun and not finished, by token.
    *
@@ -85,16 +83,10 @@ interface Snapshot {
 
 const snapshot = (raw: Record<string, Itf>): Snapshot => {
   const m = raw['m'] as Record<string, Itf>
-  const entering = new Map<number, Pos>()
   const leaving = new Set<number>()
   for (const callback of set(m['inflight'])) {
-    if (tag(callback) === 'Morph') continue
-    if (tag(callback) === 'Leaving') {
-      leaving.add(int((payload(callback) as { token: Itf }).token))
-      continue
-    }
-    const body = payload(callback) as { token: Itf; at: Itf }
-    entering.set(int(body.token), pos(body.at))
+    if (tag(callback) !== 'Leaving') continue
+    leaving.add(int((payload(callback) as { token: Itf }).token))
   }
   const picks = (raw['mbt::nondetPicks'] ?? {}) as Record<string, Itf>
   return {
@@ -111,7 +103,6 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     showing: maybe(m['showing'], int),
     drawn: maybe(m['drawn'], pos),
     presenterUp: m['presenterUp'] as boolean,
-    entering,
     leaving,
     slow: m['slow'] as boolean,
     mark: m['mark'] as string,
@@ -128,37 +119,21 @@ const stateOf = (s: Snapshot): string =>
 // variable so that it lands in every ITF state, which is what lets the fixture
 // have one definition instead of two that can drift apart.
 
-interface Deferred {
-  promise: Promise<void>
-  resolve: () => void
-  reject: (reason: unknown) => void
-}
-
-const defer = (): Deferred => {
-  let resolve!: () => void
-  let reject!: (reason: unknown) => void
-  const promise = new Promise<void>((yes, no) => {
-    resolve = yes
-    reject = no
-  })
-  // The rejection is answered by the machine, and a test that let one reach the
-  // runtime unhandled would fail for the wrong reason.
-  promise.catch(() => {})
-  return { promise, resolve, reject }
-}
-
 /** What one run of one trace needs to hold on to while it drives the machine. */
 /**
  * Every way the model says a call came to nothing because of the gate.
  *
- * `refused-signal` is the odd one: the call matched what the step was waiting
- * for and was dropped all the same, so the diagnostic it raises says that
- * rather than naming the call. `empty-story` is turned down for a reason of its
- * own and not by the gate at all, and belongs here for what it has in common
- * with the other two: nothing moved, and something said so. Each is one
- * diagnostic, which is what the counting below asks for.
+ * `empty-story` is turned down for a reason of its own and not by the gate at
+ * all, and belongs here for what it has in common with the other two: nothing
+ * moved, and something said so. Each is one diagnostic, which is what the
+ * counting below asks for.
+ *
+ * `signal-dropped` is not here. The window the gate closes is a teardown, and by
+ * then the position is empty, so a signal arriving in one is unmatched rather
+ * than refused. Reaching that diagnostic takes a `reached()` made from inside an
+ * `onEnter`, which `machine.test.ts` has and the model does not describe.
  */
-const REFUSALS = ['refused-start', 'refused-signal', 'empty-story', 'start-running']
+const REFUSALS = ['refused-start', 'empty-story', 'start-running']
 
 /** What a step with `error` on it says, so an assertion can name the words. */
 const REASON = 'not yet'
@@ -174,10 +149,6 @@ interface Run {
   tour: Machine<Fixture>
   fake: Recorder
   stories: Map<string, Story>
-  /** Every `onEnter` still in flight, in the order the machine asked for them. */
-  made: Deferred[]
-  /** Bound to a model token once the trace says which one it got. */
-  pending: Map<number, Deferred>
   /** What `validate` answers. */
   guardOk: boolean
   /** Every `onStep`, as the step id it named. */
@@ -202,19 +173,13 @@ interface Run {
  *
  * `drawn` and `presenterUp` are things `machine.ts` keeps implicitly — the
  * presenter holds them — so the model has to state them and something here has
- * to answer for them. Overriding the four methods that move them is the only
+ * to answer for them. Overriding the two methods that move them is the only
  * place that answer can come from without `Fake` growing a field the other 76
  * tests have no use for.
  */
 class Recorder extends Fake {
   drawn: Step | undefined
   presenterUp = false
-
-  override hold(step: Step | undefined): void {
-    this.drawn = undefined
-    this.presenterUp = true
-    super.hold(step)
-  }
 
   override show(step: Step, anchor: Anchor | null, content: Content): Promise<void> | void {
     this.presenterUp = true
@@ -240,17 +205,12 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
       id: string
       steps: Itf[]
       next: Itf
-      slowEnter: boolean
       throwsOnEnter: boolean
     }
     stories.set(story.id, {
       id: story.id,
       onEnter: () => {
         if (story.throwsOnEnter) throw new Error(`story ${story.id} would not open`)
-        if (!story.slowEnter) return
-        const deferred = defer()
-        run().made.push(deferred)
-        return deferred.promise
       },
       steps: story.steps.map((entry) => {
         const shape = entry as {
@@ -259,7 +219,6 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
           awaits: Itf
           hasGuard: boolean
           hasWords: boolean
-          slowEnter: boolean
           throwsOnEnter: boolean
         }
         const step: Step = {
@@ -269,10 +228,6 @@ function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
           awaits: maybe(shape.awaits, str),
           onEnter: () => {
             if (shape.throwsOnEnter) throw new Error(`step ${shape.id} would not open`)
-            if (!shape.slowEnter) return
-            const deferred = defer()
-            run().made.push(deferred)
-            return deferred.promise
           },
         }
         if (shape.hasGuard) step.validate = () => run().guardOk
@@ -374,10 +329,7 @@ function makeCall(run: Run, now: Snapshot, before: Snapshot): void {
       run.fake.slow = picks['slowPick'] as boolean
       break
     case 'doSettle':
-      settle(run, picks['settlePick']!, before, false)
-      break
-    case 'doFail':
-      settle(run, picks['failPick']!, before, true)
+      settle(run, picks['settlePick']!, before)
       break
     case 'doLeave':
       // Not a call at all. `end` runs its handlers and its report inside
@@ -416,42 +368,19 @@ function drain(run: Run): void {
   }
 }
 
-function settle(run: Run, callback: Itf, before: Snapshot, fails: boolean): void {
-  const kind = tag(callback)
-  const body = payload(callback) as { token: Itf }
-  const token = int(body.token)
-  if (kind === 'Morph') {
-    // The model keeps a morph outstanding until something settles it. `Fake`
-    // resolves the one it is holding the moment the next `show` starts, so by
-    // here a stale token has already landed and done nothing. Landing the
-    // current morph would then be landing the wrong one.
-    if (before.showing === token) run.fake.land()
-    return
-  }
-  const deferred = run.pending.get(token)
-  expect(deferred, `no onEnter is in flight for token ${token}`).toBeDefined()
-  run.pending.delete(token)
-  if (fails) deferred!.reject(new Error(`onEnter ${token} gave up`))
-  else deferred!.resolve()
-}
-
 /**
- * Bind the `onEnter` the machine just asked for to the token the model gave it.
+ * Land the morph the trace says landed.
  *
- * The model allocates a token in `park` and the machine builds a promise at the
- * same point, but nothing carries one to the other. Rather than counting along
- * in parallel and hoping, this reads which token the model added and hands it
- * whatever the machine made in the same turn — and checks the two came out even,
- * which is a divergence worth hearing about on its own.
+ * A morph is the only thing the machine waits on. No `onEnter` hands anything
+ * back, so nothing else can be outstanding.
  */
-function bind(run: Run, before: Snapshot, now: Snapshot): void {
-  const fresh = [...now.entering.keys()].filter((token) => !before.entering.has(token))
-  expect(run.made.length, `the model parked ${fresh.length} onEnter calls`).toBe(fresh.length)
-  for (const [index, token] of fresh.entries()) run.pending.set(token, run.made[index]!)
-  run.made.length = 0
-  for (const token of before.entering.keys()) {
-    if (!now.entering.has(token)) run.pending.delete(token)
-  }
+function settle(run: Run, callback: Itf, before: Snapshot): void {
+  const body = payload(callback) as { token: Itf }
+  // The model keeps a morph outstanding until something settles it. `Fake`
+  // resolves the one it is holding the moment the next `show` starts, so by
+  // here a stale token has already landed and done nothing. Landing the
+  // current morph would then be landing the wrong one.
+  if (before.showing === int(body.token)) run.fake.land()
 }
 
 // ---------------------------------------------------------------- the checking
@@ -568,8 +497,6 @@ describe('every trace the model found', () => {
         tour,
         fake,
         stories,
-        made: [],
-        pending: new Map(),
         guardOk: true,
         reports,
         handlers: [],
@@ -649,7 +576,6 @@ describe('every trace the model found', () => {
         const now = states[last]!
         if (now.leaving.size > 0) break
         const where = nameOf(last)
-        bind(run, before, now)
         agrees(run, now, where)
 
         // 6. While the phase is closed, no call from the application changes
@@ -662,19 +588,11 @@ describe('every trace the model found', () => {
           // not move, and without this nothing anywhere says why.
           expect(run.problems.length, `${where}: refused in silence`).toBe(problemsBefore + 1)
         }
-        // 5. A callback settling for a position the tour has already left
-        //    changes nothing. `position` is replaced on every move and on
-        //    nothing else, so holding the object is holding the step occurrence.
-        //
-        //    `settle-restarted` is that sentence taken literally: the tour ended
-        //    and started the same story again, so the story and the index read
-        //    the same as the ones the callback was made under. Only the object
-        //    tells the two apart, and the object is what `plan.ts` compares.
-        if (
-          ['morph-stale', 'settle-stale', 'settle-restarted', 'lose-stale', 'hunt-stale'].includes(
-            now.mark,
-          )
-        ) {
+        // 5. A morph settling for a position the tour has already left changes
+        //    nothing, and neither does a report about a step it has walked away
+        //    from. `position` is replaced on every move and on nothing else, so
+        //    holding the object is holding the step occurrence.
+        if (['morph-stale', 'lose-stale', 'hunt-stale'].includes(now.mark)) {
           expect(observe(run), `${where}: something the tour had left moved it`).toEqual(seenBefore)
         }
         // An unmatched `reached()` is free and silent, permanently, because

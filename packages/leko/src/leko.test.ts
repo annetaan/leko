@@ -1,5 +1,5 @@
 import { userEvent } from '@vitest/browser/context'
-import { expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 
 import {
   absorbed,
@@ -10,7 +10,6 @@ import {
   holes,
   keep,
   control,
-  held,
   press,
   scrim,
   start,
@@ -339,27 +338,25 @@ test('shift-tab out of the ring lands on the end it was heading for', async () =
   expect(['the message', 'the way out']).toContain(focused())
 })
 
-test('the way out is still reachable while a curtain is up', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const { promise, settle } = held()
-  const leko = holding(
-    {
-      id: 'story',
-      onEnter: () => promise,
-      steps: [{ id: 'one', target: () => target, interactive: true }],
-    },
-    { curtain: true },
-  )
+test('a step with nothing to point at covers the page, and the way out is the only stop', async () => {
+  const elsewhere = box('elsewhere', {
+    left: '100px',
+    top: '100px',
+    width: '160px',
+    height: '48px',
+  })
 
-  begin(leko, 'story')
+  start([{ id: 'loading', message: 'Loading the draft order…', awaits: 'draft-loaded' }])
 
-  // Nothing is drawn and nothing is open, so the ring is one stop. Tab has
-  // nowhere else to be, and where it is, is the way out.
+  // No region named, so no hole is cut and the page is blocked everywhere.
+  expect(holes()).toBe(0)
+  expect(absorbed(elsewhere)).toBe(true)
+
+  // Nothing is open, and a step that declares `awaits` has no next control, so
+  // the ring is one stop. Tab has nowhere else to be, and where it is, is the
+  // way out.
   await userEvent.tab()
   expect(focused()).toBe('the way out')
-
-  settle()
-  await vi.waitUntil(() => centre(target) === target)
 })
 
 test('focus never lands on the page on its way round the ring', async () => {

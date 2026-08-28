@@ -171,8 +171,24 @@ export interface LekoStep {
    * A target that scrolls is fine on a step that opened it: the wheel, clicks,
    * focus and keys all reach it through the cutout. See {@link interactive} for
    * which holes are opened, and it is not the default.
+   *
+   * **Leave it out and the step has nothing to point at.** The page is covered
+   * with no hole in it and the message docks at the foot of the viewport. That
+   * is the step to write for a wait: give it {@link awaits}, start the work in
+   * {@link onEnter}, and the tour stands there with the page held until the
+   * application reports the name. DESIGN.md argues it under **A step that
+   * waits**.
+   *
+   * ```ts
+   * {
+   *   id: 'load-draft',
+   *   message: 'Loading the draft order…',
+   *   onEnter: () => void loadDraft(),
+   *   awaits: 'draft-loaded',
+   * }
+   * ```
    */
-  target: LekoTarget | LekoRegion[]
+  target?: LekoTarget | LekoRegion[]
 
   /**
    * Let the user operate the first region.
@@ -205,56 +221,6 @@ export interface LekoStep {
 
   /** Message shown alongside the cutout. */
   message?: string
-
-  /**
-   * Cover the whole page, with no hole in it, while this step is arriving.
-   *
-   * An arrival is {@link onEnter} in flight. Nothing this step assumes has been
-   * built, its target has not been looked for, and Leko acts on nothing a host
-   * calls until it lands. The page meanwhile looks the way it did a moment ago:
-   * the hole is still on the step the tour has left, the message is gone, and
-   * everything the scrim does not cover is still clickable. The curtain makes
-   * that window look like what it is.
-   *
-   * | | |
-   * | --- | --- |
-   * | `true` | down the moment the arrival begins |
-   * | a number | down once the arrival has been in flight that many ms |
-   * | `false` | never |
-   *
-   * A number is the anti-flash delay every spinner has. `true` is for a step
-   * whose `onEnter` is known to be slow, where waiting out a delay only spends
-   * that time with the page unblocked and unexplained.
-   *
-   * Once down it stays down for a minimum, and an arrival landing inside that
-   * minimum waits for it. A curtain on screen for 40ms is worse than none.
-   *
-   * **It does not stop a request already in flight from coming back.** Somebody
-   * who pressed a button before the arrival began has already set that going,
-   * its reply lands inside the window, and it is dropped.
-   * {@link LekoOptions.onDiagnostic} reports that as `signal-dropped`. The
-   * curtain narrows the race rather than closing it.
-   */
-  curtain?: boolean | number
-
-  /**
-   * What the curtain says while this step arrives. Nothing by default.
-   *
-   * Leko does not know what an `onEnter` is doing, so it puts no words of its
-   * own there. The step does: it is where that handler is written. Read step,
-   * then instance, the way {@link curtain} is.
-   *
-   * This is not {@link message}. The message is what the step arrives at, and
-   * it is drawn beside a cutout that does not exist while the curtain is down.
-   * This is the journey, and it docks at the foot of the viewport because under
-   * a curtain there is no hole to sit beside.
-   *
-   * Worth writing wherever an arrival is long rather than merely slow. Nothing
-   * bounds an `onEnter`: a search that takes fifteen seconds is waited out for
-   * fifteen seconds, and a blank sheet held that long reads as a tour that has
-   * broken.
-   */
-  curtainLabel?: string
 
   /** Space between the target's border box and the cutout edge, in px. */
   padding?: number
@@ -290,13 +256,23 @@ export interface LekoStep {
    * It is not where the step is decorated. Nothing has been drawn yet, and the
    * scrim still holds the shape of the step being left while this runs.
    *
-   * **A promise is waited for, and the target is resolved only once it
-   * settles.** Resolving first reads a target that does not exist yet, or one
-   * that is about to move, so this is also where a target is scrolled into
-   * view. A handler that returns nothing costs nothing: the step is drawn in
-   * the same turn, exactly as a step with no handler at all.
+   * **Whatever it hands back is dropped.** This answers in the turn it was
+   * called in and the step is drawn the moment it returns, so an `async`
+   * handler runs its first line here and the rest of it after the step is on
+   * screen. Leko waits for no call into the application, and DESIGN.md argues
+   * that under **A step that waits**.
    *
-   * **A rejection stops the tour**, and the reason is thrown again rather than
+   * So work that has to finish before the user sees anything goes on a step of
+   * its own. That step names no {@link target}, starts the work here, and
+   * declares {@link awaits}. The tour stands on it with the page covered, and
+   * every call a host makes meanwhile is acted on rather than dropped.
+   *
+   * **Something that never reports leaves the tour standing there.** Nothing
+   * bounds a wait, so an application whose work can fail has to say so: catch
+   * it, and call `stop()`. The control that ends the tour is on screen the
+   * whole time either way.
+   *
+   * **A throw stops the tour**, and the reason is thrown again rather than
    * swallowed. The state the step assumes was never built, so drawing it would
    * point the user at something that is not ready — the same judgement Leko
    * makes about a target that never turns up, reported as `target-lost`.
@@ -304,15 +280,12 @@ export interface LekoStep {
    * already have registered something.
    *
    * There is nowhere to register a handler for that failure, and the place to
-   * deal with it is inside this one. Catch what the setup threw, report it
-   * wherever the application reports things, and then decide: return normally
-   * and the step is drawn, or let the reason go and the tour stops. Leko is
-   * given whatever this handler settles on, and it knows nothing about why.
+   * deal with it is inside this one.
    *
    * This is not an analytics hook. Something that reports "a step started" for
    * a caller's own metrics is {@link LekoOptions.onStep}.
    */
-  onEnter?: (step: LekoStep) => void | Promise<void>
+  onEnter?: (step: LekoStep) => void
 
   /**
    * Undo what {@link onEnter} set up. Called once for every arrival at this
@@ -320,10 +293,9 @@ export interface LekoStep {
    *
    * Setup that adds a listener has to remove it, and this is the matching half.
    * Without one, every `onEnter` that registers something leaks it. It runs
-   * even where `onEnter` never settled — a rejection, or a signal that moved
-   * the tour on while it was still in flight — because the cleanup is owed
-   * either way. A step with no `onEnter` at all is left the same way, for
-   * cleanup the application set up somewhere else.
+   * even where `onEnter` threw halfway, because the cleanup is owed either way.
+   * A step with no `onEnter` at all is left the same way, for cleanup the
+   * application set up somewhere else.
    *
    * `next` is where the tour is going, and is `undefined` when it is ending:
    * past the last step, after `stop()`, and when another story is started,
@@ -447,20 +419,17 @@ export interface LekoStory {
    * partner, so a drawer opened here is closed there rather than in two places
    * a level apart.
    *
-   * **A promise is waited for, and nothing about the first step happens until
-   * it settles** — not its own `onEnter`, and not resolving its target. Entry
-   * runs outermost first: this, then the step's, then the page is measured.
+   * **Whatever it hands back is dropped**, the same bargain
+   * {@link LekoStep.onEnter} strikes. Entry runs outermost first and all of it
+   * in one turn: this, then the first step's, then the page is measured. A
+   * story whose setup has to finish before anything is measured starts the work
+   * here and puts a step that waits at the top of `steps`.
    *
-   * Nothing the host calls moves the tour in that window either. `reached()`
-   * and `start()` are both dropped, because every step is waiting on this
-   * handler and none of them is readier than another. `stop()` is the
-   * exception and always takes, and {@link onLeave} runs.
-   *
-   * **A rejection stops the tour** and the reason is thrown again, exactly as a
+   * **A throw stops the tour** and the reason is thrown again, exactly as a
    * step's does. {@link onLeave} still runs, because a handler that failed
    * halfway may already have set something up.
    */
-  onEnter?: (story: LekoStory) => void | Promise<void>
+  onEnter?: (story: LekoStory) => void
 
   /**
    * Undo what {@link onEnter} set up. Called once for every call to it, at the
@@ -497,8 +466,8 @@ export interface LekoWorld {
 }
 
 /**
- * Defaults for every story on the instance. A step may override `curtain`,
- * `curtainLabel`, `padding` and `radius`: the nearer of the two wins.
+ * Defaults for every story on the instance. A step may override `padding` and
+ * `radius`: the nearer of the two wins.
  *
  * **A story carries no settings.** It used to sit between these two, and the
  * only thing it bought was writing a value once instead of once per step —
@@ -509,31 +478,19 @@ export interface LekoWorld {
  */
 export interface LekoOptions {
   /**
-   * Whether an arrival draws a curtain, and after how long. See
-   * {@link LekoStep.curtain}. Defaults to `250`.
+   * What the page says while a target that has gone missing is looked for.
+   * Nothing by default.
    *
-   * On rather than off, because the window it covers is confusing in every
-   * project rather than only in the ones that noticed, and a developer who has
-   * not noticed is the one who will not set a flag. `false` turns it off
-   * everywhere.
-   */
-  curtain?: boolean | number
-
-  /**
-   * What a curtain says where the step arriving does not. Nothing by default.
-   * See {@link LekoStep.curtainLabel}.
+   * **The one window Leko covers the page for on its own.** A step whose target
+   * is not on the page, or whose target leaves after it was drawn, is given two
+   * seconds to find it again. The page is covered with no hole in it for that
+   * long, because a hole standing over nothing is worse than a covered page.
+   * Nothing here knows what the application is doing, so the words that belong
+   * here are the general ones a host would put on any wait of its own.
    *
-   * **This is the only tier a story's own arrival has.** `onEnter` on a story
-   * runs before any step has been entered, so there is no step to ask, and the
-   * same is true of the search for a target lost after its step was drawn.
-   * Those two windows read this and nothing else.
-   *
-   * This is the foot of that cascade, and what it covers is the curtain nobody
-   * declared: {@link curtain} is on by default, so an arrival that turns out to
-   * be slow draws one in a project that never asked for it. Nothing here knows
-   * what is being waited for — the step that did know said nothing — so the
-   * words that belong here are the general ones a host would put on any wait of
-   * its own. A step that knows better says so itself.
+   * A wait the application knows about is not this. That one is a step with no
+   * target, and it says what it is doing in its own
+   * {@link LekoStep.message}.
    */
   curtainLabel?: string
 
@@ -591,7 +548,7 @@ export interface LekoOptions {
    *
    * A host that wants the pair keeps the last `step` it was handed. That is a
    * line of its own state, and it is right by construction: this hook only ever
-   * names a step that was drawn, so a step whose `onEnter` is still in flight
+   * names a step that was drawn, so a step whose `onEnter` threw on the way in
    * cannot end up in it.
    *
    * {@link Leko.stop} from in here is never turned down. {@link Leko.start} is
@@ -706,14 +663,16 @@ export type LekoProblem =
    * still being built. It is dropped rather than saved for later, so the step
    * goes on waiting for something the application has already been through.
    *
-   * The likely fix is in the step, not in the call: an `onEnter` doing work the
-   * user can get ahead of is a step that wants splitting in two.
+   * **The window is one synchronous call wide.** Leko waits for nothing a host
+   * hands back, so the only way to land here is to call `reached()` from inside
+   * an `onEnter` or an `onLeave`, on the very step that awaits the name. The
+   * fix is to make the call after the handler returns.
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
    * A {@link Leko.start} that arrived while Leko was inside the application,
-   * which is an `onEnter` in flight or an `onLeave` running. Nothing of the
-   * step being built has been built, so there is nothing there to act on.
+   * which is a call made from inside an `onEnter` or an `onLeave`. Nothing of
+   * the step being built has been built, so there is nothing there to act on.
    *
    * `start` is the only call that lands here, which is why there is nothing
    * else on this member to read.
@@ -759,8 +718,9 @@ export type LekoProblem =
 /**
  * `idle` — no story running. `reached()` is a no-op.
  * `running` — a step is currently displayed.
- * `transitioning` — the tour is between things, with nothing settled: a
- * {@link LekoStep.onEnter} that has not resolved, a morph still running, or a
- * target that has left the page and is being looked for again.
+ * `transitioning` — the tour is between things, with nothing settled: a morph
+ * still running, or a target that has left the page and is being looked for
+ * again. A step with no target that is waiting for its signal is `running`,
+ * because it is drawn and still.
  */
 export type LekoState = 'idle' | 'running' | 'transitioning'

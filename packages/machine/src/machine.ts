@@ -16,9 +16,13 @@ import type { Host, MachineOptions, MachineState, Presenter, World } from './typ
 const NEXT_LABEL = 'Next'
 
 /**
- * Whether a handler gave back something to wait for. Asked of the value, because
- * a JavaScript call site returns whatever it likes and `await`ing a number would
- * cost a turn for nothing.
+ * Whether the presenter gave back something to wait for. Asked of the value,
+ * because a JavaScript call site returns whatever it likes and `await`ing a
+ * number would cost a turn for nothing.
+ *
+ * A morph is the only thing the machine waits on. An `onEnter` hands nothing
+ * back, so no call into the application holds an arrival open. DESIGN.md argues
+ * that under **A step that waits**.
  */
 const isThenable = (value: unknown): value is Promise<void> =>
   typeof (value as Promise<void> | undefined)?.then === 'function'
@@ -177,9 +181,6 @@ export class Machine<W extends World> {
    */
   private perform(effect: Effect<W>): void {
     switch (effect.kind) {
-      case 'hold':
-        return this.presenter.hold(effect.step)
-
       case 'teardown':
         return this.presenter.teardown()
 
@@ -269,19 +270,19 @@ export class Machine<W extends World> {
   }
 
   /**
-   * Run one `onEnter` and say which way it went. A handler that hands back
-   * nothing costs nothing: the same bargain `Presenter.show` strikes.
+   * Run one `onEnter` and say which way it went.
+   *
+   * It answers in this turn or it throws, so the arrival is over by the time
+   * this returns. Whatever the handler gives back is dropped: a step that has
+   * to wait for something waits for a signal, on a machine that is accepting
+   * calls the whole time.
    */
-  private enter(call: () => unknown, at: Position<W>, done: Event<W>): void {
-    const failed = (reason: unknown): void =>
-      void this.dispatch({ kind: 'entryFailed', at, reason })
-    let entering: unknown
+  private enter(call: () => void, at: Position<W>, done: Event<W>): void {
     try {
-      entering = call()
+      call()
     } catch (reason) {
-      return failed(reason)
+      return void this.dispatch({ kind: 'entryFailed', at, reason })
     }
-    if (!isThenable(entering)) return void this.dispatch(done)
-    void entering.then(() => void this.dispatch(done), failed)
+    this.dispatch(done)
   }
 }
