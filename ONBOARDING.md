@@ -132,7 +132,7 @@ They are the same rule from two sides.
 
 What the machine needs of the world, and the seam. `World` is the three types a
 host brings, carried as the one parameter everything else takes. `Presenter` is
-what the machine may ask of whatever draws, and `Host` is the four things a
+what the machine may ask of whatever draws, and `Host` is the three things a
 presenter may report back.
 
 Read the second half twice. Three rules live there and DESIGN.md states each under
@@ -145,7 +145,7 @@ asks back.
 
 The hard part. Budget an hour.
 
-`plan.ts` opens with where the tour is: three fields as one `Core`, and the
+`plan.ts` opens with where the tour is: two fields as one `Core`, and the
 readings taken off it. Read that and the section below on what each field means.
 
 The rest of `plan.ts` is every decision the machine makes. `reduce` takes the state and one
@@ -213,17 +213,22 @@ survived being drawn. A progress readout that heard about a step while its
 `onEnter` was still running would be naming something the user cannot see. In
 `plan.ts` those are two events, so nothing can quietly put the report first.
 
-The other direction is four calls. `Host.lost` when a target has gone and is not
-coming back, `Host.moved` on a resize, `Host.next` when the step's control is
-pressed, and `Host.close` when the one that ends the tour is. The machine hands
-the presenter four closures in its constructor, so the presenter cannot reach
-anything else on the machine.
+The other direction is three calls. `Host.lost` when a target has gone and is
+not coming back, `Host.next` when the step's control is pressed, and
+`Host.close` when the one that ends the tour is. The machine hands the presenter
+three closures in its constructor, so the presenter cannot reach anything else
+on the machine.
+
+Every one of them either ends the run or moves it on. A resize and a node
+swapped for an identical one reach the machine through none of them: the
+presenter draws the step it already has again, which is not a decision anybody
+has to be asked about.
 
 `Host.lost` is the one to read the argument for. A target that goes missing is
 retried for 100ms before it is said, and the presenter redraws nothing while
 that runs, so a wait too short to act on never reaches the machine at all.
 
-## The three fields in the machine
+## The two fields in the machine
 
 This is where the bugs were. Issues #31, #33 and #35 were each two fields
 disagreeing about where the tour was.
@@ -232,16 +237,15 @@ disagreeing about where the tour was.
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
 | `phase` | Which window the machine is in. `story`, `step`, `ending` or `ready` |
-| `error` | What the last attempt at this step was told was wrong |
 
-All three are `Core` in `plan.ts`, replaced together rather than written one at
-a time, and `dispatch` in `machine.ts` is the only thing that writes one. There
-is no list of stories among them: `start` is handed the one it is to run, so
-there is nothing to look up and nothing to keep between runs. There is nothing
-a hook reads either: a field the machine keeps only so a host can be handed it
-is a field two places have to agree about.
+Both are `Core` in `plan.ts`, replaced together rather than written one at a
+time, and `dispatch` in `machine.ts` is the only thing that writes one. There is
+no list of stories among them: `start` is handed the one it is to run, so there
+is nothing to look up and nothing to keep between runs. There is nothing a hook
+reads either, and nothing about what is on screen: the words of a failed attempt
+live where they are drawn.
 
-These three and the four values of `phase` are written down again, as a state
+These two and the four values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
@@ -250,7 +254,7 @@ Read [that directory's README](packages/machine/model/README.md) before changing
 either half, because a model that has drifted away from the code is worse than
 no model.
 
-`state` is derived rather than stored, and it reads one of the three.
+`state` is derived rather than stored, and it reads one of the two.
 
 ```ts
 export const stateOf = <W extends World>(core: Core<W>): MachineState =>
@@ -263,7 +267,8 @@ a tour that was never going to settle. The suite asserted `state` 26 times
 before that fix and every one of them sat somewhere the write did happen.
 
 Nothing can forget to write an answer that nobody stores. If you add a field
-here, ask whether it is a second way of saying something a field already says.
+here, ask whether it is a second way of saying something a field already says,
+or a fact about the page rather than about the tour.
 There is no `watch` for the same reason one field is enough: `onStep` fires when
 a step goes up and again when the run ends, and a story being on is the
 difference between those two.
@@ -279,8 +284,8 @@ Every call into the application is a window where the tour could be taken
 somewhere else before control comes back. An `onEnter`, an `onLeave`, an
 `onStep`, a `validate`. Rather than checking afterwards whether the
 world moved, the machine refuses to act inside the window at all, so there is
-nothing to check. The `reached`, `start`, `pressed` and `moved` events all ask
-this first, in `plan.ts`.
+nothing to check. The `reached`, `start` and `pressed` events all ask this
+first, in `plan.ts`.
 
 A morph is not one of those windows, and the machine is not told one is running.
 A step is on screen the moment `show` returns, so a call made while the drawing
@@ -292,8 +297,8 @@ after a window carries the position it was planned at, and `plan.ts` asks
 `stillAt` before acting on one. A `stop()` can have thrown that arrival away
 while the machine was gone.
 
-There are eight of those asks. Seven are about a position an arrival began at,
-and the last one is a different job: a `refused` landing after a `validate` that
+There are seven of those asks. Six are about a position an arrival began at, and
+the last one is a different job: a `refused` landing after a `validate` that
 called `stop()` from inside itself. All seven are what is left of a counter that
 used to be checked in thirteen places.
 
@@ -345,7 +350,7 @@ them advances a step.
 | Where | Why |
 | --- | --- |
 | `presenter.ts` `watch` | The one `MutationObserver`, armed on the step on screen and on a target that has not turned up. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement. Reports `Host.lost` where the retry runs out |
-| `presenter.ts` `watchViewport` | A `resize` listener. Reports `Host.moved` |
+| `presenter.ts` `watchViewport` | A `resize` listener. Draws the step it already has again, without asking |
 | `focus.ts` constructor | `keydown` and `focusin`, both capturing. They keep Tab inside the ring and move nothing |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 | `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |

@@ -3,8 +3,8 @@
 // to reach.
 //
 // Two searches, because a uniform choice over the whole action set makes `stop`
-// about as likely as anything else and a tour torn down every seventh call
-// almost never gets to its third step. `machine.qnt` says the rest beside
+// about as likely as anything else and a tour torn down every sixth call almost
+// never gets to its third step. `machine.qnt` says the rest beside
 // `stepInside`.
 //
 // The seeds are fresh every run. A failure here is therefore not reproducible
@@ -27,7 +27,6 @@ const INVARIANTS = ['runningIsDrawn', 'idleIsClean']
  * since then has been green about nothing.
  */
 const WITNESSES = [
-  'erroring',
   'refused',
   'emptyStory',
   'staleReport',

@@ -243,7 +243,7 @@ describe('what a failed attempt says', () => {
     // next control as a button that does nothing.
     expect(drawing().rejected).toBe(1)
     expect(tour.step?.id).toBe('one')
-    expect(drawing().error).toBeUndefined()
+    expect(drawing().retold).toEqual([])
   })
 
   test('says the reason, on the step the attempt was made on', () => {
@@ -256,7 +256,6 @@ describe('what a failed attempt says', () => {
     // attempt was the last one is the only part of it a presenter cannot work
     // out for itself. Where the words go under the instruction is settled in
     // `message.test.ts`.
-    expect(drawing().error).toBe('That is not a postcode.')
     expect(drawing().retold).toEqual([{ step: 'one', reason: 'That is not a postcode.' }])
   })
 
@@ -271,15 +270,11 @@ describe('what a failed attempt says', () => {
     const tour = start([step, { id: 'two', target: 'second' }])
 
     press(tour)
-    expect(drawing().error).toBe('Attempt 1.')
-
-    // Unlike `message`, the words are not read again when the step is redrawn:
-    // they belong to the attempt they were written about.
-    drawing().resize()
-    expect(drawing().error).toBe('Attempt 1.')
-
     press(tour)
-    expect(drawing().error).toBe('Attempt 2.')
+
+    // Once per attempt, and the words belong to the attempt they were written
+    // about rather than to the step.
+    expect(drawing().retold.map((told) => told.reason)).toEqual(['Attempt 1.', 'Attempt 2.'])
     // The same element `validate` was handed, resolved once for the attempt.
     expect(seen).toEqual(['first', 'first'])
   })
@@ -290,15 +285,17 @@ describe('what a failed attempt says', () => {
 
     press(tour)
     press(tour)
-    expect(drawing().error).toBe('That is not a postcode.')
+    expect(drawing().retold).toHaveLength(1)
 
     // Running the story again is the only way back to a step, and it is a
-    // fresh attempt at it.
+    // fresh attempt at it. The step is drawn with nothing said about it, so
+    // whatever the last attempt was told is not carried back onto the page.
     tour.stop()
     begin(tour, 'story')
     press(tour)
 
-    expect(drawing().error).toBeUndefined()
+    expect(drawing().shown).toEqual(['zero', 'one', 'zero', 'one'])
+    expect(drawing().retold).toHaveLength(1)
   })
 
   test('a guard that ends the tour from inside itself leaves no complaint behind', () => {

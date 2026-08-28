@@ -2,8 +2,7 @@
 // search can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// `position`, `phase` and `hasError` are the three fields of its `Core`, under
-// those names except that `hasError` is `error` as a bit.
+// `position` and `phase` are the two fields of its `Core`, under those names.
 // `drawn`, `presenterUp` and `inflight` are things the code keeps implicitly and
 // a model has to say out loud. Every definition that mirrors one in `plan.ts`
 // names it in its doc, because three of them are spelled differently there:
@@ -88,8 +87,6 @@ module machine {
     // --- what `Core` in `plan.ts` holds
     position: Maybe[Pos],
     phase: Phase,
-    // `error`, as a bit. Nothing reads the string.
-    hasError: bool,
     // --- what the code keeps implicitly
     // The step the presenter was last given and has on screen. Cleared by
     // `hold` and by `teardown`, because both take it off.
@@ -255,7 +252,6 @@ module machine {
         val torn =
           s.with("phase", Ending)
            .with("position", Nothing)
-           .with("hasError", false)
            // teardown()
            .with("presenterUp", false)
            .with("drawn", Nothing)
@@ -311,7 +307,7 @@ module machine {
           // Nothing is drawn for this window and nothing is taken down for it
           // either. `onEnter` answers in the turn, so no frame carries it.
           val held =
-            s.with("hasError", false).with("phase", Step)
+            s.with("phase", Step)
           if (step.throwsOnEnter) failed(held, at)
           else arrive(held, at)
         }
@@ -369,9 +365,9 @@ module machine {
       // The guard said no. Saying no is not optional and saying why is: the
       // cutout is shaken whichever way, and a step with `error` also puts words
       // under the instruction. `plan.ts` reads both off the step, so neither is
-      // a choice a handler makes.
-      s.with("hasError", step.hasWords)
-       .with("mark", if (step.hasWords) "refuse-said" else "refuse-mute")
+      // a choice a handler makes. Nothing is written down either way: what is
+      // on screen belongs to whatever draws it.
+      s.with("mark", if (step.hasWords) "refuse-said" else "refuse-mute")
   }
 
   // ----------------------------------------------------------------- the calls
@@ -453,20 +449,6 @@ module machine {
       },
   }
 
-  /// `Host.moved`. A resize does not ask what the machine is doing, so this is
-  /// offered at any moment; the step is placed rather than replayed, so nothing
-  /// changes either way.
-  action doResize = all {
-    // Not `refused`. Every other refusal is a call a host made and can be told
-    // about; this one nobody made, so there is nothing to say and nobody to say
-    // it to.
-    //
-    // The gate is not the whole of it: `moved` in `plan.ts` also wants a step
-    // to place, so a resize while nothing is running is ignored too.
-    m' =
-      m.with("mark", if (accepting(m) and m.position != Nothing) "resize" else "resize-ignored"),
-  }
-
   // The one below does not ask where the tour is first. A presenter watches the
   // step it was shown, and a step can leave the page after the tour has already
   // started heading somewhere else, so a report about a step nobody is standing
@@ -531,7 +513,6 @@ module machine {
   pure val FRESH: M = {
     position: Nothing,
     phase: Ready,
-    hasError: false,
     drawn: Nothing,
     presenterUp: false,
     inflight: Set(),
@@ -572,7 +553,6 @@ module machine {
     doStop,
     nondet guardOk = Bool.oneOf()
     doPress(guardOk),
-    doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
     nondet leavePick = m.inflight.oneOf()
@@ -584,7 +564,7 @@ module machine {
   ///
   /// Two searches rather than one, because a uniform choice over {@link step}
   /// makes `stop` about as likely as anything else, and a tour that is torn down
-  /// every seventh call almost never reaches its third step. The four bugs
+  /// every sixth call almost never reaches its third step. The four bugs
   /// this model was written for were all reachable in under five calls, which
   /// {@link step} covers well; this is what reaches the rest. Neither relation
   /// is the honest one on its own, and `pnpm model` runs both.
@@ -593,7 +573,6 @@ module machine {
     doReached(signalPick),
     nondet guardOk = Bool.oneOf()
     doPress(guardOk),
-    doResize,
     nondet losePick = WHERES.oneOf()
     doLose(losePick),
     nondet leavePick = m.inflight.oneOf()
@@ -611,8 +590,8 @@ module machine {
   val runningIsDrawn: bool =
     stateOf(m) == "running" implies m.drawn == m.position
 
-  /// 2. `state == "idle"` implies the presenter has been torn down, and
-  ///    `position` and `error` are both empty.
+  /// 2. `state == "idle"` implies the presenter has been torn down and nothing
+  ///    of a run is left behind.
   ///
   /// This used to ask for `phase == Ready` as well, and it held because nothing
   /// could reach a teardown from the outside. `end` empties the position before
@@ -624,7 +603,6 @@ module machine {
     stateOf(m) == "idle" implies and {
       m.phase == Ready or m.phase == Ending,
       not(m.presenterUp),
-      not(m.hasError),
       m.drawn == Nothing,
     }
 
@@ -633,9 +611,6 @@ module machine {
   // Not properties. Each one is a state the model was written to reach, and a
   // run reporting 0% for one of them is a model whose actions have stopped
   // describing the code. `pnpm model` passes them to `quint run --witnesses`.
-
-  /// A step on screen with a failed attempt behind it.
-  val erroring: bool = m.hasError
 
   /// A refusal with words for it, which is the pair below with `error` written
   /// on the step.

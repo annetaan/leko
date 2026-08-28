@@ -64,7 +64,6 @@ interface Snapshot {
   picks: Record<string, Itf | undefined>
   position: Pos | undefined
   phase: string
-  hasError: boolean
   drawn: Pos | undefined
   presenterUp: boolean
   /**
@@ -97,7 +96,6 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     ),
     position: maybe(m['position'], pos),
     phase: tag(m['phase']),
-    hasError: m['hasError'] as boolean,
     drawn: maybe(m['drawn'], pos),
     presenterUp: m['presenterUp'] as boolean,
     leaving,
@@ -306,9 +304,6 @@ function makeCall(run: Run, now: Snapshot): void {
     case 'doPress':
       run.guardOk = picks['guardOk'] as boolean
       run.fake.press()
-      break
-    case 'doResize':
-      run.fake.resize()
       break
     case 'doLose':
       run.fake.lose(stepOf(run, pos(picks['losePick']!)))

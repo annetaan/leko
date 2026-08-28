@@ -49,14 +49,12 @@ export class Fake implements Presenter<Fixture> {
   /** Every step it was asked to draw, in order. */
   readonly shown: string[] = []
   /**
-   * The reason under the instruction, or nothing.
+   * Every retell, so a test can ask which step was told what, and how often.
    *
-   * Kept here rather than asked for, the way a real presenter keeps it: an
-   * arrival takes it away, a refusal writes it, and a resize is handed it again
-   * so that what is on screen survives one.
+   * The only thing the machine ever says about what is on screen. What becomes
+   * of the words is a presenter's business and `message.test.ts` asks about
+   * that; here the calls are the whole of it.
    */
-  error: string | undefined
-  /** Every retell, so a test can ask which step got rewritten, and with what. */
   readonly retold: { step: string; reason: string }[] = []
   rejected = 0
   torn = 0
@@ -73,19 +71,10 @@ export class Fake implements Presenter<Fixture> {
     // until the answer is in.
     if (anchor === null) return this.host.lost(step)
     this.shown.push(step.id)
-    // An arrival is a fresh attempt at the step, so whatever the last one was
-    // told goes with it.
-    this.error = undefined
-  }
-
-  place(step: Step, _anchor: Anchor | null, error: string | undefined): void {
-    this.shown.push(`place:${step.id}`)
-    this.error = error
   }
 
   retell(step: Step, reason: string): void {
     this.retold.push({ step: step.id, reason })
-    this.error = reason
   }
 
   reject(): void {
@@ -104,11 +93,6 @@ export class Fake implements Presenter<Fixture> {
   lose(step: Step): void {
     this.page.delete(step.target)
     this.host.lost(step)
-  }
-
-  /** The surface moved under the tour, the way a resize would. */
-  resize(): void {
-    this.host.moved()
   }
 
   /**

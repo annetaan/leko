@@ -76,6 +76,19 @@ const actionTarget = (target: LekoStep['target']): LekoTarget | undefined => {
 }
 
 /**
+ * What a viewer is looking at: the step whatever draws was last given, and
+ * whatever the last attempt at it was told.
+ *
+ * Held here and nowhere else. The machine keeps no copy of either half, so
+ * everything that redraws without the tour moving reads this to know what to
+ * put back.
+ */
+interface Drawn {
+  step: LekoStep
+  error: string | undefined
+}
+
+/**
  * The half of Leko that touches the page: one scrim per scrolling ancestor, the
  * hole cut through them, and the message beside it.
  *
@@ -123,11 +136,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * waited for. Both jobs are the same job, and neither may be armed twice.
    */
   private watcher: MutationObserver | undefined
-  /**
-   * The last step handed over, kept so that a target which comes back can be
-   * drawn again without the machine being told anything happened.
-   */
-  private drawn: LekoStep | undefined
+  /** What is on screen, or nothing where the tour has drawn nothing yet. */
+  private drawn: Drawn | undefined
   /** The deadline on a target that is not on the page, while one is running. */
   private retrying: ReturnType<typeof setTimeout> | undefined
 
@@ -336,17 +346,22 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // renders a moment after its `onEnter` returned is as much as one whose
     // target has gone. A step that named nothing is not looked for.
     if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, animate)
-    this.reveal(step, anchor, animate)
+    // An arrival is a fresh attempt at the step, so nothing is owed under the
+    // instruction until a guard says otherwise.
+    this.reveal({ step, error: undefined }, anchor, animate)
   }
 
   /**
-   * Draw the step.
+   * Draw what a viewer is to be looking at, and remember it.
    *
-   * `anchor` is `null` on a step that points at nothing. There is no scroller to
-   * find for one of those, so the document carries it, and everything below
-   * lands on the empty list of cutouts.
+   * `drawn` rather than a step, because a redraw that the tour did not ask for
+   * has to put back what was there, reason and all. `anchor` is `null` on a
+   * step that points at nothing. There is no scroller to find for one of those,
+   * so the document carries it, and everything below lands on the empty list of
+   * cutouts.
    */
-  private reveal(step: LekoStep, anchor: HTMLElement | null, animate: boolean): void {
+  private reveal(drawn: Drawn, anchor: HTMLElement | null, animate: boolean): void {
+    const { step } = drawn
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
@@ -369,9 +384,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const inner = this.layers[0]
     if (!inner) return this.retry(step, animate)
 
-    // Kept so that a target which comes back can be drawn again without the
-    // machine hearing that anything happened.
-    this.drawn = step
+    // Kept so that anything which redraws without the tour moving has what to
+    // put back.
+    this.drawn = drawn
 
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
@@ -410,37 +425,41 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const duration = this.options.duration ?? DEFAULTS.duration
     const morphing = inner.morph(resolved, duration)
     if (!morphing) {
-      this.say(step, undefined)
+      this.say(step, drawn.error)
       return
     }
     // The message comes back with the hole it belongs beside, and only if the
     // morph got there. Another arrival starting is the only thing that
     // interrupts one, and that arrival is drawing its own step already.
     void morphing.then((finished) => {
-      if (finished) this.say(step, undefined)
+      if (finished) this.say(step, drawn.error)
     })
   }
 
   /**
    * Put the cutouts where they belong, right now and without animating.
    *
-   * Used when the surface moved under the tour rather than the tour moving —
-   * a resize, say. Replaying the opening there would blow the cutout back up to
-   * the size of the page and converge again, so for a moment almost nothing
-   * would be dimmed.
+   * The surface moved under the tour rather than the tour moving. Replaying the
+   * opening would blow the cutout back up to the size of the page and converge
+   * again, so for a moment almost nothing would be dimmed.
+   *
+   * **The machine is not asked.** Which step the tour is on has not changed, so
+   * there is nothing for it to decide: this draws the step it was already given
+   * again, which is what {@link watchTarget} does about a replaced node too.
    */
-  place(step: LekoStep, anchor: HTMLElement | null, error: string | undefined): void {
+  private replace(): void {
+    const held = this.drawn
     const inner = this.layers[0]
-    if (!inner) return
+    if (!held || !inner) return
     for (const layer of this.layers) layer.resize()
-    this.cutOuterLayers(DomPresenter.chainOf(anchor ?? document.body))
-    const resolved = this.cutouts(step, (el) => rectWithin(el, inner.container))
+    this.cutOuterLayers(DomPresenter.chainOf(this.resolve(held.step) ?? document.body))
+    const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.container))
     if (!resolved) return
     inner.set(resolved)
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again. The way out
     // is placed from the viewport, so it is chosen again too.
-    this.say(step, error)
+    this.say(held.step, held.error)
   }
 
   /**
@@ -450,6 +469,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * nowhere to jump from, so that one is placed properly.
    */
   retell(step: LekoStep, reason: string): void {
+    // Held, because everything that redraws without the tour moving reads it.
+    // Without this a re-render over the step would take the reason off the page
+    // while leaving the step it belongs to standing.
+    if (this.drawn) this.drawn = { ...this.drawn, error: reason }
     if (this.message?.visible) {
       this.message.setText(step.message ?? '')
       this.message.setError(reason)
@@ -483,11 +506,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // started now would never see it: the mutation that added it has already
       // been delivered, and an observer hears nothing about the past. So the
       // selector is run here, and a re-render costs a morph and nothing else.
-      const back = this.resolve(held)
-      if (back) return this.show(held, back, true)
+      const back = this.resolve(held.step)
+      if (back) return this.reveal(held, back, true)
       // Nothing is holding what this hands back. The machine hears about this
       // wait only if it runs out, and then it hears `lost`.
-      this.retry(held, true)
+      this.retry(held.step, true)
     })
   }
 
@@ -562,7 +585,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * sits inside whatever scrolls, so it moves with the target on its own.
    */
   private watchViewport(): void {
-    this.onViewportChange = () => this.host.moved()
+    this.onViewportChange = () => this.replace()
     window.addEventListener('resize', this.onViewportChange)
   }
 

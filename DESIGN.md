@@ -349,8 +349,8 @@ hold than two.
 the field and call `reached()` once it likes what it sees. That listener has no
 job outside the tour. It sits in application code, it is written against one
 step, and it is the code **Signals and steps** exists to keep out of there. A
-guard the step declares costs one of the three fields in `Core` and costs the
-application nothing.
+guard the step declares costs the machine one event and one call out, and costs
+the application nothing.
 
 **A refusal is never silent.** The cutout shakes on every no. Which half of a
 refusal happens is read off the step and is not a choice anything makes at the
@@ -373,9 +373,10 @@ screen. A step with no `error` still refuses, in silence.
 **`error` is asked once, for the attempt that failed.** `target` is asked every
 time anything needs the box, and `message` is read every time the step draws, so
 an edit to either is seen. This one is different. The function form runs in the
-turn the guard said no, on the element the guard was handed, and the words it
-gives back are held from there. Asking again on a redraw would let a reason
-change while nobody had tried anything.
+turn the guard said no, on the element the guard was handed, and whatever draws
+the tour holds the words it gives back from there. Asking again on a redraw
+would let a reason change while nobody had tried anything, and a redraw is
+whatever the page does next: a resize, or a framework rendering over the step.
 
 **There is no hook for a failed press.** `onValidationError` was one, and
 because it returned `void` a handler could keep its utils and answer two steps
@@ -385,8 +386,10 @@ back on two events of its own, plus a set in the model holding every answer
 still owed. A reason that has to be fetched belongs to a different shape: the
 application finds out, then calls `reached()`.
 
-Leko does not hold the instruction. `step.message` is read every time it draws,
-and `StepBase.message` is `readonly` to say so.
+Leko does not hold the instruction. `step.message` is read every time the box is
+filled, so a host editing its own text is seen. The machine does not read it at
+all: what a step says is the drawing half's business, and **Three packages, and
+the seam between them** argues that.
 
 ## Starting a story
 
@@ -898,21 +901,26 @@ made from in there.
 field here, check whether it is a third way of saying what the fields already
 say.
 
-**Everything the machine knows is one value.** Three fields in `plan.ts` as
-`Core`: where the tour is, the phase, and the words of the last failed attempt.
-The class holds one `#core`, and every event is answered with the whole of the
-next `Core` rather than with a field to set.
+**Everything the machine knows is two fields.** `Core` in `plan.ts` is where the
+tour is and which window the machine is in. The class holds one `#core`, and
+every event is answered with the whole of the next `Core` rather than with a
+field to set.
 
-**None of the three is a list of stories.** `start` is handed the one it is to
-run, so there is nothing to look up and nothing to keep between runs. The state
-is what a tour is doing, and the stories a project happens to have written are
-not that. `packages/machine/model/machine.qnt` has the same three.
+**Neither is a list of stories.** `start` is handed the one it is to run, so
+there is nothing to look up and nothing to keep between runs. The state is what
+a tour is doing, and the stories a project happens to have written are not that.
+`packages/machine/model/machine.qnt` has the same two.
 
-**None of the three is there to be handed back.** A field the machine keeps only
-so that a hook can read it is a field two places have to agree about. Where a
-host can keep it and cannot get it wrong, the host keeps it. The morph the
-presenter is running would be such a field, and the only thing that could read
-it is `state`.
+**Neither is there to be handed back.** A field the machine keeps only so that a
+hook can read it is a field two places have to agree about. Where a host can
+keep it and cannot get it wrong, the host keeps it. The morph the presenter is
+running would be such a field, and the only thing that could read it is `state`.
+
+**Nothing here is about what is on screen.** The words of the last failed
+attempt were a field, and the only thing that read them was a redraw. Whatever
+draws is the thing that has to put the same page back, so it is the thing that
+remembers: a resize and a re-render over the step both go through it and neither
+asks the machine anything.
 
 **A move is written where it is decided.** `plan.ts` holds the shape, the
 readings taken off it, and then one spread per case. Giving each of those a name
@@ -1184,9 +1192,11 @@ this repository under the same licence, so the rule is not about it.
 What each half may ask of the other is `Presenter` and `Host` in
 `packages/machine/src/types.ts`.
 
-**The presenter never schedules itself.** It reports what it noticed through
-`Host` and waits. Whether the tour may be measured at all is a fact about the
-machine's state, and one owner for that guard is the point.
+**The presenter never moves the tour.** What it notices on the page it either
+redraws from what it already has, or reports through `Host` and waits. A resize
+and a node swapped for an identical one are the first kind: the tour is on the
+step it was on, and putting the same page back is not a decision. A target that
+never comes back is the second, because ending a run is.
 
 **No words cross the seam.** What a step says is on the step, and the step is on
 every call, so the machine builds no instruction and no label. One string does
@@ -1194,7 +1204,7 @@ cross: the reason the last attempt was turned down, on `retell`. A presenter
 cannot work that out, because which attempt was the last one is the machine's to
 know.
 
-**The presenter is told, and never asks back.** None of `Host`'s four members
+**The presenter is told, and never asks back.** None of `Host`'s three members
 returns anything, and no member of `Presenter` takes a story. The drawing half
 is handed steps and never asks what one belongs to, which is what the two-tier
 read in **Settings, and where they are read from** pays for.

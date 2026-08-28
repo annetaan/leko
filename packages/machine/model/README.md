@@ -48,33 +48,31 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 
 ```
-Step 8: picking a transition out of 7 transition(s)
+Step 8: picking a transition out of 6 transition(s)
 The outcome is: NoError
-[ok] No violation found (303590ms).
+[ok] No violation found (249148ms).
 ```
 
-5 minutes 4 seconds. Nothing within 8 calls of `init` breaks either invariant,
+4 minutes 9 seconds. Nothing within 8 calls of `init` breaks either invariant,
 and that is a proof over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
-`step` offers 7 actions, which is the number Apalache prints on the line above.
-Count the `nondet` picks and it is 20 branches from a state with nothing in
+`step` offers 6 actions, which is the number Apalache prints on the line above.
+Count the `nondet` picks and it is 19 branches from a state with nothing in
 flight, and one more for every teardown window that is open, because `doLeave`
-picks out of `inflight`. So 8 steps is around 20^8, or 26 billion paths.
+picks out of `inflight`. So 8 steps is around 19^8, or 17 billion paths.
 Apalache walks none of them. The picks stay as variables in the SMT problem and
-it asks about all 20 at once, which is the whole reason 8 steps finishes at all.
+it asks about all 19 at once, which is the whole reason 8 steps finishes at all.
 
-**Read a total as a sample of one.** The seven invariant checks at step 8 in
-that run took 18s, 24s, 34s, 8s, 0.0s, 27s and 19s. Seven instances of the same
-question, and one of them was answered before the clock could measure it. What
-Z3 pays for is the shape of the instance it is handed, so a run that finishes in
-five minutes today can take half an hour after a change that made the model
-smaller.
+**Read a total as a sample of one.** The six invariant checks at step 8 in that
+run took 22s, 23s, 10s, 0.1s, 21s and 17s. Six instances of the same question,
+and one of them was answered before the clock could measure it. What Z3 pays for
+is the shape of the instance it is handed, so a run that finishes in four
+minutes today can take half an hour after a change that made the model smaller.
 
-Taking actions off the transition relation is what has moved this number. The
-morph and its two actions went and the run fell from 826339ms to 303590ms;
-before that, dropping the search phase took it from 1910321ms to 826339ms.
+Taking actions off the transition relation is what has moved this number:
+1910321ms with 11 of them, then 826339ms with 9, 303590ms with 7, and this.
 Folding an arrival into one synchronous action went the other way, because it
 made each transition deeper while making the reachable states fewer.
 
@@ -277,9 +275,9 @@ drift apart, which is the largest drift surface there is.
 ## Two searches
 
 `quint run` picks uniformly among the actions that are enabled. `stop` is
-enabled almost always, so a tour gets torn down roughly every seventh call and
+enabled almost always, so a tour gets torn down roughly every sixth call and
 hardly ever reaches its third step. In the 100000 traces `pnpm model` walks, the
-state where a guard failed and the handler wrote a message comes up in 237 of
+state where a guard failed and the step had words for it comes up in 266 of
 them.
 
 So there are two.
@@ -288,7 +286,7 @@ So there are two.
   where the four bugs the issue was opened for would have been. All four were
   reachable in under five calls.
 - `initRunning` with `stepInside` starts with story `a` already running and
-  leaves out `start` and `stop`. Under this one the same state comes up in 12381
+  leaves out `start` and `stop`. Under this one the same state comes up in 12561
   of the 100000.
 
 `pnpm model` runs both. Neither is enough on its own.
@@ -306,7 +304,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 12 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 11 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 

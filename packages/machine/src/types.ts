@@ -101,9 +101,9 @@ export interface MachineOptions<W extends World> {
 /**
  * What the machine is allowed to ask of whatever draws the tour.
  *
- * **Nothing here schedules itself.** A presenter that notices something says so
- * through {@link Host} and waits to be called back, because whether the tour may
- * be measured at all is a fact about the machine's state.
+ * **Nothing here moves the tour.** A presenter that notices something on the
+ * page redraws what it already has, or says so through {@link Host} and waits.
+ * Which step the tour is on is not a question it may answer.
  *
  * **What a step says is on the step**, which is on every call here, so no
  * instruction and no label crosses this seam. One string does: why the last
@@ -129,12 +129,6 @@ export interface Presenter<W extends World> {
    */
   show(step: W['step'], anchor: W['anchor'] | null, animate: boolean): void
   /**
-   * Put it where it belongs now, without animating: the surface moved, not the
-   * tour. `error` is whatever the last attempt at this step was told, so a
-   * refusal on screen survives a resize.
-   */
-  place(step: W['step'], anchor: W['anchor'] | null, error: string | undefined): void
-  /**
    * The guard said no, and this is what the step gave as the reason. Nothing has
    * moved, so only the words change.
    *
@@ -150,7 +144,7 @@ export interface Presenter<W extends World> {
 }
 
 /**
- * What a presenter is allowed to tell the machine. Four things it noticed, and
+ * What a presenter is allowed to tell the machine. Three things it noticed, and
  * nothing to ask.
  *
  * The machine hands one of these to the factory that builds the presenter
@@ -163,13 +157,11 @@ export interface Host<W extends World> {
    * the tour may have moved on.
    *
    * A target that is missing is retried for a moment first, and nothing here is
-   * told about that: a retry entered from {@link Presenter.show} is already a
-   * wait the machine holds a promise for, and one entered after the step was
-   * drawn changes nothing on screen. This is the give-up.
+   * told about that. Nothing on screen changes while a retry runs, so there is
+   * nothing a host could act on and nothing the machine could decide. This is
+   * the give-up.
    */
   lost(step: W['step']): void
-  /** The surface moved under the tour, and nothing about the tour changed. */
-  moved(): void
   /** The next control was used. The only way anything advances without a signal. */
   next(): void
   /** The control that ends the tour was used. Means what `stop` means. */

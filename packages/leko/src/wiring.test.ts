@@ -244,6 +244,46 @@ test('a tour stopped while a target is being waited for does not draw itself bac
   expect(leko.state).toBe('idle')
 })
 
+/** The words under the instruction, or `null` where the step is not refusing. */
+const reason = () => document.querySelector('.leko-message-error')?.textContent
+
+test('a re-render over a refused step keeps the reason on screen', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  target.id = 'anchor'
+  const leko = holding({
+    id: 'story',
+    steps: [
+      {
+        id: 'one',
+        interactive: true,
+        target: '#anchor',
+        message: 'Type your name.',
+        validate: () => false,
+        error: 'A name, not a number.',
+      },
+      { id: 'two', interactive: true, target: '#anchor' },
+    ],
+  })
+
+  begin(leko, 'story')
+  press()
+
+  expect(reason()).toBe('A name, not a number.')
+
+  // What a framework does a moment later, for reasons of its own. The step is
+  // where it was and the reason still applies to it, so redrawing must put it
+  // back: the machine holds no copy to ask for, and a refusal that vanished
+  // because something re-rendered would read as a press that worked.
+  const fresh = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  fresh.id = 'anchor'
+  target.remove()
+  await observed()
+
+  expect(centre(fresh)).toBe(fresh)
+  expect(leko.step?.id).toBe('one')
+  expect(reason()).toBe('A name, not a number.')
+})
+
 test('a target that comes back inside the retry is drawn again', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
@@ -356,7 +396,7 @@ test('a step that waits is drawn at once, and the signal it names moves the tour
   expect(centre(first)).toBe(first)
 })
 
-test('a resize stands back while a step is being built, and lands once it is drawn', () => {
+test('a resize draws what is on screen, and never a step being built', () => {
   const [first, second] = pair()
   const leko = holding({
     id: 'story',
@@ -369,9 +409,9 @@ test('a resize stands back while a step is being built, and lands once it is dra
         onEnter: () => {
           second.style.top = '500px'
           window.dispatchEvent(new Event('resize'))
-          // Nothing of `b` has been measured yet, and measuring it from in here
-          // would be reading its anchor early by another route. The hole is
-          // still `a`'s.
+          // A resize redraws whatever was last drawn, and that is still `a`:
+          // nothing of `b` has been handed over yet. Measuring `b` from in here
+          // would be reading its anchor early by another route.
           expect(centre(first)).toBe(first)
         },
       },
@@ -700,7 +740,6 @@ function watching(options = {}) {
     { duration: 0, ...options },
     {
       lost: (step) => void lost.push(step.id),
-      moved: () => {},
       next: () => {},
       close: () => {},
     },

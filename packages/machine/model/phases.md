@@ -1,6 +1,6 @@
 # The phases, drawn
 
-The machine has four phases and one state value with three fields in it. This
+The machine has four phases and one state value with two fields in it. This
 file is the picture of them. `plan.ts` holds the phases, the state and what each
 event does to them, and `machine.ts` makes the calls that follow.
 [`README.md`](README.md) beside this says how the model is searched, and
@@ -33,7 +33,7 @@ refuses a `start()` made from in there.
 `position` is replaced on every move and on nothing else. That is what makes its
 identity the step occurrence the tour is standing on. Every event that can land
 late carries the position it was planned at, and `plan.ts` asks `stillAt` before
-it acts on one. There are eight of those asks.
+it acts on one. There are seven of those asks.
 
 ## The phase machine
 
@@ -99,7 +99,6 @@ over and the user is looking at it, so a call about it means what it says.
 | `reached(name)` | open | advances only the step whose `awaits` is that name. Any other name is free and silent |
 | `stop()` | anywhere | the one call the gate does not stand in front of. A step still arriving is thrown away rather than waited for |
 | `Host.next()` | open | private, and reachable only through the presenter. A step declaring `awaits` never gets a control |
-| `Host.moved()` | open | places the step where it belongs now, without animating. No phase change and no report |
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
 
@@ -161,7 +160,7 @@ own chain of events.
 
 So every event the machine owes itself carries the `position` object it was
 planned at, and `plan.ts` compares that object with the current one before
-acting, at the eight places named above.
+acting, at the seven places named above.
 
 `validate` is the one that reads oddly. It answers in the turn it is asked, so
 nothing is left over to land later, and the `refused` event asks all the same,

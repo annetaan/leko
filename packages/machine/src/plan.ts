@@ -37,8 +37,6 @@ export interface Core<W extends World> {
   /** Where the tour is. Being idle is this being `undefined`. */
   readonly position: Position<W> | undefined
   readonly phase: Phase
-  /** What the last attempt at the current step was told was wrong with it. */
-  readonly error: string | undefined
 }
 
 /** What the unions below read through, so a member fits on its own line. */
@@ -49,7 +47,6 @@ type Story<W extends World> = W['story']
 export const idle = <W extends World>(): Core<W> => ({
   position: undefined,
   phase: 'ready',
-  error: undefined,
 })
 
 /** DESIGN.md argues this under **One gate, and what it refuses**. */
@@ -83,8 +80,6 @@ export type Effect<W extends World> =
   | { kind: 'teardown' }
   /** `resolve` then `show`. Answers with nothing, or `lost` where there is no anchor. */
   | { kind: 'draw'; step: Step<W>; animate: boolean }
-  /** `resolve` then `place`. Nothing about the tour changed, so nothing answers. */
-  | { kind: 'place'; step: Step<W>; error: string | undefined }
   /** The guard said no and the step had words for it. */
   | { kind: 'retell'; step: Step<W>; reason: string }
   | { kind: 'reject' }
@@ -101,7 +96,7 @@ export type Effect<W extends World> =
   | { kind: 'rethrow'; reason: unknown }
 
 /**
- * Everything that happens to the machine, as data. The first six are calls a
+ * Everything that happens to the machine, as data. The first five are calls a
  * host or a presenter makes. The rest are the machine carrying on, one for every
  * window where a call into the application sits between two writes.
  */
@@ -111,7 +106,6 @@ export type Event<W extends World> =
   | { kind: 'reached'; name: string }
   | { kind: 'stop' }
   | { kind: 'pressed' }
-  | { kind: 'moved' }
   | { kind: 'lost'; step: Step<W> }
   // --- the machine carrying on, one per window it has to stop at
   /** The `onLeave` calls are done and the report is owed. */
@@ -183,10 +177,7 @@ const ending = <W extends World>(
   }
 }
 
-/**
- * `enter`. The phase says the arrival began before any handler is called, and
- * the failed attempt that belonged to the step being left goes with it.
- */
+/** `enter`. The phase says the arrival began before any handler is called. */
 const entering = <W extends World>(
   core: Core<W>,
   at: Position<W>,
@@ -198,7 +189,7 @@ const entering = <W extends World>(
   const effects: Effect<W>[] = []
   if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
   effects.push({ kind: 'callStepEnter', at, step, animate })
-  return { core: { ...core, phase: 'step', error: undefined }, effects }
+  return { core: { ...core, phase: 'step' }, effects }
 }
 
 /**
@@ -292,14 +283,6 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
 
     // --- what a presenter reports
 
-    case 'moved': {
-      // Placed rather than replayed, and never measured mid-arrival.
-      const here = core.position
-      const step = stepOf(core)
-      if (!accepting(core) || !here || !step) return nothing(core)
-      return owing(core, { kind: 'place', step, error: core.error })
-    }
-
     case 'lost': {
       const here = core.position
       // Named rather than read off the position, so a watcher still armed on the
@@ -392,8 +375,7 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       // words still refuses out loud, because a control that sometimes did
       // nothing would be worse than no control.
       if (event.reason === undefined) return owing(core, { kind: 'reject' })
-      const said: Core<W> = { ...core, error: event.reason }
-      return owing(said, { kind: 'reject' }, { kind: 'retell', step, reason: event.reason })
+      return owing(core, { kind: 'reject' }, { kind: 'retell', step, reason: event.reason })
     }
   }
 }

@@ -236,7 +236,9 @@ describe('a failed attempt', () => {
   test('says no out loud, and says why where the step gave words for it', () => {
     const outcome = put(core, { kind: 'refused', at: attempt, reason: 'not yet' })
 
-    expect(outcome.core.error).toBe('not yet')
+    // Nothing is written down. A refusal is two calls out and no state: what is
+    // on screen belongs to whatever draws it, and the tour has not moved.
+    expect(outcome.core).toBe(core)
     // The refusal comes first: it is the answer to the press, and the words are
     // what the answer is about.
     expect(owed(outcome)).toEqual(['reject', 'retell'])
@@ -252,7 +254,7 @@ describe('a failed attempt', () => {
 
     // A guard with nothing to say must not leave the control doing nothing.
     expect(outcome.effects).toEqual([{ kind: 'reject' }])
-    expect(outcome.core.error).toBeUndefined()
+    expect(outcome.core).toBe(core)
   })
 
   test('says nothing at all where the tour has moved since', () => {
@@ -341,13 +343,13 @@ describe('a position is the occurrence, not the place', () => {
   })
 })
 
-describe('an arrival throws away what belonged to the step being left', () => {
-  test('drops the attempt', () => {
-    const before = running(0, { error: 'not yet' })
+describe('an arrival is a fresh position and nothing else', () => {
+  test('writes the phase and moves nothing it was not asked to', () => {
+    const before = running()
 
     const outcome = put(before, { kind: 'entering', at: at(0), leaving: undefined, animate: true })
 
-    expect(outcome.core).toEqual({ ...before, phase: 'step', error: undefined })
+    expect(outcome.core).toEqual({ ...before, phase: 'step' })
   })
 
   test("a story's own arrival has no step, so there is nothing to throw away", () => {
