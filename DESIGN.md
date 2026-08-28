@@ -16,7 +16,7 @@ before overruling the rule.** Situations a tour meets are cases under
 [`examples/sandbox/src/cases/`](examples/sandbox/src/cases/), named below by
 file. How the code got here is in the commits.
 
-## Two constraints that must not be broken
+## Three constraints that must not be broken
 
 These are why Leko exists. Everything else is negotiable. These are not.
 
@@ -33,6 +33,17 @@ which holes are which.
 **2. Steps advance on application state, never on DOM events.** The host
 reports what happened. It calls `leko.reached('order-saved')` when it knows the
 thing happened, after its API call resolved, after its own validation passed.
+
+**3. Story logic stays in the story.** Adding a tour must not make the
+application harder to read. Take something out of Leko and the work it was doing
+does not disappear. If what replaces it is a listener in application code, one
+with no job outside the tour and written against a particular step, the
+complexity moved to the host rather than going away.
+
+`reached()` is the one concession, and it is shaped so the application only
+reports that something finished. It names no story and no step, and it does not
+know whether a tour is running. **Signals and steps** argues this constraint,
+and **A failed attempt** applies it to one case.
 
 ## Signals and steps
 

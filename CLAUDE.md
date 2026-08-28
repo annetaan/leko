@@ -4,16 +4,18 @@ Leko is a product-tour library that highlights an element by cutting a hole in a
 overlay, so the user can interact with the real element underneath.
 
 **Read [DESIGN.md](DESIGN.md) before changing anything under `packages/leko/`,
-`packages/machine/` or `packages/spotlight/`.** It states the two constraints the library exists for and
-argues every rule about the scrim next to the browser behaviour that forced it,
-citing the page under [`spike/`](spike/) that settled each one. Read the cited
+`packages/machine/` or `packages/spotlight/`.** It states the three constraints
+the library exists for and argues every rule about the scrim next to the browser
+behaviour that forced it, citing the page under [`spike/`](spike/) that settled
+each one. Read the cited
 page before overruling a rule; do not restate a rule here that belongs there.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the commands and what CI runs.
 
-## The two constraints
+## The three constraints
 
-Everything else is negotiable; these are not. Both are explained in DESIGN.md.
+Everything else is negotiable; these are not. All three are explained in
+DESIGN.md.
 
 1. **Never place an element over a target the step opened** — not even a
    transparent one. Only one story is ever visible, and this is why. A step
@@ -24,6 +26,13 @@ Everything else is negotiable; these are not. Both are explained in DESIGN.md.
    names what happened (`leko.reached('order-saved')`) and a step names what it
    waits for (`awaits`). Never add a click or input listener that advances a
    step.
+3. **Story logic stays in the story.** Adding a tour must not make the
+   application harder to read. If taking something out of Leko puts a listener
+   into application code, one with no job outside the tour and written against
+   a particular step, the complexity moved to the host rather than going away.
+   `reached()` is the one concession, and it reports that something finished
+   without naming a story or a step. DESIGN.md argues it under **Signals and
+   steps** and applies it under **A failed attempt**.
 
 ## What looks like an improvement and is not
 

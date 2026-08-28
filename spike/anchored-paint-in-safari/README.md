@@ -64,7 +64,7 @@ still runs and the hole is still cut. Nobody is told what to do.
 `position-visibility: always`, and the marker in `Scrim.anchorAt` stays 0x0. The
 other way out of the table is to give the marker area, and Leko cannot take it.
 The marker sits on the edge of the cutout, so area means a Leko element over a
-hole the step opened, which is the first of the two constraints.
+hole the step opened, which is the first of the three constraints.
 
 No test holds any of this down. Playwright's WebKit paints the box either way,
 and that is the only WebKit CI has.

@@ -305,10 +305,10 @@ the last one is a different job: a `refused` landing after a `validate` that
 called `stop()` from inside itself. All seven are what is left of a counter that
 used to be checked in thirteen places.
 
-## The two constraints, and the line that keeps each
+## The three constraints, and the line that keeps each
 
-DESIGN.md argues both under
-[Two constraints that must not be broken](DESIGN.md#two-constraints-that-must-not-be-broken).
+DESIGN.md argues all three under
+[Three constraints that must not be broken](DESIGN.md#three-constraints-that-must-not-be-broken).
 Here is where they live in code.
 
 **1. Never place an element over a target the step opened.**
@@ -363,6 +363,19 @@ all. The scrim lives inside the thing that scrolls, so scrolling moves the scrim
 and the target together, and the message is anchor-positioned so the browser
 offsets it. If you find yourself adding a scroll listener, stop and read
 [Scrolling](DESIGN.md#scrolling) first.
+
+**3. Story logic stays in the story.**
+
+`Leko` publishes `start`, `reached`, `watch` and `stop`, and four getters.
+Nothing on it takes a step. `reached(name)` takes one string, and the matching
+against `awaits` happens inside the machine, so a call site cannot say which
+step should move even by accident.
+
+The conditions a story has are fields on the step. `awaits` names the report the
+step waits for. `validate` guards the control. `interactive` says what the user
+may touch. `packages/machine` reads them and the application reads none of them.
+Take one of those fields away and the application carries the same condition as
+a listener, written against a particular step and with no job outside the tour.
 
 ## Which Vitest project a new test belongs in
 

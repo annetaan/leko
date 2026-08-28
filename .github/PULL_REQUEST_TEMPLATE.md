@@ -11,15 +11,17 @@
 - [ ] A new claim about what a browser does has a page in `spike/`, and the rule
       it supports cites it
 
-## The two constraints
+## The three constraints
 
-Both are explained in
+All three are explained in
 [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md). Tick them, or say
 below why the change is still right.
 
 - [ ] Nothing of Leko's is placed over the target, not even a transparent
       element
 - [ ] No DOM event advances a step; the host application still decides
+- [ ] No tour-only code moves into the application. A call site still reports
+      what happened without naming a story or a step
 
 ## If this does one of these, say which
 

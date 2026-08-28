@@ -129,16 +129,23 @@ Commit subjects follow [Conventional Commits](https://www.conventionalcommits.or
 the change makes true that was not true before; the subject is not the place for
 it.
 
-## Two things that are not up for negotiation
+## Three things that are not up for negotiation
 
-They are the reasons the library exists, and both are explained in
-[DESIGN.md](DESIGN.md#two-constraints-that-must-not-be-broken):
+They are the reasons the library exists, and all three are explained in
+[DESIGN.md](DESIGN.md#three-constraints-that-must-not-be-broken):
 
 1. **Nothing is ever layered over the target.** A cutout is a hole, not a
    transparent element. One story is visible at a time because of it.
 2. **Steps advance when the host application says so**, never on a DOM event
    Leko observed. It reports what happened — `leko.reached('order-saved')` —
    and the step that declared that name is the one that moves.
+3. **Story logic stays in the story.** An application with a tour bolted onto it
+   should read the way it read before. Take something out of Leko and the work
+   it was doing does not disappear. If what replaces it is a listener in
+   application code, one with no job outside the tour and written against a
+   particular step, the complexity moved to the host rather than going away.
+   `reached()` is the one concession, and it reports that something finished
+   without naming a story or a step.
 
 ## What looks like an improvement and is not
 

@@ -38,7 +38,7 @@ top of the target**, because the stage centres its children.
 ## Why it matters
 
 Leko exists to never put anything over the element it is pointing at — that is
-the first of its two constraints, and it is what makes the highlighted control
+the first of its three constraints, and it is what makes the highlighted control
 usable rather than a picture of a control. A message that silently loses its
 anchor and settles over the target breaks exactly that, on exactly the pages
 most likely to have a component worth pointing at.
