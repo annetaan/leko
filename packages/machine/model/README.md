@@ -26,8 +26,8 @@ pnpm model:traces   # regenerate the corpus under traces/
 pnpm test           # among other things, replay the corpus
 ```
 
-`pnpm model` takes about 7 seconds here and runs in CI. It needs no JVM. Quint's
-Rust backend is the default and comes with the npm package, and only
+`pnpm model` takes about 10 seconds here and runs in CI. It needs no JVM.
+Quint's Rust backend is the default and comes with the npm package, and only
 `quint verify` wants Apalache and a Java runtime.
 
 ## Verifying it
@@ -38,7 +38,7 @@ invariant. A bug deeper than the sample reached is still a bug it never saw.
 model to [Apalache](https://apalache.informal.systems/), which asks Z3 whether
 an invariant can be broken at all.
 
-I ran it once, by hand, on 2026-08-26:
+I run it by hand after a change to the model. Last on 2026-08-28:
 
 ```bash
 brew install openjdk@21
@@ -49,23 +49,35 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 
 ```
+Step 8: picking a transition out of 11 transition(s)
 The outcome is: NoError
-[ok] No violation found (756724ms).
+[ok] No violation found (1910321ms).
 ```
 
-12 minutes 36 seconds. Nothing within 8 calls of `init` breaks either invariant,
+31 minutes 50 seconds. Nothing within 8 calls of `init` breaks either invariant,
 and that is a proof over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
-`step` offers 12 actions. Count the `nondet` picks and it is 38 branches from
-most states, so 8 steps is around 38^8, or 4.3 trillion paths. Apalache walks
-none of them. The picks stay as variables in the SMT problem and it asks about
-all 38 at once, which is the whole reason 8 steps finishes at all.
+`step` offers 11 actions, which is the number Apalache prints on the line above.
+Count the `nondet` picks and it is 38 branches from a state with nothing in
+flight, and two more for every callback that is: `doSettle` and `doLeave` both
+pick out of `inflight`. So 8 steps is around 38^8, or 4.3 trillion paths.
+Apalache walks none of them. The picks stay as variables in the SMT problem and
+it asks about all 38 at once, which is the whole reason 8 steps finishes at all.
 
-Do not put it in CI. The log shows one invariant check taking a few seconds
-early on and 30 seconds at step 8, so the cost climbs steeply with depth.
-`pnpm model:traces` searches 24 steps, and that is out of reach here.
+**The cost is one hard instance rather than a slope.** Timing the invariant
+checks at step 8 in that run gives 17s, 25s, 25s, 29s, and then 725s, then 21s.
+One check took 12 minutes and the rest look like every other step. A depth that
+finishes in twelve minutes today can take half an hour after a change that made
+the model smaller, so read a total as a sample of one.
+
+That is also why a smaller model is not a faster one. What Z3 pays for is the
+size of the transition relation, and folding an arrival into one synchronous
+action makes each transition deeper while making the reachable states fewer.
+
+Do not put it in CI. `pnpm model:traces` searches 24 steps, and that is out of
+reach here.
 
 ## What is checked, and where
 
@@ -241,15 +253,18 @@ into, and the corpus is written so that every entrance — `start`, `stop`,
 
 ## The world, and how big it is
 
-Four stories and six steps between them. Two signals a call site can report, and
-one more that nothing waits for. Four targets on the page.
+Five stories and eight steps between them. Two signals a call site can report,
+and one more that nothing waits for. Four targets on the page. The state is
+twelve variables: the four of `Core`, four the code keeps implicitly, and four
+that are knobs on the world.
 
 | Story | Steps | What it is for |
 | --- | --- | --- |
-| `a` | `a1`, `a2`, `a3` | the ordinary run. A control, then a signal, then a control behind a guard |
-| `b` | `b1`, `b2` | a step that throws on the way in |
+| `a` | `a1`, `a2`, `a3`, `a4` | the ordinary run. A control, then a signal, then two controls behind a guard. `a3` has `error` written on it and `a4` does not, because a refusal with nothing to say still has to shake the cutout |
+| `b` | `b1`, `b2` | a signal, and a step that throws on the way in |
 | `c` | `c1` | a story whose own `onEnter` throws |
 | `d` | none | `start` has to refuse it without tearing down whatever is running |
+| `e` | `e1` | where `a` hands the tour when it runs out, and the end of the chain |
 
 `a2` declares both `awaits` and a guard, because the guard is meant to be
 ignored on a step that declares `awaits`.
