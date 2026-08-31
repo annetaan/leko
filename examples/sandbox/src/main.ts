@@ -9,7 +9,12 @@ app.append(
   html(`
     <div class="shell">
       <aside class="rail">
-        <h1>Leko sandbox</h1>
+        <div class="rail-head">
+          <h1>Leko sandbox</h1>
+          <button type="button" class="theme" data-theme>
+            <span class="theme-knob" aria-hidden="true"></span>
+          </button>
+        </div>
         <p class="rail-note">
           Fifteen situations a tour has to survive. Start a story and then use the
           page — the cutout is a hole, so everything inside it still works.
@@ -53,6 +58,43 @@ const starts = pick('[data-starts]')
 const stateOut = pick('[data-state]')
 const noteOut = pick('[data-note]')
 const logOut = pick('[data-log]')
+
+// The page follows the OS until this switch picks a side. A pick lands on the
+// root as `data-theme`, which is where style.css reads it, and is kept across
+// reloads. The switch itself only mirrors what is on screen: `data-shown` is
+// where the knob sits, and the name says what a press would do.
+const themeToggle = pick<HTMLButtonElement>('[data-theme]')
+const prefersDark = matchMedia('(prefers-color-scheme: dark)')
+
+function shownTheme(): 'light' | 'dark' {
+  const picked = document.documentElement.dataset['theme']
+  if (picked === 'light' || picked === 'dark') return picked
+  return prefersDark.matches ? 'dark' : 'light'
+}
+
+function labelTheme(): void {
+  const shown = shownTheme()
+  themeToggle.dataset['shown'] = shown
+  themeToggle.setAttribute(
+    'aria-label',
+    `Switch to the ${shown === 'dark' ? 'light' : 'dark'} theme`,
+  )
+}
+
+const keptTheme = localStorage.getItem('leko-sandbox-theme')
+if (keptTheme === 'light' || keptTheme === 'dark') {
+  document.documentElement.dataset['theme'] = keptTheme
+}
+
+themeToggle.addEventListener('click', () => {
+  const next = shownTheme() === 'dark' ? 'light' : 'dark'
+  document.documentElement.dataset['theme'] = next
+  localStorage.setItem('leko-sandbox-theme', next)
+  labelTheme()
+})
+// With no pick made, the OS still decides — so an OS change moves the label.
+prefersDark.addEventListener('change', labelTheme)
+labelTheme()
 
 /** When the showing case was mounted, so every row can say how long after it. */
 let opened = performance.now()
