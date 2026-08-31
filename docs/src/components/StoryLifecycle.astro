@@ -1,0 +1,110 @@
+---
+/**
+ * A story's lifecycle, drawn. One way in, one way on, and every way out ends
+ * the whole run. Read off `plan.ts`; if a transition changes there, change
+ * this in the same commit, the way `packages/machine/model/phases.md` asks.
+ */
+---
+
+<figure class="lifecycle">
+  <svg viewBox="0 0 760 320" role="img" aria-label="A story's lifecycle: leko.start moves the tour from idle to a running story; the story's onEnter runs first and its onLeave runs last; every ending returns to idle unless the story named a next story, which starts without touching idle.">
+    <defs>
+      <marker id="story-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+      </marker>
+    </defs>
+
+    <!-- idle -->
+    <rect x="24" y="120" width="120" height="64" rx="10" class="box open"></rect>
+    <text x="84" y="147" text-anchor="middle" class="label strong">idle</text>
+    <text x="84" y="167" text-anchor="middle" class="label quiet">nothing runs</text>
+
+    <!-- the running story -->
+    <rect x="300" y="36" width="280" height="226" rx="12" class="box"></rect>
+    <text x="440" y="62" text-anchor="middle" class="label strong">a story runs</text>
+
+    <rect x="324" y="78" width="232" height="40" rx="8" class="box shut"></rect>
+    <text x="440" y="103" text-anchor="middle" class="label mono">story.onEnter(story)</text>
+
+    <rect x="324" y="138" width="232" height="40" rx="8" class="box open"></rect>
+    <text x="440" y="163" text-anchor="middle" class="label">the steps, one after another</text>
+
+    <rect x="324" y="198" width="232" height="40" rx="8" class="box shut"></rect>
+    <text x="440" y="223" text-anchor="middle" class="label mono">story.onLeave(story, next)</text>
+
+    <line x1="440" y1="118" x2="440" y2="138" class="edge" marker-end="url(#story-arrow)"></line>
+    <line x1="440" y1="178" x2="440" y2="198" class="edge" marker-end="url(#story-arrow)"></line>
+
+    <!-- in: start(story) -->
+    <path d="M 144 136 C 210 136, 230 98 296 98" class="edge" marker-end="url(#story-arrow)" fill="none"></path>
+    <text x="220" y="88" text-anchor="middle" class="label mono">leko.start(story)</text>
+
+    <!-- out: every ending -->
+    <path d="M 300 230 C 230 230, 210 176 148 172" class="edge" marker-end="url(#story-arrow)" fill="none"></path>
+    <text x="220" y="258" text-anchor="middle" class="label">the run ends</text>
+
+    <!-- next chain, looping back to the top of the same box -->
+    <path d="M 580 218 C 700 218, 700 98 584 98" class="edge" marker-end="url(#story-arrow)" fill="none"></path>
+    <text x="650" y="258" text-anchor="middle" class="label mono">story.next</text>
+    <text x="650" y="276" text-anchor="middle" class="label quiet">asked only when the</text>
+    <text x="650" y="292" text-anchor="middle" class="label quiet">last step advanced</text>
+  </svg>
+  <figcaption>
+    Every way a run ends — the close control, <code>stop()</code>, running out
+    of steps with no <code>next</code>, a target that never came back, a handler
+    that threw — goes through <code>story.onLeave</code>, and all but one
+    arrives back at <code>idle</code>. The exception is a story that ran out of
+    steps and named a <code>next</code>: the story it names goes up inside the
+    same operation, so the tour is never idle between the two.
+  </figcaption>
+</figure>
+
+<style>
+  .lifecycle {
+    margin: 1.5rem 0;
+  }
+  .lifecycle svg {
+    width: 100%;
+    height: auto;
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font);
+  }
+  .box {
+    fill: var(--sl-color-bg-nav);
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.5;
+  }
+  .box.open {
+    stroke: var(--sl-color-green);
+    stroke-width: 2.5;
+  }
+  .box.shut {
+    stroke: var(--sl-color-orange);
+    stroke-width: 2.5;
+  }
+  .edge {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+  .label {
+    fill: var(--sl-color-text);
+    font-size: 14px;
+  }
+  .label.strong {
+    fill: var(--sl-color-white);
+    font-weight: 600;
+  }
+  .label.quiet {
+    fill: var(--sl-color-gray-3);
+    font-size: 12.5px;
+  }
+  .label.mono {
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 13px;
+  }
+  .lifecycle figcaption {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

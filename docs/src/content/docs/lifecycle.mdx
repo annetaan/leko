@@ -1,0 +1,65 @@
+---
+title: The lifecycle
+description: When a story begins and ends, and what a step goes through between onEnter and onLeave — drawn, in the order the hooks actually run.
+---
+
+import StoryLifecycle from '../../components/StoryLifecycle.astro'
+import StepLifecycle from '../../components/StepLifecycle.astro'
+
+A tour is two lifecycles, one inside the other. A story has the simple one: it
+begins on one call and every way it ends, ends all of it. A step has the busy
+one: hooks run in a fixed order, and the step then rests on screen until
+exactly one thing moves it.
+
+## A story's lifecycle
+
+<StoryLifecycle />
+
+- **`start(story)` is the only way in from outside.** Called while a tour is
+  running it does nothing and reports `tour-running` — `stop()` first, then
+  `start()`. There is no way to begin part-way through, and no way back: a
+  story that should be revisitable is a shorter story, run again.
+- **`story.onEnter` runs first and `story.onLeave` runs last**, bracketing
+  every step. Setup a whole story stands on belongs in the story's own hooks;
+  clear-up written on the first step's `onLeave` fires the moment the tour
+  reaches step 2.
+- **Every ending is the whole ending.** The close control, `stop()`, running
+  out of steps, a target that never came back, a handler that threw — each
+  tears the run down where it stands, and `onLeave` runs even for a step whose
+  `onEnter` threw halfway.
+- **`next` is the only way one story leads to another.** It is asked when the
+  last step advances — never on `stop()`, never on a failure — and the handoff
+  is one operation: `onLeave` is told where the tour is going, and the tour is
+  never idle in between.
+
+## A step's lifecycle
+
+<StepLifecycle />
+
+The order is fixed, and the report deliberately comes last: `onStep` never
+names a step the user cannot see, so a step whose target went missing or whose
+`onEnter` threw is never reported as reached.
+
+What moves a step on is decided by one field:
+
+- **No `awaits`:** the step has a next control, and pressing it is the only
+  mover. `validate`, if declared, guards that press — a refusal shakes the
+  cutout, puts `error` under the instruction, and the tour stays put.
+- **`awaits: 'action-name'`:** the step has no next control, and
+  `leko.reached('action-name')` is the only mover. The signal is a statement of
+  fact from your own code — after the API call resolved, not when the button
+  was clicked.
+
+Nothing else moves a step. Not a DOM event, not a timer, not a signal nobody is
+waiting for (free and silent, permanently), and not a signal reported before
+the step was on screen — signals are not buffered, because a step advanced by
+something that happened before it appeared has established nothing about the
+user.
+
+One property holds the whole diagram together: **no hook hands anything back,
+and Leko waits for nothing.** The chain from one step's `onLeave` to the next
+step's `onStep` runs inside the single synchronous call that moved the tour —
+a press, a `reached()`, a `start()`. Work that must finish before the next
+step makes sense is not a slow `onEnter`; it is a step of its own, with no
+`target` and an `awaits`, started by its own `onEnter` and ended by your code
+reporting in.

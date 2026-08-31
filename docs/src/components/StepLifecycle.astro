@@ -1,0 +1,145 @@
+---
+/**
+ * A step's lifecycle, drawn the way Android draws an Activity's: the callbacks
+ * in the order they run, the resting state in the middle, and every exit
+ * funnelling through `onLeave`. Read off `plan.ts`; if a transition changes
+ * there, change this in the same commit, the way
+ * `packages/machine/model/phases.md` asks.
+ */
+---
+
+<figure class="lifecycle">
+  <svg viewBox="0 0 760 650" role="img" aria-label="A step's lifecycle: onEnter runs, the target is resolved and the hole is drawn, onStep reports, and the step rests on screen until the next control is pressed or the declared signal is reached; every path out runs through onLeave, looping to the next step's onEnter or ending the run.">
+    <defs>
+      <marker id="step-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+      </marker>
+    </defs>
+
+    <!-- the way in -->
+    <text x="350" y="16" text-anchor="middle" class="label quiet">the tour arrives — after <tspan class="mono">story.onEnter</tspan> for the first step,</text>
+    <text x="350" y="32" text-anchor="middle" class="label quiet">after the step before's <tspan class="mono">onLeave</tspan> for every other</text>
+    <line x1="350" y1="38" x2="350" y2="58" class="edge" marker-end="url(#step-arrow)"></line>
+
+    <!-- onEnter -->
+    <rect x="210" y="58" width="280" height="56" rx="8" class="box shut"></rect>
+    <text x="350" y="82" text-anchor="middle" class="label mono">onEnter(step)</text>
+    <text x="350" y="100" text-anchor="middle" class="label quiet">builds what the step assumes</text>
+    <line x1="350" y1="114" x2="350" y2="134" class="edge" marker-end="url(#step-arrow)"></line>
+
+    <!-- resolve and draw -->
+    <rect x="210" y="134" width="280" height="56" rx="8" class="box"></rect>
+    <text x="350" y="158" text-anchor="middle" class="label">the target is resolved, the hole is drawn</text>
+    <text x="350" y="176" text-anchor="middle" class="label quiet">missing? retried for 100ms, drawing nothing</text>
+    <line x1="350" y1="190" x2="350" y2="210" class="edge" marker-end="url(#step-arrow)"></line>
+
+    <!-- onStep -->
+    <rect x="210" y="210" width="280" height="56" rx="8" class="box open"></rect>
+    <text x="350" y="234" text-anchor="middle" class="label mono">onStep(step, story)</text>
+    <text x="350" y="252" text-anchor="middle" class="label quiet">the report — only once it is on screen</text>
+    <line x1="350" y1="266" x2="350" y2="286" class="edge" marker-end="url(#step-arrow)"></line>
+
+    <!-- resting -->
+    <rect x="210" y="286" width="280" height="96" rx="10" class="box open"></rect>
+    <text x="350" y="318" text-anchor="middle" class="label strong">on screen</text>
+    <text x="350" y="340" text-anchor="middle" class="label quiet"><tspan class="mono">state</tspan> is <tspan class="mono">'running'</tspan> — every call is accepted</text>
+    <text x="350" y="360" text-anchor="middle" class="label quiet">resting here until exactly one thing happens</text>
+
+    <!-- the two movers -->
+    <line x1="280" y1="382" x2="280" y2="528" class="edge" marker-end="url(#step-arrow)"></line>
+    <text x="264" y="422" text-anchor="end" class="label mono">the next control</text>
+    <text x="264" y="440" text-anchor="end" class="label quiet">only a step with no</text>
+    <text x="264" y="456" text-anchor="end" class="label quiet">awaits has one; validate</text>
+    <text x="264" y="472" text-anchor="end" class="label quiet">may refuse — the cutout</text>
+    <text x="264" y="488" text-anchor="end" class="label quiet">shakes, error joins the</text>
+    <text x="264" y="504" text-anchor="end" class="label quiet">message, the tour stays put</text>
+
+    <line x1="420" y1="382" x2="420" y2="528" class="edge" marker-end="url(#step-arrow)"></line>
+    <text x="434" y="422" class="label mono">leko.reached(step.awaits)</text>
+    <text x="434" y="440" class="label quiet">the only mover on a step</text>
+    <text x="434" y="456" class="label quiet">that declares awaits</text>
+
+    <!-- every ending, from wherever it happened -->
+    <path d="M 490 86 H 640" class="edge" fill="none"></path>
+    <text x="498" y="78" class="label quiet">it threw</text>
+    <path d="M 490 162 H 640" class="edge" fill="none"></path>
+    <text x="498" y="154" class="label quiet">never came back</text>
+    <path d="M 490 330 H 640" class="edge" fill="none"></path>
+    <text x="498" y="322" class="label quiet">close control · stop()</text>
+    <path d="M 640 86 V 552 L 494 552" class="edge" fill="none" marker-end="url(#step-arrow)"></path>
+    <text x="570" y="582" text-anchor="middle" class="label quiet">every ending —</text>
+    <text x="570" y="598" text-anchor="middle" class="label quiet">next is undefined</text>
+
+    <!-- onLeave -->
+    <rect x="210" y="530" width="280" height="44" rx="8" class="box shut"></rect>
+    <text x="350" y="557" text-anchor="middle" class="label mono">onLeave(step, next)</text>
+
+    <!-- advanced: loop to the next step -->
+    <path d="M 210 552 H 60 V 86 H 206" class="edge" fill="none" marker-end="url(#step-arrow)"></path>
+    <text x="0" y="0" transform="translate(46, 320) rotate(-90)" text-anchor="middle" class="label quiet">advanced — the next step's onEnter</text>
+
+    <!-- ended -->
+    <line x1="350" y1="574" x2="350" y2="606" class="edge" marker-end="url(#step-arrow)"></line>
+    <text x="350" y="628" text-anchor="middle" class="label">the run ended — <tspan class="mono">story.onLeave</tspan> runs, and the tour is idle</text>
+  </svg>
+  <figcaption>
+    A green outline is a moment your calls are acted on; an orange outline is
+    Leko inside your own handler, where every call but <code>stop()</code> is
+    refused. The whole chain from <code>onLeave</code> to the next
+    <code>onStep</code> runs inside the one call that moved the tour — an
+    <code>async onEnter</code> runs its first line there and the rest after the
+    step is already on screen.
+  </figcaption>
+</figure>
+
+<style>
+  .lifecycle {
+    margin: 1.5rem 0;
+  }
+  .lifecycle svg {
+    width: 100%;
+    height: auto;
+    color: var(--sl-color-gray-2);
+    font-family: var(--sl-font);
+  }
+  .box {
+    fill: var(--sl-color-bg-nav);
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.5;
+  }
+  .box.open {
+    stroke: var(--sl-color-green);
+    stroke-width: 2.5;
+  }
+  .box.shut {
+    stroke: var(--sl-color-orange);
+    stroke-width: 2.5;
+  }
+  .edge {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+  .label {
+    fill: var(--sl-color-text);
+    font-size: 14px;
+  }
+  .label.strong {
+    fill: var(--sl-color-white);
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .label.quiet {
+    fill: var(--sl-color-gray-3);
+    font-size: 12.5px;
+  }
+  .label.mono,
+  .mono {
+    font-family: var(--__sl-font-mono, ui-monospace, monospace);
+    font-size: 13px;
+  }
+  .lifecycle figcaption {
+    margin-top: 0.5rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>
