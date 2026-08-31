@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { relative } from 'node:path'
+import { parseArgs } from 'node:util'
 
 import { generate, inspect, type Options, type Report, watch } from './generate.js'
 
@@ -23,25 +24,26 @@ interface Parsed extends Options {
   watch: boolean
 }
 
-const parseArgs = (argv: string[]): Parsed | null => {
-  const parsed: Parsed = { check: false, watch: false }
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i]
-    const value = (): string => {
-      const next = argv[i + 1]
-      if (next === undefined || next.startsWith('-')) throw new Error(`${arg} wants a value`)
-      i += 1
-      return next
-    }
-    if (arg === '--project' || arg === '-p') parsed.project = value()
-    else if (arg === '--out' || arg === '-o') parsed.out = value()
-    else if (arg === '--loose') parsed.strict = false
-    else if (arg === '--check') parsed.check = true
-    else if (arg === '--watch' || arg === '-w') parsed.watch = true
-    else if (arg === '--help' || arg === '-h') return null
-    else throw new Error(`Unknown option ${arg}`)
+const parseCli = (argv: string[]): Parsed | null => {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      project: { type: 'string', short: 'p' },
+      out: { type: 'string', short: 'o' },
+      loose: { type: 'boolean' },
+      check: { type: 'boolean' },
+      watch: { type: 'boolean', short: 'w' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  })
+  if (values.help) return null
+  return {
+    project: values.project,
+    out: values.out,
+    ...(values.loose ? { strict: false } : {}),
+    check: values.check ?? false,
+    watch: values.watch ?? false,
   }
-  return parsed
 }
 
 const here = (path: string): string => relative(process.cwd(), path) || path
@@ -79,7 +81,7 @@ const describe = (report: Report, wrote: boolean): void => {
 const main = (): void => {
   let parsed: Parsed | null
   try {
-    parsed = parseArgs(process.argv.slice(2))
+    parsed = parseCli(process.argv.slice(2))
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
     console.error(`\n${USAGE}`)

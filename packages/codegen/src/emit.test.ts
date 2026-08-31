@@ -41,16 +41,24 @@ describe('emit', () => {
     expect(empty).toMatch(/^export type \w+ = true$/m)
   })
 
-  it('says where a name came from', () => {
-    expect(emit(result('order-saved'), { root: '/app' })).toContain('/** src/checkout.ts:8 */')
-  })
-
   it('escapes a quote in a name rather than emitting a broken key', () => {
     const odd = emit({ signals: [{ name: "it's-done", sites: [] }], dynamic: [] })
     expect(odd).toContain("'it\\'s-done': true")
   })
 
-  it('gives the same bytes for the same scan, so --check can compare', () => {
-    expect(emit(result('b', 'a'))).toBe(emit(result('b', 'a')))
+  it('writes the names sorted, whatever order the scan handed them in', () => {
+    const file = emit(result('b', 'a'))
+    expect(file.indexOf("'a': true")).toBeLessThan(file.indexOf("'b': true"))
+    expect(file).toBe(emit(result('a', 'b')))
+  })
+
+  it('carries no call sites, so edits that move a line change nothing', () => {
+    // The file is a pure function of the vocabulary. With sites in it, --check
+    // failed whenever somebody edited above a reached() call.
+    const moved: ScanResult = {
+      signals: [{ name: 'order-saved', sites: [{ file: '/app/src/other.ts', line: 99 }] }],
+      dynamic: [],
+    }
+    expect(emit(moved)).toBe(emit(result('order-saved')))
   })
 })

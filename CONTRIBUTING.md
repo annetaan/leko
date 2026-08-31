@@ -83,9 +83,9 @@ formatter should not be rewriting evidence.
 **No line numbers in prose.** Point into a file by naming the symbol, the
 function or the heading, never `file.ts:147`. Nothing checks a line number and
 nothing updates one, so they go stale the first time somebody edits above them
-and then send a reader to the wrong place with an air of precision. The
-generated `leko-signals.d.ts` is the exception, and it carries them because the
-generator rewrites the file every build.
+and then send a reader to the wrong place with an air of precision. The same
+judgement took the call sites out of the generated `leko-signals.d.ts`: it
+carries the names alone, so an edit that moves a line changes nothing in it.
 
 ## What `@annetaan/leko` ships
 

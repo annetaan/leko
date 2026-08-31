@@ -1,4 +1,4 @@
-import type { ScanResult, Site } from './scan.js'
+import type { ScanResult } from './scan.js'
 
 export interface EmitOptions {
   /**
@@ -10,13 +10,6 @@ export interface EmitOptions {
    * a scan cannot see all of them.
    */
   strict?: boolean
-  /** Where the sites in the comments are written relative to. */
-  root?: string
-}
-
-const relative = (site: Site, root: string | undefined): string => {
-  const path = root && site.file.startsWith(root) ? site.file.slice(root.length + 1) : site.file
-  return `${path}:${site.line}`
 }
 
 /** A string TypeScript will read back as the same key. */
@@ -25,8 +18,9 @@ const key = (name: string): string => `'${name.replace(/\\/g, '\\\\').replace(/'
 /**
  * The declaration file for a scan.
  *
- * Every line of it is derived from the argument, so the same project emits the
- * same bytes and `--check` can compare them.
+ * The names alone, sorted, so the file is a pure function of the vocabulary:
+ * `--check` fails when a signal was added or removed, and never because an
+ * edit somewhere moved a call site. The same project emits the same bytes.
  *
  * It ends in an export on purpose. A `declare module` block augments a module
  * only from inside another module, and a file holding nothing but that block is
@@ -54,10 +48,8 @@ export function emit(result: ScanResult, options: EmitOptions = {}): string {
     lines.push('    // No reached() call in this project reports a name a scan could read.')
   }
 
-  for (const signal of result.signals) {
-    for (const site of signal.sites) lines.push(`    /** ${relative(site, options.root)} */`)
-    lines.push(`    ${key(signal.name)}: true`)
-  }
+  const names = result.signals.map((signal) => signal.name).toSorted()
+  for (const name of names) lines.push(`    ${key(name)}: true`)
 
   lines.push('  }')
 

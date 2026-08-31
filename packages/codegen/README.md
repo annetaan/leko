@@ -60,7 +60,9 @@ the project's `include` is compiled by nobody, so the augmentation never applies
 and no completion appears. The generator says so when it notices, because
 nothing else will.
 
-Commit the generated file. It costs a diff when a signal is added, and it means
+Commit the generated file. It holds the names alone, sorted, so it changes only
+when a signal is added or removed — never because an edit moved a call site.
+It costs a diff when the vocabulary changes, and it means
 a fresh clone type-checks before anyone has run anything.
 
 ## What it writes
@@ -70,7 +72,6 @@ a fresh clone type-checks before anyone has run anything.
 
 declare module '@annetaan/leko' {
   interface LekoSignals {
-    /** src/checkout.ts:88 */
     'order-saved': true
   }
 

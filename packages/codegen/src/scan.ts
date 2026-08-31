@@ -41,35 +41,26 @@ const PACKAGE = '@annetaan/leko'
  * generator depend on how the core happens to be split into files today.
  *
  * It is resolved per importing file, because that is where module resolution
- * starts, and cached, because most projects answer it the same way every time.
+ * starts.
  */
 const lekoClass = (
   from: ts.SourceFile,
   program: ts.Program,
   checker: ts.TypeChecker,
   tsm: typeof ts,
-  cache: Map<ts.SourceFile, ts.Symbol | null>,
 ): ts.Symbol | null => {
-  const known = cache.get(from)
-  if (known !== undefined) return known
-
-  const answer = ((): ts.Symbol | null => {
-    const options = program.getCompilerOptions()
-    const resolved = tsm.resolveModuleName(PACKAGE, from.fileName, options, tsm.sys)
-    const entry = resolved.resolvedModule?.resolvedFileName
-    const file = entry ? program.getSourceFile(entry) : undefined
-    const moduleSymbol = file ? checker.getSymbolAtLocation(file) : undefined
-    if (!moduleSymbol) return null
-    const exported = checker.getExportsOfModule(moduleSymbol).find((s) => s.name === 'Leko')
-    if (!exported) return null
-    // The entry point re-exports the class as a type, so the export is an alias
-    // either way, and the declaration it points at is what a method's parent
-    // will compare equal to.
-    return exported.flags & tsm.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
-  })()
-
-  cache.set(from, answer)
-  return answer
+  const options = program.getCompilerOptions()
+  const resolved = tsm.resolveModuleName(PACKAGE, from.fileName, options, tsm.sys)
+  const entry = resolved.resolvedModule?.resolvedFileName
+  const file = entry ? program.getSourceFile(entry) : undefined
+  const moduleSymbol = file ? checker.getSymbolAtLocation(file) : undefined
+  if (!moduleSymbol) return null
+  const exported = checker.getExportsOfModule(moduleSymbol).find((s) => s.name === 'Leko')
+  if (!exported) return null
+  // The entry point re-exports the class as a type, so the export is an alias
+  // either way, and the declaration it points at is what a method's parent
+  // will compare equal to.
+  return exported.flags & tsm.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported
 }
 
 /**
@@ -128,11 +119,10 @@ export function scan(program: ts.Program, tsm: typeof ts): ScanResult {
   const checker = program.getTypeChecker()
   const found = new Map<string, Site[]>()
   const dynamic: Site[] = []
-  const resolving = new Map<ts.SourceFile, ts.Symbol | null>()
 
   for (const file of program.getSourceFiles()) {
     if (file.isDeclarationFile) continue
-    const leko = lekoClass(file, program, checker, tsm, resolving)
+    const leko = lekoClass(file, program, checker, tsm)
     if (!leko) continue
 
     const at = (node: ts.Node): Site => ({

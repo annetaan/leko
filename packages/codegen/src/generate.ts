@@ -33,19 +33,17 @@ export interface Report {
 interface Resolved {
   config: string
   out: string
-  root: string
 }
 
 const locate = (options: Options): Resolved => {
   const given = resolve(options.project ?? process.cwd())
   const config = given.endsWith('.json') ? given : resolve(given, 'tsconfig.json')
-  const root = dirname(config)
   const out = options.out
     ? isAbsolute(options.out)
       ? options.out
       : resolve(process.cwd(), options.out)
-    : resolve(root, 'leko-signals.d.ts')
-  return { config, out, root }
+    : resolve(dirname(config), 'leko-signals.d.ts')
+  return { config, out }
 }
 
 const parse = (config: string): ts.ParsedCommandLine => {
@@ -76,14 +74,8 @@ const covers = (config: string, out: string): boolean => {
   }
 }
 
-const report = (
-  out: string,
-  root: string,
-  result: ScanResult,
-  strict: boolean,
-  included: boolean,
-): Report => {
-  const content = emit(result, { strict, root })
+const report = (out: string, result: ScanResult, strict: boolean, included: boolean): Report => {
+  const content = emit(result, { strict })
   return { out, content, stale: compare(out, content), included, result }
 }
 
@@ -92,11 +84,11 @@ const report = (
  * touching the disk. This is what `--check` runs.
  */
 export function inspect(options: Options = {}): Report {
-  const { config, out, root } = locate(options)
+  const { config, out } = locate(options)
   const parsed = parse(config)
   const program = ts.createProgram(parsed.fileNames, parsed.options)
   const included = parsed.fileNames.some((name) => resolve(name) === out)
-  return report(out, root, scan(program, ts), options.strict ?? true, included)
+  return report(out, scan(program, ts), options.strict ?? true, included)
 }
 
 /**
@@ -125,7 +117,7 @@ export function generate(options: Options = {}): Report {
  * that stops it.
  */
 export function watch(options: Options = {}, onWrite?: (report: Report) => void): () => void {
-  const { config, out, root } = locate(options)
+  const { config, out } = locate(options)
   const strict = options.strict ?? true
   const host = ts.createWatchCompilerHost(
     config,
@@ -139,7 +131,7 @@ export function watch(options: Options = {}, onWrite?: (report: Report) => void)
   )
   host.afterProgramCreate = (builder) => {
     const program = builder.getProgram()
-    const answer = report(out, root, scan(program, ts), strict, true)
+    const answer = report(out, scan(program, ts), strict, true)
     if (!answer.stale) return
     mkdirSync(dirname(answer.out), { recursive: true })
     writeFileSync(answer.out, answer.content, 'utf8')
