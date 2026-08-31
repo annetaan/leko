@@ -1,3 +1,6 @@
+type Selector = string
+type TargetFunction = () => HTMLElement | null
+
 /**
  * Anything a step can point at. **Both forms are a question, never an answer.**
  *
@@ -27,7 +30,7 @@
  *
  * One of these is one element. {@link LekoRegion} is how several become a hole.
  */
-export type LekoTarget = string | (() => HTMLElement | null)
+export type LekoTarget = Selector | TargetFunction
 
 /**
  * **One cutout.** A single target, or several to be unioned into one hole.
