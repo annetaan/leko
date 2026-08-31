@@ -7,8 +7,12 @@
  * runs; a function is one the host runs. Neither is an element, because an
  * element is an answer somebody worked out earlier, and the page has moved on
  * since. DESIGN.md argues it under **A target is a question**.
+ *
+ * `Element` rather than `HTMLElement`, because everything asked of a target is
+ * asked of `getBoundingClientRect`, and an element inside an `<svg>` answers it
+ * the same way.
  */
-export type Target = string | (() => HTMLElement | null)
+export type Target = string | (() => Element | null)
 
 export interface Rect {
   x: number
@@ -45,13 +49,13 @@ export interface Cutout extends Rect {
  * as no answer at all, which is the same `null` a selector matching nothing
  * gives and the same entrance to the search for a lost target.
  */
-export function resolveTarget(target: Target): HTMLElement | null {
-  const el = typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target()
+export function resolveTarget(target: Target): Element | null {
+  const el = typeof target === 'string' ? document.querySelector(target) : target()
   return el?.isConnected ? el : null
 }
 
-export function resolveTargets(targets: readonly Target[]): HTMLElement[] {
-  return targets.map(resolveTarget).filter((el): el is HTMLElement => el !== null)
+export function resolveTargets(targets: readonly Target[]): Element[] {
+  return targets.map(resolveTarget).filter((el): el is Element => el !== null)
 }
 
 /**

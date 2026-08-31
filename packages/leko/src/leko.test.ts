@@ -91,6 +91,35 @@ test('a step that says nothing shows its target and does not hand it over', () =
   expect(absorbed(target)).toBe(true)
 })
 
+test('an element inside an svg is a target like any other', () => {
+  // Drawn at 2x through the viewBox, so the hole is only right if the box came
+  // from `getBoundingClientRect` rather than from the shape's own attributes.
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 200 100')
+  svg.setAttribute('width', '400')
+  svg.setAttribute('height', '200')
+  Object.assign(svg.style, { position: 'fixed', left: '60px', top: '60px' })
+  const shape = (x: number, y: number) => {
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    rect.setAttribute('x', String(x))
+    rect.setAttribute('y', String(y))
+    rect.setAttribute('width', '70')
+    rect.setAttribute('height', '30')
+    svg.append(rect)
+    return rect
+  }
+  const other = shape(10, 10)
+  const wanted = shape(110, 55)
+  document.body.append(keep(svg))
+
+  // The function form, deliberately: an SVG shape is not an HTMLElement, so
+  // this line is also the claim that the type lets a host hand one back.
+  start([{ id: 'svg', interactive: true, target: () => wanted }])
+
+  expect(centre(wanted)).toBe(wanted)
+  expect(absorbed(other)).toBe(true)
+})
+
 test('what blocks a shown hole sits beside the scrim, never inside it', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
 

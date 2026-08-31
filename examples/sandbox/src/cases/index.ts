@@ -12,6 +12,7 @@ import { scrollableTarget } from './scrollable-target.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
+import { svgTarget } from './svg-target.js'
 import { targetDisappears } from './target-disappears.js'
 import { twoStories } from './two-stories.js'
 
@@ -35,4 +36,5 @@ export const cases: Case[] = [
   scrollableTarget,
   targetDisappears,
   insideShadowDom,
+  svgTarget,
 ]

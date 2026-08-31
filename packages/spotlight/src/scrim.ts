@@ -16,7 +16,7 @@ import {
  * position math runs per frame. A scrim mounted outside the scroller it points
  * into drifts off the target the moment the user scrolls.
  */
-export function findScrollContainer(el: HTMLElement): HTMLElement | null {
+export function findScrollContainer(el: Element): HTMLElement | null {
   const node = el.parentElement
   if (!node || node === document.body || node === document.documentElement) return null
   const style = getComputedStyle(node)
@@ -26,7 +26,7 @@ export function findScrollContainer(el: HTMLElement): HTMLElement | null {
 }
 
 /** An element's box in the coordinate space of the scrim covering `container`. */
-export function rectWithin(el: HTMLElement, container: HTMLElement | null): Rect {
+export function rectWithin(el: Element, container: HTMLElement | null): Rect {
   const r = el.getBoundingClientRect()
   if (!container) {
     return {

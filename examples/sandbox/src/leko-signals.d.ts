@@ -9,6 +9,8 @@ declare module '@annetaan/leko' {
     'address-loaded': true
     /** src/cases/async-completion.ts:33 */
     'changes-saved': true
+    /** src/cases/svg-target.ts:35 */
+    'diagram-node-chosen': true
     /** src/cases/story-setup.ts:64 */
     'draft-loaded': true
     /** src/cases/branching.ts:169 */

@@ -84,7 +84,7 @@ A step specifies its target with a selector or a function, but both are treated 
 
 ```ts
 type Selector = string;
-type TargetFunction = () => HTMLElement | null;
+type TargetFunction = () => Element | null;
 type LekoTarget = Selector | TargetFunction;
 type LekoRegion = LekoTarget | LekoTarget[]
 interface LekoStep {
@@ -113,6 +113,9 @@ interface LekoStep {
 - Performance requirement: Functions are called frequently during layout
   calculations — they must be pure, lightweight, and side-effect-free.
   Returning `null` signals that the target is not yet present.
+- The element type is `Element`, not `HTMLElement`: everything asked of a
+  target is asked of `getBoundingClientRect`, so a shape inside an `<svg>` is a
+  target like any other, `viewBox` scaling included. See `svg-target.ts`.
 
 ### The message anchors to a marker, never to the target
 

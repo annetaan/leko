@@ -57,7 +57,7 @@ const targetsIn = (region: LekoRegion): LekoTarget[] => (Array.isArray(region) ?
  * The ring's first segment. A step that shows a hole without opening it has
  * nothing here, so Tab has nowhere to be but Leko's own chrome.
  */
-const openElements = (step: LekoStep): HTMLElement[] => {
+const openElements = (step: LekoStep): Element[] => {
   if (step.interactive !== true) return []
   const first = regionsOf(step.target)[0]
   return first === undefined ? [] : resolveTargets(targetsIn(first))
@@ -161,7 +161,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     return actionTarget(step.target) !== undefined
   }
 
-  resolve(step: LekoStep): HTMLElement | null {
+  resolve(step: LekoStep): Element | null {
     const action = actionTarget(step.target)
     return action === undefined ? null : resolveTarget(action)
   }
@@ -173,7 +173,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * same shapes in viewport coordinates, to work out which side of them has room
    * on screen. Same geometry, two readers, so the space is the parameter.
    */
-  private cutouts(step: LekoStep, measure: (el: HTMLElement) => Rect): Cutout[] | null {
+  private cutouts(step: LekoStep, measure: (el: Element) => Rect): Cutout[] | null {
     const regions = regionsOf(step.target)
     // A step that names nothing cuts nothing, and a scrim with no holes in it
     // is one rectangle over everything. That is the whole of what a step that
@@ -320,7 +320,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * Every scrolling ancestor of `el`, innermost first, always ending in `null`
    * for the document itself.
    */
-  private static chainOf(el: HTMLElement): (HTMLElement | null)[] {
+  private static chainOf(el: Element): (HTMLElement | null)[] {
     const container = findScrollContainer(el)
     return container ? [container, ...DomPresenter.chainOf(container)] : [null]
   }
@@ -339,7 +339,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     })
   }
 
-  show(step: LekoStep, anchor: HTMLElement | null, animate: boolean): void {
+  show(step: LekoStep, anchor: Element | null, animate: boolean): void {
     // Whatever was being waited for, the tour is somewhere else now. Dropped
     // here rather than left to run, so a target that turns up late is not drawn
     // over the step this call is about. It is also what leaves {@link retry}
@@ -363,7 +363,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * so the document carries it, and everything below lands on the empty list of
    * cutouts.
    */
-  private reveal(drawn: Drawn, anchor: HTMLElement | null, animate: boolean): void {
+  private reveal(drawn: Drawn, anchor: Element | null, animate: boolean): void {
     const { step } = drawn
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
@@ -499,7 +499,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * The step is read off {@link drawn} rather than closed over, because what has
    * to be drawn again is whatever was drawn last.
    */
-  private watchTarget(action: HTMLElement): void {
+  private watchTarget(action: Element): void {
     this.watch(() => {
       if (action.isConnected) return
       const held = this.drawn

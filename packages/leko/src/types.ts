@@ -1,5 +1,5 @@
 type Selector = string
-type TargetFunction = () => HTMLElement | null
+type TargetFunction = () => Element | null
 
 /**
  * Anything a step can point at. **Both forms are a question, never an answer.**
@@ -21,6 +21,10 @@ type TargetFunction = () => HTMLElement | null
  *
  * There is no element form. An element is an answer somebody worked out when
  * the story was written, and by the time the step runs the page has moved on.
+ *
+ * An element inside an `<svg>` is a target like any other: everything asked of
+ * a target is asked of `getBoundingClientRect`, and an SVG shape answers it the
+ * same way, `viewBox` scaling and transforms included.
  *
  * ```ts
  * target: '#order-form'
@@ -327,7 +331,7 @@ export interface LekoStep {
    * Receives the first element of the first region of {@link LekoStep.target},
    * which is the one element the step is about. No later region reaches this.
    */
-  validate?: (targetEl: HTMLElement) => boolean
+  validate?: (targetEl: Element) => boolean
 
   /**
    * What to say under the instruction when {@link validate} says no. Nothing
@@ -352,7 +356,7 @@ export interface LekoStep {
    * error: (el) => `${(el as HTMLInputElement).value} is already taken.`
    * ```
    */
-  error?: string | ((targetEl: HTMLElement) => string)
+  error?: string | ((targetEl: Element) => string)
 }
 
 /**
@@ -463,7 +467,7 @@ export interface LekoStory {
  * anything the machine declares.
  */
 export interface LekoWorld {
-  anchor: HTMLElement
+  anchor: Element
   step: LekoStep
   story: LekoStory
 }

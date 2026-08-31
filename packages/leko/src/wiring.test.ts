@@ -60,7 +60,7 @@ test('a step does not advance until the application says it succeeded', async ()
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
   let ready = false
-  const error = vi.fn((_el: HTMLElement) => 'Not saved yet.')
+  const error = vi.fn((_el: Element) => 'Not saved yet.')
 
   const leko = start([
     { id: 'first', interactive: true, target: () => first, validate: () => ready, error },

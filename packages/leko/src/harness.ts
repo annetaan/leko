@@ -14,7 +14,7 @@ import type { LekoOptions, LekoStep, LekoStory } from './types.js'
  */
 
 const instances: ReturnType<typeof createLeko>[] = []
-const mounted: HTMLElement[] = []
+const mounted: Element[] = []
 
 // Registered once per importing file: Vitest gives each test file its own
 // module graph, so these arrays never hold another file's leftovers.
@@ -80,7 +80,7 @@ export function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElem
 }
 
 /** Anything a test builds by hand still has to be taken away afterwards. */
-export function keep<T extends HTMLElement>(el: T): T {
+export function keep<T extends Element>(el: T): T {
   mounted.push(el)
   return el
 }
@@ -92,7 +92,7 @@ export function pair(): [HTMLElement, HTMLElement] {
   ]
 }
 
-export const centre = (el: HTMLElement) => {
+export const centre = (el: Element) => {
   const r = el.getBoundingClientRect()
   return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
 }
@@ -157,8 +157,8 @@ export const observed = (): Promise<void> => Promise.resolve()
  * It is true both of the page outside every hole and of a hole the step showed
  * without opening. Those are the same fact: the tour took the hit.
  */
-export const absorbed = (el: HTMLElement): boolean =>
-  (centre(el) as HTMLElement | null)?.closest('.leko-blocking') != null
+export const absorbed = (el: Element): boolean =>
+  (centre(el) as Element | null)?.closest('.leko-blocking') != null
 
 /** Every call, as the id it named, so a whole run reads as one array. */
 export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {

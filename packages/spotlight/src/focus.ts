@@ -32,15 +32,23 @@ const FOCUSABLE = [
 ].join(',')
 
 /**
+ * A place Tab can land: focusable HTML, or focusable SVG. Both carry `focus()`,
+ * and nothing else in the ring is asked of a stop.
+ */
+type Stop = HTMLElement | SVGElement
+
+/**
  * Whether an element is somewhere Tab would actually land.
  *
  * `checkVisibility` is the honest answer and is not everywhere yet, so an
  * element with no offset parent stands in for it. A `position: fixed` element
  * has no offset parent either and is perfectly visible, which is why that is
- * asked separately.
+ * asked separately. SVG has no offset parents at all, so where
+ * `checkVisibility` is missing an SVG stop is taken at its word.
  */
-const reachable = (el: HTMLElement): boolean => {
+const reachable = (el: Stop): boolean => {
   if (el.checkVisibility) return el.checkVisibility()
+  if (!(el instanceof HTMLElement)) return true
   return el.offsetParent !== null || getComputedStyle(el).position === 'fixed'
 }
 
@@ -66,13 +74,17 @@ export function neighbour(count: number, from: number, backward: boolean): numbe
  * A root counts as its own first stop when it is focusable, which is the
  * ordinary case: a step whose target is the button.
  */
-export function ends(
-  roots: readonly Element[],
-): { first: HTMLElement; last: HTMLElement } | undefined {
-  const stops: HTMLElement[] = []
+export function ends(roots: readonly Element[]): { first: Stop; last: Stop } | undefined {
+  const stops: Stop[] = []
   for (const root of roots) {
-    if (root instanceof HTMLElement && root.matches(FOCUSABLE) && reachable(root)) stops.push(root)
-    for (const el of root.querySelectorAll<HTMLElement>(FOCUSABLE)) {
+    if (
+      (root instanceof HTMLElement || root instanceof SVGElement) &&
+      root.matches(FOCUSABLE) &&
+      reachable(root)
+    ) {
+      stops.push(root)
+    }
+    for (const el of root.querySelectorAll<Stop>(FOCUSABLE)) {
       if (reachable(el)) stops.push(el)
     }
   }
@@ -83,8 +95,8 @@ export function ends(
 
 interface Segment {
   readonly roots: readonly Element[]
-  readonly first: HTMLElement
-  readonly last: HTMLElement
+  readonly first: Stop
+  readonly last: Stop
 }
 
 /**
