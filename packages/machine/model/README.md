@@ -50,10 +50,10 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 Step 8: picking a transition out of 6 transition(s)
 The outcome is: NoError
-[ok] No violation found (274192ms).
+[ok] No violation found (270919ms).
 ```
 
-4 minutes 34 seconds. Nothing within 8 calls of `init` breaks either invariant,
+4 minutes 31 seconds. Nothing within 8 calls of `init` breaks either invariant,
 and that is a proof over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.

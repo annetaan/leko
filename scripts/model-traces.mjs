@@ -34,6 +34,7 @@ const HARVEST = [
   { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },
   { name: 'refused-said', target: 'refusedWithWords', seed: '0xb', deep: true },
   { name: 'refused-mute', target: 'refusedInSilence', seed: '0xc', deep: true },
+  { name: 'press-on-awaits', target: 'pressOnAwaits', seed: '0x16', deep: true },
   { name: 'chained', target: 'chained', seed: '0x13', deep: true },
   { name: 'chain-ends', target: 'chainEnded', seed: '0x14', deep: true },
   { name: 'last-step', target: 'reachedLastStep', seed: '0x7', deep: true },

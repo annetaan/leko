@@ -244,7 +244,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * **Which steps have a next control is derived here, and nowhere else.** A
    * step that declares `awaits` never gets one, because pressing past it is the
    * whole of what that step exists to prevent, and `nextLabel` only says what
-   * the control reads. DESIGN.md argues it under **The next control**.
+   * the control reads. The machine holds the rule as well — a press on such a
+   * step moves nothing — but that is a different job: this decides whether to
+   * draw, the machine decides whether to move. DESIGN.md argues it under
+   * **The next control**.
    *
    * `message` is read every time the box is filled rather than copied when the
    * story was written, so a host editing its own text is seen.

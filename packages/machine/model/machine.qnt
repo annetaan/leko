@@ -427,26 +427,29 @@ module machine {
 
   /// `Host.next`, the only way a step advances without a signal being named.
   ///
-  /// Offered only where a control was drawn, which is the presenter's side of
-  /// the rule: no control on a step that declares `awaits`, and none at all
-  /// while an arrival is in flight. `drawn` being the step the tour is on is
-  /// what says the second, and it is why the gate is a precondition here and
-  /// sits in the body of the calls above.
+  /// Offered wherever a step is drawn, even one that declares `awaits`: the
+  /// machine no longer trusts the presenter to have derived no control there,
+  /// and refuses the press itself. The relaxed precondition is what lets the
+  /// search see that line. `drawn` being the step the tour is on is still
+  /// asked — nothing of any step is on screen while an arrival is in flight —
+  /// and the gate sits in the body of the calls above.
   action doPress(guardOk: bool): bool = all {
     match m.position {
       | Nothing => false
-      | Just(at) => and {
-        stepAt(m, at).awaits == Nothing,
-        m.drawn == Just(at),
-      }
+      | Just(at) => m.drawn == Just(at)
     },
     m' =
       match m.position {
         | Nothing => m
-        // The mark is {@link advance}'s to write, because a press that is
-        // refused and a press that moves the tour are the two halves this
-        // action exists to tell apart.
-        | Just(at) => advance(m, at, guardOk, "press")
+        | Just(at) =>
+          // The machine's half of the next-control rule: a step that declares
+          // a signal is never moved by a press, silently, because only a
+          // broken Leko can make one. The `pressed` case in `plan.ts`.
+          if (stepAt(m, at).awaits != Nothing) m.with("mark", "press-on-awaits")
+          // The mark below is {@link advance}'s to write, because a press that
+          // is refused by the guard and a press that moves the tour are two
+          // halves this action exists to tell apart.
+          else advance(m, at, guardOk, "press")
       },
   }
 
@@ -622,6 +625,11 @@ module machine {
   /// shaken, because a guard with nothing to say must not leave the next
   /// control as a button that does nothing.
   val refusedInSilence: bool = m.mark == "refuse-mute"
+
+  /// A press on a step that declares `awaits`, refused by the machine itself.
+  /// No control is derived for such a step, so reaching this is the derivation
+  /// being edited wrongly — the case the machine holds the rule for.
+  val pressOnAwaits: bool = m.mark == "press-on-awaits"
 
   /// A story running out of steps and handing the tour to the one it names.
   /// The ending stays closed through its own report, as every ending is, so

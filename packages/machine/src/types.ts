@@ -162,7 +162,11 @@ export interface Host<W extends World> {
    * the give-up.
    */
   lost(step: W['step']): void
-  /** The next control was used. The only way anything advances without a signal. */
+  /**
+   * The next control was used. The only way anything advances without a
+   * signal, and refused on a step that declares `awaits`: no control is
+   * derived there, so a press can only be the derivation edited wrongly.
+   */
   next(): void
   /** The control that ends the tour was used. Means what `stop` means. */
   close(): void

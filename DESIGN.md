@@ -59,6 +59,15 @@ Whether a step shows a "Next" button is derived strictly from `awaits`:
 Leko manages this internally — no public API exists to manually trigger a Next
 action. See `next-control.ts`.
 
+**Both sides of the seam hold the rule, doing two different jobs.** The
+presenter derives whether a control is drawn, and the machine refuses to move
+for a press on a step that declares `awaits`. Neither guards against a host —
+no application call reaches either path — but against Leko's own derivation
+being edited wrongly, the way the blocking rectangles hold constraint 1 by
+construction. The refusal is silent, because only a broken Leko can make it: a
+step advancing when it should not becomes a control that does nothing, which is
+the right way round for the person the step is asking something of.
+
 ## The way out
 
 **Leko always draws an un-dismissable close control to end the tour.**
@@ -200,7 +209,7 @@ its clear-up at the same level instead of splitting across two.
 
 - **Entry runs outermost first, and the ending mirrors it, innermost first:**
 
-  ```
+  ```text
   story onEnter → step onEnter → resolve the target → draw → onStep
   ```
 

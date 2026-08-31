@@ -280,6 +280,12 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     case 'pressed': {
       const step = stepOf(core)
       if (!step || !accepting(core)) return nothing(core)
+      // A step that declares `awaits` has no next control, and the machine
+      // holds that rule as well as the presenter that derives it: a press on
+      // such a step moves nothing, silently, because only a broken Leko can
+      // make one. `reached` still goes through `advance` with such a step —
+      // moving it on is exactly its job.
+      if (step.awaits !== undefined) return nothing(core)
       return advance(core, step)
     }
 

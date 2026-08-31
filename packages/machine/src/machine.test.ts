@@ -161,6 +161,27 @@ describe('a signal, and the step waiting for it', () => {
     expect(tour.step?.id).toBe('first')
   })
 
+  test('a press on a step that declares a signal moves nothing', () => {
+    const tour = start([
+      { id: 'first', target: 'first', awaits: 'order-saved' },
+      { id: 'second', target: 'second' },
+    ])
+
+    // No control is derived for this step, so no host can be behind this call:
+    // it can only be Leko's own derivation edited wrongly, and the machine
+    // holds the rule as well as the presenter that draws by it. Silent, because
+    // a caller doing everything right cannot end up here.
+    press(tour)
+
+    expect(tour.step?.id).toBe('first')
+    expect(tour.state).toBe('running')
+
+    // The step still advances the way it declares.
+    tour.reached('order-saved')
+
+    expect(tour.step?.id).toBe('second')
+  })
+
   test('a signal does not get past validate, because it does not go near it', () => {
     const validate = vi.fn(() => false)
 
