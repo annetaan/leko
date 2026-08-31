@@ -88,11 +88,10 @@ export const insideShadowDom: Case = {
         },
         {
           id: 'send',
-          interactive: true,
           // The whole case. `document.querySelector('button')` finds nothing
           // here, and neither would any other string: the element is behind a
           // boundary only its host can cross.
-          target: () => component()?.button ?? null,
+          target: { elements: () => component()?.button ?? null, interactive: true },
           message:
             'This button lives inside a shadow root. The step names it with a ' +
             'function, because there is no selector that reaches it. Press it ' +

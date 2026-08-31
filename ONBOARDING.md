@@ -326,7 +326,8 @@ trusted for it.
 
 A cutout that is not interactive is left out of that complement, so a rectangle
 covers it. It is still a hole in the clip and still shows what is under it.
-`LekoStep.interactive` is off by default and opens the first region only.
+`interactive` is off by default and lives on the region: only the first region
+of a step can declare it, and the type is what refuses it on a later one.
 
 `geometry.test.ts` states it as a property: no blocking rectangle ever overlaps
 a hole. `harness.ts` has `absorbed(el)`, which asks whether the tour caught a hit

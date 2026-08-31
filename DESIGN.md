@@ -86,21 +86,32 @@ A step specifies its target with a selector or a function, but both are treated 
 type Selector = string;
 type TargetFunction = () => Element | null;
 type LekoTarget = Selector | TargetFunction;
-type LekoRegion = LekoTarget | LekoTarget[]
+interface LekoRegion { elements: LekoTarget | LekoTarget[]; interactive?: boolean }
+interface LekoShownRegion { elements: LekoTarget | LekoTarget[]; interactive?: never }
 interface LekoStep {
   ...
-  target?: LekoTarget | LekoRegion[]
+  target?: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
   ...
 }
 ```
 
-| Code Example           | Interpretation                                                                          |
-| ---------------------- | --------------------------------------------------------------------------------------- |
-| `'#a'`                 | Cuts a single hole around `#a`.                                                         |
-| `['#a', '#b']`         | Cuts two separate holes for `#a` and `#b`.                                              |
-| `[['#a', '#b']]`       | Cuts a single hole covering the bounding box of `#a`, `#b`, and the space between them. |
-| `[['#a', '#b'], '#c']` | Cuts two holes: one covering the union of `#a` and `#b`, and one for `#c`.              |
-| `undefined`            | Cuts no holes, dimming the entire screen.                                               |
+Each entry of the list is one hole, and a list never nests: several elements
+become one hole by being named together in a region's `elements`, so there is
+nothing else a list can mean. A bare target anywhere a region is wanted is the
+region of one element. **The first entry is the region the step is about**, and
+the type says so: it is the only position that may declare `interactive`, every
+later entry being a `LekoShownRegion` whose `interactive` is `never` — declared
+`never` rather than left off, so an object built elsewhere cannot carry the
+flag past the rule structurally.
+
+| Code Example                                     | Interpretation                                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `'#a'`                                           | Cuts a single hole around `#a`.                                                          |
+| `{ elements: ['#a', '#b'] }`                     | Cuts a single hole covering the bounding box of `#a`, `#b`, and the space between them.  |
+| `['#a', '#b']`                                   | Cuts two separate holes for `#a` and `#b`.                                               |
+| `[{ elements: ['#a', '#b'] }, '#c']`             | Cuts two holes: one covering the union of `#a` and `#b`, and one for `#c`.               |
+| `[{ elements: '#a', interactive: true }, '#b']`  | Cuts two holes, and opens the first.                                                     |
+| `undefined`                                      | Cuts no holes, dimming the entire screen.                                                |
 
 `adjacent-columns.ts` is the union; `linked-regions.ts` is two separate holes.
 
@@ -132,11 +143,14 @@ interface LekoStep {
 ## A hole, and whether it is open
 
 A cutout shows what is under it, but page interaction requires
-`interactive: true`. It is off by default.
+`interactive: true` on the region. It is off by default.
 
-- Applies to the first region only: Interaction is limited to the primary
-  region; secondary regions remain non-interactive.
-- Declared by the step, independent of `awaits`: Step interactivity and
+- Only the first region can declare it, and **the type holds that rule**: every
+  later entry of `target` is a `LekoShownRegion`, where `interactive` does not
+  compile. One step asks the user for at most one thing, and which hole that is
+  is readable off the step. `packages/leko/type-tests/regions.ts` is the claim,
+  stated as a program.
+- Declared by the region, independent of `awaits`: interactivity and
   application event waiting are distinct configurations. See
   `scrollable-target.ts`, where the two come apart.
 - A closed hole is blocked by a rectangle beside the scrim, never by the scrim

@@ -42,8 +42,7 @@ export const asyncCompletion: Case = {
       steps: [
         {
           id: 'save',
-          interactive: true,
-          target: '[data-save]',
+          target: { elements: '[data-save]', interactive: true },
           message: 'Save your changes. The tour waits for the request, not the click.',
           // So there is no next control on this step, and no way past the work
           // it exists to make somebody do. Which steps get one is derived from

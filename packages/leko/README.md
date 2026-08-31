@@ -18,10 +18,10 @@ so a step that asks for something can hand the element over for real. Clicks,
 focus, keys and the wheel all reach it, and the step advances only when your
 application says it actually succeeded.
 
-Say so with `interactive`. It is off by default, because most steps of a tour
-explain what is already on screen, and a click on one of those can take the user
-off the page the next step points at. Those holes are shown and not handed
-over.
+Say so with `interactive` on the step's region. It is off by default, because
+most steps of a tour explain what is already on screen, and a click on one of
+those can take the user off the page the next step points at. Those holes are
+shown and not handed over.
 
 ```ts
 import { createLeko, type LekoStory } from '@annetaan/leko'
@@ -36,18 +36,16 @@ export const signUp = {
   steps: [
     {
       id: 'email',
-      target: 'input[name="email"]',
-      // The user has to type here, so the field is handed over. Leave this off
-      // and the hole is one to read rather than one to use.
-      interactive: true,
+      // The user has to type here, so the field is handed over. Leave
+      // `interactive` off and the hole is one to read rather than one to use.
+      target: { elements: 'input[name="email"]', interactive: true },
       message: 'Enter the address you want to sign in with.',
       // Your rule, your verdict. Typing something is not success.
       validate: (el) => /.+@.+\..+/.test((el as HTMLInputElement).value),
     },
     {
       id: 'create',
-      target: 'button[type="submit"]',
-      interactive: true,
+      target: { elements: 'button[type="submit"]', interactive: true },
       message: 'Now create the account.',
       awaits: 'account-created',
     },

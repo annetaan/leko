@@ -16,7 +16,7 @@ import {
   type Side,
   union,
 } from '@annetaan/leko-spotlight'
-import type { LekoOptions, LekoRegion, LekoStep, LekoTarget, LekoWorld } from './types.js'
+import type { LekoOptions, LekoStep, LekoTarget, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
 
@@ -37,19 +37,34 @@ const NEXT_LABEL = 'Next'
  */
 const RETRY = 100
 
-/**
- * The step's regions, as a list. One cutout each, in the order they were
- * written, so a bare target reads as the list of one that it is.
- *
- * Empty where the step named nothing, which is the step that waits.
- */
-const regionsOf = (target: LekoStep['target']): LekoRegion[] => {
-  if (target === undefined) return []
-  return Array.isArray(target) ? target : [target]
+/** One cutout, in the one shape everything below reads: what it unions, and whether it is open. */
+interface Region {
+  elements: LekoTarget[]
+  interactive: boolean
 }
 
-/** The elements one region unions together. */
-const targetsIn = (region: LekoRegion): LekoTarget[] => (Array.isArray(region) ? region : [region])
+/**
+ * The step's regions, as a list of that one shape. One cutout each, in the
+ * order they were written, so a bare target reads as the region of one that it
+ * is.
+ *
+ * Empty where the step named nothing, which is the step that waits. The type
+ * already refuses `interactive` anywhere but the first entry; the index is
+ * checked all the same, because this is the last line of defence a story
+ * written in plain JavaScript ever meets.
+ */
+const regionsOf = (target: LekoStep['target']): Region[] => {
+  if (target === undefined) return []
+  const entries = Array.isArray(target) ? target : [target]
+  return entries.map((entry, i) =>
+    typeof entry === 'object'
+      ? {
+          elements: Array.isArray(entry.elements) ? entry.elements : [entry.elements],
+          interactive: i === 0 && entry.interactive === true,
+        }
+      : { elements: [entry], interactive: false },
+  )
+}
 
 /**
  * Everything in the region a step opened, or nothing where it opened none.
@@ -58,22 +73,19 @@ const targetsIn = (region: LekoRegion): LekoTarget[] => (Array.isArray(region) ?
  * nothing here, so Tab has nowhere to be but Leko's own chrome.
  */
 const openElements = (step: LekoStep): Element[] => {
-  if (step.interactive !== true) return []
   const first = regionsOf(step.target)[0]
-  return first === undefined ? [] : resolveTargets(targetsIn(first))
+  return first?.interactive ? resolveTargets(first.elements) : []
 }
 
 /**
- * The one element the step is about: the first target of its first region.
+ * The one element the step is about: the first element of its first region.
  *
  * `undefined` where the step named no region at all. That step is not a step
  * with a target Leko cannot find. It is a step that points at nothing on
  * purpose, and the page is covered for it.
  */
-const actionTarget = (target: LekoStep['target']): LekoTarget | undefined => {
-  const first = regionsOf(target)[0]
-  return first === undefined ? undefined : targetsIn(first)[0]
-}
+const actionTarget = (target: LekoStep['target']): LekoTarget | undefined =>
+  regionsOf(target)[0]?.elements[0]
 
 /**
  * What a viewer is looking at: the step whatever draws was last given, and
@@ -185,7 +197,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // elements is meant to be inside the hole with them. Two regions stay
     // apart because the union of two distant ones would cover everything
     // between them, which is a hole the size of the page.
-    const boxes = regions.map((region) => union(resolveTargets(targetsIn(region)).map(measure)))
+    const boxes = regions.map((region) => union(resolveTargets(region.elements).map(measure)))
     // The first region is the one the step is about, and a step with nothing to
     // point at is not drawn at all. A later one that resolves to nothing is a
     // hole this step does not cut, and nothing else follows from it.
@@ -195,9 +207,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
       .map(([box, i]) => ({
         ...grow(box, padding),
         radius,
-        // Off unless the step asked, and only ever for the first region. A
-        // later region is there to be looked at, and no flag opens one.
-        interactive: i === 0 && step.interactive === true,
+        // Open only where the region asked, which the type allows of the first
+        // alone. A later region is there to be looked at, and no flag opens one.
+        interactive: regions[i]?.interactive === true,
       }))
   }
 

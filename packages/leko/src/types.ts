@@ -37,20 +37,72 @@ type TargetFunction = () => Element | null
 export type LekoTarget = Selector | TargetFunction
 
 /**
- * **One cutout.** A single target, or several to be unioned into one hole.
+ * **One cutout.** What the hole is cut around, and whether the step opens it.
  *
- * The union is the bounding box of everything named, and whatever happens to
- * sit between the elements is inside the hole along with them, so it becomes
- * interactive too. Name elements that are next to each other: a label and its
- * input, two neighbouring columns, the first and last row of a table. Two
- * elements at opposite ends of the page make a hole the size of the page.
+ * `elements` is a single target, or several to be unioned into one hole. The
+ * union is the bounding box of everything named, and whatever happens to sit
+ * between the elements is inside the hole along with them. Name elements that
+ * are next to each other: a label and its input, two neighbouring columns, the
+ * first and last row of a table. Two elements at opposite ends of the page
+ * make a hole the size of the page.
+ *
+ * A bare {@link LekoTarget} anywhere {@link LekoStep.target} wants a region is
+ * shorthand for `{ elements: target }`: one element, one hole, not opened.
  *
  * ```ts
- * '#save'
- * ['#quantity-label', '#quantity']
+ * target: { elements: '#save', interactive: true }
+ * target: { elements: ['#quantity-label', '#quantity'] }
  * ```
  */
-export type LekoRegion = LekoTarget | LekoTarget[]
+export interface LekoRegion {
+  elements: LekoTarget | LekoTarget[]
+
+  /**
+   * Let the user operate this region.
+   *
+   * **Off by default.** A cutout shows what is under it either way. This is
+   * whether the page underneath also takes the pointer, or whether a blocking
+   * rectangle sits over the hole.
+   *
+   * Most steps of most tours explain something that is already on screen. A
+   * user who clicks one of those can navigate away from the target the next
+   * step points at, and the tour ends looking for something that is not coming
+   * back. So a region says when it wants the page live, rather than saying
+   * when it does not.
+   *
+   * **Only the step's own region — the first — can declare it.** Every region
+   * after that is a {@link LekoShownRegion}, where this flag does not compile.
+   * One step asks the user for at most one thing, and which hole that is
+   * should be readable off the step, so the type carries the rule rather than
+   * a runtime check.
+   *
+   * **Tab is held to the same answer.** Focus walks a ring of what this step
+   * opened and the controls Leko drew, so a hole that is only shown cannot be
+   * reached with the keyboard either. A positive `tabindex` in the page, or an
+   * `iframe` inside the region, can still put focus somewhere unplanned, and
+   * what happens then is that the next key brings it back.
+   */
+  interactive?: boolean
+}
+
+/**
+ * A region after the first: shown, and never opened.
+ *
+ * These are there to be looked at rather than acted on — a summary figure
+ * beside the row it was computed from, the columns a total was worked out
+ * over. The hole shows them, the blocking rectangle over it keeps them from
+ * taking a click, and no flag opens one.
+ *
+ * `interactive` is declared `never` rather than left off, so that handing over
+ * an object which happens to carry the flag fails to compile too — leaving the
+ * property out would let structural assignment smuggle one past the rule.
+ */
+export interface LekoShownRegion {
+  elements: LekoTarget | LekoTarget[]
+
+  /** Only the first region can be opened. See {@link LekoRegion.interactive}. */
+  interactive?: never
+}
 
 /**
  * The signal names this project reports. **Empty on purpose.**
@@ -157,27 +209,31 @@ export interface LekoStep {
   /**
    * What this step cuts holes in the page for.
    *
-   * **Each element of the list is one cutout**, and an element that is itself a
-   * list is unioned into one. A bare target on its own is the same as a list of
-   * one.
+   * **Each entry of the list is one cutout.** An entry is a {@link LekoRegion}
+   * — several elements become one hole by being named together in its
+   * `elements` — or a bare target, which is the region of one that it reads
+   * as. A list never nests: one entry, one hole, and nothing else a list can
+   * mean.
    *
    * ```ts
-   * target: '#save'                            // one hole
-   * target: [['#quantity-label', '#quantity']] // one hole around both
-   * target: ['#save', ['#tax', '#total']]      // two holes, three elements
+   * target: '#save'                                  // one hole
+   * target: { elements: ['#qty-label', '#qty'] }     // one hole around both
+   * target: ['#save', { elements: ['#tax', '#total'] }] // two holes, three elements
+   * target: [{ elements: '#terms', interactive: true }, '#summary'] // the first is open
    * ```
    *
-   * **The first region is the one the step is about.** Its first element is
-   * what {@link validate} is handed, what the message anchors beside, and the
-   * one Leko watches for: a step whose first region is not on the page is not
+   * **The first region is the one the step is about, and the type says so:**
+   * it is the only position that may declare `interactive`, every later entry
+   * being a {@link LekoShownRegion}. Its first element is what
+   * {@link validate} is handed, what the message anchors beside, and the one
+   * Leko watches for: a step whose first region is not on the page is not
    * drawn, and Leko looks for it. A later region that resolves to nothing is a
-   * hole this step does not cut, and nothing else happens. Those are there to
-   * be looked at rather than acted on, so a summary figure beside the row it
-   * was computed from goes second.
+   * hole this step does not cut, and nothing else happens.
    *
-   * A target that scrolls is fine on a step that opened it: the wheel, clicks,
-   * focus and keys all reach it through the cutout. See {@link interactive} for
-   * which holes are opened, and it is not the default.
+   * A target that scrolls is fine in a region that was opened: the wheel,
+   * clicks, focus and keys all reach it through the cutout. See
+   * {@link LekoRegion.interactive} for what opening means, and it is not the
+   * default.
    *
    * **Leave it out and the step has nothing to point at.** The page is covered
    * with no hole in it and the message docks at the foot of the viewport. That
@@ -195,36 +251,7 @@ export interface LekoStep {
    * }
    * ```
    */
-  target?: LekoTarget | LekoRegion[]
-
-  /**
-   * Let the user operate the first region.
-   *
-   * **Off by default.** A cutout shows what is under it either way. This is
-   * whether the page underneath also takes the pointer, or whether a blocking
-   * rectangle sits over the hole.
-   *
-   * Most steps of most tours explain something that is already on screen. A
-   * user who clicks one of those can navigate away from the target the next
-   * step points at, and the tour ends looking for something that is not coming
-   * back. So a step says when it wants the page live, rather than saying when
-   * it does not.
-   *
-   * ```ts
-   * { id: 'tax', target: '#tax', message: 'Worked out from the quantity.' }
-   * { id: 'save', target: '#save', awaits: 'order-saved', interactive: true }
-   * ```
-   *
-   * **It applies to the first region only.** Later regions of
-   * {@link LekoStep.target} are there to be looked at, and no flag opens them.
-   *
-   * **Tab is held to the same answer.** Focus walks a ring of what this step
-   * opened and the controls Leko drew, so a hole that is only shown cannot be
-   * reached with the keyboard either. A positive `tabindex` in the page, or an
-   * `iframe` inside the region, can still put focus somewhere unplanned, and
-   * what happens then is that the next key brings it back.
-   */
-  interactive?: boolean
+  target?: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
 
   /** Message shown alongside the cutout. */
   message?: string

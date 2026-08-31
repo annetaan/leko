@@ -86,10 +86,9 @@ export const lookThenUse: Case = {
         },
         {
           id: 'name',
-          target: '[data-name]',
+          target: { elements: '[data-name]', interactive: true },
           // The other half. The step wants something done to the page, so it
           // says so, and the field takes the typing.
-          interactive: true,
           message: 'Now type a name. This step opened its hole, so the field is yours.',
           validate: (el) => (el as HTMLInputElement).value.trim() !== '',
           error: 'Nothing typed yet.',

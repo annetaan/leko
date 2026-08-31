@@ -81,12 +81,11 @@ export const targetDisappears: Case = {
       steps: [
         {
           id: 'notice',
-          interactive: true,
           // A selector, so the question is asked again while the node is gone.
           // A function closing over one node captured up front cannot answer
           // any differently the second time, so this is the shape a step
           // wants wherever a target might be re-rendered.
-          target: '[data-notice]',
+          target: { elements: '[data-notice]', interactive: true },
           message:
             'Here is your export. Take it away with any of the three controls ' +
             'beside it and watch what the tour does about it.',

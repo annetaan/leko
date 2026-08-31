@@ -56,8 +56,10 @@ export const svgTarget: Case = {
           // The function form: an SVGRectElement, which the type of a target
           // has to allow a host to hand back.
           id: 'choose',
-          target: () => document.querySelector('[data-node="payment"]'),
-          interactive: true,
+          target: {
+            elements: () => document.querySelector('[data-node="payment"]'),
+            interactive: true,
+          },
           awaits: 'diagram-node-chosen',
           message: 'Click the Payment node — the shape under the hole is the real one.',
         },

@@ -27,7 +27,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const other = box('other', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'one', interactive: true, target: () => target }])
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }])
 
   expect(centre(target)).toBe(target)
   expect(absorbed(other)).toBe(true)
@@ -35,7 +35,7 @@ test('the target is reachable through the cutout, and the rest of the page is no
 
 test('stopping puts the page back', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const leko = start([{ id: 'one', interactive: true, target: () => target }])
+  const leko = start([{ id: 'one', target: { elements: () => target, interactive: true } }])
 
   expect(scrim()).not.toBeNull()
   leko.stop()
@@ -50,8 +50,8 @@ test('one region of several targets is one cutout, and what sits between it open
   const right = box('right', { left: '260px', top: '100px', width: '100px', height: '40px' })
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
-  // One element of `target`, written as a list, so the two are unioned.
-  start([{ id: 'columns', interactive: true, target: [[() => left, () => right]] }])
+  // One region naming two elements, so the two are unioned into one hole.
+  start([{ id: 'columns', target: { elements: [() => left, () => right], interactive: true } }])
 
   expect(centre(left)).toBe(left)
   expect(centre(right)).toBe(right)
@@ -64,15 +64,16 @@ test('two regions get a cutout each rather than being unioned', () => {
   const summary = box('summary', { left: '60px', top: '60px', width: '120px', height: '40px' })
   const between = box('between', { left: '60px', top: '230px', width: '120px', height: '40px' })
 
-  // Two elements of `target`, so two holes. The same two written inside one
-  // element would be the test above, and would open everything between them.
-  start([{ id: 'linked', interactive: true, target: [() => target, () => summary] }])
+  // Two entries of `target`, so two holes. The same two named in one region's
+  // `elements` would be the test above, and would open everything between them.
+  start([{ id: 'linked', target: [{ elements: () => target, interactive: true }, () => summary] }])
 
   // Two holes, not one big one — otherwise everything in between would be lit.
   expect(holes()).toBe(2)
   expect(centre(target)).toBe(target)
-  // Shown and not reachable. `interactive` opens the first region and no other,
-  // because a later one is there to explain rather than to be used.
+  // Shown and not reachable. Only the first region can declare `interactive`
+  // — the type refuses it later — because a later one is there to explain
+  // rather than to be used.
   expect(absorbed(summary)).toBe(true)
   expect(absorbed(between)).toBe(true)
 })
@@ -114,7 +115,7 @@ test('an element inside an svg is a target like any other', () => {
 
   // The function form, deliberately: an SVG shape is not an HTMLElement, so
   // this line is also the claim that the type lets a host hand one back.
-  start([{ id: 'svg', interactive: true, target: () => wanted }])
+  start([{ id: 'svg', target: { elements: () => wanted, interactive: true } }])
 
   expect(centre(wanted)).toBe(wanted)
   expect(absorbed(other)).toBe(true)
@@ -138,7 +139,10 @@ test('a step overrides the padding the instance was given', () => {
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
   const leko = holding(
-    { id: 'roomy', steps: [{ id: 'a', interactive: true, target: () => target, padding: 40 }] },
+    {
+      id: 'roomy',
+      steps: [{ id: 'a', target: { elements: () => target, interactive: true }, padding: 40 }],
+    },
     { padding: 4 },
   )
   begin(leko, 'roomy')
@@ -175,7 +179,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', interactive: true, target: () => target }])
+  start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
   // Inside the scroller, so scrolling moves scrim and target together and no
   // position math has to run per frame.
@@ -212,7 +216,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
 
   const outside = box('outside', { left: '20px', top: '20px', width: '100px', height: '40px' })
 
-  start([{ id: 'deep', interactive: true, target: () => target }])
+  start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
   // One scrim inside the scroller so the cutout tracks its content for free,
   // and one outside so the rest of the page is not left bright and clickable.
@@ -248,7 +252,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'deep', interactive: true, target: () => target }])
+  start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
   // The reason this is checked by geometry rather than by hit-testing: a
   // clip-path already takes the outer layer out of `elementFromPoint`, and an
@@ -268,7 +272,9 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  start([{ id: 'one', interactive: true, target: () => target, validate: () => false }])
+  start([
+    { id: 'one', target: { elements: () => target, interactive: true }, validate: () => false },
+  ])
 
   press()
 
@@ -283,7 +289,7 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   // A real duration, because the bug this pins down was only visible while an
   // animation was running.
   const leko = holding(
-    { id: 'story', steps: [{ id: 'one', interactive: true, target: () => target }] },
+    { id: 'story', steps: [{ id: 'one', target: { elements: () => target, interactive: true } }] },
     { duration: 200 },
   )
   begin(leko, 'story')
@@ -341,7 +347,9 @@ test('an open step puts its target in the ring and comes back to it', async () =
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+  start([
+    { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
 
   target.focus()
   const seen = await tabbing(4)
@@ -356,7 +364,9 @@ test('shift-tab out of the ring lands on the end it was heading for', async () =
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+  start([
+    { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
 
   // The first stop in the ring. Backwards out of it is the far end of the ring
   // rather than the page behind, which is the half a forward-only net misses.
@@ -394,7 +404,9 @@ test('focus never lands on the page on its way round the ring', async () => {
   // edge of its first segment would put focus here before taking it back.
   const after = box('after', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
-  start([{ id: 'use', target: () => target, interactive: true, message: 'Press it.' }])
+  start([
+    { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
 
   const touched: string[] = []
   const watch = (event: FocusEvent): void => {

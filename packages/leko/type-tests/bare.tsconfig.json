@@ -4,5 +4,5 @@
     "noEmit": true,
     "customConditions": ["development"]
   },
-  "include": ["assert.ts", "bare.ts"]
+  "include": ["assert.ts", "bare.ts", "regions.ts"]
 }

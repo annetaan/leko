@@ -5,6 +5,7 @@ export type {
   LekoOptions,
   LekoProblem,
   LekoRegion,
+  LekoShownRegion,
   LekoSignal,
   LekoSignals,
   LekoState,

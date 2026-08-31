@@ -51,8 +51,8 @@ const staged = new WeakMap<Leko, Map<string, LekoStory>>()
  * The story is staged as it was written. Nothing here rewrites a step: the
  * object a test builds is the object the machine holds and the object a hook is
  * handed back, and one test in `wiring.test.ts` is about exactly that. A test
- * that wants its hole reachable writes `interactive: true` on the step, the
- * same as any other host.
+ * that wants its hole reachable writes `interactive: true` on the step's
+ * region, the same as any other host.
  */
 export function holding(story: LekoStory, options: LekoOptions = {}) {
   const leko = instance(options)

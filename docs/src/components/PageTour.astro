@@ -47,8 +47,7 @@
       steps: [
         {
           id: 'sidebar',
-          target: '#starlight__sidebar',
-          interactive: true,
+          target: { elements: '#starlight__sidebar', interactive: true },
           message:
             'This is the site’s own sidebar, not a picture of one. Scroll it. ' +
             'The hole hands over the wheel as well as clicks.',
@@ -60,8 +59,7 @@
         },
         {
           id: 'name',
-          target: '[data-tour-input]',
-          interactive: true,
+          target: { elements: '[data-tour-input]', interactive: true },
           message:
             'Type your name. Nothing here is listening for a keystroke to ' +
             'move the tour on. The page decides the field is filled in and ' +

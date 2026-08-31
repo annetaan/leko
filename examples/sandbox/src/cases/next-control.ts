@@ -46,8 +46,7 @@ export const nextControl: Case = {
       steps: [
         {
           id: 'name',
-          interactive: true,
-          target: 'input[name="name"]',
+          target: { elements: 'input[name="name"]', interactive: true },
           message: 'Give the project a name of your own, then press Next.',
           // Pressing the control claims the moment has come and claims
           // nothing about the state behind it, which is why a step with a
@@ -62,8 +61,7 @@ export const nextControl: Case = {
         },
         {
           id: 'save',
-          interactive: true,
-          target: '[data-save]',
+          target: { elements: '[data-save]', interactive: true },
           message: 'Now save it. No control on this one, and no guard. The save ends it.',
           awaits: 'project-renamed',
         },

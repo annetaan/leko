@@ -60,8 +60,7 @@ export const scrollableTarget: Case = {
       steps: [
         {
           id: 'read-the-terms',
-          interactive: true,
-          target: '[data-terms]',
+          target: { elements: '[data-terms]', interactive: true },
           message: 'Read to the end of the box. Scroll it however you like.',
           // The application's own verdict again: not "did they scroll" but "are they
           // at the bottom", which is what was actually asked of them.

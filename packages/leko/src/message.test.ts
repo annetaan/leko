@@ -54,7 +54,7 @@ const anchors = CSS.supports('anchor-name: --a') && CSS.supports('position-area:
 
 test('the step message is on screen, and above the scrim', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start([{ id: 'one', interactive: true, target: 'button', message: 'Press it.' }])
+  start([{ id: 'one', target: { elements: 'button', interactive: true }, message: 'Press it.' }])
 
   const el = message()
   expect(words()).toBe('Press it.')
@@ -68,14 +68,21 @@ test('the step message is on screen, and above the scrim', () => {
 
 test('a step with nothing to say and a signal to wait for shows nothing', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start([{ id: 'one', interactive: true, target: 'button', awaits: 'order-saved' }])
+  start([{ id: 'one', target: { elements: 'button', interactive: true }, awaits: 'order-saved' }])
 
   expect(visible()).toBe(false)
 })
 
 test.runIf(anchors)('the message clears the cutout rather than covering it', () => {
   const target = box('target', { left: '200px', top: '200px', width: '160px', height: '48px' })
-  start([{ id: 'one', interactive: true, target: () => target, message: 'Press it.', padding: 12 }])
+  start([
+    {
+      id: 'one',
+      target: { elements: () => target, interactive: true },
+      message: 'Press it.',
+      padding: 12,
+    },
+  ])
 
   const hole = rect(target)
   const note = rect(message()!)
@@ -91,8 +98,7 @@ test.runIf(anchors)('the message clears every cutout, not just the one it is anc
   start([
     {
       id: 'one',
-      interactive: true,
-      target: [() => target, () => second],
+      target: [{ elements: () => target, interactive: true }, () => second],
       message: 'Both of these.',
     },
   ])
@@ -124,8 +130,7 @@ test.runIf(anchors)('the message sits beside a target inside a shadow root', asy
   start([
     {
       id: 'one',
-      interactive: true,
-      target: () => inner,
+      target: { elements: () => inner, interactive: true },
       message: 'Press the one in the shadow root.',
     },
   ])
@@ -147,7 +152,9 @@ test('Leko writes no anchor-name into the page it is pointing at', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--the-page-had-this')
 
-  const leko = start([{ id: 'one', interactive: true, target: () => target, message: 'Press it.' }])
+  const leko = start([
+    { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
 
   expect(target.style.getPropertyValue('anchor-name')).toBe('--the-page-had-this')
   leko.stop()
@@ -171,7 +178,13 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   document.body.append(scroller)
   keep(scroller)
 
-  start([{ id: 'one', interactive: true, target: () => target, message: 'Scroll the list.' }])
+  start([
+    {
+      id: 'one',
+      target: { elements: () => target, interactive: true },
+      message: 'Scroll the list.',
+    },
+  ])
   scroller.scrollTop = 400
   await frame()
 
@@ -188,8 +201,12 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
 
 test('the step is read for its words every time, so an edit to it is seen', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  const step = { id: 'one', interactive: true, target: () => target, message: 'Type your name.' }
-  start([step, { id: 'two', interactive: true, target: () => target }])
+  const step = {
+    id: 'one',
+    target: { elements: () => target, interactive: true },
+    message: 'Type your name.',
+  }
+  start([step, { id: 'two', target: { elements: () => target, interactive: true } }])
 
   expect(words()).toBe('Type your name.')
 
@@ -207,13 +224,12 @@ test('an error is written into the box that is already there', () => {
   start([
     {
       id: 'one',
-      interactive: true,
-      target: () => target,
+      target: { elements: () => target, interactive: true },
       message: 'Type your name.',
       validate: () => false,
       error: 'A name, not a number.',
     },
-    { id: 'two', interactive: true, target: () => target },
+    { id: 'two', target: { elements: () => target, interactive: true } },
   ])
 
   const before = rect(message()!)
@@ -232,8 +248,12 @@ test('an error is written into the box that is already there', () => {
 test('a step that declares no signal is given a way out of it', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
-    { id: 'one', interactive: true, target: () => target, message: 'Type your name.' },
-    { id: 'two', interactive: true, target: () => target, message: 'Now save.' },
+    {
+      id: 'one',
+      target: { elements: () => target, interactive: true },
+      message: 'Type your name.',
+    },
+    { id: 'two', target: { elements: () => target, interactive: true }, message: 'Now save.' },
   ])
 
   expect(control()?.textContent).toBe('Next')
@@ -247,12 +267,11 @@ test('a step waiting for a signal has no control to get past it with', async () 
   start([
     {
       id: 'one',
-      interactive: true,
-      target: () => target,
+      target: { elements: () => target, interactive: true },
       message: 'Save the order.',
       awaits: 'order-saved',
     },
-    { id: 'two', interactive: true, target: () => target, message: 'Done.' },
+    { id: 'two', target: { elements: () => target, interactive: true }, message: 'Done.' },
   ])
   // The box has to be up before this proves anything: everything in it is
   // transparent while it fades, control included.
@@ -266,8 +285,8 @@ test('a step waiting for a signal has no control to get past it with', async () 
 test('a step with no message still gets the control, and nothing else', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
-    { id: 'one', interactive: true, target: () => target },
-    { id: 'two', interactive: true, target: () => target },
+    { id: 'one', target: { elements: () => target, interactive: true } },
+    { id: 'two', target: { elements: () => target, interactive: true } },
   ])
   await appears()
 
@@ -282,9 +301,18 @@ test('a step with no message still gets the control, and nothing else', async ()
 
 test('the words on the control are the instance’s to choose', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  start([{ id: 'one', interactive: true, target: () => target, message: 'Type your name.' }], {
-    nextLabel: '次へ',
-  })
+  start(
+    [
+      {
+        id: 'one',
+        target: { elements: () => target, interactive: true },
+        message: 'Type your name.',
+      },
+    ],
+    {
+      nextLabel: '次へ',
+    },
+  )
 
   expect(control()?.textContent).toBe('次へ')
 })
@@ -292,9 +320,9 @@ test('the words on the control are the instance’s to choose', () => {
 test('one press advances one step, however many events it arrives as', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
-    { id: 'one', interactive: true, target: () => target },
-    { id: 'two', interactive: true, target: () => target },
-    { id: 'three', interactive: true, target: () => target },
+    { id: 'one', target: { elements: () => target, interactive: true } },
+    { id: 'two', target: { elements: () => target, interactive: true } },
+    { id: 'three', target: { elements: () => target, interactive: true } },
   ])
 
   const button = control()!
@@ -310,9 +338,9 @@ test('one press advances one step, however many events it arrives as', () => {
 test('a press after the frame is over is a second press', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
-    { id: 'one', interactive: true, target: () => target },
-    { id: 'two', interactive: true, target: () => target },
-    { id: 'three', interactive: true, target: () => target },
+    { id: 'one', target: { elements: () => target, interactive: true } },
+    { id: 'two', target: { elements: () => target, interactive: true } },
+    { id: 'three', target: { elements: () => target, interactive: true } },
   ])
 
   press()
@@ -328,13 +356,16 @@ test('the control goes through validate, and a failed press stays where it is', 
   const leko = start([
     {
       id: 'one',
-      interactive: true,
-      target: () => target,
+      target: { elements: () => target, interactive: true },
       message: 'Type 3.',
       validate: () => typed,
       error: 'That is not 3 yet.',
     },
-    { id: 'two', interactive: true, target: () => target, message: 'Now place the order.' },
+    {
+      id: 'two',
+      target: { elements: () => target, interactive: true },
+      message: 'Now place the order.',
+    },
   ])
 
   press()
@@ -357,11 +388,10 @@ test('the control goes through validate, and a failed press stays where it is', 
 test('an error is about the attempt, so leaving the step takes it away', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
-    { id: 'one', interactive: true, target: () => target, message: 'First.' },
+    { id: 'one', target: { elements: () => target, interactive: true }, message: 'First.' },
     {
       id: 'two',
-      interactive: true,
-      target: () => target,
+      target: { elements: () => target, interactive: true },
       message: 'Second.',
       validate: () => false,
       error: 'Not yet.',
@@ -388,8 +418,7 @@ test('a step with only an error to show gets a box for it', async () => {
   start([
     {
       id: 'one',
-      interactive: true,
-      target: () => target,
+      target: { elements: () => target, interactive: true },
       validate: () => false,
       error: 'The total is still zero.',
     },
@@ -411,8 +440,7 @@ test('a refusal during the opening morph does not take the message with it', asy
     [
       {
         id: 'one',
-        interactive: true,
-        target: () => target,
+        target: { elements: () => target, interactive: true },
         message: 'Press it.',
         validate: () => false,
       },
@@ -438,7 +466,9 @@ test('stopping takes the message with it, and gives the target its anchor name b
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--theirs')
 
-  const leko = start([{ id: 'one', interactive: true, target: () => target, message: 'Press it.' }])
+  const leko = start([
+    { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
   leko.stop()
 
   expect(message()).toBeNull()
@@ -453,7 +483,9 @@ test('the message does not move when the target leaves the page', async () => {
   // A selector, so the target is given a moment to come back and the tour is
   // still standing when this looks. Without one it stops and the message would
   // go with it, which would prove nothing.
-  const leko = start([{ id: 'one', interactive: true, target: '#anchor', message: 'Press it.' }])
+  const leko = start([
+    { id: 'one', target: { elements: '#anchor', interactive: true }, message: 'Press it.' },
+  ])
   // Before the target goes, so the fade is not being raced against a deadline.
   await appears()
   const before = rect(message()!)

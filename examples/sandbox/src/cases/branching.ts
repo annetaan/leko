@@ -37,8 +37,7 @@ const intro = {
     },
     {
       id: 'choose',
-      interactive: true,
-      target: [['[data-careful]', '[data-quick]']],
+      target: { elements: ['[data-careful]', '[data-quick]'], interactive: true },
       // A control would be a way past the choice, so this step has none and the
       // buttons report instead. Which story that opens is `next`'s answer.
       awaits: 'path-chosen',
@@ -79,12 +78,11 @@ const careful = {
   steps: [
     {
       id: 'lines',
-      interactive: true,
       // The box is the target, because ticking it is the work. The rows
       // it is a claim about get a cutout of their own rather than joining
       // the union, so the space between the two stays dimmed and stays
       // blocked.
-      target: ['[data-check]', '[data-lines]'],
+      target: [{ elements: '[data-check]', interactive: true }, '[data-lines]'],
       message:
         'careful 1/2 in the footer. A branch counts from one, because ' +
         'the count belongs to the story that is running.',
@@ -92,8 +90,7 @@ const careful = {
     },
     {
       id: 'send',
-      interactive: true,
-      target: '[data-send]',
+      target: { elements: '[data-send]', interactive: true },
       message: 'Send it. That ends this branch, and the branch says what follows it.',
       awaits: 'order-sent',
     },
@@ -107,8 +104,7 @@ const quick = {
   steps: [
     {
       id: 'send',
-      interactive: true,
-      target: '[data-send]',
+      target: { elements: '[data-send]', interactive: true },
       message: 'quick 1/1. Same button, same signal, same rejoin, one step to get there.',
       awaits: 'order-sent',
     },
