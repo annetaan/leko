@@ -74,8 +74,8 @@ module machine {
   /// window: `onLeave` and the ending `onStep` are application code, and an
   /// application inside one can call straight back in.
   ///
-  /// `into` is the story a `start` is displacing this one with. It decides
-  /// whether the curtain goes up before the report, and what happens after.
+  /// `into` is the story `next` named, displacing this one. It decides what
+  /// follows the report: the named story going up, or the machine opening.
   ///
   /// It carries a token because two teardowns at the same position are two
   /// occurrences, and a set keyed on position alone would silently keep one.
@@ -241,10 +241,11 @@ module machine {
   pure def standOn(s: M, at: Pos): M =
     s.with("position", Just(at)).with("nextToken", s.nextToken + 1)
 
-  /// `ending` in `plan.ts`. `next` is a story only where `start` displaces this one.
+  /// `ending` in `plan.ts`. `into` is a story only where a chain hands the tour on.
   ///
-  /// An ending with somewhere to go stays closed through its own report; one
-  /// with nowhere to go opens first.
+  /// Every ending stays closed through its own report. The machine opens only
+  /// once the report is done, so `next` is the only way one story leads to
+  /// another.
   pure def end(s: M, into: Maybe[str]): M =
     match s.position {
       | Nothing => s
@@ -494,8 +495,9 @@ module machine {
       match cb {
         | Leaving(c) =>
           match c.into {
-            // Nothing follows the report, so a host is free to start a story
-            // from it and the curtain goes up first.
+            // Nothing follows the report, and the machine opens only once it
+            // is done — the `reported` event in `plan.ts`. A call made inside
+            // the window is a call made while `Leaving` is still parked.
             | Nothing => awake.with("phase", Ready).with("mark", "left")
             // An ending with somewhere to go stays closed through its own
             // report, and then the story that was named goes up.
@@ -622,8 +624,8 @@ module machine {
   val refusedInSilence: bool = m.mark == "refuse-mute"
 
   /// A story running out of steps and handing the tour to the one it names.
-  /// The ending stays closed through its own report, exactly as a `start` that
-  /// displaces a run does, so the story that follows is the story that runs.
+  /// The ending stays closed through its own report, as every ending is, so
+  /// the story that follows is the story that runs.
   val chained: bool = m.mark == "chain-into"
 
   /// A story running out with nothing after it, which is where a tour stops.

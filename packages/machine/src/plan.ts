@@ -112,6 +112,8 @@ export type Event<W extends World> =
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
   /** The report is done and the story that displaced this one may go up. */
   | { kind: 'startInto'; story: Story<W> }
+  /** The report of an ending is done and nothing follows it. Only now does the machine open. */
+  | { kind: 'reported' }
   /** The position is on the story's first step and its own `onEnter` is owed. */
   | { kind: 'openStory'; at: Position<W> }
   | { kind: 'storyEntered'; at: Position<W> }
@@ -299,16 +301,23 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     // --- the machine carrying on
 
     case 'left':
-      // An ending with somewhere to go stays closed through its own report. One
-      // with nowhere to go opens first, so a host may start from it.
+      // Every ending stays closed through its own report. `next` is the only
+      // way one story leads to another, so a `start()` made from inside the
+      // report is refused like any other call made while Leko is inside the
+      // application.
       return {
-        core: event.into ? core : { ...core, phase: 'ready' },
+        core,
         effects: [{ kind: 'report', story: event.story, step: undefined }, ...event.after],
-        next: event.into ? { kind: 'startInto', story: event.into } : undefined,
+        next: event.into ? { kind: 'startInto', story: event.into } : { kind: 'reported' },
       }
 
     case 'startInto':
       return opening(core, event.story)
+
+    case 'reported':
+      // Nothing ran in the window, because nothing can: every call the report
+      // could make was refused, and `stop()` finds nothing to end.
+      return nothing({ ...core, phase: 'ready' })
 
     case 'openStory':
       // Set before `onEnter` is called, so a handler answering in the turn is

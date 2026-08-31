@@ -537,16 +537,13 @@ export interface LekoOptions {
    * names a step that was drawn, so a step whose `onEnter` threw on the way in
    * cannot end up in it.
    *
-   * {@link Leko.stop} from in here is never turned down. {@link Leko.start} is
-   * turned down unless the tour has ended and has nowhere to go, which is the
-   * report after a `stop()` or after a story ran out of steps with no
-   * {@link LekoStory.next}. There the tour is already over, nothing runs after
-   * the report, and the story a handler starts is the story that runs.
-   *
-   * Everywhere else the refusal says which one it is. A report naming a step is
-   * a tour that is running, so that is `tour-running`. A report of an ending
-   * whose story already named the one that follows it is `call-refused`, and
-   * the story named in `next` is the one that runs.
+   * {@link Leko.stop} from in here is never turned down. {@link Leko.start}
+   * from in here never runs: a report naming a step is a tour that is running
+   * (`tour-running`), and every report of an ending happens with the gate
+   * still closed (`call-refused`) — {@link LekoStory.next} is the only way one
+   * story leads to another. A host that wants a story after `stop()` writes
+   * the two calls in a row; `stop()` finishes the whole ending, report
+   * included, before it returns.
    */
   onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 
@@ -657,8 +654,9 @@ export type LekoProblem =
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
    * A {@link Leko.start} that arrived while Leko was inside the application,
-   * which is a call made from inside an `onEnter` or an `onLeave`. Nothing of
-   * the step being built has been built, so there is nothing there to act on.
+   * which is a call made from inside an `onEnter`, an `onLeave`, or the
+   * {@link LekoOptions.onStep} report of an ending. Nothing of the step being
+   * built has been built, so there is nothing there to act on.
    *
    * `start` is the only call that lands here, which is why there is nothing
    * else on this member to read.

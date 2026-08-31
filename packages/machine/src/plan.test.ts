@@ -124,14 +124,19 @@ describe('an ending', () => {
     expect(outcome.next).toBeUndefined()
   })
 
-  test('opens the curtain before its report where nothing follows it', () => {
+  test('stays closed through its report, and opens once the report is done', () => {
     const torn = put(running(), { kind: 'stop' })
     const outcome = put(torn.core, torn.next!)
 
-    // A host is free to start a story from that report, and `branching.ts`
-    // rejoins that way.
-    expect(outcome.core.phase).toBe('ready')
+    // `next` is the only way one story leads to another, so nothing may begin
+    // from inside this report either.
+    expect(outcome.core.phase).toBe('ending')
     expect(owed(outcome)).toEqual(['report'])
+    expect(outcome.next).toEqual({ kind: 'reported' })
+
+    const opened = put(outcome.core, outcome.next!)
+    expect(opened.core.phase).toBe('ready')
+    expect(opened.effects).toEqual([])
   })
 
   test('stays closed through its report where a story is on its way', () => {

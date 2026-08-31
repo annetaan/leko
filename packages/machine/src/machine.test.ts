@@ -477,18 +477,14 @@ describe('a story that says what follows it', () => {
 })
 
 describe('a call made from inside a report', () => {
-  // Three reports and three windows. Only the report of an ending with nowhere
-  // to go is one a story can begin in, and the other two say which refusal they
-  // are, because a host reading one diagnostic for both would have to read
-  // `state` to find out which it was holding.
-  //
-  // **This is what `dispatch` being re-entrant pays for.** The story is up
-  // before the `stop()` that reported the ending has returned. Put a queue in
-  // front of `dispatch` and the three lines below run against an idle tour,
-  // with `second` arriving a turn later. That is a readout showing a tour that
-  // ended, a turn of nothing, and then a tour that began.
-  test('start from inside onStep runs there, before stop returns', () => {
+  // Three reports and no window in any of them. A report naming a step is a
+  // tour that is running, and every report of an ending happens with the gate
+  // still closed: `next` is the only way one story leads to another. The two
+  // refusals say which they are, because a host reading one diagnostic for
+  // both would have to read `state` to find out which it was holding.
+  test('start from the report of an ending is refused, and two lines after stop work', () => {
     const second: Story = { id: 'second', steps: [{ id: 'b', target: 'second' }] }
+    const problems: Problem<Fixture>[] = []
     let tried = false
     const tour = machine({
       onStep: (step) => {
@@ -496,12 +492,21 @@ describe('a call made from inside a report', () => {
         tried = true
         begin(tour, 'second')
       },
+      onDiagnostic: (problem) => problems.push(problem),
     })
     hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
     hold(tour, second)
     begin(tour, 'first')
 
     tour.stop()
+
+    // The report of the ending is not a window a story can begin in. The host
+    // that wants one writes `stop()` and `start()` as two lines instead, and
+    // `stop()` finishes the whole ending before it returns.
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
+    expect(tour.state).toBe('idle')
+
+    begin(tour, 'second')
 
     expect(tour.story?.id).toBe('second')
     expect(tour.step?.id).toBe('b')
@@ -524,7 +529,8 @@ describe('a call made from inside a report', () => {
     begin(tour, 'first')
 
     // A report that names a step is a tour that is running, and `start` never
-    // ends one. Only the report of an ending is a window a story can begin in.
+    // ends one. The refusal names the tour, because the fix is `stop()` rather
+    // than a second attempt.
     expect(problems).toEqual([{ kind: 'tour-running', story: second, running: first }])
     expect(tour.story?.id).toBe('first')
   })
@@ -546,8 +552,8 @@ describe('a call made from inside a report', () => {
     begin(tour, 'first')
     press(tour)
 
-    // The ending has somewhere to go, so the phase is still closed through its
-    // own report. `rescue` would be overwritten by the story already coming.
+    // Every ending is closed through its own report, and this one shows why:
+    // `rescue` would be overwritten by the story already coming.
     expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(tour.story?.id).toBe('summary')
   })
@@ -651,26 +657,6 @@ describe('starting a story', () => {
     expect(seen).toEqual([])
     expect(tour.story?.id).toBe('story')
     expect(tour.step?.id).toBe('a')
-  })
-
-  test('a story started from the ending of a stop still wins', () => {
-    const tour = staging(
-      { id: 'first', steps: [{ id: 'a', target: 'first' }] },
-      {
-        onStep: (step) => {
-          // Nothing follows this report. The tour is idle by the time it goes
-          // out, so this is the last word on where it is.
-          if (!step) begin(tour, 'third')
-        },
-      },
-    )
-    hold(tour, { id: 'third', steps: [{ id: 'c', target: 'third' }] })
-    begin(tour, 'first')
-
-    tour.stop()
-
-    expect(tour.story?.id).toBe('third')
-    expect(tour.step?.id).toBe('c')
   })
 
   test('a story that shows the same step object twice still counts forwards', () => {

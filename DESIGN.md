@@ -178,9 +178,12 @@ reports the event via `reached()`.
 
 - Single instance hook: `onStep` lives solely on the Leko instance (not individual stories) and reports both the step and the story object to simplify state tracking.
 - Termination reporting: `stop()` or reaching the end of a tour reports `undefined` for the step, allowing progress UIs to reset correctly.
-- Chained starts:
-  - Terminal ends (no next story) can trigger a new `start()` from within the ending report.
-  - Non-terminal ends (transitioning via next) refuse new `start()` calls to protect the incoming story chain.
+- No starts from inside a report: `next` is the only way one story leads to
+  another. A report naming a step is a tour that is running (`tour-running`),
+  and every report of an ending happens with the gate still closed
+  (`call-refused`). A host that wants a story after `stop()` writes the two
+  calls in a row — `stop()` finishes the whole ending, report included, before
+  it returns.
 - Asymmetric API responses: Instrumentation calls (`reached()`) operate silently, whereas imperative commands (`start()`) return explicit diagnostic errors (e.g., `tour-running`, `story-empty`).
 
 ## Target loss & recovery
@@ -217,8 +220,8 @@ its clear-up at the same level instead of splitting across two.
 - **Every `onEnter` gets its `onLeave`** — also where the handler threw
   halfway, and where a `stop()` walked out of it, because a handler that set
   something up before failing is owed one. `onLeave` is told where the tour is
-  going, so a panel two steps use in turn can stay open. Starting another story
-  counts as ending.
+  going, so a panel two steps use in turn can stay open. A story handing the
+  tour on through `next` counts as ending.
 - **A throw stops the tour, and the reason is thrown again.** The state the
   step assumes was never built, so drawing it would point the user at something
   that is not ready — and the handler that threw is the place with the context
@@ -325,8 +328,9 @@ is not something Leko knows.
 
 **Leko never acts on a call while it is inside a call into the application.**
 An arrival is such a window — from the moment a move begins until the step is
-handed to the presenter, with `onEnter` inside it. A teardown, with `onLeave`
-running, is another.
+handed to the presenter, with `onEnter` inside it. A teardown is another, from
+the first `onLeave` through the report of the ending: the machine opens again
+only once `onStep` has returned.
 
 - Inside either, `reached()`, `start()` and a press on the next control all do
   nothing. The step's target has not been looked for and it has never been on
@@ -398,8 +402,8 @@ what the existing fields already say.
 - **A teardown says `idle` while it is still refusing calls.** Ending a tour
   empties the position before any handler runs, so an `onLeave` reading `state`
   is told the truth: the tour is over. A `start()` made from inside `onLeave`
-  is still refused; the ending `onStep` report is the first place a new
-  `start()` is accepted again.
+  or the ending `onStep` report is still refused — the machine opens again only
+  once the report has returned.
 - **Everything the machine keeps is two fields** — where the tour is, and which
   window of a call into the application it is inside. Neither is a list of
   stories: `start` is handed the one it runs, so nothing is looked up and
@@ -410,9 +414,9 @@ what the existing fields already say.
   that remembers — the words of the last failed attempt included. Neither asks
   the machine anything.
 - **A call made from inside a handler runs immediately, on the same stack.** A
-  `start()` made from the report of an ending puts its story up inside that
-  call, so a host watching `onStep` sees one tour replaced by another — never
-  an idle turn in between.
+  `stop()` made from inside `onEnter` ends the run inside the call that was
+  entering it. Nothing is queued, so no call ever acts on a world that moved
+  after it was made.
 
 ## There is nothing to subscribe to
 
