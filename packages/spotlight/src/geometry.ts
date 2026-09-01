@@ -228,6 +228,31 @@ export function lerpPath(from: string, to: string, t: number): string {
 }
 
 /**
+ * Where the cutouts are, `t` of the way from one list to the other.
+ *
+ * The lists must already be the same length, which is what {@link padCutouts}
+ * hands back. Geometry is blended; `interactive` is taken from the
+ * destination, because a flag has no halfway point and the flight is toward
+ * it. This is what lets a halo ride a morph: the path the scrim interpolates
+ * is built from these same numbers, so a frame written from both cannot
+ * disagree with itself.
+ */
+export function lerpCutouts(from: Cutout[], to: Cutout[], t: number): Cutout[] {
+  const blend = (a: number, b: number): number => round(a + (b - a) * t)
+  return to.map((end, i) => {
+    const start = from[i] ?? end
+    return {
+      x: blend(start.x, end.x),
+      y: blend(start.y, end.y),
+      width: blend(start.width, end.width),
+      height: blend(start.height, end.height),
+      radius: blend(start.radius, end.radius),
+      interactive: end.interactive,
+    }
+  })
+}
+
+/**
  * What is left of a `width` by `height` surface once the holes are taken out of
  * it, as rectangles.
  *

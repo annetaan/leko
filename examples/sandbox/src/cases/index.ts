@@ -3,6 +3,7 @@ import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
 import { formValidation } from './form-validation.js'
+import { haloFollows } from './halo-follows.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
 import { lookThenUse } from './look-then-use.js'
@@ -12,6 +13,7 @@ import { scrollableTarget } from './scrollable-target.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
+import { styledTour } from './styled-tour.js'
 import { svgTarget } from './svg-target.js'
 import { targetDisappears } from './target-disappears.js'
 import { twoStories } from './two-stories.js'
@@ -23,6 +25,8 @@ import { twoStories } from './two-stories.js'
 export const cases: Case[] = [
   stepping,
   lookThenUse,
+  styledTour,
+  haloFollows,
   formValidation,
   nextControl,
   asyncCompletion,

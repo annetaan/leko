@@ -388,7 +388,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
     if (!sameStack) this.destroyLayers()
 
     if (this.layers.length === 0) {
-      this.layers = chain.map((container) => new Scrim(container))
+      // Only the innermost is haloed: it is the one carrying the step's
+      // cutouts, and an outer layer's hole is the scroller the next layer
+      // lives in rather than anything the step points at.
+      this.layers = chain.map(
+        (container, i) =>
+          new Scrim(container, i === 0 ? (this.options.halo ?? 'return') : undefined),
+      )
       this.watchViewport()
     }
 

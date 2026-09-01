@@ -66,6 +66,17 @@ test('the step message is on screen, and above the scrim', () => {
   expect(hit?.closest('.leko-message')).toBe(el)
 })
 
+test('the box carries no border until a host asks for one', () => {
+  box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  start([{ id: 'one', target: { elements: 'button', interactive: true }, message: 'Press it.' }])
+
+  // The box is a popover, and the UA stylesheet gives every popover
+  // `border: solid` in `currentColor`. Left standing, that is a rim in the
+  // message's own text colour — invisible on the default palette and a white
+  // frame the moment a host makes the text light on dark.
+  expect(getComputedStyle(message()!).borderTopWidth).toBe('0px')
+})
+
 test('a step with nothing to say and a signal to wait for shows nothing', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([{ id: 'one', target: { elements: 'button', interactive: true }, awaits: 'order-saved' }])

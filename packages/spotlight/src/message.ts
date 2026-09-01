@@ -120,6 +120,11 @@ export class Message {
       width: 'max-content',
       maxWidth: 'var(--leko-message-max-width, min(320px, calc(100vw - 32px)))',
       padding: 'var(--leko-message-padding, 12px 16px)',
+      // Written even though the default is none, because the box is a popover
+      // and the UA stylesheet gives every popover `border: solid` in
+      // `currentColor` — which is `--leko-message-color`, so the rim only
+      // shows once a host makes the text light on dark.
+      border: 'var(--leko-message-border, none)',
       borderRadius: 'var(--leko-message-radius, 8px)',
       background: 'var(--leko-message-bg, #fff)',
       color: 'var(--leko-message-color, #16181d)',

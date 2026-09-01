@@ -484,6 +484,29 @@ button:disabled {
   font-size: 12.5px;
 }
 
+/* Slow motion for the eye. At the far end of the row, because it is about
+   watching the drawing rather than driving the tour. */
+.speed {
+  margin-left: auto;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.speed select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
 .tiles {
   display: flex;
   gap: 12px;

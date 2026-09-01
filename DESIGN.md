@@ -588,6 +588,43 @@ frame**.
   writing a precomputed string each frame reads nothing and is a different
   thing.
 
+### The halo
+
+A cutout is an absence of geometry, so a host that wants to decorate the hole —
+a ring, a glow — has nothing to select. The halo is that element: one
+transparent frame per cutout, sitting exactly on it, styled entirely through
+`--leko-halo-*`. Every token ships as `none`, so until a host sets one the halo
+paints nothing and costs nothing to look at.
+
+- **Paint only, and outside the hole by construction.** The frame is built the
+  way the scrim is: `pointer-events: none` on everything, catching nothing.
+  What decorates it is `outline` and an outer `box-shadow`, and both stay out
+  of the box they decorate — an outline is drawn outside the border edge, an
+  outer shadow is clipped out of the border box
+  ([`spike/halo-outside-the-hole/`](spike/halo-outside-the-hole/)). A host that
+  writes a negative offset or an inset shadow is painting over its own target,
+  and may.
+- **Only the innermost scrim is haloed.** It is the one carrying the step's
+  cutouts; an outer layer's hole is the scroller the next layer lives in, which
+  is plumbing rather than anything the step points at.
+- The hole the step opened carries `data-open`, so
+  `.leko-halo[data-open]` styles the hole being asked about apart from the ones
+  the step only shows.
+- **What a morph does to the halo is the host's choice, `halo` on the
+  options.** The frames ride the morph either way, written every animation
+  frame from the same blended numbers the clip path is, so the two cannot
+  disagree and no layout is read — the per-frame rule the morph already lives
+  by. The mode decides the paint. The default, `'return'`, is the message's
+  answer: the frames fade out in flight (`--leko-halo-fade`) — a fade that
+  stood still while its hole left would be pointing at where the step no
+  longer is — and fade back in with the holes they frame, only if the morph
+  got there. `'follow'` keeps them on the whole way, for the host that styles
+  every hole alike and wants the glow to travel; one that lights the open hole
+  apart can still follow, and `data-open` flips when the flight starts,
+  because that is the hole the frame is already becoming. Either way a
+  collapsed zero-area leftover holds no frame once the flight is over — an
+  outline around nothing still paints a dot.
+
 ### The message
 
 The message is a `popover` in the top layer, so it sits over the scrim without

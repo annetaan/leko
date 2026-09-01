@@ -16,7 +16,7 @@ app.append(
           </button>
         </div>
         <p class="rail-note">
-          Fifteen situations a tour has to survive. Start a story and then use the
+          The situations a tour has to survive. Start a story and then use the
           page — the cutout is a hole, so everything inside it still works.
           The step's message sits beside its cutout and follows it as you
           scroll; the bar below repeats it, along with the state.
@@ -42,6 +42,13 @@ app.append(
           <button type="button" data-action="stop">stop()</button>
           <span class="state" data-state>idle</span>
           <span class="note" data-note>No tour running.</span>
+          <label class="speed">motion
+            <select data-speed>
+              <option value="1">×1</option>
+              <option value="4">×4 slower</option>
+              <option value="10">×10 slower</option>
+            </select>
+          </label>
         </div>
       </footer>
     </div>
@@ -95,6 +102,34 @@ themeToggle.addEventListener('click', () => {
 // With no pick made, the OS still decides — so an OS change moves the label.
 prefersDark.addEventListener('change', labelTheme)
 labelTheme()
+
+// Slow motion, for watching the drawing itself: a 160ms fade inside a 320ms
+// morph is over before an eye can settle on it. The pace stretches the morph
+// and the halo fade by the same factor, so what is watched slowed down is the
+// same choreography rather than a different one. Kept across reloads the way
+// the theme is.
+const PACES = [1, 4, 10]
+const speedPick = pick<HTMLSelectElement>('[data-speed]')
+const keptPace = Number(localStorage.getItem('leko-sandbox-pace'))
+let pace = PACES.includes(keptPace) ? keptPace : 1
+
+function applyPace(): void {
+  speedPick.value = String(pace)
+  // Inline on the root, so it outbids the default wherever that is declared.
+  // The morph half of the pace cannot be applied from here: `duration` is an
+  // option, fixed when the instance is made, so picking a pace re-shows the
+  // case — see `show`, which reads `pace` for every instance it makes.
+  if (pace === 1) document.documentElement.style.removeProperty('--leko-halo-fade')
+  else document.documentElement.style.setProperty('--leko-halo-fade', `${160 * pace}ms`)
+}
+
+speedPick.addEventListener('change', () => {
+  pace = Number(speedPick.value) || 1
+  localStorage.setItem('leko-sandbox-pace', String(pace))
+  applyPace()
+  if (showing) show(showing)
+})
+applyPace()
 
 /** When the showing case was mounted, so every row can say how long after it. */
 let opened = performance.now()
@@ -180,6 +215,11 @@ function show(next: Case): void {
   // given it — an application exports its instance and reports to that, rather
   // than being handed a tour once one starts.
   leko = createLeko({
+    // The case's own options first, so the sandbox's hooks below stay its own.
+    ...next.options,
+    // The footer's pace stretches whatever the case asked for. At ×1 this
+    // writes the same number the defaults would have landed on.
+    duration: (next.options?.duration ?? 320) * pace,
     // Nothing is logged by the library, so this is where a project decides.
     // The sandbox puts it in the footer, because a call that did nothing is
     // exactly the thing a person reading a case wants to see.

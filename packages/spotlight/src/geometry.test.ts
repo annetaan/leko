@@ -7,6 +7,7 @@ import {
   type Cutout,
   freeCorner,
   grow,
+  lerpCutouts,
   lerpPath,
   padCutouts,
   punchedPath,
@@ -57,6 +58,19 @@ test('every path has the same segments regardless of the numbers', () => {
   const a = punchedPath(800, 600, [cutout(10, 10, 100, 40), cutout(200, 300, 50, 50)])
   const b = punchedPath(1024, 768, [cutout(0, 0, 5, 5, 2), cutout(700, 20, 300, 120, 30)])
   expect(shape(a)).toBe(shape(b))
+})
+
+test('lerpCutouts blends the geometry and takes the flag from the destination', () => {
+  const from = [{ ...rect(0, 0, 100, 100), radius: 0, interactive: true }]
+  const to = [{ ...rect(100, 200, 200, 300), radius: 16, interactive: false }]
+
+  expect(lerpCutouts(from, to, 0)).toEqual([
+    { ...rect(0, 0, 100, 100), radius: 0, interactive: false },
+  ])
+  expect(lerpCutouts(from, to, 0.5)).toEqual([
+    { ...rect(50, 100, 150, 200), radius: 8, interactive: false },
+  ])
+  expect(lerpCutouts(from, to, 1)).toEqual(to)
 })
 
 test('cutout lists are padded to equal length so their paths still interpolate', () => {

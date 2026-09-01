@@ -1,12 +1,26 @@
 import {
   complementRects,
   type Cutout,
+  lerpCutouts,
   lerpPath,
   padCutouts,
   punchedPath,
   type Rect,
   segmentAt,
 } from './geometry.js'
+
+/**
+ * What the halo does while a hole is on its way somewhere else.
+ *
+ * The frames ride the morph either way, written along the same numbers the
+ * path is built from; the mode decides the paint. `'return'` is the message's
+ * answer: they fade out in flight and fade back in with the holes they frame.
+ * `'follow'` keeps them on the whole way — for a host that styles every hole
+ * alike and wants the glow to travel. A host that lights the open hole apart
+ * from the shown ones can still follow; `data-open` flips when the flight
+ * starts, because that is the hole the frame is already becoming.
+ */
+export type HaloMode = 'return' | 'follow'
 
 /**
  * The nearest ancestor that scrolls, or `null` when that is the document.
@@ -126,6 +140,29 @@ export class Scrim {
   private readonly blocking: HTMLElement
   /** The rectangles themselves; see {@link block}. */
   private blockers: HTMLElement[] = []
+  /**
+   * Where the halos live, or `undefined` on a scrim that draws none.
+   *
+   * A halo is a paint-only frame around a cutout, for the host to style — Leko
+   * ships every token as `none`, so until a host sets `--leko-halo-*` this
+   * layer paints nothing at all. It exists because the hole itself has no
+   * element to decorate: the cutout is an absence of geometry, and there is
+   * nothing there for a host's CSS to select.
+   *
+   * The one thing a halo must never do is what constraint 1 forbids: get
+   * between the user and an open hole. So it is built the way the scrim is —
+   * `pointer-events: none` on everything, catching nothing — and it paints
+   * outside the hole by construction: the element sits exactly on the cutout,
+   * transparent, and `outline` and an outer `box-shadow` are both painted
+   * strictly outside the border box (`spike/halo-outside-the-hole/` watches a
+   * browser do it). A host that sets a negative `--leko-halo-offset` or an
+   * inset shadow is painting over its own target, and may.
+   */
+  private readonly haloLayer: HTMLElement | undefined
+  /** What the halos do during a morph; `undefined` on a scrim that draws none. */
+  private readonly halo: HaloMode | undefined
+  /** The frames themselves, one per cutout; see {@link placeHalos}. */
+  private halos: HTMLElement[] = []
   private frame: number | undefined
   private settle: ((finished: boolean) => void) | undefined
   /**
@@ -135,8 +172,16 @@ export class Scrim {
    */
   private arriving: Promise<boolean> | undefined
 
-  constructor(container: HTMLElement | null) {
+  /**
+   * `halo` says whether this scrim frames its cutouts for the host to style,
+   * and what the frames do during a morph — see {@link HaloMode}. Only the
+   * layer carrying the step's cutouts should be given one: an outer layer's
+   * one hole is the scroller the next layer lives in, which is plumbing rather
+   * than anything the step is pointing at.
+   */
+  constructor(container: HTMLElement | null, halo?: HaloMode) {
     this.container = container
+    this.halo = halo
 
     // An absolutely positioned child only lands on the content origin if the
     // scroller establishes a containing block. Nudge it if it does not, and put
@@ -178,7 +223,23 @@ export class Scrim {
     })
     this.blocking = blocking
 
-    ;(container ?? document.body).append(el, blocking)
+    if (halo) {
+      const halos = document.createElement('div')
+      halos.className = 'leko-halos'
+      halos.setAttribute('aria-hidden', 'true')
+      Object.assign(halos.style, {
+        position: 'absolute',
+        left: '0',
+        top: '0',
+        // With the scrim and after the blocking in the tree, so the paint
+        // lands on top of both. Paint is all it is.
+        zIndex: 'var(--leko-z, 9999)',
+        pointerEvents: 'none',
+      })
+      this.haloLayer = halos
+    }
+
+    ;(container ?? document.body).append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
     this.resize()
   }
 
@@ -221,6 +282,10 @@ export class Scrim {
     this.element.style.height = `${h}px`
     this.blocking.style.width = `${w}px`
     this.blocking.style.height = `${h}px`
+    if (this.haloLayer) {
+      this.haloLayer.style.width = `${w}px`
+      this.haloLayer.style.height = `${h}px`
+    }
   }
 
   private path(cutouts: Cutout[]): string {
@@ -254,7 +319,11 @@ export class Scrim {
    * at all — the rule this bends is about position math during scrolling, and
    * that rule is intact.
    */
-  private run(paths: string[], duration: number): Promise<boolean> {
+  private run(
+    paths: string[],
+    duration: number,
+    onFrame?: (eased: number) => void,
+  ): Promise<boolean> {
     this.halt()
     const began = performance.now()
     return new Promise((resolve) => {
@@ -272,10 +341,14 @@ export class Scrim {
           resolve(true)
           return
         }
-        const { index, local } = segmentAt(paths.length, ease(t))
+        const eased = ease(t)
+        const { index, local } = segmentAt(paths.length, eased)
         const from = paths[index]
         const to = paths[index + 1]
         if (from && to) this.element.style.clipPath = lerpPath(from, to, local)
+        // Whatever rides along is written from the same eased progress, so it
+        // cannot drift from the path. Writes only, the same as the path.
+        onFrame?.(eased)
         this.frame = requestAnimationFrame(tick)
       }
       this.frame = requestAnimationFrame(tick)
@@ -288,6 +361,94 @@ export class Scrim {
     this.cutouts = cutouts
     this.element.style.clipPath = this.path(cutouts)
     this.block(cutouts)
+    this.placeHalos(cutouts)
+  }
+
+  /**
+   * Frame each cutout, for the host's CSS to make something of.
+   *
+   * One element per hole, sitting exactly on it: transparent, catching
+   * nothing, painting only outside its own box — see {@link haloLayer}. The
+   * open hole is marked with `data-open`, so a host can light the one the step
+   * is about differently from the ones it only shows. A zero-area cutout is a
+   * morph's collapsed leftover rather than a hole, so it gets no frame — an
+   * outline around nothing still paints a dot.
+   */
+  private placeHalos(cutouts: Cutout[]): void {
+    if (!this.haloLayer) return
+    const framed = cutouts.filter((c) => c.width > 0 && c.height > 0)
+    this.frames(framed.length)
+    this.halos.forEach((el, i) => {
+      const cutout = framed[i]
+      if (!cutout) return
+      this.layHalo(el, cutout)
+      el.toggleAttribute('data-open', cutout.interactive)
+    })
+    this.revealHalos()
+  }
+
+  /** Exactly `count` frames in the layer. A new one is born transparent, so its first appearance is {@link revealHalos} fading it in. */
+  private frames(count: number): void {
+    while (this.halos.length < count) {
+      const el = document.createElement('div')
+      el.className = 'leko-halo'
+      Object.assign(el.style, {
+        position: 'absolute',
+        pointerEvents: 'none',
+        outline: 'var(--leko-halo-outline, none)',
+        outlineOffset: 'var(--leko-halo-offset, 0px)',
+        boxShadow: 'var(--leko-halo-shadow, none)',
+        opacity: '0',
+        transition: 'opacity var(--leko-halo-fade, 160ms) ease-out',
+      })
+      this.haloLayer?.append(el)
+      this.halos.push(el)
+    }
+    while (this.halos.length > count) this.halos.pop()?.remove()
+  }
+
+  /** One frame's box, which is the cutout's own. */
+  private layHalo(el: HTMLElement, cutout: Cutout): void {
+    Object.assign(el.style, {
+      left: `${cutout.x}px`,
+      top: `${cutout.y}px`,
+      width: `${cutout.width}px`,
+      height: `${cutout.height}px`,
+      borderRadius: `${cutout.radius}px`,
+    })
+  }
+
+  /**
+   * Fade in whatever frames are transparent.
+   *
+   * The one layout read in this file, and it is here on purpose: it commits
+   * the transparent style a frame made this task is still carrying, so the
+   * transition has something to start from and the frame fades in rather than
+   * appearing. Once per placement, never per animation frame, and never while
+   * the user scrolls.
+   */
+  private revealHalos(): void {
+    if (!this.haloLayer) return
+    void this.haloLayer.offsetWidth
+    for (const el of this.halos) el.style.opacity = '1'
+  }
+
+  /**
+   * Fade the frames out, on a scrim whose halos return rather than follow.
+   * They keep riding while they go — {@link slideHalos} moves boxes and this
+   * moves paint, so neither waits for the other. The message already answers
+   * the flight the same way: it goes, and comes back once the cutout arrived.
+   */
+  private hideHalos(): void {
+    for (const el of this.halos) el.style.opacity = '0'
+  }
+
+  /** One frame of a ride: the same blend the path was built from, written as boxes. */
+  private slideHalos(cutouts: Cutout[]): void {
+    this.halos.forEach((el, i) => {
+      const cutout = cutouts[i]
+      if (cutout) this.layHalo(el, cutout)
+    })
   }
 
   /**
@@ -364,9 +525,37 @@ export class Scrim {
     // every frame for a difference nobody can act on inside 320ms, and the
     // arriving hole is the one the user is about to reach for.
     this.block(padded)
-    const arriving = this.run(paths, duration)
+    // Either mode rides: the frames are laid on the departure — one per padded
+    // cutout, so a hole on its way out keeps its frame while it shrinks — and
+    // written each frame from the same blend the path is built from. What the
+    // mode decides is the paint. Following, the frames stay on and wear the
+    // destination's flag from the start: a flag has no halfway point, and the
+    // flight is toward it. Returning, they fade out in flight as the frames
+    // they were — the departure's flag, because a frame saying goodbye is the
+    // old hole's — and fade back in with the holes they frame, at
+    // `placeHalos(to)` below, only if the morph got there. A frame the flight
+    // would need that was not there before is made transparent and, returning,
+    // never revealed: a hole that had no frame does not grow one to lose it.
+    const follow = this.halo === 'follow'
+    if (this.haloLayer) {
+      this.frames(padded.length)
+      this.halos.forEach((el, i) => {
+        const start = from[i]
+        const end = padded[i]
+        if (!start || !end) return
+        this.layHalo(el, start)
+        el.toggleAttribute('data-open', (follow ? end : start).interactive)
+      })
+      if (follow) this.revealHalos()
+      else this.hideHalos()
+    }
+    const riding = this.haloLayer
+      ? (eased: number) => this.slideHalos(lerpCutouts(from, padded, eased))
+      : undefined
+    const arriving = this.run(paths, duration, riding)
     this.arriving = arriving
-    void arriving.then(() => {
+    void arriving.then((finished) => {
+      if (finished) this.placeHalos(to)
       // Only if nothing has replaced it. A morph interrupted by the next one
       // settles after that one has already claimed the field.
       if (this.arriving === arriving) this.arriving = undefined
@@ -414,6 +603,7 @@ export class Scrim {
     this.halt()
     this.element.remove()
     this.blocking.remove()
+    this.haloLayer?.remove()
     this.marker?.remove()
     if (this.container && this.restorePosition !== null) {
       this.container.style.position = this.restorePosition

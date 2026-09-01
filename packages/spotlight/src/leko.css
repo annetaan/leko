@@ -9,11 +9,30 @@
   /* Stacking order of the scrim. */
   --leko-z: 9999;
 
+  /*
+   * The halo around each cutout: a transparent frame sitting exactly on the
+   * hole, painting only outside it. Nothing is drawn until these say
+   * otherwise, so the halo is opt-in. The hole the step opened carries
+   * `data-open`, so `.leko-halo[data-open]` styles it apart from the ones the
+   * step only shows. A negative offset or an inset shadow paints over the
+   * target — a host that writes one is choosing that.
+   */
+  --leko-halo-outline: none;
+  --leko-halo-offset: 0px;
+  --leko-halo-shadow: none;
+  /*
+   * How long a halo takes to fade in or out — where it appears, and while a
+   * morph carries its hole somewhere else on the default `halo: 'return'`.
+   * `0ms` puts the appearing and disappearing back to a cut.
+   */
+  --leko-halo-fade: 160ms;
+
   /* The step message, which sits beside the cutout. */
   --leko-message-bg: #fff;
   --leko-message-color: #16181d;
   --leko-message-font: 500 14px/1.5 system-ui, sans-serif;
   --leko-message-padding: 12px 16px;
+  --leko-message-border: none;
   --leko-message-radius: 8px;
   --leko-message-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
   --leko-message-max-width: min(320px, calc(100vw - 32px));

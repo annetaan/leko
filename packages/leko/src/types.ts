@@ -524,6 +524,24 @@ export interface LekoOptions {
   duration?: number
 
   /**
+   * What the halo does while a morph carries its hole somewhere else.
+   * Defaults to `'return'`.
+   *
+   * The frames ride the morph either way, written each animation frame from
+   * the same blended numbers as the hole's path; the mode decides the paint.
+   * `'return'` is the message's answer: they fade out in flight
+   * (`--leko-halo-fade`) and fade back in with the holes they frame.
+   * `'follow'` keeps them on the whole way, for a host that styles every hole
+   * alike and wants the glow to travel. A host that lights the open hole
+   * apart from the shown ones can still follow — `data-open` flips when the
+   * flight starts, because that is the hole the frame is already becoming.
+   *
+   * Paint is all this moves. Whatever it says, the halo catches nothing and
+   * the blocking underneath it is untouched.
+   */
+  halo?: 'return' | 'follow'
+
+  /**
    * The words on the next control. Defaults to `Next`.
    *
    * The control appears on the message of every step that declares no

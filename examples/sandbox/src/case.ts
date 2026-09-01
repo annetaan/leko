@@ -1,4 +1,4 @@
-import type { Leko, LekoStep, LekoStory } from '@annetaan/leko'
+import type { Leko, LekoOptions, LekoStep, LekoStory } from '@annetaan/leko'
 
 export interface Case {
   id: string
@@ -6,6 +6,12 @@ export interface Case {
 
   /** What this case is here to demonstrate, in one sentence. */
   proves: string
+
+  /**
+   * What this case hands `createLeko`, for the few that prove an option. The
+   * sandbox's own hooks are added on top and cannot be taken over from here.
+   */
+  options?: LekoOptions
 
   /**
    * Render the case into `root`. The returned function tears it down again.

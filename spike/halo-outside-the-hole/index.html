@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Do an outline and an outer shadow stay out of the box they decorate?</title>
+    <style>
+      :root { color-scheme: light dark; }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        font: 15px/1.6 system-ui, sans-serif;
+      }
+
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      h2 { font-size: 15px; margin: 0 0 4px; }
+
+      .lede { max-width: 60ch; margin: 0 0 24px; }
+
+      .cases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        margin-bottom: 32px;
+      }
+
+      .case {
+        width: 280px;
+      }
+
+      /*
+       * The ground the frame must not paint on. A checkerboard, because paint
+       * that strays into the box is invisible over a flat colour that happens
+       * to match it and unmissable over this.
+       */
+      .ground {
+        position: relative;
+        height: 160px;
+        background:
+          repeating-conic-gradient(#c8cdd4 0 25%, #f2f4f7 0 50%)
+          0 0 / 20px 20px;
+      }
+
+      /*
+       * The halo as Leko builds it: a transparent element sitting exactly on
+       * the hole, decorated only by outline and an outer box-shadow, catching
+       * nothing.
+       */
+      .frame {
+        position: absolute;
+        left: 60px;
+        top: 40px;
+        width: 160px;
+        height: 80px;
+        border-radius: 10px;
+        pointer-events: none;
+      }
+
+      .frame.outside {
+        outline: 4px solid #e6b400;
+        outline-offset: 2px;
+        box-shadow: 0 0 18px 6px rgb(230 180 0 / 0.7);
+      }
+
+      /* The counter-example: what paint inside the box looks like. */
+      .frame.inside {
+        outline: 4px solid #e6b400;
+        outline-offset: -8px;
+        box-shadow: inset 0 0 18px 6px rgb(230 180 0 / 0.7);
+      }
+
+      /* The element under the frame, standing in for the step's target. */
+      .under {
+        position: absolute;
+        left: 70px;
+        top: 50px;
+        width: 140px;
+        height: 60px;
+      }
+
+      .verdict { font-weight: 600; }
+      .note { max-width: 60ch; }
+    </style>
+  </head>
+  <body>
+    <h1>Do an outline and an outer shadow stay out of the box they decorate?</h1>
+    <p class="lede">
+      The halo frames a cutout by sitting a transparent element exactly on the
+      hole and decorating it with <code>outline</code> and an outer
+      <code>box-shadow</code>. That is only allowed if neither puts paint
+      inside the box: the hole shows the real page, and the halo must not
+      paint over it. CSS says both stay outside — an outline is drawn outside
+      the border edge (css-ui-3), and an outer shadow is clipped out of the
+      border box (css-backgrounds-3) — and this page watches a browser do it.
+    </p>
+
+    <div class="cases">
+      <div class="case">
+        <h2>Outline and outer shadow</h2>
+        <div class="ground">
+          <button class="under">The target</button>
+          <div class="frame outside"></div>
+        </div>
+        <p>
+          The checkerboard inside the ring must be untinted, edge to edge. The
+          glow and the ring live entirely outside it.
+        </p>
+      </div>
+
+      <div class="case">
+        <h2>Negative offset and inset shadow, for contrast</h2>
+        <div class="ground">
+          <button class="under">The target</button>
+          <div class="frame inside"></div>
+        </div>
+        <p>
+          What straying paint looks like: the ring and the glow sit on the
+          checkerboard. A host that writes a negative
+          <code>--leko-halo-offset</code> or an inset shadow gets this, and is
+          choosing it.
+        </p>
+      </div>
+    </div>
+
+    <p class="verdict" id="verdict">Judging the hit…</p>
+    <p class="note">
+      The paint half has to be judged by eye — nothing dependency-free can read
+      the pixels back. The hit half judges itself: with
+      <code>pointer-events: none</code> on the frame, a hit inside it must land
+      on the target underneath.
+    </p>
+
+    <script>
+      const under = document.querySelector('.outside').parentElement.querySelector('.under')
+      const box = under.getBoundingClientRect()
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      document.getElementById('verdict').textContent =
+        hit === under
+          ? 'Hit: a point inside the frame lands on the target underneath. The frame catches nothing.'
+          : 'Hit: FAILED — the frame (or something else) took a hit meant for the target.'
+    </script>
+  </body>
+</html>
