@@ -30,7 +30,7 @@ export interface Rect {
  * because the two can then never be given in different orders or different
  * lengths, and {@link padCutouts} has to carry it either way.
  *
- * Only {@link complementRects} reads it. {@link punchedPath} does not, because
+ * Only {@link complementRects} reads it. {@link maskLayers} does not, because
  * what is drawn is the same hole whichever this says.
  */
 export interface Cutout extends Rect {
@@ -85,6 +85,11 @@ export function grow(rect: Rect, by: number): Rect {
 /** A rect collapsed to nothing at its own centre. */
 export function collapse(rect: Rect): Rect {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: 0, height: 0 }
+}
+
+/** Whether a rect is a hole rather than a collapsed leftover. */
+export function hasArea(rect: Rect): boolean {
+  return rect.width > 0 && rect.height > 0
 }
 
 const round = (n: number): number => Math.round(n * 100) / 100
@@ -153,39 +158,118 @@ export function freeCorner(
   return ascending([...CORNERS], covered)[0] ?? 'top-right'
 }
 
-export function roundedRectPath(cutout: Cutout): string {
-  const { x, y, width: w, height: h } = cutout
-  const r = round(Math.max(0, Math.min(cutout.radius, w / 2, h / 2)))
-  const [x0, y0, x1, y1] = [round(x), round(y), round(x + w), round(y + h)]
-  return (
-    `M${x0 + r} ${y0} L${x1 - r} ${y0} A${r} ${r} 0 0 1 ${x1} ${y0 + r}` +
-    ` L${x1} ${y1 - r} A${r} ${r} 0 0 1 ${x1 - r} ${y1}` +
-    ` L${x0 + r} ${y1} A${r} ${r} 0 0 1 ${x0} ${y1 - r}` +
-    ` L${x0} ${y0 + r} A${r} ${r} 0 0 1 ${x0 + r} ${y0} Z`
-  )
-}
-
 /**
- * An outer rectangle with the cutouts punched out of it.
+ * A hole, as an image the size of the hole.
  *
- * Two of these interpolate only when their segment lists match in count and
- * type, so the shape is kept rigid: always the same outer rectangle followed by
- * one rounded rectangle per cutout, always the same commands in the same order.
- * A step that needs fewer cutouts than the one before collapses the surplus to
- * zero area rather than dropping subpaths — see `padCutouts`.
+ * An SVG in a `data:` URL, opaque inside its rounded rectangle and transparent
+ * outside, which makes it an ordinary mask *image* and not a reference to
+ * anything in the document. That distinction is the whole reason this is built
+ * the way it is: a CSS mask that points at an SVG `<mask>` element with
+ * `url(#…)` is honoured by Chrome and Firefox and **silently does nothing in
+ * Safari**, under every spelling there is. `spike/overlapping-holes/` is the
+ * page, and `CSS.supports` answers `true` there all the same.
  *
- * The even-odd rule makes each inner subpath a hole regardless of its winding
- * direction, so nothing here has to be drawn backwards.
+ * The image is the hole's own size rather than the surface's, and
+ * {@link maskLayers} lays it where it belongs. What an engine has to rasterise
+ * is then the size of a target instead of the size of a document, which on a
+ * long page is the difference between a mask surface worth worrying about and
+ * one that is not.
+ *
+ * `clip` is the viewport: the on-surface part of the cutout, which is all the
+ * image ever needs to be. The rectangle keeps the cutout's own size and radius
+ * and rides at a negative offset, so an edge the surface cuts through stays
+ * the edge it really is — a hole hanging off the top of the page is open right
+ * across at the clip line, not rounded there as if the hole ended.
  */
-export function punchedPath(width: number, height: number, cutouts: Cutout[]): string {
-  const outer = `M0 0 L${round(width)} 0 L${round(width)} ${round(height)} L0 ${round(height)} Z`
-  return [outer, ...cutouts.map(roundedRectPath)].join(' ')
+export function holeImage(cutout: Cutout, clip: Rect = cutout): string {
+  const w = round(Math.max(0, cutout.width))
+  const h = round(Math.max(0, cutout.height))
+  const r = round(clamp(cutout.radius, Math.min(w, h) / 2))
+  const width = round(Math.max(0, clip.width))
+  const height = round(Math.max(0, clip.height))
+  const x = round(cutout.x - clip.x)
+  const y = round(cutout.y - clip.y)
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="black"/></svg>`
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
 }
 
 /**
- * Make two cutout lists the same length so the paths built from them can be
- * interpolated. Surplus cutouts on either side collapse to zero area at their
+ * The on-surface part of a cutout: where its mask layer sits, and how large an
+ * image it needs.
+ *
+ * Purely a bound on what gets rasterised — the hole itself is drawn whole by
+ * {@link holeImage} inside this viewport, so nothing about its shape changes,
+ * only how much of it is committed to pixels. What this buys is that no hole
+ * image is ever larger than the scrim, however far off the edge a cutout
+ * starts — and a story opens with every hole the size of the whole surface.
+ */
+export function clipToSurface(width: number, height: number, cutout: Cutout): Cutout {
+  const x = clamp(cutout.x, width)
+  const y = clamp(cutout.y, height)
+  return {
+    ...cutout,
+    x,
+    y,
+    width: clamp(cutout.x + cutout.width, width) - x,
+    height: clamp(cutout.y + cutout.height, height) - y,
+  }
+}
+
+/** What a scrim writes to show its holes: one CSS value per property. */
+export interface MaskLayers {
+  image: string
+  position: string
+  composite: string
+}
+
+/**
+ * The cutouts as a stack of CSS mask layers.
+ *
+ * **The holes are a union here, not a parity.** One opaque layer for the whole
+ * surface, one image per hole underneath it, `add` between the holes so
+ * overlapping ones read as one hole, and `subtract` on the surface layer, which
+ * keeps it where it falls outside everything below. Two holes may therefore
+ * overlap, and DESIGN.md argues under **The morph** why that is load-bearing
+ * rather than incidental.
+ *
+ * The layer order is what makes it work: CSS lists mask layers top first and
+ * composites them bottom up, so the surface is written first and the holes
+ * after it.
+ *
+ * A cutout with no area contributes no layer. It is a morph's collapsed
+ * leftover rather than a hole, and an image with no size is not something every
+ * engine has to agree about.
+ */
+export function maskLayers(width: number, height: number, cutouts: readonly Cutout[]): MaskLayers {
+  const holes = cutouts
+    .map((cutout) => ({ cutout, clip: clipToSurface(width, height, cutout) }))
+    .filter(({ clip }) => hasArea(clip))
+  return {
+    image: [
+      'linear-gradient(black, black)',
+      ...holes.map(({ cutout, clip }) => holeImage(cutout, clip)),
+    ].join(', '),
+    position: ['0 0', ...holes.map(({ clip }) => `${round(clip.x)}px ${round(clip.y)}px`)].join(
+      ', ',
+    ),
+    composite: ['subtract', ...holes.map(() => 'add')].join(', '),
+  }
+}
+
+/**
+ * Make two cutout lists the same length, so each hole has something to be
+ * blended with. Surplus cutouts on either side collapse to zero area at their
  * own centre, which reads as shrinking away rather than blinking out.
+ *
+ * **This is an animation nicety and no longer a correctness rule.** While the
+ * scrim was one `clip-path`, two paths interpolated only when their subpaths
+ * matched in count, so a step with fewer holes than the last one had to keep
+ * carrying the surplus or the morph would switch over discretely
+ * (`spike/cutout-techniques/` T8). Mask layers are a list that can be any
+ * length from one frame to the next, so nothing breaks without this — a hole
+ * would simply vanish instead of shrinking away, and shrinking away is nicer.
  */
 export function padCutouts(from: Cutout[], to: Cutout[]): [Cutout[], Cutout[]] {
   const length = Math.max(from.length, to.length)
@@ -201,30 +285,6 @@ export function padCutouts(from: Cutout[], to: Cutout[]): [Cutout[], Cutout[]] {
         : { x: 0, y: 0, width: 0, height: 0, radius: 0, interactive: false }
     })
   return [pad(from, to), pad(to, from)]
-}
-
-/**
- * Blend two paths by walking their numbers in step.
- *
- * Sound only because every path here is built to the same shape — same segments,
- * same commands, same order — so the nth number in one means the same thing as
- * the nth number in the other. {@link padCutouts} is what keeps that true when
- * the number of cutouts changes.
- */
-export function lerpPath(from: string, to: string, t: number): string {
-  const NUMBER = /-?[\d.]+/g
-  const ends = (to.match(NUMBER) ?? []).map(Number)
-  const blended = (from.match(NUMBER) ?? []).map((match, i) => {
-    const a = Number(match)
-    const b = ends[i] ?? a
-    return String(round(a + (b - a) * t))
-  })
-  // The commands are what `split` leaves behind, one more of them than there are
-  // numbers, so zipping the two back together rebuilds the path exactly.
-  return from
-    .split(NUMBER)
-    .map((command, i) => command + (blended[i] ?? ''))
-    .join('')
 }
 
 /**

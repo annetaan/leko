@@ -18,7 +18,7 @@ export const haloFollows: Case = {
   proves:
     'With halo: "follow", the frame around the hole travels with it through ' +
     'every morph instead of fading out and back in. The glow is written each ' +
-    'frame from the same blended numbers as the clip path, so the two cannot ' +
+    'frame from the same blended numbers as the mask, so the two cannot ' +
     'come apart — and it stays paint: nothing about what is blocked changes.',
 
   // The one option this case exists for. Everything else is the default,

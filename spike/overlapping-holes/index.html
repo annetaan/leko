@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Overlapping holes — clip-path evenodd vs an SVG mask</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 20px 24px 40px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p  { margin: 0 0 14px; max-width: 78ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+  code, pre { font-family: ui-monospace, monospace; font-size: 12px; }
+  #env { white-space: pre-wrap; font-size: 11px; color: #888; margin-bottom: 18px; }
+
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 24px; font-size: 13px; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid #8883; }
+  td.pass { color: #178a3a; font-weight: 600; }
+  td.fail { color: #c22; font-weight: 600; }
+  td.limit { color: #b57500; font-weight: 600; }
+  td.eye { color: #5566cc; font-weight: 600; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel { min-width: 0; }
+  .panel h3 { font-size: 12px; margin: 0 0 6px; font-family: ui-monospace, monospace; font-weight: 600; }
+
+  /* Patterned, so it is obvious wherever the dimming does and does not reach. */
+  .stage {
+    position: relative; height: 300px; overflow: hidden;
+    border: 1px solid #8886; border-radius: 8px;
+    background: repeating-linear-gradient(45deg, #cfd6e4 0 14px, #dde3ee 14px 28px);
+  }
+  .target {
+    position: absolute; display: grid; place-items: center;
+    border-radius: 8px; background: #2f6fed; color: #fff; font-size: 12px; border: 0;
+  }
+  .scrim { position: absolute; inset: 0; background: rgb(0 0 0 / 0.66); pointer-events: none; }
+
+  .scroller { height: 300px; overflow: auto; border: 1px solid #8886; border-radius: 8px; }
+  .content {
+    position: relative; height: 12000px;
+    background: repeating-linear-gradient(45deg, #cfd6e4 0 14px, #dde3ee 14px 28px);
+  }
+  button { font: inherit; padding: 4px 12px; }
+  .hidden-svg { position: absolute; width: 0; height: 0; }
+</style>
+</head>
+<body>
+
+<h1>Overlapping holes — <code>clip-path: path(evenodd)</code> vs an SVG mask</h1>
+<p>
+  Leko cuts its holes with one <code>clip-path: path(evenodd, …)</code>: an outer
+  rectangle and one rounded-rectangle subpath per hole. Even-odd counts crossings,
+  so a point inside <em>two</em> holes is inside an even number of subpaths and
+  paints dark. That is not a detail — it means <strong>two holes may never
+  overlap</strong>, and an opening where each hole converges inward from off the
+  surface is exactly a set of holes that overlap while they travel.
+</p>
+<p>
+  An SVG mask has no parity: it paints white for what shows and black for what
+  is cut, and black over black is still black. The question is what that costs.
+  Leko's scrim is as large as the scrollable area, which is thousands of pixels
+  tall, and a mask may allocate a surface that size where a clip path allocates
+  nothing.
+</p>
+<div id="env"></div>
+
+<table>
+  <thead><tr><th>#</th><th></th><th>Question</th><th>Answer</th></tr></thead>
+  <tbody id="results"></tbody>
+</table>
+
+<h2>M1 — two holes that overlap</h2>
+<p>
+  The same two rounded rectangles, given to each technique. <strong>Judge by
+  eye:</strong> on the left, the region where they overlap should be dark, which
+  is the bug; on the right it should be one bright hole. Then play the opening —
+  both holes start as the whole stage and converge, the way a canvas
+  <code>source-out</code> overlay does it — and watch what happens in between.
+</p>
+<p><button id="m1play">Play the opening (both, 900ms)</button></p>
+<div class="pair">
+  <div class="panel">
+    <h3>clip-path: path(evenodd)</h3>
+    <div class="stage" id="m1clip">
+      <button class="target" id="m1ca" style="left:40px;  top:90px;  width:170px; height:90px">A</button>
+      <button class="target" id="m1cb" style="left:150px; top:140px; width:170px; height:90px">B</button>
+      <div class="scrim" id="m1cscrim"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>mask: url(#…)</h3>
+    <div class="stage" id="m1mask">
+      <button class="target" id="m1ma" style="left:40px;  top:90px;  width:170px; height:90px">A</button>
+      <button class="target" id="m1mb" style="left:150px; top:140px; width:170px; height:90px">B</button>
+      <div class="scrim" id="m1mscrim"></div>
+    </div>
+  </div>
+</div>
+
+<h2>M2 / M3 — a surface as tall as a document</h2>
+<p>
+  Each scroller holds 12 000px of content with a scrim over all of it, which is
+  the shape Leko's own scrim takes on a long page. <strong>M2</strong> animates
+  three holes for 120 frames on each and reports the frame times — that verdict
+  is the page's own. <strong>M3 is by eye:</strong> scroll to the bottom, or use
+  the button, and check that the hole 11 500px down is still cut. A mask that
+  quietly stops applying past some surface size would show as a scrim with no
+  hole in it down there.
+</p>
+<p>
+  <button id="m2run">Run the frame-time test</button>
+  <button id="m3deep">Scroll both to the deep hole</button>
+  <button id="m3top">Back to the top</button>
+</p>
+<div class="pair" id="m2grid" style="grid-template-columns: repeat(5, 1fr); align-items: start"></div>
+
+<h2>M6 / M7 — the two routes that do not reference a mask from CSS</h2>
+<p>
+  M5 says an engine may refuse to reach an SVG <code>&lt;mask&gt;</code> from
+  CSS. Neither of these asks it to. <strong>M6</strong> builds the mask out of
+  CSS layers instead: one opaque layer for the surface, one image layer per hole,
+  and <code>mask-composite</code> to take the holes out of the surface — the
+  holes union with <code>add</code>, so overlap costs nothing here either. Each
+  hole layer is a rounded rectangle in an SVG carried as a <code>data:</code>
+  URL, which is an ordinary mask <em>image</em> rather than a reference to a
+  document node. <strong>M7</strong> does not use CSS masking at all: the scrim
+  becomes an <code>&lt;svg&gt;</code>, the dimming becomes a
+  <code>&lt;rect&gt;</code> inside it, and the mask is applied to that rect with
+  the SVG <code>mask</code> attribute — SVG masking SVG, which is the oldest of
+  these features.
+</p>
+<p><button id="m67play">Play the opening (all five, 900ms)</button></p>
+<div class="pair" id="m67grid" style="grid-template-columns: repeat(5, 1fr); align-items: start"></div>
+
+<h2>M5 — which spelling of the mask a browser honours</h2>
+<p>
+  The same white-background-and-black-holes mask, referenced eight ways. Every
+  panel should show two bright holes joined into one. <strong>By eye:</strong> a
+  panel that is uniformly dark is a mask that did nothing — the reference was
+  taken as an <em>alpha</em> mask, where an opaque white rectangle and an opaque
+  black one are equally opaque and nothing is cut. A panel with no dimming at
+  all is a mask that resolved to nothing, and hid the scrim entirely.
+</p>
+<div class="pair" id="m5grid" style="grid-template-columns: repeat(4, 1fr); align-items: start"></div>
+
+<h2>M4 — does a mask take the scrim out of hit-testing, the way a clip does</h2>
+<p>
+  It should not, and that is the answer wanted here rather than feared: Leko's
+  scrim already carries <code>pointer-events: none</code> and does its blocking
+  with rectangles beside it, precisely because a clip path takes an element out
+  of hit-testing but <em>not</em> out of the search for what a wheel should
+  scroll (<code>../wheel-through-a-hole/</code>). If a mask changes nothing
+  about hit-testing, nothing about the blocking has to be reconsidered. The
+  scrims here are given <code>pointer-events: auto</code> for the length of the
+  probe, so that there is something to answer.
+</p>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg'
+const results = []
+const record = (id, title, status, detail) => results.push({ id, title, status, detail })
+const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+function roundedRect(x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2))
+  return `M${x + r} ${y} H${x + w - r} A${r} ${r} 0 0 1 ${x + w} ${y + r}`
+       + ` V${y + h - r} A${r} ${r} 0 0 1 ${x + w - r} ${y + h}`
+       + ` H${x + r} A${r} ${r} 0 0 1 ${x} ${y + h - r}`
+       + ` V${y + r} A${r} ${r} 0 0 1 ${x + r} ${y} Z`
+}
+// Exactly what packages/spotlight builds today.
+const punchedPath = (w, h, holes) =>
+  `M0 0 H${w} V${h} H0 Z ` + holes.map(o => roundedRect(o.x, o.y, o.w, o.h, o.r)).join(' ')
+const clipTo = (el, w, h, holes) => {
+  el.style.clipPath = `path(evenodd, "${punchedPath(w, h, holes)}")`
+}
+
+/* A mask region in the referencing element's own user space — CSS pixels from
+   its border box, which is the same space the clip path is written in. Without
+   maskUnits the region is the object bounding box grown by 10%, and the numbers
+   would have to be converted. */
+let masks = 0
+function maskFor(el, w, h, count, opts = {}) {
+  const id = `leko-spike-mask-${++masks}`
+  const svg = document.createElementNS(NS, 'svg')
+  svg.setAttribute('class', 'hidden-svg')
+  if (opts.sized) {
+    svg.setAttribute('width', w); svg.setAttribute('height', h)
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
+    // The class zeroes the box; a sized <svg> is the point of this variant.
+    Object.assign(svg.style, { width: `${w}px`, height: `${h}px`, visibility: 'hidden' })
+  }
+  svg.setAttribute('aria-hidden', 'true')
+  const mask = document.createElementNS(NS, 'mask')
+  mask.id = id
+  mask.setAttribute('maskUnits', 'userSpaceOnUse')
+  mask.setAttribute('x', 0); mask.setAttribute('y', 0)
+  mask.setAttribute('width', w); mask.setAttribute('height', h)
+  if (opts.maskType) mask.setAttribute('mask-type', opts.maskType)
+  const bg = document.createElementNS(NS, 'rect')
+  bg.setAttribute('x', 0); bg.setAttribute('y', 0)
+  bg.setAttribute('width', w); bg.setAttribute('height', h)
+  bg.setAttribute('fill', '#fff')
+  mask.append(bg)
+  const holes = Array.from({ length: count }, () => {
+    const r = document.createElementNS(NS, 'rect')
+    r.setAttribute('fill', '#000')
+    mask.append(r)
+    return r
+  })
+  if (opts.defs) {
+    const defs = document.createElementNS(NS, 'defs')
+    defs.append(mask)
+    svg.append(defs)
+  } else {
+    svg.append(mask)
+  }
+  document.body.append(svg)
+  // Both spellings: the unprefixed property is what modern engines want, and the
+  // prefixed one is what older WebKit answers to. Whichever is not understood is
+  // dropped, so writing both costs nothing.
+  el.style.webkitMaskImage = `url(#${id})`
+  el.style.maskImage = `url(#${id})`
+  return (list) => holes.forEach((r, i) => {
+    const o = list[i] ?? { x: 0, y: 0, w: 0, h: 0, r: 0 }
+    r.setAttribute('x', o.x); r.setAttribute('y', o.y)
+    r.setAttribute('width', Math.max(0, o.w)); r.setAttribute('height', Math.max(0, o.h))
+    r.setAttribute('rx', o.r)
+  })
+}
+
+/* The same mask as {@link maskFor}, written once and never animated, with the
+   knobs M5 turns. Returns the id rather than a writer. */
+function maskId(w, h, holes, opts = {}) {
+  const el = document.createElement('div')
+  const write = maskFor(el, w, h, holes.length, opts)
+  write(holes)
+  // Serialised back with quotes in some engines, without them in others.
+  const written = el.style.maskImage || el.style.webkitMaskImage
+  return /url\(["']?#([^"')]+)["']?\)/.exec(written)?.[1] ?? ''
+}
+
+/* ---------- environment ---------- */
+;(function () {
+  const s = [
+    ['clip-path: path(evenodd)', CSS.supports('clip-path: path(evenodd, "M0 0 H10 V10 Z")')],
+    ['mask-image: url()', CSS.supports('mask-image: url(#a)')],
+    ['-webkit-mask-image: url()', CSS.supports('-webkit-mask-image: url(#a)')],
+    ['mask-composite: subtract', CSS.supports('mask-composite: subtract')],
+  ]
+  document.getElementById('env').textContent =
+    navigator.userAgent + `\ndevicePixelRatio ${window.devicePixelRatio}\n`
+    + s.map(([k, v]) => `${v ? '✓' : '✗'} ${k}`).join('   ')
+})()
+
+/* ---------- M1 : the overlap ---------- */
+const M1_A = { x: 40,  y: 90,  w: 170, h: 90, r: 8 }
+const M1_B = { x: 150, y: 140, w: 170, h: 90, r: 8 }
+const m1clipScrim = document.getElementById('m1cscrim')
+const m1maskScrim = document.getElementById('m1mscrim')
+const m1w = 0, m1h = 0
+let writeM1Mask
+function m1(holes) {
+  const { offsetWidth: w, offsetHeight: h } = m1clipScrim
+  clipTo(m1clipScrim, w, h, holes)
+  writeM1Mask(holes)
+}
+function m1init() {
+  const { offsetWidth: w, offsetHeight: h } = m1maskScrim
+  writeM1Mask = maskFor(m1maskScrim, w, h, 2)
+  m1([M1_A, M1_B])
+  record('M1', 'do two overlapping holes read as one hole', 'eye',
+    'left: <code>evenodd</code> — the overlap is inside two subpaths, an even number, so it paints dark. '
+    + 'right: the mask — black over black is black, so the two are one hole. '
+    + '<strong>Play the opening and watch the left stage inverting as the holes pass through each other.</strong>')
+}
+
+const ease = t => 1 - (1 - t) ** 3
+const lerp = (a, b, t) => a + (b - a) * t
+const lerpHole = (a, b, t) => ({
+  x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t),
+  w: lerp(a.w, b.w, t), h: lerp(a.h, b.h, t), r: lerp(a.r, b.r, t),
+})
+function play(duration, from, to, write) {
+  return new Promise(res => {
+    const began = performance.now()
+    const tick = (now) => {
+      const t = Math.min(1, Math.max(0, (now - began) / duration))
+      const e = ease(t)
+      write(from.map((f, i) => lerpHole(f, to[i], e)))
+      if (t < 1) requestAnimationFrame(tick); else res()
+    }
+    requestAnimationFrame(tick)
+  })
+}
+document.getElementById('m1play').addEventListener('click', async () => {
+  const { offsetWidth: w, offsetHeight: h } = m1clipScrim
+  // The whole stage and a margin, so every hole comes in from off the edge —
+  // and, at the first frame, every hole covers every other one.
+  const m = Math.max(w, h)
+  const whole = { x: -m, y: -m, w: w + m * 2, h: h + m * 2, r: 0 }
+  await play(900, [whole, whole], [M1_A, M1_B], m1)
+})
+
+/* ---------- M2 / M3 : a surface as tall as a document ---------- */
+/* Every route that draws a union, on a scrim the height of a long page, so the
+   frame-time question is asked of all of them at once. The cost that matters is
+   not the same for each: the path and the data URLs are strings built and
+   parsed every frame, and the two mask elements are numbers written onto nodes
+   that already exist. */
+const TALL = 12000
+const M2_DEEP = { x: 60, y: 11500, w: 170, h: 70, r: 8 }
+const m2 = []
+function m2holes(t) {
+  // Three holes crossing the visible band, so every frame is a real repaint,
+  // and one far down the surface for M3.
+  const slide = Math.sin(t * Math.PI * 2) * 60
+  return [
+    { x: 20 + slide, y: 40, w: 130, h: 60, r: 8 },
+    { x: 130 - slide, y: 120, w: 110, h: 70, r: 16 },
+    M2_DEEP,
+  ]
+}
+function m2init() {
+  const grid = document.getElementById('m2grid')
+  const build = [
+    ['clip-path: path(evenodd)', (content, scrim, w) => (holes) => clipTo(scrim, w, TALL, holes)],
+    ['mask: url(#…)', (content, scrim, w) => maskFor(scrim, w, TALL, 3)],
+    ['mask-composite', (content, scrim, w) => (holes) => compositeMask(scrim, w, TALL, holes, false)],
+    ['positioned layers', (content, scrim) => (holes) => positionedMask(scrim, holes)],
+    ['an <svg> scrim', (content, scrim, w) => { scrim.remove(); return svgScrim(content, w, TALL, 3) }],
+  ]
+  for (const [name, make] of build) {
+    const panel = document.createElement('div')
+    panel.className = 'panel'
+    const heading = document.createElement('h3')
+    heading.textContent = name
+    panel.append(heading)
+    const scroller = document.createElement('div')
+    scroller.className = 'scroller'
+    const content = document.createElement('div')
+    content.className = 'content'
+    const deep = document.createElement('div')
+    deep.className = 'target'
+    deep.style.cssText = `left:60px; top:11500px; width:170px; height:70px`
+    deep.textContent = '11 500px down'
+    const scrim = document.createElement('div')
+    scrim.className = 'scrim'
+    scrim.style.height = `${TALL}px`
+    content.append(deep, scrim)
+    scroller.append(content)
+    panel.append(scroller)
+    grid.append(panel)
+    const write = make(content, scrim, scroller.clientWidth)
+    write(m2holes(0))
+    m2.push({ name, write, scroller })
+  }
+  record('M3', 'is a hole 11 500px down a 12 000px surface still cut', 'eye',
+    'scroll the panels to the hole, or use the button. Every one of them should show a bright hole around the button. '
+    + '<strong>A mask that stops applying past some surface size</strong> is the thing this is watching for, and it would '
+    + 'show here and nowhere else on the page.')
+}
+
+const FRAMES = 120
+/* Two numbers per route. The frame gap says whether anything missed a frame;
+   the write says what the route costs to *ask for*, which is where a string
+   built and parsed every frame differs from an attribute written onto a node
+   that already exists. Neither sees what a compositor does afterwards. */
+async function measure(write) {
+  const gaps = []
+  const writes = []
+  await frame()
+  await new Promise(res => {
+    let i = 0
+    let last = performance.now()
+    const tick = (now) => {
+      gaps.push(now - last)
+      last = now
+      const began = performance.now()
+      write(i / FRAMES)
+      writes.push(performance.now() - began)
+      if (++i < FRAMES) requestAnimationFrame(tick); else res()
+    }
+    requestAnimationFrame(tick)
+  })
+  gaps.shift()   // the first gap is the scheduling delay, not a frame
+  writes.shift()
+  return { gaps: gaps.sort((a, b) => a - b), writes: writes.sort((a, b) => a - b) }
+}
+const at = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.round(q * (sorted.length - 1)))]
+const ms = n => `${n.toFixed(1)}ms`
+
+document.getElementById('m2run').addEventListener('click', async () => {
+  const btn = document.getElementById('m2run')
+  btn.disabled = true
+  btn.textContent = 'running…'
+  const esc = (t) => t.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
+  const rows = [['idle', await measure(() => {})]]
+  for (const { name, write } of m2) rows.push([name, await measure(t => write(m2holes(t)))])
+  const long = (s) => s.filter(t => t > 20).length
+  const detail = rows.map(([name, { gaps, writes }]) =>
+    `<strong>${esc(name)}</strong> frame ${ms(at(gaps, 0.5))} (p95 ${ms(at(gaps, 0.95))}`
+    + (long(gaps) ? `, ${long(gaps)} over 20ms` : '') + `), write ${ms(at(writes, 0.5))}`).join(' · ')
+    + '. <strong>Frame times are the main thread\'s.</strong> Work a compositor does with a mask surface does not appear here, '
+    + 'which is why the rest of this page is judged by eye.'
+  const worst = Math.max(...rows.slice(1).map(([, { gaps }]) => at(gaps, 0.95)))
+  const found = results.find(r => r.id === 'M2')
+  Object.assign(found, { status: worst < 20 ? 'pass' : 'limit', detail })
+  render()
+  btn.textContent = 'Run the frame-time test again'
+  btn.disabled = false
+})
+
+const scrollBoth = (y) => { for (const { scroller } of m2) scroller.scrollTo({ top: y }) }
+document.getElementById('m3deep').addEventListener('click', () => scrollBoth(M2_DEEP.y - 60))
+document.getElementById('m3top').addEventListener('click', () => scrollBoth(0))
+
+/* ---------- M6 / M7 : a union without referencing a mask from CSS ---------- */
+
+/* A hole as a mask *image*: an SVG carried in a data: URL, which every engine
+   treats as an image rather than as a reference into the document. Opaque
+   inside the rounded rectangle and transparent outside, so the default alpha
+   reading is the right one and `mask-mode` never comes into it. */
+function holeLayer(w, h, o) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`
+    + `<rect x="${o.x}" y="${o.y}" width="${Math.max(0, o.w)}" height="${Math.max(0, o.h)}" rx="${o.r}" fill="#000"/></svg>`
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+}
+
+/* The same hole as an image of its own size, laid where it belongs with
+   `mask-position` instead of being drawn into a picture as big as the surface.
+   The image an engine has to rasterise is then the size of the hole rather than
+   the size of the document, which is the difference between a mask surface
+   worth worrying about and one that is not. */
+function holeTile(o) {
+  const [w, h] = [Math.max(0, o.w), Math.max(0, o.h)]
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`
+    + `<rect width="${w}" height="${h}" rx="${o.r}" fill="#000"/></svg>`
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+}
+/* The surface, opaque everywhere. A gradient rather than an image, because it
+   costs nothing to make and nothing to decode. */
+const SURFACE = 'linear-gradient(#000, #000)'
+
+/* Layer order in CSS is top first, and compositing runs from the bottom up. So
+   the holes go underneath, unioned with `add`, and the surface goes on top with
+   `subtract` — which keeps the source where it falls *outside* the destination,
+   and the destination here is the holes. */
+function positionedMask(el, holes) {
+  el.style.maskImage = el.style.webkitMaskImage = [SURFACE, ...holes.map(holeTile)].join(', ')
+  el.style.maskPosition = el.style.webkitMaskPosition =
+    ['0 0', ...holes.map((o) => `${o.x}px ${o.y}px`)].join(', ')
+  el.style.maskRepeat = el.style.webkitMaskRepeat = 'no-repeat'
+  el.style.maskComposite = el.style.webkitMaskComposite =
+    ['subtract', ...holes.map(() => 'add')].join(', ')
+}
+
+function compositeMask(el, w, h, holes, legacy) {
+  el.style.maskImage = [SURFACE, ...holes.map((o) => holeLayer(w, h, o))].join(', ')
+  el.style.webkitMaskImage = el.style.maskImage
+  el.style.maskRepeat = el.style.webkitMaskRepeat = 'no-repeat'
+  if (legacy) {
+    // The keywords WebKit shipped before the property was standardised.
+    el.style.setProperty('-webkit-mask-composite', ['source-out', ...holes.map(() => 'source-over')].join(', '))
+  } else {
+    el.style.maskComposite = ['subtract', ...holes.map(() => 'add')].join(', ')
+    el.style.webkitMaskComposite = el.style.maskComposite
+  }
+}
+
+/* The scrim as an <svg>, with the dimming as a rect inside it and the mask
+   applied through the SVG attribute. Nothing here is CSS masking. */
+function svgScrim(stage, w, h, count) {
+  const svg = document.createElementNS(NS, 'svg')
+  Object.assign(svg.style, { position: 'absolute', inset: '0', pointerEvents: 'none' })
+  svg.setAttribute('width', w); svg.setAttribute('height', h)
+  svg.setAttribute('aria-hidden', 'true')
+  const id = `leko-spike-svgmask-${++masks}`
+  const mask = document.createElementNS(NS, 'mask')
+  mask.id = id
+  mask.setAttribute('maskUnits', 'userSpaceOnUse')
+  mask.setAttribute('x', 0); mask.setAttribute('y', 0)
+  mask.setAttribute('width', w); mask.setAttribute('height', h)
+  const bg = document.createElementNS(NS, 'rect')
+  bg.setAttribute('width', w); bg.setAttribute('height', h); bg.setAttribute('fill', '#fff')
+  mask.append(bg)
+  const holes = Array.from({ length: count }, () => {
+    const r = document.createElementNS(NS, 'rect')
+    r.setAttribute('fill', '#000')
+    mask.append(r)
+    return r
+  })
+  const paint = document.createElementNS(NS, 'rect')
+  paint.setAttribute('width', w); paint.setAttribute('height', h)
+  paint.setAttribute('fill', 'rgb(0 0 0 / 0.66)')
+  paint.setAttribute('mask', `url(#${id})`)
+  svg.append(mask, paint)
+  stage.append(svg)
+  return (list) => holes.forEach((r, i) => {
+    const o = list[i] ?? { x: 0, y: 0, w: 0, h: 0, r: 0 }
+    r.setAttribute('x', o.x); r.setAttribute('y', o.y)
+    r.setAttribute('width', Math.max(0, o.w)); r.setAttribute('height', Math.max(0, o.h))
+    r.setAttribute('rx', o.r)
+  })
+}
+
+const m67 = []
+function m67init() {
+  const grid = document.getElementById('m67grid')
+  const build = [
+    ['M6 mask-composite', (stage, w, h) => {
+      const scrim = document.createElement('div')
+      scrim.className = 'scrim'
+      stage.append(scrim)
+      return (holes) => compositeMask(scrim, w, h, holes, false)
+    }],
+    ['M6 -webkit-mask-composite', (stage, w, h) => {
+      const scrim = document.createElement('div')
+      scrim.className = 'scrim'
+      stage.append(scrim)
+      return (holes) => compositeMask(scrim, w, h, holes, true)
+    }],
+    ['M6 positioned layers', (stage, w, h) => {
+      const scrim = document.createElement('div')
+      scrim.className = 'scrim'
+      stage.append(scrim)
+      return (holes) => positionedMask(scrim, holes)
+    }],
+    ['M7 an <svg> scrim', (stage, w, h) => svgScrim(stage, w, h, 2)],
+    ['for comparison: evenodd', (stage, w, h) => {
+      const scrim = document.createElement('div')
+      scrim.className = 'scrim'
+      stage.append(scrim)
+      return (holes) => clipTo(scrim, w, h, holes)
+    }],
+  ]
+  for (const [name, make] of build) {
+    const panel = document.createElement('div')
+    panel.className = 'panel'
+    const heading = document.createElement('h3')
+    heading.textContent = name
+    panel.append(heading)
+    const stage = document.createElement('div')
+    stage.className = 'stage'
+    stage.style.height = '160px'
+    for (const [label, style] of [['A', 'left:20px; top:30px; width:120px; height:60px'],
+                                  ['B', 'left:90px; top:70px; width:120px; height:60px']]) {
+      const t = document.createElement('div')
+      t.className = 'target'
+      t.style.cssText = style
+      t.textContent = label
+      stage.append(t)
+    }
+    panel.append(stage)
+    grid.append(panel)
+    const w = stage.offsetWidth, h = 160
+    const write = make(stage, w, h)
+    const holes = [{ x: 20, y: 30, w: 120, h: 60, r: 8 }, { x: 90, y: 70, w: 120, h: 60, r: 8 }]
+    write(holes)
+    m67.push({ write, w, h, holes })
+  }
+  record('M6', 'a union from CSS mask layers composited with mask-composite', 'eye',
+    'the first three panels. One opaque layer for the surface, one <code>data:</code> URL image per hole, '
+    + '<code>subtract</code> on top and <code>add</code> between the holes. <strong>Nothing references a node</strong>, '
+    + 'so an engine that refuses M5 may still do this. The second panel asks with the pre-standard WebKit keywords instead, and '
+    + 'the third draws each hole at its own size and lays it with <code>mask-position</code>, so the image an engine rasterises '
+    + 'is the size of the hole rather than the size of the document.')
+  record('M7', 'a union from an <svg> scrim masked the SVG way', 'eye',
+    'the fourth panel. The scrim is an <code>&lt;svg&gt;</code>, the dimming is a <code>&lt;rect&gt;</code> in it, and the mask '
+    + 'is applied with the SVG <code>mask</code> attribute — no CSS masking anywhere. The fifth panel is even-odd, for the eye '
+    + 'to compare against. <strong>Per frame this writes rectangle attributes and no strings at all</strong>, which is less work '
+    + 'than either the path or the data URLs.')
+}
+document.getElementById('m67play').addEventListener('click', async () => {
+  await Promise.all(m67.map(({ write, w, h, holes }) => {
+    const m = Math.max(w, h)
+    const whole = { x: -m, y: -m, w: w + m * 2, h: h + m * 2, r: 0 }
+    return play(900, [whole, whole], holes, write)
+  }))
+})
+
+/* ---------- M5 : which spelling is honoured ---------- */
+/* Every plausible way of asking for the same thing, because an engine that
+   ignores one of them ignores it silently: there is no error anywhere, only a
+   scrim that did not get a hole. */
+const M5 = [
+  ['mask-image', (el, id) => { el.style.maskImage = `url(#${id})` }, {}],
+  ['-webkit-mask-image', (el, id) => { el.style.webkitMaskImage = `url(#${id})` }, {}],
+  ['mask shorthand', (el, id) => { el.style.mask = `url(#${id})` }, {}],
+  ['+ mask-mode: luminance', (el, id) => { el.style.maskImage = `url(#${id})`; el.style.maskMode = 'luminance' }, {}],
+  ['+ mask-type on the mask', (el, id) => { el.style.maskImage = `url(#${id})` }, { maskType: 'luminance' }],
+  ['+ both', (el, id) => { el.style.maskImage = `url(#${id})`; el.style.maskMode = 'luminance' }, { maskType: 'luminance' }],
+  ['in a rendered <svg>', (el, id) => { el.style.maskImage = `url(#${id})` }, { sized: true }],
+  ['in a <defs>', (el, id) => { el.style.maskImage = `url(#${id})` }, { defs: true }],
+]
+function m5() {
+  const grid = document.getElementById('m5grid')
+  for (const [name, apply, opts] of M5) {
+    const panel = document.createElement('div')
+    panel.className = 'panel'
+    // Escaped: two of these names are element names, and an unescaped `<svg>`
+    // in a label opens an element that swallows the panel.
+    const heading = document.createElement('h3')
+    heading.textContent = name
+    panel.append(heading)
+    const stage = document.createElement('div')
+    stage.className = 'stage'
+    stage.style.height = '120px'
+    const scrim = document.createElement('div')
+    scrim.className = 'scrim'
+    stage.append(scrim)
+    panel.append(stage)
+    grid.append(panel)
+    const w = stage.offsetWidth, h = 120
+    const id = maskId(w, h, [
+      { x: 20, y: 25, w: Math.max(60, w * 0.42), h: 50, r: 8 },
+      { x: 20 + w * 0.3, y: 50, w: Math.max(60, w * 0.42), h: 50, r: 8 },
+    ], opts)
+    apply(scrim, id)
+  }
+  record('M5', 'which spelling of an SVG mask an engine honours', 'eye',
+    'eight ways of asking for the same mask. <strong>An engine that ignores one of them says nothing about it</strong> — '
+    + 'there is no error, only a scrim with no hole in it. What each panel should show is two holes joined into one.')
+}
+
+/* ---------- M4 : hit-testing ---------- */
+async function m4() {
+  const probe = (scrim, target) => {
+    const before = scrim.style.pointerEvents
+    scrim.style.pointerEvents = 'auto'
+    const r = target.getBoundingClientRect()
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    scrim.style.pointerEvents = before
+    return hit
+  }
+  const stage = document.getElementById('m1clip')
+  stage.scrollIntoView({ block: 'center' })
+  await frame()
+  const throughClip = probe(m1clipScrim, document.getElementById('m1ca'))
+  const throughMask = probe(m1maskScrim, document.getElementById('m1ma'))
+  const clipPasses = throughClip?.id === 'm1ca'
+  const maskPasses = throughMask?.id === 'm1ma'
+  record('M4', 'does a hole let a click through on its own', clipPasses && !maskPasses ? 'pass' : 'limit',
+    `a point over hole A answered <code>${throughClip?.id || throughClip?.className || '—'}</code> through the clip path `
+    + `and <code>${throughMask?.id || throughMask?.className || '—'}</code> through the mask. `
+    + (clipPasses && !maskPasses
+      ? '<strong>A clip takes the element out of hit-testing; a mask does not.</strong> Leko does not rely on either — the scrim carries '
+        + '<code>pointer-events: none</code> and the blocking is done by rectangles beside it, because a clip passes a click '
+        + 'but not a wheel. So this changes nothing that has to be redesigned, and it removes a trap rather than adding one: '
+        + 'with a mask, what the scrim catches is decided in one place instead of two.'
+      : 'not the expected pair of answers — read the ids above before trusting anything else on this page.'))
+}
+
+/* ---------- run ---------- */
+function render() {
+  document.getElementById('results').innerHTML = results.map(r =>
+    `<tr><td><code>${r.id}</code></td>`
+    + `<td class="${r.status}">${ {pass:'PASS', fail:'FAIL', limit:'LIMIT', eye:'BY EYE'}[r.status] }</td>`
+    + `<td>${r.title}</td><td>${r.detail}</td></tr>`).join('')
+}
+;(async function run() {
+  await frame()
+  m1init()
+  record('M2', 'what a mask over a 12 000px surface costs per frame', 'eye',
+    'press <em>Run the frame-time test</em>. It is not run on load, because a measurement taken while the page is still '
+    + 'settling measures the page settling.')
+  m67init()
+  m2init()
+  m5()
+  await m4()
+  render()
+  window.spikeResults = { ua: navigator.userAgent, dpr: window.devicePixelRatio, results, ready: true }
+  document.title = 'Overlapping holes — ' + results.filter(r => r.status === 'pass').length + '/' + results.length + ' PASS'
+})()
+</script>
+</body>
+</html>

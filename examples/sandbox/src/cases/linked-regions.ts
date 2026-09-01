@@ -5,7 +5,9 @@ export const linkedRegions: Case = {
   title: 'A summary and the row behind it',
   proves:
     'Two separated regions can be lit at once when one explains the other. Their ' +
-    'bounding box would be the whole page, so they stay two cutouts.',
+    'bounding box would be the whole page, so they stay two cutouts. Watch the ' +
+    'opening at ×10: both holes start over the whole screen and shrink to their ' +
+    'places, overlapping the whole way, and the band between them goes dark last.',
 
   mount(root) {
     const panel = html(`

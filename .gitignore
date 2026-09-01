@@ -31,3 +31,5 @@ spike/**/shots-*/
 docs/.astro/
 
 _apalache-out/
+
+*.code-workspace

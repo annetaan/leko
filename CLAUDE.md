@@ -39,16 +39,22 @@ DESIGN.md.
 Each of these has been tried, and the page that settled it is cited in
 DESIGN.md. Do not do any of them without reading that page first.
 
-- **Blocking with the clipped scrim instead of the `.leko-block` rectangles.**
-  One element is tidier and breaks scrolling under the pointer, and no
-  hit-testing assertion can catch it.
+- **Blocking with the scrim itself instead of the `.leko-block` rectangles.**
+  One element is tidier, a mask has no effect on hit-testing at all, and the
+  clipped version that came before broke scrolling under the pointer in a way no
+  hit-testing assertion can catch.
+- **Reaching an SVG `<mask>` element from CSS with `url(#…)`.** It is the
+  obvious way to write a mask, and Safari cuts no hole from it under any
+  spelling — silently, with `CSS.supports` answering `true`. The holes are
+  `data:` URL images for that reason.
 - **Moving the morph onto `element.animate()`.** It composites, and Chrome then
-  rasterises the clip path at the wrong scale on a 2x display.
-- **Dropping a subpath when a step needs fewer cutouts.** The paths stop
-  interpolating; collapse the departing cutout to zero area instead.
+  rasterises a composited clip path at the wrong scale on a 2x display. Nothing
+  says a mask is safer.
+- **Making the scrim an `<svg>` and masking it the SVG way.** It is the tidiest
+  version of all and costs 81ms a frame in WebKit on a document-tall scrim.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JS at all
-  and must stay that way. A bounded morph writing precomputed strings is not
-  the same thing and is fine.
+  and must stay that way. A bounded morph writing strings from numbers it
+  already has is not the same thing and is fine.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none,
   deliberately. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` are
   first-party and are fine.

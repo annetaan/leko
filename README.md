@@ -237,9 +237,10 @@ dependencies. Framework wrappers will be additive, never required.
 
 ## Browser support
 
-The cutout needs `clip-path: path()` and interpolation between two path values.
-The floor that implies has not been measured yet, so no version table is
-published here. One will land with the first release.
+The cutout needs CSS masking with several layers and `mask-composite`. The floor
+that implies has not been measured yet, so no version table is published here.
+One will land with the first release. Chrome 152, Firefox 153 and Safari 26 all
+draw it.
 
 [CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
 (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside

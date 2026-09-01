@@ -412,18 +412,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
 
-    if (!animate) {
-      // Open from a hole larger than the surface, so the scrim converges inward
-      // rather than appearing already cut.
-      const w = inner.element.offsetWidth
-      const h = inner.element.offsetHeight
-      const m = Math.max(w, h)
-      // Not interactive, so the page is blocked for the whole of the opening.
-      // The morph below re-blocks in the same task, so no frame carries this.
-      inner.set([
-        { x: -m, y: -m, width: w + m * 2, height: h + m * 2, radius: 0, interactive: false },
-      ])
-    }
+    // Open from every hole stretched over the surface, so the scrim converges
+    // each inward rather than opening it out of nothing. The morph below
+    // re-blocks in the same task, so no frame carries the opening's blocking.
+    if (!animate) inner.converge(resolved)
 
     // Nothing to watch on a step that points at nothing, and a watcher left
     // armed on the step before would report against this one.

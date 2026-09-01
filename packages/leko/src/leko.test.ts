@@ -17,8 +17,9 @@ import {
 
 // Claims about layout the browser actually performed: where a hole ended up,
 // what hit-testing returns at a point, which element a scrim was mounted in.
-// Engines disagree about `clip-path: path()` and about anchor positioning, so
-// every one of these runs in all three.
+// Engines disagree about masking and about anchor positioning — Safari cuts no
+// hole at all from a mask written one of the ways Chrome accepts — so every one
+// of these runs in all three.
 //
 // Claims about which step the tour is on live in `wiring.test.ts` and run in
 // one browser, because no engine has an opinion about those.
@@ -126,9 +127,10 @@ test('what blocks a shown hole sits beside the scrim, never inside it', () => {
 
   start([{ id: 'look', target: () => target }])
 
-  // A `clip-path` clips its descendants out of hit-testing along with itself,
-  // so a rectangle inside the scrim and over one of its holes catches nothing.
-  // `spike/blocking-a-hole/` is the page that settled it, in all three engines.
+  // The scrim paints and catches nothing, so what caught this is a blocking
+  // rectangle beside it rather than the scrim itself. The rectangles were moved
+  // out of the scrim when it was clipped rather than masked — a clip took them
+  // out of hit-testing with it — and `spike/blocking-a-hole/` is that page.
   const caught = centre(target) as HTMLElement
   expect(caught.closest('.leko-scrim')).toBeNull()
   expect(caught.closest('.leko-blocking')).not.toBeNull()
@@ -254,11 +256,11 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
-  // The reason this is checked by geometry rather than by hit-testing: a
-  // clip-path already takes the outer layer out of `elementFromPoint`, and an
-  // engine still uses it to decide what a wheel scrolls. The panel then stops
-  // scrolling under the pointer, and no assertion about hit-testing can see it.
-  // Nothing outside the scroller may have any geometry over it, clipped or not.
+  // The reason this is checked by geometry rather than by hit-testing: an
+  // engine can leave a layer out of `elementFromPoint` and still use it to
+  // decide what a wheel scrolls. The panel then stops scrolling under the
+  // pointer, and no assertion about hit-testing can see it. Nothing outside the
+  // scroller may have any geometry over it that asks to be hit.
   const hole = scroller.getBoundingClientRect()
   for (const el of document.querySelectorAll<HTMLElement>('.leko-scrim, .leko-block')) {
     if (scroller.contains(el)) continue

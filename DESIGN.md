@@ -20,7 +20,7 @@ file. How the code got here is in the commits.
 
 These are why Leko exists. Everything else is negotiable. These are not.
 
-**1. Never place an element over a target the step opened.** The highlight is a real hole cut by `clip-path`. Layering anything over it — transparent or not — blocks pointer events and focus, destroying Leko's core purpose. A hole the step did not open is different: blocking it is the step's own instruction carried out.
+**1. Never place an element over a target the step opened.** The highlight is a real hole, masked out of the scrim and left unblocked. Layering anything over it — transparent or not — blocks pointer events and focus, destroying Leko's core purpose. A hole the step did not open is different: blocking it is the step's own instruction carried out.
 
 **2. Steps advance on application state, never on DOM events.** The host calls `leko.reached('action-name')` when it knows the thing happened — after its API call resolved, not when the button was clicked.
 
@@ -523,17 +523,34 @@ application is free to drive the real elements while a step is showing.**
 
 ## Drawing
 
-A cutout is a `clip-path`, never a stack of elements. The `clip-path` on
-`.leko-scrim` is a single `path(evenodd, …)` — an outer rectangle plus one
-rounded-rectangle subpath per cutout, so five cutouts cost five subpaths and
-still one element ([`spike/cutout-techniques/`](spike/cutout-techniques/), T5).
-Even-odd makes each inner subpath an absence of geometry, not a transparent
-overlay.
+A cutout is a **mask layer**, never a stack of elements. The mask on
+`.leko-scrim` is one opaque layer for the surface and one image per cutout under
+it, composited with `mask-composite: subtract` on the surface and `add` between
+the holes, so five cutouts cost five layers and still one element. Each hole
+image is an SVG in a `data:` URL, drawn at the hole's own size and laid where it
+belongs with `mask-position`, so what an engine rasterises is the size of a
+target rather than the size of a document.
 
-`clip-path` cannot read layout, and no CSS route exists from an element's box
-to a `clip-path` — `anchor()` resolves only in inset properties (T3). So JS
-measures the targets and writes the path, **at step boundaries, never per
-frame**.
+**The holes are a union, and that is the point.** `add` between them means two
+overlapping holes read as one hole. A `clip-path: path(evenodd, …)` — an outer
+rectangle plus one rounded-rectangle subpath per cutout — did everything else
+asked of it ([`spike/cutout-techniques/`](spike/cutout-techniques/), T5) and
+could not do this: even-odd counts crossings, so a point inside two cutouts is
+inside an even number of subpaths and **paints dark**. Under a clip path two
+holes may never overlap, and the morph below needs them to.
+
+**Never reach an SVG `<mask>` element from CSS with `url(#…)`.** It is the
+obvious way to write a mask, Chrome and Firefox honour it, and **Safari cuts no
+hole at all** — under every spelling there is, prefixed and unprefixed, with
+`mask-mode`, with `mask-type`, in a `<defs>`. Nothing reports it:
+`CSS.supports('mask-image: url(#a)')` answers `true`, because a support query
+parses syntax and says nothing about whether a reference resolves. The
+`data:` URL images are images, not references, and every engine draws them
+([`spike/overlapping-holes/`](spike/overlapping-holes/)).
+
+A mask cannot read layout, and no CSS route exists from an element's box to one
+— `anchor()` resolves only in inset properties (T3). So JS measures the targets
+and writes the layers, **at step boundaries, never per frame**.
 
 ### Scrolling
 
@@ -547,19 +564,23 @@ frame**.
   box** of the scroller nested inside it — cut to the border box, the
   scroller's own border stays lit as a hairline.
 - **Every layer paints and catches nothing. Plain rectangles in the gaps
-  between the open cutouts do the blocking.** A `clip-path` takes an element
-  out of hit-testing but **not** out of the search for what a wheel should
-  scroll, so a scrollable element under a hole stops scrolling under the
-  pointer — Firefox routes such a wheel to the element, Chromium only while the
-  scrim's container has nothing left to scroll, WebKit never
-  ([`spike/wheel-through-a-hole/`](spike/wheel-through-a-hole/), and
+  between the open cutouts do the blocking.** A mask has no effect on
+  hit-testing at all, so a masked scrim asking to be hit is a solid sheet over
+  the page. The clipped version that came before did not work either: a
+  `clip-path` takes an element out of hit-testing but **not** out of the search
+  for what a wheel should scroll, so a scrollable element under a hole stopped
+  scrolling under the pointer — Firefox routes such a wheel to the element,
+  Chromium only while the scrim's container has nothing left to scroll, WebKit
+  never ([`spike/wheel-through-a-hole/`](spike/wheel-through-a-hole/), and
   `scrollable-target.ts`).
-- **The rectangles live beside the scrim, never inside it.** A `clip-path`
-  clips its descendants out of hit-testing along with itself, so a rectangle
-  inside the scrim over one of its holes catches nothing
-  ([`spike/blocking-a-hole/`](spike/blocking-a-hole/)). The sibling layer
-  paints nothing.
-- **Do not go back to blocking with the clipped element**, however much tidier
+- **The rectangles live beside the scrim, never inside it.** They were moved out
+  when the scrim was clipped, because a `clip-path` clips its descendants out of
+  hit-testing along with itself and a rectangle inside the scrim over one of its
+  holes caught nothing ([`spike/blocking-a-hole/`](spike/blocking-a-hole/)). A
+  mask does no such thing, so what keeps them out here now is plainer: the scrim
+  paints and catches nothing, the rectangles catch and paint nothing, and apart
+  they need no reasoning about.
+- **Do not go back to blocking with the scrim itself**, however much tidier
   one element looks. `elementFromPoint` reports the hole open the whole time
   the scrolling is broken, so the tests check this by geometry. Rectangles also
   make constraint 1 true by construction: they are the complement of the
@@ -570,12 +591,23 @@ frame**.
 
 ### The morph
 
-- Every path emitted has the same segments in the same order, so two of them
-  blend by walking their numbers in step. **Changing the number of cutouts
-  breaks that correspondence — collapse a departing cutout to zero area rather
-  than dropping its subpath** (T7 and T8).
-- **The blend is written frame by frame from the main thread.** Handing
-  `clip-path` to the Web Animations API puts it on the compositor, and Chrome
+- **A story opens by converging, from every hole stretched over the whole
+  surface.** Nothing is dimmed at the first frame and the dark closes in from
+  all four sides at once, each hole shrinking to its place. Every hole covers
+  every other one while it does, which is exactly what the union is for: the
+  same opening under even-odd showed each target *darker than the scrim around
+  it*, inverting as the holes passed through one another, and
+  [`spike/overlapping-holes/`](spike/overlapping-holes/) has that caught
+  halfway through.
+- The morph blends the cutouts and draws the mask from the blend, so the numbers
+  a frame is written from are the cutouts themselves. **Collapse a departing
+  cutout to zero area rather than dropping it** — that is now only so a hole
+  leaves by shrinking instead of vanishing. It used to be a correctness rule:
+  two `clip-path` values interpolate only when their subpaths match in count, so
+  a step with fewer holes than the last switched over discretely (T7 and T8).
+  Mask layers are a list, and a list can change length.
+- **The blend is written frame by frame from the main thread.** Handing the mask
+  to the Web Animations API would put it on the compositor, and Chrome
   rasterises a composited clip path at the wrong scale on a 2x display. Check
   that on a 2x display before moving this back onto `element.animate()`
   ([`spike/waapi-clip-path/`](spike/waapi-clip-path/), and
@@ -585,8 +617,11 @@ frame**.
   that window still advances the step.
 - **Any change that reintroduces per-frame JS position math is a regression.**
   That rule is about reading layout while the user scrolls. A bounded morph
-  writing a precomputed string each frame reads nothing and is a different
-  thing.
+  writing a string each frame from numbers it already has reads nothing and is a
+  different thing. On a scrim 12 000px tall, three holes and 120 frames cost
+  nothing measurable in any engine — but **an `<svg>` scrim masked the SVG way
+  costs 81ms a frame in WebKit**, which is the tidier design and unusable, and
+  only WebKit says so ([`spike/overlapping-holes/`](spike/overlapping-holes/)).
 
 ### The halo
 
@@ -612,7 +647,7 @@ paints nothing and costs nothing to look at.
   the step only shows.
 - **What a morph does to the halo is the host's choice, `halo` on the
   options.** The frames ride the morph either way, written every animation
-  frame from the same blended numbers the clip path is, so the two cannot
+  frame from the same blended numbers the mask is, so the two cannot
   disagree and no layout is read — the per-frame rule the morph already lives
   by. The mode decides the paint. The default, `'return'`, is the message's
   answer: the frames fade out in flight (`--leko-halo-fade`) — a fade that
@@ -691,8 +726,9 @@ the manifest does not depend on.**
   test mentions the DOM. The table of which project a test belongs in is in
   [ONBOARDING.md](ONBOARDING.md).
 - All three engines run, because the two things the library is built on are
-  ones engines disagree about: what `clip-path: path()` interpolates, and how
-  much of anchor positioning exists. A test depending on the second asks
+  ones engines disagree about: how a mask may be written — Safari cuts no hole
+  at all from one of the spellings Chrome accepts — and how much of anchor
+  positioning exists. A test depending on the second asks
   `CSS.supports` first. **Playwright's WebKit is a WebKit build, not a Safari
   anyone can install** — the floor still has to be checked on the real thing.
 - `machine.test.ts` sits in `describe` groups, one per axis the machine is
@@ -706,9 +742,11 @@ the manifest does not depend on.**
 
 ## Browser support
 
-The cutout needs `clip-path: path()` and interpolation between two path values.
-**The floor this implies has not been measured. Do not quote one until it
-has.** The source also uses ES2023 array methods, a lower floor of its own.
+The cutout needs CSS masking with several layers and `mask-composite`, and an
+SVG in a `data:` URL as a mask image. **The floor this implies has not been
+measured. Do not quote one until it has.** The source also uses ES2023 array
+methods, a lower floor of its own. What has been checked is the top: Chrome 152,
+Firefox 153 and Safari 26 all draw it ([`spike/overlapping-holes/`](spike/overlapping-holes/)).
 
 CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places
 the message beside a cutout and does nothing else, so it degrades rather than

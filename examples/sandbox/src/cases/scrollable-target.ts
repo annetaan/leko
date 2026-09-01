@@ -1,9 +1,11 @@
 import { type Case, html } from '../case.js'
 
-// The case that made the scrim stop blocking with its own clipped element. A
-// clip-path takes an element out of hit-testing but not out of the search for
-// what a wheel should scroll, so this box used to sit still under the wheel
-// while `elementFromPoint` insisted the hole was open.
+// The case that made the scrim stop blocking with its own element. A clip-path
+// takes an element out of hit-testing but not out of the search for what a
+// wheel should scroll, so this box used to sit still under the wheel while
+// `elementFromPoint` insisted the hole was open. The scrim is masked now and
+// catches nothing at all, which is the same answer arrived at from a shorter
+// road.
 export const scrollableTarget: Case = {
   id: 'scrollable-target',
   title: 'The target is the thing that scrolls',

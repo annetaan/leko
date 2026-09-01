@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from 'vitest'
 
-// These tests do not exercise Leko at all. They pin down the two browser
-// behaviours the whole design rests on, so that a browser or a CI image that
-// cannot provide them fails here, plainly, instead of surfacing later as an
+// These tests do not exercise Leko at all. They pin down the browser behaviours
+// the whole design rests on, so that a browser or a CI image that cannot
+// provide them fails here, plainly, instead of surfacing later as an
 // inexplicable rendering bug.
 
 const cleanup: HTMLElement[] = []
@@ -18,20 +18,38 @@ function mount<T extends HTMLElement>(el: T, style: Partial<CSSStyleDeclaration>
   return el
 }
 
-function roundedRect(x: number, y: number, w: number, h: number, r: number): string {
-  return (
-    `M${x + r} ${y} H${x + w - r} A${r} ${r} 0 0 1 ${x + w} ${y + r}` +
-    ` V${y + h - r} A${r} ${r} 0 0 1 ${x + w - r} ${y + h}` +
-    ` H${x + r} A${r} ${r} 0 0 1 ${x} ${y + h - r}` +
-    ` V${y + r} A${r} ${r} 0 0 1 ${x + r} ${y} Z`
-  )
+/**
+ * A hole, the way `maskLayers` draws one: an image of the hole's own size.
+ *
+ * A deliberate copy of `holeImage` in `geometry.ts` (minus the clipping),
+ * because this file pins browser behaviour and exercises none of Leko — see
+ * the note at the top. If the mask format changes there, change it here, or
+ * this pins a format nothing ships.
+ */
+function holeImage(w: number, h: number, r: number): string {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+    `<rect width="${w}" height="${h}" rx="${r}" fill="black"/></svg>`
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
 }
 
-test('the browser supports an even-odd path clip', () => {
-  expect(CSS.supports('clip-path: path(evenodd, "M0 0 H10 V10 Z")')).toBe(true)
+test('the browser composites mask layers', () => {
+  // The one feature the scrim cannot be drawn without. A `clip-path` would do
+  // everything else asked of it and cannot draw a union: under even-odd a point
+  // inside two cutouts is inside an even number of subpaths and paints dark, so
+  // two holes could never overlap and a story could not open by converging.
+  expect(CSS.supports('mask-composite: subtract')).toBe(true)
+  expect(CSS.supports('mask-image', `linear-gradient(black, black), ${holeImage(10, 10, 2)}`)).toBe(
+    true,
+  )
 })
 
-test('an even-odd cutout removes its region from hit-testing', () => {
+test('a mask does not remove its holes from hit-testing', () => {
+  // **This is why the blocking is done with rectangles beside the scrim.** A
+  // `clip-path` took the element out of hit-testing where it had no geometry,
+  // which read as a hole a click fell through — but not a wheel, which is the
+  // trap `spike/wheel-through-a-hole/` caught. A mask paints and nothing else,
+  // so what the scrim catches is decided in one place: `pointer-events`.
   const target = mount(document.createElement('button'), {
     position: 'fixed',
     left: '100px',
@@ -45,14 +63,19 @@ test('an even-odd cutout removes its region from hit-testing', () => {
     inset: '0',
     background: 'rgba(0, 0, 0, 0.7)',
   })
-  const { innerWidth: w, innerHeight: h } = window
-  scrim.style.clipPath = `path(evenodd, "M0 0 H${w} V${h} H0 Z ${roundedRect(92, 92, 136, 56, 12)}")`
+  Object.assign(scrim.style, {
+    maskImage: `linear-gradient(black, black), ${holeImage(136, 56, 12)}`,
+    maskPosition: '0 0, 92px 92px',
+    maskComposite: 'subtract, add',
+    maskRepeat: 'no-repeat',
+  })
 
-  // Inside the cutout the scrim is not merely transparent — no geometry exists
-  // there — so the target receives the hit.
+  // Nothing was taken out of hit-testing: the scrim answers over its own hole,
+  // however transparent it is there.
+  expect(document.elementFromPoint(160, 120)).toBe(scrim)
+
+  // And the element under the hole answers once the scrim stops asking to be
+  // hit, which is the state Leko's scrim is always in.
+  scrim.style.pointerEvents = 'none'
   expect(document.elementFromPoint(160, 120)).toBe(target)
-
-  // Everywhere else the scrim still absorbs it, which is what keeps a tour from
-  // being clicked past.
-  expect(document.elementFromPoint(400, 400)).toBe(scrim)
 })

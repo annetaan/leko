@@ -7,20 +7,40 @@ import {
   type Cutout,
   freeCorner,
   grow,
+  clipToSurface,
+  hasArea,
+  holeImage,
   lerpCutouts,
-  lerpPath,
+  maskLayers,
   padCutouts,
-  punchedPath,
   type Rect,
   segmentAt,
   union,
 } from './geometry.js'
 
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height })
-/** A path with its numbers stripped out — what is left is its segment list. */
-const shape = (path: string) => path.replace(/-?[\d.]+/g, '')
+/** The SVG a hole layer carries, readable again. */
+const svgOf = (layer: string) =>
+  decodeURIComponent(layer.replace(/^url\("data:image\/svg\+xml;utf8,|"\)$/g, ''))
+/** A comma-separated CSS list split at the top level, so `linear-gradient(black, black)` stays whole. */
+const layersOf = (value: string) => {
+  const parts: string[] = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i]
+    if (c === '(') depth++
+    else if (c === ')') depth--
+    else if (c === ',' && depth === 0) {
+      parts.push(value.slice(start, i).trim())
+      start = i + 1
+    }
+  }
+  parts.push(value.slice(start).trim())
+  return parts
+}
 // Interactive by default here. Every test in this file is about geometry, and
-// `punchedPath` reads the same shape whichever way this goes; the tests that are
+// `maskLayers` reads the same hole whichever way this goes; the tests that are
 // about it say so.
 const cutout = (x: number, y: number, w: number, h: number, radius = 8): Cutout => ({
   ...rect(x, y, w, h),
@@ -45,19 +65,74 @@ test('collapse keeps the centre', () => {
 })
 
 test('a radius never exceeds half the shorter side', () => {
-  // Asking for a radius bigger than the box would otherwise produce a path the
-  // browser refuses to parse.
-  const path = punchedPath(100, 100, [cutout(0, 0, 20, 10, 999)])
-  expect(path).not.toContain('999')
-  expect(path).toContain('A5 5')
+  // Asking for a radius bigger than the box would otherwise produce an image
+  // the browser draws differently from the halo laid over the same hole.
+  expect(svgOf(holeImage(cutout(0, 0, 20, 10, 999)))).toContain('rx="5"')
 })
 
-test('every path has the same segments regardless of the numbers', () => {
-  // This is the property the whole animation design rests on: two paths only
-  // interpolate when their segment lists match in count and type.
-  const a = punchedPath(800, 600, [cutout(10, 10, 100, 40), cutout(200, 300, 50, 50)])
-  const b = punchedPath(1024, 768, [cutout(0, 0, 5, 5, 2), cutout(700, 20, 300, 120, 30)])
-  expect(shape(a)).toBe(shape(b))
+test('a hole is drawn at its own size and laid where it belongs', () => {
+  // Not an image the size of the surface with the hole painted into it. What an
+  // engine rasterises is then the size of a target rather than the size of a
+  // document, which is what makes a scrim thousands of pixels tall affordable.
+  const { image, position } = maskLayers(2000, 12000, [cutout(300, 9000, 120, 60)])
+  const [surface, hole] = layersOf(image)
+  expect(surface).toBe('linear-gradient(black, black)')
+  expect(svgOf(hole!)).toContain('width="120" height="60"')
+  expect(position).toBe('0 0, 300px 9000px')
+})
+
+test('the holes union rather than alternate', () => {
+  // The whole reason the scrim is masked and not clipped. Under even-odd a
+  // point inside two cutouts is inside an even number of subpaths and paints
+  // dark; `add` between the hole layers makes two overlapping holes one hole.
+  const { composite } = maskLayers(800, 600, [cutout(0, 0, 100, 100), cutout(50, 50, 100, 100)])
+  expect(composite).toBe('subtract, add, add')
+})
+
+test('a cutout with no area contributes no layer', () => {
+  // A morph's collapsed leftover is not a hole, and an image with no size is
+  // not something every engine has to agree about.
+  const { image, position, composite } = maskLayers(800, 600, [
+    cutout(10, 10, 100, 40),
+    { ...rect(200, 200, 0, 0), radius: 0, interactive: false },
+  ])
+  expect(layersOf(image)).toHaveLength(2)
+  expect(position).toBe('0 0, 10px 10px')
+  expect(composite).toBe('subtract, add')
+})
+
+test('a cutout hanging off the surface is trimmed to it', () => {
+  // Only a bound on what is drawn: the part taken off is off the scrim, where
+  // nothing is painted either way. It is what keeps the opening's holes — each
+  // one larger than the whole surface — from being drawn at that size.
+  expect(clipToSurface(800, 600, cutout(-2000, -2000, 5000, 5000))).toMatchObject(
+    rect(0, 0, 800, 600),
+  )
+})
+
+test('a trimmed hole keeps its shape: the rect rides whole at a negative offset', () => {
+  // A target flush with the top of the page, grown by its padding, hangs off
+  // the surface. The image is clipped to what is on the surface, but the hole
+  // inside it is not reshaped: rounding a corner at the clip line would paint
+  // dark wedges over the target's own corners, where the true hole runs
+  // straight across — and would part company with the halo, which is laid
+  // from the same unclipped cutout.
+  const { image, position } = maskLayers(1000, 800, [cutout(100, -8, 200, 50)])
+  const hole = svgOf(layersOf(image)[1]!)
+  expect(hole).toContain('width="200" height="42">')
+  expect(hole).toContain('<rect x="0" y="-8" width="200" height="50" rx="8"')
+  expect(position).toBe('0 0, 100px 0px')
+})
+
+test('no hole image is ever larger than the surface', () => {
+  const m = 1710
+  const { image } = maskLayers(1710, 952, [cutout(-m, -m, 1710 + m * 2, 952 + m * 2, 0)])
+  expect(svgOf(layersOf(image)[1]!)).toContain('width="1710" height="952"')
+})
+
+test('hasArea tells a hole from a leftover', () => {
+  expect(hasArea(rect(0, 0, 10, 10))).toBe(true)
+  expect(hasArea(rect(5, 5, 0, 10))).toBe(false)
 })
 
 test('lerpCutouts blends the geometry and takes the flag from the destination', () => {
@@ -73,7 +148,7 @@ test('lerpCutouts blends the geometry and takes the flag from the destination', 
   expect(lerpCutouts(from, to, 1)).toEqual(to)
 })
 
-test('cutout lists are padded to equal length so their paths still interpolate', () => {
+test('cutout lists are padded to equal length so every hole has a counterpart', () => {
   const [from, to] = padCutouts(
     [cutout(0, 0, 50, 50), cutout(200, 0, 50, 50)],
     [cutout(0, 0, 80, 80)],
@@ -81,18 +156,21 @@ test('cutout lists are padded to equal length so their paths still interpolate',
   expect(from).toHaveLength(2)
   expect(to).toHaveLength(2)
 
-  // The surplus cutout does not vanish from the path — it shrinks to nothing at
-  // its own centre, which is what keeps the segment lists aligned.
+  // The surplus cutout does not vanish — it shrinks to nothing at its own
+  // centre, which reads as leaving rather than blinking out.
   expect(to[1]).toEqual({ x: 225, y: 25, width: 0, height: 0, radius: 0, interactive: false })
-  expect(shape(punchedPath(400, 400, from))).toBe(shape(punchedPath(400, 400, to)))
 })
 
-test('the browser accepts the paths we generate', () => {
-  const path = punchedPath(800, 600, [cutout(40, 40, 120, 60, 12), cutout(300, 200, 80, 80, 40)])
-  expect(CSS.supports('clip-path', `path(evenodd, "${path}")`)).toBe(true)
+test('the browser accepts the mask we generate', () => {
+  const { image, position, composite } = maskLayers(800, 600, [
+    cutout(40, 40, 120, 60, 12),
+    cutout(300, 200, 80, 80, 40),
+  ])
+  expect(CSS.supports('mask-image', image)).toBe(true)
+  expect(CSS.supports('mask-position', position)).toBe(true)
+  expect(CSS.supports('mask-composite', composite)).toBe(true)
 })
 
-const path = (cutouts: Cutout[]) => `path(evenodd, "${punchedPath(1710, 952, cutouts)}")`
 const cut = (x: number, y: number, w: number, h: number, r = 8): Cutout => ({
   x,
   y,
@@ -105,30 +183,34 @@ const cut = (x: number, y: number, w: number, h: number, r = 8): Cutout => ({
 // A value the browser rejects is not an error — assigning one to style is simply
 // ignored, and the element keeps whatever it had. A morph made of rejected
 // frames would look like nothing happening at all, so every frame is checked.
-
-test('every frame of the opening morph is a value the browser accepts', () => {
-  const m = 1710
-  const [from, to] = padCutouts(
-    [cut(-m, -m, 1710 + m * 2, 952 + m * 2, 0)],
-    [cut(311, 145, 650, 42)],
-  )
+const rejected = (frames: Cutout[][]) => {
   const bad: string[] = []
   for (let i = 0; i <= 40; i++) {
-    const value = lerpPath(path(from), path(to), i / 40)
-    if (!CSS.supports('clip-path', value))
-      bad.push(`t=${(i / 40).toFixed(2)}  ${value.slice(0, 160)}`)
+    const t = i / 40
+    const [from, to] = frames
+    const { image, position, composite } = maskLayers(1710, 952, lerpCutouts(from!, to!, t))
+    if (
+      !CSS.supports('mask-image', image) ||
+      !CSS.supports('mask-position', position) ||
+      !CSS.supports('mask-composite', composite)
+    )
+      bad.push(`t=${t.toFixed(2)}  ${position}  ${composite}`)
   }
-  expect(bad).toEqual([])
+  return bad
+}
+
+test('every frame of the opening morph is a value the browser accepts', () => {
+  // Two holes, both starting over the whole surface — so they overlap for most
+  // of the flight, which is the case the clip path could not draw at all.
+  const m = 1710
+  const whole = cut(-m, -m, 1710 + m * 2, 952 + m * 2, 0)
+  expect(
+    rejected(padCutouts([whole, whole], [cut(311, 145, 650, 42), cut(311, 206, 118, 104)])),
+  ).toEqual([])
 })
 
 test('every frame between two ordinary cutouts is accepted', () => {
-  const bad: string[] = []
-  for (let i = 0; i <= 40; i++) {
-    const value = lerpPath(path([cut(311, 145, 650, 42)]), path([cut(311, 206, 118, 104)]), i / 40)
-    if (!CSS.supports('clip-path', value))
-      bad.push(`t=${(i / 40).toFixed(2)}  ${value.slice(0, 160)}`)
-  }
-  expect(bad).toEqual([])
+  expect(rejected(padCutouts([cut(311, 145, 650, 42)], [cut(311, 206, 118, 104)]))).toEqual([])
 })
 
 // A negative progress used to index one before the first path, hand `undefined`

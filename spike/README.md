@@ -20,6 +20,7 @@ tell you what you are allowed to assume.
 | [`tab-order-in-the-top-layer/`](tab-order-in-the-top-layer/) | Does painting a popover over everything move it in the tab order too? |
 | [`anchored-paint-in-safari/`](anchored-paint-in-safari/) | Does a browser paint a box it anchored inside a scroller? |
 | [`halo-outside-the-hole/`](halo-outside-the-hole/) | Do an outline and an outer shadow stay out of the box they decorate? |
+| [`overlapping-holes/`](overlapping-holes/) | Can an overlay cut two holes that overlap, and what does each way of doing it cost? |
 
 ## Reading them
 

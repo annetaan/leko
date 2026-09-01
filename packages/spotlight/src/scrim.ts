@@ -1,10 +1,10 @@
 import {
   complementRects,
   type Cutout,
+  hasArea,
   lerpCutouts,
-  lerpPath,
+  maskLayers,
   padCutouts,
-  punchedPath,
   type Rect,
   segmentAt,
 } from './geometry.js'
@@ -125,17 +125,31 @@ export class Scrim {
   private readonly restorePosition: string | null
   private cutouts: Cutout[] = []
   /**
+   * The surface's size, kept from the one measurement {@link resize} makes.
+   * It is what {@link paint} and {@link block} build from, so that neither —
+   * and above all no frame of a morph — has to read layout to know it.
+   */
+  private width = 0
+  private height = 0
+  /**
+   * Whether what is on screen is {@link converge}'s stretched cutouts rather
+   * than a step's holes.
+   *
+   * The halos are the only thing that asks. Everything else treats them like
+   * any other cutout, because for everything else they are.
+   */
+  private converging = false
+  /**
    * Where the blocking rectangles live. **Beside the scrim, never inside it.**
    *
-   * A `clip-path` clips its descendants out of hit-testing along with itself,
-   * so a rectangle inside the scrim and over one of its holes catches nothing —
-   * `spike/blocking-a-hole/` is the page. That does not matter while every hole
-   * is meant to be reachable, because a rectangle never lands on one. It
-   * matters the moment a step shows a hole it does not open, which is a
-   * rectangle laid exactly over a hole and asking to be hit.
-   *
-   * Unclipped, so it blocks what it is told to. It carries no background, so
-   * moving the blocking out of the scrim changed nothing about what is painted.
+   * They were moved out because a `clip-path` clips its descendants out of
+   * hit-testing along with itself, so a rectangle inside the scrim and over one
+   * of its holes caught nothing — `spike/blocking-a-hole/` is the page, and it
+   * mattered the moment a step showed a hole it did not open. A mask does no
+   * such thing, so that reason is gone and they stay out here for a plainer
+   * one: **the scrim paints and catches nothing, this catches and paints
+   * nothing**, and keeping them apart makes each one's `pointer-events` a fact
+   * about an element rather than something to work out.
    */
   private readonly blocking: HTMLElement
   /** The rectangles themselves; see {@link block}. */
@@ -278,6 +292,8 @@ export class Scrim {
           Math.max(document.documentElement.scrollWidth, window.innerWidth),
           Math.max(document.documentElement.scrollHeight, window.innerHeight),
         ]
+    this.width = w
+    this.height = h
     this.element.style.width = `${w}px`
     this.element.style.height = `${h}px`
     this.blocking.style.width = `${w}px`
@@ -288,10 +304,31 @@ export class Scrim {
     }
   }
 
-  private path(cutouts: Cutout[]): string {
-    const w = this.element.offsetWidth
-    const h = this.element.offsetHeight
-    return `path(evenodd, "${punchedPath(w, h, cutouts)}")`
+  /**
+   * Show exactly these holes.
+   *
+   * A stack of CSS mask layers rather than a `clip-path`, and the reason is
+   * that **even-odd cannot draw a union**: a point inside two cutouts is inside
+   * an even number of subpaths and paints dark, so under a clip path two holes
+   * may never overlap. Holes converging inward from off the surface overlap for
+   * most of their flight. `spike/overlapping-holes/` has the two pictures, and
+   * DESIGN.md argues it under **The morph**.
+   *
+   * Writes only, and no layout is read: three strings built from numbers the
+   * caller already has, on a surface whose size {@link resize} measured once.
+   */
+  private paint(cutouts: Cutout[]): void {
+    const { image, position, composite } = maskLayers(this.width, this.height, cutouts)
+    // Unprefixed only. A `-webkit-mask-image` written beside this would be
+    // honoured by an engine too old for `mask-composite`, which would take the
+    // holes out of the stack and leave the surface whole — a scrim with no hole
+    // in it at all. Better to draw nothing of the sort than to draw that.
+    Object.assign(this.element.style, {
+      maskImage: image,
+      maskPosition: position,
+      maskComposite: composite,
+      maskRepeat: 'no-repeat',
+    })
   }
 
   /**
@@ -306,21 +343,25 @@ export class Scrim {
   }
 
   /**
-   * Walk through a series of paths, writing one per frame.
+   * Walk through a series of cutout lists, drawing one blend per frame.
    *
-   * Deliberately on the main thread. Handing `clip-path` to the Web Animations
-   * API puts it on the compositor, and Chrome rasterises a composited clip path
-   * at the wrong scale on a 2x display: for the length of the animation the
-   * scrim covers a quarter of what it should, then snaps right when it ends.
-   * Pausing such an animation fixes it, which is what gave the compositor away.
+   * Deliberately on the main thread. Handing the mask to the Web Animations API
+   * would put it on the compositor, and a composited clip path is rasterised by
+   * Chrome at the wrong scale on a 2x display — for the length of the animation
+   * the scrim covers a quarter of what it should, then snaps right when it
+   * ends. Pausing such an animation fixes it, which is what gave the compositor
+   * away. Nothing says a mask is safer, and nothing needs it to be.
    *
-   * The frames cost a string each and read no layout, so no work is forced and
-   * nothing here can thrash. Scroll tracking is untouched and still runs no JS
-   * at all — the rule this bends is about position math during scrolling, and
-   * that rule is intact.
+   * A frame costs a blend of a few numbers and the strings built from them, and
+   * reads no layout, so no work is forced and nothing here can thrash. Scroll
+   * tracking is untouched and still runs no JS at all — the rule this bends is
+   * about position math during scrolling, and that rule is intact.
+   *
+   * The lists must all be the same length, which is what {@link padCutouts}
+   * hands back, so each hole has something to be blended with.
    */
   private run(
-    paths: string[],
+    frames: Cutout[][],
     duration: number,
     onFrame?: (eased: number) => void,
   ): Promise<boolean> {
@@ -333,21 +374,21 @@ export class Scrim {
         // frame's start time, which can predate the moment this loop was
         // scheduled, so the first frame's elapsed time is sometimes negative.
         const t = Math.min(1, Math.max(0, (now - began) / duration))
-        const last = paths[paths.length - 1]
+        const last = frames[frames.length - 1]
         if (t >= 1) {
-          if (last) this.element.style.clipPath = last
+          if (last) this.paint(last)
           this.frame = undefined
           this.settle = undefined
           resolve(true)
           return
         }
         const eased = ease(t)
-        const { index, local } = segmentAt(paths.length, eased)
-        const from = paths[index]
-        const to = paths[index + 1]
-        if (from && to) this.element.style.clipPath = lerpPath(from, to, local)
+        const { index, local } = segmentAt(frames.length, eased)
+        const from = frames[index]
+        const to = frames[index + 1]
+        if (from && to) this.paint(lerpCutouts(from, to, local))
         // Whatever rides along is written from the same eased progress, so it
-        // cannot drift from the path. Writes only, the same as the path.
+        // cannot drift from the holes. Writes only, the same as the mask.
         onFrame?.(eased)
         this.frame = requestAnimationFrame(tick)
       }
@@ -357,11 +398,69 @@ export class Scrim {
 
   /** Jump straight to a set of cutouts, with no animation. */
   set(cutouts: Cutout[]): void {
+    this.draw(cutouts)
+    this.converging = false
+    this.placeHalos(cutouts)
+  }
+
+  /**
+   * Draw the state a story opens from, given the holes its first step is
+   * heading for: **every one of them over everything the viewer can see**, so
+   * the morph that follows converges each inward from the edges of the screen.
+   * Nothing is dimmed at the first frame, and the dark closes in from all four
+   * sides at once.
+   *
+   * Every hole covers every other one at that first frame, and for much of the
+   * flight after it. That is only drawable because the mask unions its layers —
+   * see {@link paint}. Under the `clip-path` this replaced, the same opening
+   * showed each target *darker than the scrim around it*, inverting as the
+   * holes passed through one another.
+   *
+   * **What is seen, and not the surface.** The scrim is as tall as the
+   * scrollable area, which on a long page is many screens; a hole starting that
+   * size spends the whole morph larger than the window and arrives all at once
+   * at the end. Starting from the visible box makes the convergence something a
+   * viewer watches from the first frame to the last. It reads layout to find
+   * that box, once, at an opening — not per frame, and never while scrolling.
+   *
+   * Cutouts, and not holes. Nothing is cut yet, and this is what that has to be
+   * drawn as — so no frame is laid on them and none rides out of them. A ring
+   * around a hole the size of the window is not what a host styling
+   * `--leko-halo-*` asked for. The frames arrive with the holes, at the end of
+   * the morph.
+   */
+  converge(to: Cutout[]): void {
+    const seen = this.container
+      ? {
+          x: this.container.scrollLeft,
+          y: this.container.scrollTop,
+          width: this.container.clientWidth,
+          height: this.container.clientHeight,
+        }
+      : {
+          x: window.scrollX,
+          y: window.scrollY,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }
+    // Not interactive, so the page is blocked for the whole of the opening.
+    // At least one, even when the first step cuts no holes at all — a step
+    // that waits opens the same way, its one stretched cutout shrinking away,
+    // rather than the page snapping to fully dimmed in a single frame.
+    const stretched = Math.max(1, to.length)
+    this.draw(Array.from({ length: stretched }, () => ({ ...seen, radius: 0, interactive: false })))
+    // Any frame the story before left is taken away rather than laid on this,
+    // so the layer holds nothing at all while the scrim converges.
+    this.frames(0)
+    this.converging = true
+  }
+
+  /** The mask and the blocking, which every way of showing cutouts owes. */
+  private draw(cutouts: Cutout[]): void {
     this.halt()
     this.cutouts = cutouts
-    this.element.style.clipPath = this.path(cutouts)
+    this.paint(cutouts)
     this.block(cutouts)
-    this.placeHalos(cutouts)
   }
 
   /**
@@ -376,7 +475,7 @@ export class Scrim {
    */
   private placeHalos(cutouts: Cutout[]): void {
     if (!this.haloLayer) return
-    const framed = cutouts.filter((c) => c.width > 0 && c.height > 0)
+    const framed = cutouts.filter(hasArea)
     this.frames(framed.length)
     this.halos.forEach((el, i) => {
       const cutout = framed[i]
@@ -455,17 +554,20 @@ export class Scrim {
    * Put the blocking rectangles where the cutouts are not.
    *
    * The scrim paints and catches nothing; these do the catching. It cannot be
-   * done with the clipped element itself, however tempting the single-element
-   * version is: **a `clip-path` takes an element out of hit-testing but not out
-   * of the search for what a wheel should scroll.** An engine answers a wheel
-   * over the hole with the scrim and scrolls whatever the scrim sits in, so a
-   * scrollable target stops scrolling under the pointer — and `elementFromPoint`
-   * reports the hole open throughout, which is why this went unnoticed. Firefox
-   * routes such a wheel to the target, Chromium does so only while the scrim's
-   * own container has nothing left to scroll, WebKit never does.
+   * done with the scrim itself, however tempting the single-element version is.
+   * A mask has no effect on hit-testing at all, so a masked scrim asking to be
+   * hit is a solid sheet over the page — and the clipped version that came
+   * before did not work either: **a `clip-path` takes an element out of
+   * hit-testing but not out of the search for what a wheel should scroll.** An
+   * engine answered a wheel over the hole with the scrim and scrolled whatever
+   * the scrim sat in, so a scrollable target stopped scrolling under the
+   * pointer, while `elementFromPoint` reported the hole open throughout — which
+   * is why it went unnoticed. Firefox routes such a wheel to the target,
+   * Chromium does so only while the scrim's own container has nothing left to
+   * scroll, WebKit never does.
    *
    * Rectangles leave nothing to interpret. They also make constraint 1 true by
-   * construction rather than by trusting a clip: they are built from the
+   * construction rather than by trusting a mask: they are built from the
    * complement of the cutouts the step **opened**, so no element of Leko's can
    * be over a target the step made reachable, even in principle.
    *
@@ -476,8 +578,8 @@ export class Scrim {
    */
   private block(cutouts: Cutout[]): void {
     const rects = complementRects(
-      this.element.offsetWidth,
-      this.element.offsetHeight,
+      this.width,
+      this.height,
       cutouts.filter((cutout) => cutout.interactive),
     )
 
@@ -505,8 +607,8 @@ export class Scrim {
    * treat the step as settled. Returns `undefined` when the change was applied
    * outright instead of animated.
    *
-   * Both paths are built from lists of equal length, so their segments line up
-   * and blending them is a matter of walking the numbers.
+   * The two lists are padded to equal length, so every hole has something to
+   * be blended with and blending them is a matter of walking the numbers.
    */
   morph(to: Cutout[], duration: number): Promise<boolean> | undefined {
     const [from, padded] = padCutouts(this.cutouts, to)
@@ -517,8 +619,7 @@ export class Scrim {
     }
 
     // What is rendered is the padded list, so that is what the next morph has to
-    // start from if its segments are to line up.
-    const paths = [this.path(from), this.path(padded)]
+    // start from if the holes are to be paired up the same way.
     this.cutouts = padded
     // The blocking goes to where the cutouts are heading rather than following
     // them frame by frame. Chasing them would mean writing four or more boxes
@@ -537,7 +638,11 @@ export class Scrim {
     // would need that was not there before is made transparent and, returning,
     // never revealed: a hole that had no frame does not grow one to lose it.
     const follow = this.halo === 'follow'
-    if (this.haloLayer) {
+    // Nothing to ride out of a converging scrim, and nothing that may: see
+    // {@link converge}. The frames are made and faded in on arrival.
+    const converging = this.converging
+    this.converging = false
+    if (this.haloLayer && !converging) {
       this.frames(padded.length)
       this.halos.forEach((el, i) => {
         const start = from[i]
@@ -552,7 +657,7 @@ export class Scrim {
     const riding = this.haloLayer
       ? (eased: number) => this.slideHalos(lerpCutouts(from, padded, eased))
       : undefined
-    const arriving = this.run(paths, duration, riding)
+    const arriving = this.run([from, padded], duration, riding)
     this.arriving = arriving
     void arriving.then((finished) => {
       if (finished) this.placeHalos(to)
@@ -593,9 +698,8 @@ export class Scrim {
 
   /** The shake itself, once it is known to be interrupting nothing. */
   private nudge(): void {
-    const nudged = (dx: number): string =>
-      this.path(this.cutouts.map((c) => ({ ...c, x: c.x + dx })))
-    const settled = this.path(this.cutouts)
+    const nudged = (dx: number): Cutout[] => this.cutouts.map((c) => ({ ...c, x: c.x + dx }))
+    const settled = this.cutouts
     void this.run([settled, nudged(-6), nudged(5), nudged(-3), settled], 320)
   }
 

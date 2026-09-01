@@ -100,15 +100,14 @@ export const centre = (el: Element) => {
 export const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
 
 /**
- * How many holes the innermost scrim has cut, read off its `clip-path`.
+ * How many holes the innermost scrim has cut, read off its mask.
  *
  * A hole and a hole somebody can reach are two different things, and this is
- * the first of them. {@link absorbed} is the second. Every subpath begins with
- * an `M` and only the first is the outer rectangle, so counting them counts the
- * cutouts.
+ * the first of them. {@link absorbed} is the second. The mask is one layer for
+ * the surface and one image per hole, and the surface layer is a gradient, so
+ * counting the images counts the cutouts.
  */
-export const holes = (): number =>
-  Math.max(0, ((scrim()?.style.clipPath ?? '').match(/M/g)?.length ?? 0) - 1)
+export const holes = (): number => (scrim()?.style.maskImage ?? '').split('url(').length - 1
 
 /** The box holding the way out of the tour, or `null` while none is drawn. */
 export const closer = () => document.querySelector<HTMLElement>('.leko-close')
@@ -148,11 +147,9 @@ export const observed = (): Promise<void> => Promise.resolve()
  * Whether the tour absorbed a hit at the centre of `el`, rather than the page
  * underneath receiving it.
  *
- * The blocking rectangles live beside the scrim rather than inside it, because
- * a `clip-path` clips its descendants out of hit-testing too and a rectangle
- * over a hole has to be reachable. So this asks about `.leko-blocking`, which
- * is the layer those rectangles are in and the only thing of Leko's that ever
- * catches a hit on the page.
+ * The scrim paints and catches nothing, so the blocking rectangles beside it
+ * are the only thing of Leko's that ever catches a hit on the page. That is
+ * what this asks about: `.leko-blocking`, the layer they are in.
  *
  * It is true both of the page outside every hole and of a hole the step showed
  * without opening. Those are the same fact: the tour took the hit.
