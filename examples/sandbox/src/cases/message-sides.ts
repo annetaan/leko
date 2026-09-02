@@ -17,11 +17,9 @@ export const messageSides: Case = {
 
   mount(root, leko) {
     // The rails are fixed, which is what pins the choice to the viewport's own
-    // edges. It also means a hole cut over one is right where the document
-    // stood when the step was drawn: scroll after that and the hole rides the
-    // document while the rail stays put. That drift is a real gap, left
-    // visible on purpose — a page must never be reshaped to spare the tour,
-    // and #133 is the layer the library is missing.
+    // edges. A fixed target gets a scrim that is fixed too, so a hole cut over
+    // a rail stays on it while the page scrolls; `fixed-chrome.ts` is the case
+    // about that, and this one only relies on it.
     const tools = html(`
       <div class="chrome chrome-left" data-tools aria-hidden="true">
         <span>✚</span><span>✎</span><span>▦</span><span>✂</span><span>⧉</span>

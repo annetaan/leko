@@ -272,6 +272,60 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   }
 })
 
+test('a fixed target keeps its hole while the page scrolls under it', () => {
+  // Tall enough to scroll, so there is a scroll for the hole to be carried
+  // off by. The document's scrim would be: it lives in the document and rides
+  // it, while a fixed target stays where it is.
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const target = box('pinned', { left: '100px', top: '100px', width: '120px', height: '40px' })
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+
+  // The layer is fixed too, so neither moves. Nothing here runs on scroll.
+  expect(getComputedStyle(scrim()!).position).toBe('fixed')
+  window.scrollTo(0, 400)
+  expect(centre(target)).toBe(target)
+  window.scrollTo(0, 0)
+})
+
+test('a fixed element an ancestor has taken back into the flow rides the page', () => {
+  // A transform on the card makes it the containing block, and the "fixed"
+  // badge inside is then an absolutely positioned child of it and scrolls with
+  // the page. The engine says which, and the hole has to ride with it.
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const card = keep(document.createElement('div'))
+  Object.assign(card.style, {
+    position: 'absolute',
+    left: '100px',
+    top: '300px',
+    width: '200px',
+    height: '100px',
+    transform: 'translateX(0)',
+  })
+  const badge = document.createElement('button')
+  badge.textContent = 'badge'
+  Object.assign(badge.style, {
+    position: 'fixed',
+    left: '10px',
+    top: '10px',
+    width: '120px',
+    height: '40px',
+  })
+  card.append(badge)
+  document.body.append(card)
+
+  start([{ id: 'one', target: { elements: () => badge, interactive: true } }])
+
+  expect(getComputedStyle(scrim()!).position).toBe('absolute')
+  window.scrollTo(0, 200)
+  expect(centre(badge)).toBe(badge)
+  window.scrollTo(0, 0)
+})
+
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   start([

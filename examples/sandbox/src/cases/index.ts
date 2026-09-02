@@ -2,6 +2,7 @@ import type { Case } from '../case.js'
 import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
+import { fixedChrome } from './fixed-chrome.js'
 import { formValidation } from './form-validation.js'
 import { haloFollows } from './halo-follows.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
@@ -39,6 +40,7 @@ export const cases: Case[] = [
   linkedRegions,
   nestedScroller,
   scrollableTarget,
+  fixedChrome,
   messageSides,
   targetDisappears,
   insideShadowDom,

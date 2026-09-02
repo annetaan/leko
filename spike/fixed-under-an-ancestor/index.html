@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Which ancestors take position: fixed away from the viewport?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 72px 24px 40px;
+    font: 14px/1.6 system-ui, sans-serif;
+    /* Tall on purpose: the question is what a scroll does to each child. */
+    min-height: 3200px;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  /* Each wrapper is a small in-flow box carrying one property. The fixed child
+     inside it is placed along the top edge of the window, one slot per case,
+     so a person can watch which chips stay when the page scrolls. */
+  .wrap { display: inline-block; width: 1px; height: 1px; overflow: visible; }
+  .chip {
+    position: fixed; top: 8px;
+    width: 34px; height: 22px; border-radius: 4px;
+    background: #2f6fed; color: #fff;
+    font: 11px/22px ui-monospace, monospace; text-align: center;
+  }
+
+  /* The second question: a fixed child under a transformed scroller. */
+  .panel {
+    position: relative; width: 320px; height: 150px; overflow: auto;
+    border: 1px solid #8886; border-radius: 8px; transform: translateX(0);
+  }
+  .panel .tall { height: 600px; }
+  .panel .chip { left: 12px; top: 12px; }
+
+  table { border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .fixed { color: #0a7d32; font-weight: 700; }
+  .carried { color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .fixed { color: #6ee79b; } .carried { color: #ff8a80; } }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Which ancestors take <code>position: fixed</code> away from the viewport?</h1>
+<p>
+  A fixed element is positioned against the viewport unless an ancestor
+  establishes a containing block for it, and then it behaves as if it were
+  absolutely positioned inside that ancestor and scrolls with the page. The
+  specification lists the properties that do this. Whether every engine agrees,
+  and whether anything on the element reports it, is what this page measures.
+</p>
+<p>
+  Every chip along the top of the window is a <code>position: fixed</code>
+  element inside a wrapper that sets one property. Scroll the page: the chips
+  that stay are still fixed, the ones that leave have been carried off. The
+  table says the same thing in numbers, and records what
+  <code>offsetParent</code> answers for each, since a one-line test would be
+  better than a list of properties to maintain.
+</p>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<h2>1. One property on the wrapper</h2>
+<table id="ancestors"></table>
+
+<h2>2. A fixed child under a transformed scroller</h2>
+<p>
+  If a transform makes a fixed element behave as an absolutely positioned one,
+  then under a transformed <em>scroller</em> it should ride that scroller's
+  content. Scroll the panel: the chip should move with it.
+</p>
+<div class="panel" id="panel"><div class="tall"></div></div>
+<table id="scroller"></table>
+
+<script>
+// Controls first, then the properties the specification names, then the
+// ones a page in the wild sets that a reader might wonder about.
+const cases = [
+  ['(none)', {}],
+  ['position: relative', { position: 'relative' }],
+  ['overflow: hidden', { overflow: 'hidden' }],
+  ['isolation: isolate', { isolation: 'isolate' }],
+  ['opacity: 0.99', { opacity: '0.99' }],
+  ['mix-blend-mode: multiply', { mixBlendMode: 'multiply' }],
+  ['clip-path: inset(0)', { clipPath: 'inset(0)' }],
+  ['transform: translateX(0)', { transform: 'translateX(0)' }],
+  ['translate: 0px', { translate: '0px' }],
+  ['rotate: 0deg', { rotate: '0deg' }],
+  ['scale: 1', { scale: '1' }],
+  ['transform-style: preserve-3d', { transformStyle: 'preserve-3d' }],
+  ['perspective: 500px', { perspective: '500px' }],
+  ['filter: brightness(1)', { filter: 'brightness(1)' }],
+  ['backdrop-filter: blur(0)', { backdropFilter: 'blur(0)' }],
+  ['will-change: transform', { willChange: 'transform' }],
+  ['will-change: perspective', { willChange: 'perspective' }],
+  ['will-change: filter', { willChange: 'filter' }],
+  ['will-change: backdrop-filter', { willChange: 'backdrop-filter' }],
+  ['will-change: contain', { willChange: 'contain' }],
+  ['contain: layout', { contain: 'layout' }],
+  ['contain: paint', { contain: 'paint' }],
+  ['contain: size', { contain: 'size' }],
+  ['contain: style', { contain: 'style' }],
+  ['contain: strict', { contain: 'strict' }],
+  ['contain: content', { contain: 'content' }],
+  ['container-type: inline-size', { containerType: 'inline-size' }],
+  ['container-type: size', { containerType: 'size' }],
+  ['content-visibility: auto', { contentVisibility: 'auto' }],
+  ['offset-path: path("M0 0")', { offsetPath: 'path("M0 0")' }],
+]
+
+const host = document.createElement('div')
+document.body.prepend(host)
+const chips = cases.map(([label, style], i) => {
+  const wrap = document.createElement('div')
+  wrap.className = 'wrap'
+  Object.assign(wrap.style, style)
+  const chip = document.createElement('div')
+  chip.className = 'chip'
+  chip.style.left = `${8 + i * 40}px`
+  chip.textContent = String(i + 1)
+  wrap.append(chip)
+  host.append(wrap)
+  return { label, wrap, chip }
+})
+
+const panel = document.getElementById('panel')
+const inPanel = document.createElement('div')
+inPanel.className = 'chip'
+inPanel.textContent = 'S'
+panel.append(inPanel)
+
+const SCROLL = 200
+const topOf = (el) => Math.round(el.getBoundingClientRect().top)
+const parentOf = (el) => {
+  const p = el.offsetParent
+  return p === null ? 'null' : p === document.body ? 'body' : p.className || p.tagName.toLowerCase()
+}
+
+// A chip that stayed where it was under a scroll is still fixed to the
+// viewport. One that moved by the scroll distance is being carried by the
+// document. Anything else is a third thing worth a closer look.
+const verdict = (before, after) =>
+  before === after ? 'fixed' : after === before - SCROLL ? 'carried' : `moved ${before - after}`
+
+async function settle() {
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+}
+
+// One at a time. The page measures itself on load and again on the button,
+// and `run.mjs` asks as well; two of these interleaved read each other's
+// scroll and report the chips moving the wrong way.
+let running = Promise.resolve()
+function measure() {
+  running = running.then(read)
+  return running
+}
+
+async function read() {
+  window.scrollTo(0, 0)
+  panel.scrollTop = 0
+  await settle()
+  const before = chips.map(({ chip }) => topOf(chip))
+  const parents = chips.map(({ chip }) => parentOf(chip))
+  window.scrollTo(0, SCROLL)
+  await settle()
+  const ancestors = chips.map(({ label }, i) => {
+    const after = topOf(chips[i].chip)
+    return { label, before: before[i], after, verdict: verdict(before[i], after), offsetParent: parents[i] }
+  })
+  window.scrollTo(0, 0)
+
+  const panelBefore = topOf(inPanel)
+  const panelParent = parentOf(inPanel)
+  panel.scrollTop = 100
+  await settle()
+  const panelAfter = topOf(inPanel)
+  panel.scrollTop = 0
+  const scroller = {
+    before: panelBefore,
+    after: panelAfter,
+    rides: panelAfter === panelBefore - 100,
+    offsetParent: panelParent,
+  }
+
+  render(ancestors, scroller)
+  return { ancestors, scroller }
+}
+
+function render(ancestors, scroller) {
+  const rows = ancestors
+    .map(
+      (r, i) =>
+        `<tr><td>${i + 1}. ${r.label}</td><td>${r.before}</td><td>${r.after}</td>` +
+        `<td class="${r.verdict === 'fixed' ? 'fixed' : 'carried'}">${r.verdict}</td>` +
+        `<td>${r.offsetParent}</td></tr>`,
+    )
+    .join('')
+  document.getElementById('ancestors').innerHTML =
+    '<tr><th>wrapper</th><th>top</th><th>after scrolling 200</th><th>verdict</th><th>offsetParent</th></tr>' +
+    rows
+  document.getElementById('scroller').innerHTML =
+    '<tr><th>chip</th><th>top</th><th>after scrolling the panel 100</th><th>verdict</th><th>offsetParent</th></tr>' +
+    `<tr><td>S. fixed, under a transformed scroller</td><td>${scroller.before}</td><td>${scroller.after}</td>` +
+    `<td class="${scroller.rides ? 'fixed' : 'carried'}">${scroller.rides ? 'rides the scroller' : 'does not ride it'}</td>` +
+    `<td>${scroller.offsetParent}</td></tr>`
+}
+
+document.getElementById('env').textContent = navigator.userAgent
+document.getElementById('measure').addEventListener('click', () => void measure())
+window.spikeFixed = { measure }
+void measure()
+</script>
+</body>
+</html>

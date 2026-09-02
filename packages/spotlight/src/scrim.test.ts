@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 function mountScrim(): Scrim {
-  const made = new Scrim(null)
+  const made = new Scrim({ kind: 'document' })
   scrims.push(made)
   return made
 }

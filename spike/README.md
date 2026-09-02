@@ -21,6 +21,7 @@ tell you what you are allowed to assume.
 | [`anchored-paint-in-safari/`](anchored-paint-in-safari/) | Does a browser paint a box it anchored inside a scroller? |
 | [`halo-outside-the-hole/`](halo-outside-the-hole/) | Do an outline and an outer shadow stay out of the box they decorate? |
 | [`overlapping-holes/`](overlapping-holes/) | Can an overlay cut two holes that overlap, and what does each way of doing it cost? |
+| [`fixed-under-an-ancestor/`](fixed-under-an-ancestor/) | Which ancestors take a `position: fixed` element away from the viewport, and does the element say so? |
 
 ## Reading them
 

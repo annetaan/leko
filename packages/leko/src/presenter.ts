@@ -2,7 +2,6 @@ import type { Host, Presenter } from '@annetaan/leko-machine'
 import {
   Close,
   type Cutout,
-  findScrollContainer,
   FocusRing,
   grow,
   Message,
@@ -12,8 +11,11 @@ import {
   rectWithin,
   resolveTarget,
   resolveTargets,
+  sameSurface,
   Scrim,
   type Side,
+  type Surface,
+  surfaceChain,
   union,
 } from '@annetaan/leko-spotlight'
 import type { LekoOptions, LekoStep, LekoTarget, LekoWorld } from './types.js'
@@ -101,8 +103,8 @@ interface Drawn {
 }
 
 /**
- * The half of Leko that touches the page: one scrim per scrolling ancestor, the
- * hole cut through them, and the message beside it.
+ * The half of Leko that touches the page: one scrim per surface that carries
+ * the target, the hole cut through them, and the message beside it.
  *
  * It decides nothing about where the tour is. Every call here comes from the
  * machine, and the two things this notices on its own — a target leaving the
@@ -114,10 +116,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private readonly options: LekoOptions
   private readonly host: Host<LekoWorld>
   /**
-   * One scrim per scrolling ancestor, innermost first, always ending with the
-   * document. Only the innermost carries the step's cutouts; each outer one is
-   * cut to the shape of the scroller inside it, so the layers together dim the
-   * whole page while each still scrolls with its own content.
+   * One scrim per surface carrying the target, innermost first — its
+   * scrollers, then the document, or the viewport alone for a target that
+   * `position: fixed` holds against it. Only the innermost carries the step's
+   * cutouts; each outer one is cut to the shape of the scroller inside it, so
+   * the layers together dim the whole page while each still moves with what it
+   * is inside.
    */
   private layers: Scrim[] = []
   /**
@@ -235,7 +239,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.message ??= new Message(() => this.host.next())
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
-    const within = inner && this.cutouts(step, (el) => rectWithin(el, inner.container))
+    const within = inner && this.cutouts(step, (el) => rectWithin(el, inner.surface))
     const box = within && union(within)
     this.message.show(
       content,
@@ -329,25 +333,20 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Every scrolling ancestor of `el`, innermost first, always ending in `null`
-   * for the document itself.
+   * Each outer layer is cut to the scroller nested inside it. Every surface
+   * with a layer outside it is a scroller: the document and the viewport are
+   * each the last of a chain.
    */
-  private static chainOf(el: Element): (HTMLElement | null)[] {
-    const container = findScrollContainer(el)
-    return container ? [container, ...DomPresenter.chainOf(container)] : [null]
-  }
-
-  /** Each outer layer is cut to the scroller nested inside it. */
-  private cutOuterLayers(chain: (HTMLElement | null)[]): void {
+  private cutOuterLayers(chain: Surface[]): void {
     this.layers.slice(1).forEach((layer, i) => {
       const nested = chain[i]
-      if (!nested) return
+      if (nested?.kind !== 'scroller') return
       // Match the scroller's own rounding, or its corners show through the hole.
-      const radius = parseFloat(getComputedStyle(nested).borderTopLeftRadius) || 0
+      const radius = parseFloat(getComputedStyle(nested.element).borderTopLeftRadius) || 0
       // Always interactive. This hole is where the scrim below it lives, and a
       // rectangle over it would block that whole scroller, cutouts and all.
       // What is reachable inside it is the inner layer's to say.
-      layer.set([{ ...paddingBoxWithin(nested, layer.container), radius, interactive: true }])
+      layer.set([{ ...paddingBoxWithin(nested.element, layer.surface), radius, interactive: true }])
     })
   }
 
@@ -371,7 +370,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    *
    * `drawn` rather than a step, because a redraw that the tour did not ask for
    * has to put back what was there, reason and all. `anchor` is `null` on a
-   * step that points at nothing. There is no scroller to find for one of those,
+   * step that points at nothing. There is no surface to find for one of those,
    * so the document carries it, and everything below lands on the empty list of
    * cutouts.
    */
@@ -380,11 +379,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
-    const chain = DomPresenter.chainOf(anchor ?? document.body)
-    // A step in a different set of scrollers needs a different stack of scrims.
+    const chain = surfaceChain(anchor ?? document.body)
+    // A step on a different set of surfaces needs a different stack of scrims.
     // Rebuilding is not a morph, so it happens outright rather than half-way.
     const sameStack =
-      this.layers.length === chain.length && this.layers.every((l, i) => l.container === chain[i])
+      this.layers.length === chain.length &&
+      this.layers.every((l, i) => {
+        const surface = chain[i]
+        return surface !== undefined && sameSurface(l.surface, surface)
+      })
     if (!sameStack) this.destroyLayers()
 
     if (this.layers.length === 0) {
@@ -392,18 +395,16 @@ export class DomPresenter implements Presenter<LekoWorld> {
       // cutouts, and an outer layer's hole is the scroller the next layer
       // lives in rather than anything the step points at.
       this.layers = chain.map(
-        (container, i) =>
-          new Scrim(container, i === 0 ? (this.options.halo ?? 'return') : undefined),
+        (surface, i) => new Scrim(surface, i === 0 ? (this.options.halo ?? 'return') : undefined),
       )
       this.watchViewport()
     }
 
-    const container = chain[0] ?? null
-    const resolved = this.cutouts(step, (el) => rectWithin(el, container))
-    if (!resolved) return this.retry(step, animate)
-
     const inner = this.layers[0]
     if (!inner) return this.retry(step, animate)
+
+    const resolved = this.cutouts(step, (el) => rectWithin(el, inner.surface))
+    if (!resolved) return this.retry(step, animate)
 
     // Kept so that anything which redraws without the tour moving has what to
     // put back.
@@ -465,8 +466,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const inner = this.layers[0]
     if (!held || !inner) return
     for (const layer of this.layers) layer.resize()
-    this.cutOuterLayers(DomPresenter.chainOf(this.resolve(held.step) ?? document.body))
-    const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.container))
+    this.cutOuterLayers(surfaceChain(this.resolve(held.step) ?? document.body))
+    const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.surface))
     if (!resolved) return
     inner.set(resolved)
     // The message needs no help to follow a scroll, but a resize can leave the
@@ -595,7 +596,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * Resizing changes the surface the path is drawn on, so the path is rebuilt —
    * placed, not replayed. Scrolling deliberately is not listened for: the scrim
-   * sits inside whatever scrolls, so it moves with the target on its own.
+   * sits inside whatever scrolls, so it moves with the target on its own — and
+   * the one drawn for a fixed target is fixed itself, so neither moves at all.
    */
   private watchViewport(): void {
     this.onViewportChange = () => this.replace()

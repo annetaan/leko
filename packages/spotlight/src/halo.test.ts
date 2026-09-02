@@ -17,7 +17,7 @@ afterEach(() => {
 })
 
 function mountScrim(halo?: HaloMode): Scrim {
-  const made = new Scrim(null, halo)
+  const made = new Scrim({ kind: 'document' }, halo)
   scrims.push(made)
   return made
 }
@@ -65,7 +65,9 @@ test('the frame catches nothing over the hole it sits on', () => {
   document.body.append(target)
   cleanup.push(target)
 
-  mountScrim('return').set([{ ...rectWithin(target, null), radius: 8, interactive: true }])
+  mountScrim('return').set([
+    { ...rectWithin(target, { kind: 'document' }), radius: 8, interactive: true },
+  ])
 
   // The frame really is over the point being tested — otherwise the assertion
   // below would pass with the halo anywhere at all.

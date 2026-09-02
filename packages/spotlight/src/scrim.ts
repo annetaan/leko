@@ -23,26 +23,97 @@ import {
 export type HaloMode = 'return' | 'follow'
 
 /**
- * The nearest ancestor that scrolls, or `null` when that is the document.
+ * What carries a layer of the scrim when the page moves.
  *
- * This matters more than it looks. The scrim has to live inside the thing that
- * scrolls, so that scrolling moves the scrim and the target together and no
- * position math runs per frame. A scrim mounted outside the scroller it points
- * into drifts off the target the moment the user scrolls.
+ * A layer lives inside whatever moves its target, so that a scroll moves the
+ * two together and nothing is recomputed: the scroller for a target inside
+ * one, the document for a target in the page's own flow, and the viewport for
+ * a target that `position: fixed` holds against it. A layer on that last
+ * surface is fixed itself, the size of the viewport, and nothing about it
+ * moves on scroll — which is the point, since nothing about its target does.
  */
-export function findScrollContainer(el: Element): HTMLElement | null {
-  const node = el.parentElement
-  if (!node || node === document.body || node === document.documentElement) return null
+export type Surface =
+  | { kind: 'viewport' }
+  | { kind: 'document' }
+  | { kind: 'scroller'; element: HTMLElement }
+
+export function sameSurface(a: Surface, b: Surface): boolean {
+  if (a.kind === 'scroller' && b.kind === 'scroller') return a.element === b.element
+  return a.kind === b.kind
+}
+
+/**
+ * Every surface between `el` and the viewport, innermost first.
+ *
+ * This matters more than it looks. A layer has to live inside the thing that
+ * moves its target, so that a scroll moves the two together and no position
+ * math runs per frame. A layer mounted outside the scroller it points into
+ * drifts off the target the moment the user scrolls — and so does a document
+ * layer under a fixed target, the other way round: the layer scrolls and the
+ * target stays.
+ *
+ * Fixed is asked first, because a fixed element is carried by none of its
+ * ancestors — not the scroller it is written inside, not the document. It is
+ * carried by the viewport alone, unless an ancestor has taken it back into
+ * the flow; see {@link heldBy}.
+ */
+export function surfaceChain(el: Element): Surface[] {
+  return getComputedStyle(el).position === 'fixed' ? heldBy(el) : carriedBy(el.parentElement)
+}
+
+/**
+ * The surfaces of a fixed element: the viewport, unless an ancestor holds it.
+ *
+ * An ancestor with a transform, a perspective, a filter, a `will-change` for
+ * one of those, `contain: layout` or `paint`, or `content-visibility` becomes
+ * the containing block of every fixed descendant, and the element then behaves
+ * as an absolutely positioned child of that ancestor: it rides the page with
+ * it, and rides its scroll if it scrolls. So what carries the ancestor is what
+ * carries the element, the ancestor's own scroll included.
+ *
+ * **The engine is asked rather than a list kept.** `offsetParent` on a fixed
+ * element is `null` while the viewport holds it and names the ancestor
+ * otherwise, in every engine — `spike/fixed-under-an-ancestor/` walks the
+ * properties that do it and watches all three and Safari agree. That is what the engines
+ * do rather than what the specification says, which is `null` for any fixed
+ * element; the page is what says it can be relied on. A list would have to be
+ * kept up with every property that grows this effect, and `content-visibility`
+ * was the last one to.
+ *
+ * An `<svg>` root can be fixed too and has no `offsetParent`, so it is drawn
+ * as the viewport's. A fixed SVG root under a transformed ancestor is a corner
+ * this does not turn.
+ */
+function heldBy(el: Element): Surface[] {
+  const block = el instanceof HTMLElement ? el.offsetParent : null
+  return block ? carriedBy(block) : [{ kind: 'viewport' }]
+}
+
+/**
+ * The surfaces of whatever `node` carries: `node`'s own scroll, where it has
+ * one, and then whatever carries `node`. Ends at the document, which is what
+ * the body and the root stand for here — neither is a scroller of its own, and
+ * a `parentElement` of `null` is a shadow root, whose host page is left to be
+ * the document too.
+ */
+function carriedBy(node: Element | null): Surface[] {
+  if (!node || node === document.body || node === document.documentElement) {
+    return [{ kind: 'document' }]
+  }
   const style = getComputedStyle(node)
   const scrolls = /auto|scroll|overlay/.test(style.overflowY + style.overflowX)
   const overflows = node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth
-  return scrolls && overflows ? node : findScrollContainer(node)
+  const own: Surface[] =
+    scrolls && overflows && node instanceof HTMLElement ? [{ kind: 'scroller', element: node }] : []
+  const rest = style.position === 'fixed' ? heldBy(node) : carriedBy(node.parentElement)
+  return [...own, ...rest]
 }
 
-/** An element's box in the coordinate space of the scrim covering `container`. */
-export function rectWithin(el: Element, container: HTMLElement | null): Rect {
+/** An element's box in the coordinate space of the layer on `surface`. */
+export function rectWithin(el: Element, surface: Surface): Rect {
   const r = el.getBoundingClientRect()
-  if (!container) {
+  if (surface.kind === 'viewport') return { x: r.left, y: r.top, width: r.width, height: r.height }
+  if (surface.kind === 'document') {
     return {
       x: r.left + window.scrollX,
       y: r.top + window.scrollY,
@@ -50,6 +121,7 @@ export function rectWithin(el: Element, container: HTMLElement | null): Rect {
       height: r.height,
     }
   }
+  const container = surface.element
   const c = container.getBoundingClientRect()
   return {
     x: r.left - c.left - container.clientLeft + container.scrollLeft,
@@ -60,12 +132,12 @@ export function rectWithin(el: Element, container: HTMLElement | null): Rect {
 }
 
 /**
- * The area a nested scroller's own scrim covers: its padding box, since that is
- * where an absolutely positioned child of it begins. An outer scrim cut to the
+ * The area a nested scroller's own layer covers: its padding box, since that is
+ * where an absolutely positioned child of it begins. An outer layer cut to the
  * border box instead would leave the scroller's border undimmed — a bright
  * hairline around the panel.
  */
-export function paddingBoxWithin(el: HTMLElement, container: HTMLElement | null): Rect {
+export function paddingBoxWithin(el: HTMLElement, surface: Surface): Rect {
   const style = getComputedStyle(el)
   const [top, right, bottom, left] = [
     style.borderTopWidth,
@@ -73,7 +145,7 @@ export function paddingBoxWithin(el: HTMLElement, container: HTMLElement | null)
     style.borderBottomWidth,
     style.borderLeftWidth,
   ].map((v) => parseFloat(v) || 0) as [number, number, number, number]
-  const r = rectWithin(el, container)
+  const r = rectWithin(el, surface)
   return {
     x: r.x + left,
     y: r.y + top,
@@ -121,7 +193,9 @@ export class Scrim {
    * the reason the scrim does: the container moves both, and no script runs.
    */
   private marker: HTMLElement | undefined
-  readonly container: HTMLElement | null
+  /** What carries this layer; see {@link Surface}. */
+  readonly surface: Surface
+  /** A scroller's own `position`, where this layer had to give it one; see the constructor. */
   private readonly restorePosition: string | null
   private cutouts: Cutout[] = []
   /**
@@ -193,13 +267,14 @@ export class Scrim {
    * one hole is the scroller the next layer lives in, which is plumbing rather
    * than anything the step is pointing at.
    */
-  constructor(container: HTMLElement | null, halo?: HaloMode) {
-    this.container = container
+  constructor(surface: Surface, halo?: HaloMode) {
+    this.surface = surface
     this.halo = halo
 
     // An absolutely positioned child only lands on the content origin if the
     // scroller establishes a containing block. Nudge it if it does not, and put
     // it back on destroy.
+    const container = surface.kind === 'scroller' ? surface.element : null
     if (container && getComputedStyle(container).position === 'static') {
       this.restorePosition = container.style.position
       container.style.position = 'relative'
@@ -207,11 +282,16 @@ export class Scrim {
       this.restorePosition = null
     }
 
+    // Everything of this layer's is positioned alike, and the surface says
+    // how: absolutely, to ride the scroller or the document it is inside, or
+    // fixed on the viewport's layer, so that nothing about it moves when the
+    // page scrolls under its target.
+    const position = this.positioning()
     const el = document.createElement('div')
     el.className = 'leko-scrim'
     el.setAttribute('aria-hidden', 'true')
     Object.assign(el.style, {
-      position: 'absolute',
+      position,
       left: '0',
       top: '0',
       background: 'var(--leko-scrim-color, rgb(0 0 0 / 0.66))',
@@ -226,7 +306,7 @@ export class Scrim {
     blocking.className = 'leko-blocking'
     blocking.setAttribute('aria-hidden', 'true')
     Object.assign(blocking.style, {
-      position: 'absolute',
+      position,
       left: '0',
       top: '0',
       // The same stacking level as the scrim, and after it in the tree, so a
@@ -242,7 +322,7 @@ export class Scrim {
       halos.className = 'leko-halos'
       halos.setAttribute('aria-hidden', 'true')
       Object.assign(halos.style, {
-        position: 'absolute',
+        position,
         left: '0',
         top: '0',
         // With the scrim and after the blocking in the tree, so the paint
@@ -253,8 +333,18 @@ export class Scrim {
       this.haloLayer = halos
     }
 
-    ;(container ?? document.body).append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
+    this.mount().append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
     this.resize()
+  }
+
+  /** Where this layer's elements go: inside the scroller, or on the body for the other two. */
+  private mount(): HTMLElement {
+    return this.surface.kind === 'scroller' ? this.surface.element : document.body
+  }
+
+  /** How everything of this layer's is positioned; see the constructor. */
+  private positioning(): 'fixed' | 'absolute' {
+    return this.surface.kind === 'viewport' ? 'fixed' : 'absolute'
   }
 
   /**
@@ -272,26 +362,35 @@ export class Scrim {
       mark.className = 'leko-anchor'
       mark.setAttribute('aria-hidden', 'true')
       Object.assign(mark.style, {
-        position: 'absolute',
+        position: this.positioning(),
         width: '0',
         height: '0',
         pointerEvents: 'none',
       })
       mark.style.setProperty('anchor-name', MESSAGE_ANCHOR)
       this.marker = mark
-      ;(this.container ?? document.body).append(mark)
+      this.mount().append(mark)
     }
     Object.assign(this.marker.style, { left: `${x}px`, top: `${y}px` })
   }
 
-  /** Cover the whole scrollable area, not just the visible part. */
+  /**
+   * Cover the whole scrollable area, not just the visible part — or, on the
+   * viewport's layer, the viewport itself, which is all there is to cover.
+   * That is the layout viewport, `clientWidth` on the root rather than
+   * `innerWidth`, which counts the scrollbar a fixed box stops short of.
+   */
   resize(): void {
-    const [w, h] = this.container
-      ? [this.container.scrollWidth, this.container.scrollHeight]
-      : [
-          Math.max(document.documentElement.scrollWidth, window.innerWidth),
-          Math.max(document.documentElement.scrollHeight, window.innerHeight),
-        ]
+    const root = document.documentElement
+    const [w, h] =
+      this.surface.kind === 'scroller'
+        ? [this.surface.element.scrollWidth, this.surface.element.scrollHeight]
+        : this.surface.kind === 'viewport'
+          ? [root.clientWidth, root.clientHeight]
+          : [
+              Math.max(root.scrollWidth, window.innerWidth),
+              Math.max(root.scrollHeight, window.innerHeight),
+            ]
     this.width = w
     this.height = h
     this.element.style.width = `${w}px`
@@ -430,19 +529,7 @@ export class Scrim {
    * the morph.
    */
   converge(to: Cutout[]): void {
-    const seen = this.container
-      ? {
-          x: this.container.scrollLeft,
-          y: this.container.scrollTop,
-          width: this.container.clientWidth,
-          height: this.container.clientHeight,
-        }
-      : {
-          x: window.scrollX,
-          y: window.scrollY,
-          width: window.innerWidth,
-          height: window.innerHeight,
-        }
+    const seen = this.seen()
     // Not interactive, so the page is blocked for the whole of the opening.
     // At least one, even when the first step cuts no holes at all — a step
     // that waits opens the same way, its one stretched cutout shrinking away,
@@ -453,6 +540,28 @@ export class Scrim {
     // so the layer holds nothing at all while the scrim converges.
     this.frames(0)
     this.converging = true
+  }
+
+  /** The visible box, in this layer's own coordinates; see {@link converge}. */
+  private seen(): Rect {
+    const { surface } = this
+    if (surface.kind === 'scroller') {
+      const { element } = surface
+      return {
+        x: element.scrollLeft,
+        y: element.scrollTop,
+        width: element.clientWidth,
+        height: element.clientHeight,
+      }
+    }
+    // The viewport's layer is the viewport, so what is seen is the whole of it.
+    if (surface.kind === 'viewport') return { x: 0, y: 0, width: this.width, height: this.height }
+    return {
+      x: window.scrollX,
+      y: window.scrollY,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }
   }
 
   /** The mask and the blocking, which every way of showing cutouts owes. */
@@ -709,8 +818,8 @@ export class Scrim {
     this.blocking.remove()
     this.haloLayer?.remove()
     this.marker?.remove()
-    if (this.container && this.restorePosition !== null) {
-      this.container.style.position = this.restorePosition
+    if (this.surface.kind === 'scroller' && this.restorePosition !== null) {
+      this.surface.element.style.position = this.restorePosition
     }
   }
 }

@@ -199,7 +199,7 @@ This is the trace worth walking with the files open. The application calls
 | 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `show`, then `reveal` | Drops whatever retry was running, then walks the scrolling ancestors, builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
+| 7 | `presenter.ts` `show`, then `reveal` | Drops whatever retry was running, then works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |

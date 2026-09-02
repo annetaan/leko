@@ -563,6 +563,38 @@ and writes the layers, **at step boundaries, never per frame**.
   innermost carries the step's cutouts. Each outer one is cut to the **padding
   box** of the scroller nested inside it — cut to the border box, the
   scroller's own border stays lit as a hairline.
+- **A `position: fixed` target is carried by the viewport, so its layer is
+  too.** A fixed element takes no part in the ride: the document's scrim
+  scrolls and it stays, so a hole cut in that scrim is carried off by the
+  first scroll while the element stands where it was. Such a target gets a
+  stack of one layer, itself `position: fixed` and the size of the layout
+  viewport, with its cutouts, blocking rectangles, halo and anchor marker all
+  in viewport coordinates. Nothing about it moves on scroll, which is the
+  point, so scroll tracking still runs no JS; a resize redraws it as it does
+  every layer. There is no document layer under it, because it covers the
+  viewport whole (`fixed-chrome.ts`).
+- **Whether the viewport still holds a fixed element is the engine's to say,
+  not a list's.** An ancestor with a transform, a perspective, a filter, a
+  `will-change` for one of those, `contain: layout` or `paint`,
+  `content-visibility` or an `offset-path` becomes the element's containing
+  block, and it is then an absolutely positioned child of that ancestor: it
+  rides the page with it, and rides the ancestor's own scroll if it scrolls.
+  `offsetParent` on a fixed element is `null` while the viewport holds it and
+  names that ancestor otherwise, in all three engines and in Safari, against
+  the letter of CSSOM View, which says `null` for any fixed element
+  ([`spike/fixed-under-an-ancestor/`](spike/fixed-under-an-ancestor/)). Leko
+  asks that rather than keeping the list. The page is what makes the answer
+  safe to rely on, and where to look first if an engine moves.
+- **Every region of a step shares the first region's layers.** A later region
+  in another scroller, or fixed where the first is in the flow, is cut where it
+  stood and drifts when the two move apart. That is drawn rather than refused:
+  an application's chrome is fixed where the application put it, and a step
+  that shows a toolbar beside the panel it opens is a step worth writing.
+- **A sticky target is not a fixed one, and is not handled.** It rides the
+  scroll until it pins, and from then on is held the way a fixed element is,
+  until its containing block ends. A hole cut where it stood is right until
+  the pin and wrong after it. Two states with a layer for each is the shape
+  that fits here, and it is not built.
 - **Every layer paints and catches nothing. Plain rectangles in the gaps
   between the open cutouts do the blocking.** A mask has no effect on
   hit-testing at all, so a masked scrim asking to be hit is a solid sheet over

@@ -15,4 +15,12 @@ export { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } fr
 export { Close } from './close.js'
 export { FocusRing } from './focus.js'
 export { Message, type MessageContent, type Side } from './message.js'
-export { findScrollContainer, type HaloMode, paddingBoxWithin, rectWithin, Scrim } from './scrim.js'
+export {
+  type HaloMode,
+  paddingBoxWithin,
+  rectWithin,
+  sameSurface,
+  Scrim,
+  type Surface,
+  surfaceChain,
+} from './scrim.js'
