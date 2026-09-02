@@ -7,6 +7,7 @@ import { haloFollows } from './halo-follows.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
 import { lookThenUse } from './look-then-use.js'
+import { messageSides } from './message-sides.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
@@ -38,6 +39,7 @@ export const cases: Case[] = [
   linkedRegions,
   nestedScroller,
   scrollableTarget,
+  messageSides,
   targetDisappears,
   insideShadowDom,
   svgTarget,

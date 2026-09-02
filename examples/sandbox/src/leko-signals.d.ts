@@ -9,6 +9,7 @@ declare module '@annetaan/leko' {
     'changes-saved': true
     'diagram-node-chosen': true
     'draft-loaded': true
+    'export-finished': true
     'lines-checked': true
     'order-placed': true
     'order-sent': true

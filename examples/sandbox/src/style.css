@@ -543,3 +543,88 @@ button:disabled {
 .panel .grid {
   margin-bottom: 16px;
 }
+
+/*
+ * Editor chrome for the message-sides case, pinned to the viewport so the
+ * sides it demonstrates are the viewport's own edges. `top` and `bottom` are
+ * small on purpose: the side above and below a rail has to have less room
+ * than the message needs, or the box would take one of those sides instead of
+ * moving beside the rail. The lower end slides under the footer console,
+ * which is tour chrome and stays above everything the page puts up.
+ */
+.chrome {
+  position: fixed;
+  top: 12px;
+  bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* Clear of the sandbox's own rail, which is the 260px column in .shell. */
+.chrome-left {
+  left: calc(260px + 24px);
+  width: 56px;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.chrome-right {
+  right: 24px;
+  width: 200px;
+  padding: 14px;
+  font-size: 13px;
+}
+
+.chrome-right h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.chrome-field {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chrome-field output {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* The flow of the same case, indented past the rails on both sides. */
+.between-rails {
+  margin-inline: 76px 212px;
+}
+
+.between-rails .filler {
+  max-width: 680px;
+  color: var(--muted);
+}
+
+/* Whatever the screen's height, the card after this block starts under the
+   fold, which is what sends its message to the top side when the step draws. */
+.scroll-room {
+  min-height: 100vh;
+}
+
+.milestone {
+  max-width: 680px;
+  margin: 20px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.milestone h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
