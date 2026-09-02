@@ -326,6 +326,54 @@ test('a fixed element an ancestor has taken back into the flow rides the page', 
   window.scrollTo(0, 0)
 })
 
+test('a resize that pins the target puts the layers back under it', () => {
+  // A breakpoint that pins a header is the tour standing still while the
+  // surface under it changes: the target leaves the document for the viewport
+  // without the machine hearing anything. A document layer left under it rides
+  // the page, so the hole would be carried off by the next scroll while the
+  // header stayed — and the blocking rectangles left over the hole would cover
+  // the element the step opened.
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const target = box('header', {
+    position: 'absolute',
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+  })
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  expect(getComputedStyle(scrim()!).position).toBe('absolute')
+
+  target.style.position = 'fixed'
+  window.dispatchEvent(new Event('resize'))
+
+  expect(getComputedStyle(scrim()!).position).toBe('fixed')
+  window.scrollTo(0, 400)
+  expect(centre(target)).toBe(target)
+  window.scrollTo(0, 0)
+})
+
+test('a resize while a retry waits leaves the standing hole alone', () => {
+  // The step is drawn, its target is gone for a moment, and the page resizes
+  // inside that window. There is nothing to restack against: rebuilding the
+  // layers from the document would take the hole and the blocking rectangles
+  // with them and cut nothing in their place, so the page would be dimmed with
+  // nothing held back at all.
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })
+  start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+
+  target.remove()
+  window.dispatchEvent(new Event('resize'))
+
+  expect(holes()).toBe(1)
+  expect(absorbed(far)).toBe(true)
+})
+
 test('shaking moves the cutouts, not the scrim', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   start([

@@ -333,6 +333,44 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
+   * The stack that carries `chain`, made afresh where the one standing is for
+   * other surfaces, and answered innermost first.
+   *
+   * A layer rides what its target rides, so a target that has moved from one
+   * surface to another has to be given the layers of the new one. That happens
+   * when the tour moves to a step in a different set of scrollers, and it
+   * happens without the tour moving at all: a breakpoint that pins a header
+   * takes it off the document and gives it to the viewport, and a document
+   * layer left under it carries the hole away on the next scroll while the
+   * header stays. Rebuilding is not a morph, so it happens outright rather
+   * than half-way.
+   *
+   * Nothing here touches the target watcher. Which node a step is watching is
+   * a fact about the step rather than about the surfaces under it, and a
+   * redraw that leaves the step where it was leaves that alone.
+   */
+  private restack(chain: Surface[]): Scrim | undefined {
+    const same =
+      this.layers.length === chain.length &&
+      this.layers.every((l, i) => {
+        const surface = chain[i]
+        return surface !== undefined && sameSurface(l.surface, surface)
+      })
+    if (!same) this.destroyLayers()
+
+    if (this.layers.length === 0) {
+      // Only the innermost is haloed: it is the one carrying the step's
+      // cutouts, and an outer layer's hole is the scroller the next layer
+      // lives in rather than anything the step points at.
+      this.layers = chain.map(
+        (surface, i) => new Scrim(surface, i === 0 ? (this.options.halo ?? 'return') : undefined),
+      )
+      this.watchViewport()
+    }
+    return this.layers[0]
+  }
+
+  /**
    * Each outer layer is cut to the scroller nested inside it. Every surface
    * with a layer outside it is a scroller: the document and the viewport are
    * each the last of a chain.
@@ -380,27 +418,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
     const chain = surfaceChain(anchor ?? document.body)
-    // A step on a different set of surfaces needs a different stack of scrims.
-    // Rebuilding is not a morph, so it happens outright rather than half-way.
-    const sameStack =
-      this.layers.length === chain.length &&
-      this.layers.every((l, i) => {
-        const surface = chain[i]
-        return surface !== undefined && sameSurface(l.surface, surface)
-      })
-    if (!sameStack) this.destroyLayers()
-
-    if (this.layers.length === 0) {
-      // Only the innermost is haloed: it is the one carrying the step's
-      // cutouts, and an outer layer's hole is the scroller the next layer
-      // lives in rather than anything the step points at.
-      this.layers = chain.map(
-        (surface, i) => new Scrim(surface, i === 0 ? (this.options.halo ?? 'return') : undefined),
-      )
-      this.watchViewport()
-    }
-
-    const inner = this.layers[0]
+    const inner = this.restack(chain)
     if (!inner) return this.retry(step, animate)
 
     const resolved = this.cutouts(step, (el) => rectWithin(el, inner.surface))
@@ -463,10 +481,23 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private replace(): void {
     const held = this.drawn
-    const inner = this.layers[0]
-    if (!held || !inner) return
+    if (!held) return
+    // A step whose target is not on the page this instant is one a retry is
+    // waiting out, and there is no surface to put layers under. Restacking
+    // against the document instead would destroy the layers the standing hole
+    // and its blocking rectangles live in, and the resolve below would then
+    // abort before cutting a fresh hole, leaving the page dimmed with nothing
+    // held back. Nothing is drawn for a retry, here as anywhere else.
+    const anchor = this.resolve(held.step)
+    if (!anchor && DomPresenter.pointsAt(held.step)) return
+    // The chain is read again rather than assumed: a resize can move the target
+    // from one surface to another, and {@link restack} is what puts the layers
+    // back under it when it has.
+    const chain = surfaceChain(anchor ?? document.body)
+    const inner = this.restack(chain)
+    if (!inner) return
     for (const layer of this.layers) layer.resize()
-    this.cutOuterLayers(surfaceChain(this.resolve(held.step) ?? document.body))
+    this.cutOuterLayers(chain)
     const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.surface))
     if (!resolved) return
     inner.set(resolved)
@@ -604,10 +635,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
     window.addEventListener('resize', this.onViewportChange)
   }
 
-  /** The scrims and what watches them. The message outlives this. */
+  /**
+   * The scrims and the resize listener that redraws them. The message outlives
+   * this, and so does the target watcher: a stack rebuilt under a step that has
+   * not moved is still watching the same node.
+   */
   private destroyLayers(): void {
-    this.watcher?.disconnect()
-    this.watcher = undefined
     if (this.onViewportChange) {
       window.removeEventListener('resize', this.onViewportChange)
       this.onViewportChange = undefined
@@ -622,6 +655,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // nothing is left to take it away again.
     this.endRetry()
     this.drawn = undefined
+    // Whatever is still watching the target goes with the step it was watching
+    // for. `endRetry` takes the observer with it only where a retry was running.
+    this.watcher?.disconnect()
+    this.watcher = undefined
     this.destroyLayers()
     this.message?.destroy()
     this.message = undefined
