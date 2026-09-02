@@ -665,6 +665,39 @@ button:disabled {
   transform: translateZ(0);
 }
 
+/*
+ * The strip the document scrollbar's gutter sits in, for `fixed-chrome.ts`. A
+ * click here is the one thing that page counts: it is chrome no step opens, so
+ * a layer that stops short of the gutter shows up as a click that lands.
+ */
+.edge-probe {
+  position: fixed;
+  top: 40%;
+  right: 0;
+  width: 22px;
+  height: 140px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.edge-probe span {
+  display: block;
+  writing-mode: vertical-rl;
+}
+
+.edge-probe.reached {
+  border-color: var(--flag);
+  background: var(--flag-bg);
+  color: var(--flag);
+}
+
 /* Fixed in the stylesheet, pinned to the card by the transform above. */
 .badge {
   position: fixed;

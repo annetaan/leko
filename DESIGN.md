@@ -567,12 +567,36 @@ and writes the layers, **at step boundaries, never per frame**.
   too.** A fixed element takes no part in the ride: the document's scrim
   scrolls and it stays, so a hole cut in that scrim is carried off by the
   first scroll while the element stands where it was. Such a target gets a
-  stack of one layer, itself `position: fixed` and the size of the layout
-  viewport, with its cutouts, blocking rectangles, halo and anchor marker all
-  in viewport coordinates. Nothing about it moves on scroll, which is the
+  stack of one layer, itself `position: fixed` and the size of `innerWidth` by
+  `innerHeight`, with its cutouts, blocking rectangles, halo and anchor
+  marker all in viewport coordinates. Nothing about it moves on scroll, which is the
   point, so scroll tracking still runs no JS; a resize redraws it as it does
   every layer. There is no document layer under it, because it covers the
   viewport whole (`fixed-chrome.ts`).
+- **That layer is sized past the layout viewport on purpose, gutter
+  included.** The layout viewport — `clientWidth` on the root, the scrollbar
+  excluded — is the box a fixed element is laid out against, and the wrong
+  number to size a layer by, because it is only correct at the instant it is
+  read. A page that shortens under a tour loses its document scrollbar,
+  `clientWidth` grows by the gutter's width, and no `resize` event fires to say
+  so, which leaves a layer measured before it about 15px too narrow: a strip of
+  the application the step did not open, neither painted nor blocked, for the
+  rest of the step. The inner pair does not move when the scrollbar does, so it
+  cannot be caught out that way, and covering the gutter costs nothing — a
+  fixed box past the layout viewport adds no scrollable overflow in any engine,
+  so the scrim cannot grow a scrollbar out of the page it is dimming, and both
+  Chromium and Safari go on painting the scrollbar over a box that covers its
+  gutter, so covering it shows nothing
+  ([`spike/the-scrollbar-gutter/`](spike/the-scrollbar-gutter/) — where Firefox
+  alone is still to be looked at by eye, which is the page's own remaining open
+  question. It also measures the alternative: a `resize` event is blind to the
+  gutter and a `ResizeObserver` on `documentElement` catches every one, which
+  is the shape to reach for if a layer ever has to notice rather than not
+  care). A page that grows a scrollbar mid-step has the layer a gutter too
+  wide instead, and a fixed box is clipped to the viewport, so nothing shows. A
+  host that would rather the gutter never moved at all can say
+  `scrollbar-gutter: stable`, and that is worth doing under a tour for the
+  application's own sake.
 - **Whether the viewport still holds a fixed element is the engine's to say,
   not a list's.** An ancestor with a transform, a perspective, a filter, a
   `will-change` for one of those, `contain: layout` or `paint`,

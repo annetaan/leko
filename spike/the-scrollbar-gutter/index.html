@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Can a fixed scrim cover the document scrollbar's gutter?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 24px;
+    font: 14px/1.6 system-ui, sans-serif;
+    /* No `min-height` here on purpose. Panel 3 makes the page tall and short by
+       hand, and a floor on the body would take the scrollbar out of its
+       control. */
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  /* The thing under test: a fixed box wider than the layout viewport. */
+  .probe { position: fixed; left: 0; top: 0; background: rgba(198, 40, 40, 0.28); pointer-events: none; }
+  /* The gutter alone, in solid red, for the paint question. Nothing else is
+     drawn in that column, so whatever is on top there is the answer. */
+  .gutter { position: fixed; top: 0; height: 100%; background: #c62828; pointer-events: none; }
+
+  .filler { background: linear-gradient(#8882, #8880); border-radius: 8px; }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .good { color: #0a7d32; font-weight: 700; }
+  .bad { color: #c62828; font-weight: 700; }
+  .none { color: #888; font-weight: 400; }
+  @media (prefers-color-scheme: dark) { .good { color: #6ee79b; } .bad { color: #ff8a80; } }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+  .banner {
+    padding: 8px 12px; border-radius: 6px; background: #8881; max-width: 76ch;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Can a fixed scrim cover the document scrollbar's gutter?</h1>
+<p>
+  A <code>position: fixed</code> element stops at the layout viewport, which is
+  <code>documentElement.clientWidth</code> — the scrollbar excluded. Sizing a
+  scrim to that is right at the moment it is measured and wrong as soon as the
+  scrollbar comes or goes, and a scrim that is then too narrow leaves a strip of
+  the page uncovered and unblocked. <code>window.innerWidth</code> covers the
+  gutter and does not move when the scrollbar does, and this page measures what
+  that costs.
+</p>
+<p>
+  Three questions. Whether a fixed box wider than the layout viewport adds
+  scrollable overflow, which would put a scrollbar on every page a tour runs on.
+  Whether the document scrollbar still paints over such a box, which decides
+  whether covering the gutter is invisible or a visible regression. And what
+  notices the scrollbar coming and going, since a <code>resize</code> event does
+  not.
+</p>
+<p class="banner" id="platform"></p>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<h2>1. Does a fixed box wider than the layout viewport grow the page?</h2>
+<p>
+  A fixed-position box is meant to be left out of the document's scrollable
+  overflow region, so a scrim wider than <code>clientWidth</code> should not
+  grow a scrollbar out of the page it is dimming. Deliberately asked with
+  several widths rather than only <code>innerWidth</code>: on a platform with
+  overlay scrollbars <code>innerWidth</code> <em>is</em> <code>clientWidth</code>
+  and a pass would prove nothing, while a box 40px or 400px over is the same
+  question with the platform taken out of it. The height is over by the same
+  amount, because the layer is sized on both axes.
+</p>
+<table id="overflow"></table>
+
+<h2>2. Does the scrollbar still paint over it?</h2>
+<p>
+  After the measurement the gutter column is left filled in solid red — from
+  <code>documentElement.clientWidth</code> to <code>window.innerWidth</code>,
+  which is exactly the strip a fixed box at <code>clientWidth</code> leaves out.
+  If the scrollbar is drawn on top of the red, a scrim covering the gutter is
+  invisible. If the red is drawn on top of the scrollbar, a scrim covering the
+  gutter dims the scrollbar, and that is a regression rather than a fix.
+  <strong>This one is a call by eye, on a classic-scrollbar platform</strong>:
+  nothing in the DOM reports what painted last, a screenshot taken over the
+  DevTools protocol does not reliably carry the scrollbar, and where the
+  scrollbars are overlay there is no gutter and nothing is drawn at all. The
+  banner above says which kind this browser has.
+</p>
+<table id="paint"></table>
+
+<h2>3. What notices the scrollbar coming and going?</h2>
+<p>
+  The page is made tall, then short, then tall again, and each transition is
+  watched. A <code>resize</code> event fires when the window is resized, which
+  this is not. A <code>ResizeObserver</code> on <code>documentElement</code>
+  fires when its content box changes, which a page growing or shrinking does —
+  and on a classic-scrollbar platform the scrollbar leaving is part of that same
+  change. The <code>clientWidth</code> column is the gutter appearing and
+  disappearing, and is the bug this is all about; where it does not move, the
+  <code>resize</code> and observer counts still stand, because they are counted
+  against a change to the root's box either way.
+</p>
+<div class="filler" id="filler"></div>
+<table id="notice"></table>
+
+<script>
+const root = document.documentElement
+const filler = document.getElementById('filler')
+
+const probe = document.createElement('div')
+probe.className = 'probe'
+const gutter = document.createElement('div')
+gutter.className = 'gutter'
+
+const TALL = 3000
+
+/**
+ * Make the document taller than the viewport, or shorter than it. Shorter than
+ * it is what takes the scrollbar away, and a short filler cannot do that on its
+ * own: this page's own prose is taller than a window. So the short state clips
+ * the body as well, which is a page shortening under a tour — a filter emptying
+ * a list, a panel collapsing — in one line rather than in a fixture.
+ */
+function height(state) {
+  filler.style.height = state === 'tall' ? `${TALL}px` : '10px'
+  document.body.style.maxHeight = state === 'tall' ? '' : '200px'
+  document.body.style.overflow = state === 'tall' ? '' : 'hidden'
+}
+
+async function settle() {
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+}
+
+const shape = () => ({
+  innerWidth: window.innerWidth,
+  innerHeight: window.innerHeight,
+  clientWidth: root.clientWidth,
+  clientHeight: root.clientHeight,
+  scrollWidth: root.scrollWidth,
+  scrollHeight: root.scrollHeight,
+  // What the page can actually be scrolled by, which is the question a
+  // `scrollWidth` on its own does not answer.
+  scrollableX: root.scrollWidth > root.clientWidth,
+})
+
+// One at a time. The page measures itself on load and again on the button, and
+// `run.mjs` asks as well; two of these interleaved would read each other's
+// filler height and report the page growing when it was only made tall.
+let running = Promise.resolve()
+function measure() {
+  running = running.then(read)
+  return running
+}
+
+async function read() {
+  probe.remove()
+  gutter.remove()
+  height('tall')
+  window.scrollTo(0, 0)
+  await settle()
+
+  const before = shape()
+  // The platform's answer to classic or overlay scrollbars. Zero means overlay:
+  // no gutter, so question 2 has nothing to show and the `clientWidth` half of
+  // question 3 has nothing to move.
+  const gutterWidth = before.innerWidth - before.clientWidth
+
+  // Question 1. Each width is measured against the same page with no box on it,
+  // and the box is sized from a viewport read with it off the page — which is
+  // what a scrim does: it reads the viewport and then covers it.
+  const widths = [
+    ['clientWidth (what is drawn today)', before.clientWidth, before.clientHeight],
+    ['innerWidth (the gutter covered)', before.innerWidth, before.innerHeight],
+    ['clientWidth + 40', before.clientWidth + 40, before.clientHeight + 40],
+    ['clientWidth + 400', before.clientWidth + 400, before.clientHeight + 400],
+  ]
+  document.body.append(probe)
+  const overflow = []
+  for (const [label, w, h] of widths) {
+    probe.style.width = `${w}px`
+    probe.style.height = `${h}px`
+    await settle()
+    const after = shape()
+    overflow.push({
+      label,
+      width: w,
+      height: h,
+      scrollWidth: after.scrollWidth,
+      scrollHeight: after.scrollHeight,
+      grewWidth: after.scrollWidth - before.scrollWidth,
+      grewHeight: after.scrollHeight - before.scrollHeight,
+      // A page that could not be scrolled sideways before and can be now has
+      // been grown by the box, which is the failure this question is about.
+      grewX: after.scrollableX && !before.scrollableX,
+      // Where the box actually reaches. Past `clientWidth` is outside the
+      // layout viewport, so an engine clipping a fixed box to it would show up
+      // here rather than in the paint.
+      reach: Math.round(probe.getBoundingClientRect().right),
+    })
+  }
+  probe.remove()
+
+  // Question 2. The gutter column alone, left where a person can see it.
+  gutter.style.left = `${before.clientWidth}px`
+  gutter.style.width = `${Math.max(gutterWidth, 0)}px`
+  if (gutterWidth > 0) document.body.append(gutter)
+
+  // Question 3. Three transitions, each watched by both mechanisms.
+  const notice = []
+  let resizes = 0
+  let observed = 0
+  const onResize = () => { resizes += 1 }
+  window.addEventListener('resize', onResize)
+  const ro = new ResizeObserver(() => { observed += 1 })
+  ro.observe(root)
+  // The observer's first callback is the element as it already is, not a change
+  // to it. Waited out here so the counts below are transitions only.
+  await settle()
+
+  for (const [label, state] of [
+    ['tall → short', 'short'],
+    ['short → tall', 'tall'],
+    ['tall → short again', 'short'],
+  ]) {
+    const was = root.clientWidth
+    resizes = 0
+    observed = 0
+    height(state)
+    await settle()
+    notice.push({
+      label,
+      clientWidthBefore: was,
+      clientWidthAfter: root.clientWidth,
+      gutterMoved: was !== root.clientWidth,
+      resizes,
+      observed,
+    })
+  }
+  ro.disconnect()
+  window.removeEventListener('resize', onResize)
+
+  height('tall')
+  await settle()
+  // The marker was placed against a tall page and the page is tall again, so it
+  // is still in the gutter's column.
+  const result = { gutterWidth, viewport: before, overflow, notice }
+  render(result)
+  return result
+}
+
+function render({ gutterWidth, viewport, overflow, notice }) {
+  const classic = gutterWidth > 0
+  document.getElementById('platform').innerHTML = classic
+    ? `<strong>Classic scrollbars</strong> — the gutter is ${gutterWidth}px wide, so every question ` +
+      `on this page has something to say. <code>innerWidth</code> ${viewport.innerWidth}, ` +
+      `<code>clientWidth</code> ${viewport.clientWidth}.`
+    : `<strong>Overlay scrollbars</strong> — <code>innerWidth</code> and <code>clientWidth</code> are ` +
+      `both ${viewport.innerWidth}, so there is no gutter here. Question 1 is still answered, because it ` +
+      `asks about widths past the layout viewport rather than about the scrollbar. Questions 2 and the ` +
+      `<code>clientWidth</code> half of 3 need a platform that reserves space for its scrollbars.`
+
+  const cell = (ok, good, bad) => `<td class="${ok ? 'good' : 'bad'}">${ok ? good : bad}</td>`
+  document.getElementById('overflow').innerHTML =
+    '<tr><th>box</th><th>size</th><th>scrollWidth</th><th>scrollHeight</th><th>reaches x</th><th>verdict</th></tr>' +
+    overflow
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.width}×${r.height}</td>` +
+          `<td>${r.scrollWidth}${r.grewWidth ? ` (+${r.grewWidth})` : ''}</td>` +
+          `<td>${r.scrollHeight}${r.grewHeight ? ` (+${r.grewHeight})` : ''}</td>` +
+          `<td>${r.reach}${r.reach < r.width ? ' <span class="none">clipped</span>' : ''}</td>` +
+          cell(
+            r.grewWidth === 0 && r.grewHeight === 0 && !r.grewX,
+            'no overflow added',
+            r.grewX ? 'GREW A SCROLLBAR' : `grew the page by ${r.grewWidth}×${r.grewHeight}`,
+          ) +
+          '</tr>',
+      )
+      .join('')
+
+  document.getElementById('paint').innerHTML =
+    '<tr><th>what</th><th>value</th><th>verdict</th></tr>' +
+    `<tr><td>innerWidth − clientWidth</td><td>${gutterWidth}px</td>` +
+    `<td>${classic ? 'classic — there is a gutter to argue about' : 'overlay — nothing to see'}</td></tr>` +
+    `<tr><td>who paints last</td><td>${classic ? 'the red column at the right edge' : 'nothing drawn'}</td>` +
+    `<td>${classic ? 'by eye' : '<span class="none">not answerable here</span>'}</td></tr>`
+
+  document.getElementById('notice').innerHTML =
+    '<tr><th>transition</th><th>clientWidth</th><th>resize events</th><th>ResizeObserver</th></tr>' +
+    notice
+      .map(
+        (n) =>
+          `<tr><td>${n.label}</td>` +
+          `<td>${n.clientWidthBefore} → ${n.clientWidthAfter}` +
+          `${n.gutterMoved ? ' <strong>gutter moved</strong>' : ' <span class="none">(no gutter to move)</span>'}</td>` +
+          `<td>${n.resizes}${n.resizes === 0 ? ' <span class="none">— blind to it</span>' : ''}</td>` +
+          cell(n.observed > 0, `${n.observed} — caught the change`, `${n.observed} — MISSED it`) +
+          '</tr>',
+      )
+      .join('')
+}
+
+document.getElementById('env').textContent = navigator.userAgent
+document.getElementById('measure').addEventListener('click', () => void measure())
+window.spikeGutter = { measure }
+void measure()
+</script>
+</body>
+</html>

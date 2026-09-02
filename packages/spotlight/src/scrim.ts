@@ -377,8 +377,24 @@ export class Scrim {
   /**
    * Cover the whole scrollable area, not just the visible part — or, on the
    * viewport's layer, the viewport itself, which is all there is to cover.
-   * That is the layout viewport, `clientWidth` on the root rather than
-   * `innerWidth`, which counts the scrollbar a fixed box stops short of.
+   *
+   * That is `innerWidth` and `innerHeight`, the scrollbar's gutter included,
+   * and not the layout viewport a fixed box is laid out against. The layout
+   * viewport is the tighter, more obviously correct number and it is only
+   * correct at the instant it is read: a page that shortens under a tour loses
+   * its scrollbar, `clientWidth` grows by the gutter's width, and a layer
+   * measured before that is left too narrow — a strip of the application the
+   * step did not open, neither painted nor blocked, for the rest of the step. A
+   * `resize` event does not fire for it, so nothing here would hear about it.
+   * The inner pair does not move when the scrollbar does, so it cannot be
+   * caught out that way, and `spike/the-scrollbar-gutter/` measures what it
+   * costs: a fixed box past the layout viewport adds no scrollable overflow in
+   * any engine, so a scrim covering the gutter cannot grow a scrollbar out of
+   * the page it is dimming, and the scrollbar goes on painting over a box that
+   * covers its gutter, so covering it shows nothing. Going the other way is
+   * harmless: a page that
+   * grows a scrollbar mid-step leaves the layer a gutter too wide, and a fixed
+   * box is clipped to the viewport, so nothing shows.
    */
   resize(): void {
     const root = document.documentElement
@@ -386,7 +402,7 @@ export class Scrim {
       this.surface.kind === 'scroller'
         ? [this.surface.element.scrollWidth, this.surface.element.scrollHeight]
         : this.surface.kind === 'viewport'
-          ? [root.clientWidth, root.clientHeight]
+          ? [window.innerWidth, window.innerHeight]
           : [
               Math.max(root.scrollWidth, window.innerWidth),
               Math.max(root.scrollHeight, window.innerHeight),

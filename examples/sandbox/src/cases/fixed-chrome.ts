@@ -3,23 +3,36 @@ import { type Case, html } from '../case.js'
 // Chrome an application pins to the viewport: a bar that stays while the page
 // scrolls under it. A hole cut in the document's scrim would be carried off by
 // the first scroll while the bar stayed put, so a fixed target gets a layer
-// that is fixed too. The second target is the trap the other way round: a
+// that is fixed too. The badge is the trap the other way round: a
 // stylesheet says `position: fixed` and a transform on an ancestor has quietly
 // taken that back, so the badge scrolls with the page after all. Which of the
 // two an element is, the engine is asked — never the stylesheet.
+//
+// The last step is about the layer's edge rather than its holes. Locking the
+// page's scroll is what an application does when it opens a modal, and on a
+// platform with classic scrollbars it takes the document scrollbar away: the
+// layout viewport widens by the gutter, and no `resize` event fires to say so.
+// A layer sized to the layout viewport would be that much too narrow from then
+// on, and the strip at the right edge is there to be clicked at — it is
+// application chrome the step did not open, so a click must never reach it,
+// before the lock or after it.
 export const fixedChrome: Case = {
   id: 'fixed-chrome',
   title: 'Chrome that does not scroll',
   proves:
     'A fixed target gets a scrim that is fixed too, so its hole stays under it ' +
     'while the page scrolls — and a "fixed" element an ancestor took back into ' +
-    'the flow rides the page, hole and all, because the engine is asked which it is.',
+    'the flow rides the page, hole and all, because the engine is asked which ' +
+    'it is. The page losing its scrollbar mid-step leaves the layer still ' +
+    'covering the gutter it was in, with nothing to tell the layer that ' +
+    'happened.',
 
   mount(root) {
     const bar = html(`
       <div class="topbar" data-topbar>
         <button type="button" data-share>Share</button>
         <button type="button">Publish</button>
+        <button type="button" data-lock>Lock page scroll</button>
       </div>
     `)
     const page = html(`
@@ -29,6 +42,9 @@ export const fixedChrome: Case = {
           <p class="hint">
             The actions at the top right are <code>position: fixed</code>.
             Start the tour and scroll: they stay, and so must the hole.
+          </p>
+          <p class="hint" data-probe-log>
+            Nothing has reached the strip down the right-hand edge.
           </p>
         </div>
         <div class="panel lifted" data-card>
@@ -62,10 +78,35 @@ export const fixedChrome: Case = {
         <div class="scroll-room"></div>
       </div>
     `)
-    root.append(bar, page)
+    // The strip the scrollbar's gutter is behind, and the one place on this page
+    // a click is counted. Fixed at the right edge so it is under the fixed
+    // layer, and never a target, so nothing ever opens it.
+    const probe = html(`
+      <button type="button" class="edge-probe" data-edge-probe>
+        <span>click me</span>
+      </button>
+    `)
+    const log = page.querySelector('[data-probe-log]')!
+    probe.addEventListener('click', () => {
+      probe.classList.add('reached')
+      log.textContent = 'A click reached the strip at the right edge — the layer left a gap there.'
+    })
+    // A scroll lock, the way an application does one for a modal — and what
+    // takes the document scrollbar away. Application behaviour, and it says
+    // nothing about a tour: the step that opens this button is the story's
+    // business, not the button's.
+    const lock = bar.querySelector('[data-lock]')!
+    lock.addEventListener('click', () => {
+      const locked = document.documentElement.style.overflow === 'hidden'
+      document.documentElement.style.overflow = locked ? '' : 'hidden'
+      lock.textContent = locked ? 'Lock page scroll' : 'Unlock page scroll'
+    })
+    root.append(bar, page, probe)
     return () => {
+      document.documentElement.style.overflow = ''
       bar.remove()
       page.remove()
+      probe.remove()
     }
   },
 
@@ -89,6 +130,20 @@ export const fixedChrome: Case = {
             'card took that away — it rides the page now. Scroll: the hole ' +
             'rides with it. The engine is asked which of the two an element ' +
             'is, not the stylesheet.',
+        },
+        {
+          id: 'gutter',
+          // Open, because the point of the step is what happens when it is
+          // pressed. The strip at the right edge is not, and that is the
+          // difference the step is about.
+          target: { elements: '[data-lock]', interactive: true },
+          message:
+            'Press this. The page stops scrolling, the way it would under a ' +
+            'modal, and where the scrollbars are the kind that take space its ' +
+            'scrollbar goes with it — no resize event fires for that. Try ' +
+            'clicking the strip at the right edge, where the scrollbar was: ' +
+            'the layer is sized past the layout viewport, so it still covers ' +
+            'the gutter and the click lands on nothing.',
         },
       ],
     },
