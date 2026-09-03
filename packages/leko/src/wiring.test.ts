@@ -7,7 +7,6 @@ import {
   centre,
   closer,
   control,
-  droppedGlide,
   frame,
   holding,
   holes,
@@ -765,9 +764,8 @@ test('a target that is not there yet leaves the page alone until it is', async (
 //
 // Here rather than in `leko.test.ts` because none of it is about layout: what
 // is being pinned down is which step's record each of them reads, and no engine
-// has an opinion about that. The glide is the browser's own smooth scroll, left
-// real wherever "mid-glide" is all a test needs — a look taken on a timer a few
-// tens of milliseconds in is inside the shortest glide any engine runs.
+// has an opinion about that. The glide is `duration` long, so "mid-glide" is a
+// look taken on a timer somewhere inside that.
 
 /**
  * Two targets far apart on a tall page, so a step that scrolls to the second
@@ -811,10 +809,11 @@ const saying = (): boolean => {
 }
 
 test('a target lost while the page glides does not disarm the step arriving', async () => {
-  // The one of these that needs a glide of known length. What it is about is
-  // two of Leko's own timers overlapping, and the window is only as wide as the
-  // arithmetic below.
-  droppedGlide()
+  // The one of these that needs the glide to land at a moment it knows. What it
+  // is about is two of Leko's own clocks overlapping, and the window is only as
+  // wide as the arithmetic below — so rather than waiting for a glide that grows
+  // with its distance, the test ends it: a scroll of its own, which the glide takes
+  // for the viewer and stops at on its next frame.
   const [near, far] = farApart()
   const leko = holding(goingFar(), { duration: 320 })
 
@@ -827,12 +826,16 @@ test('a target lost while the page glides does not disarm the step arriving', as
   // that retry's deadline disconnects whatever watcher is standing when it runs
   // out — which by then is the one the landing armed for the step arriving.
   //
-  // 60ms in: the glide lands at 120 and the retry this would start runs out at
-  // 160, so the deadline falls after the landing, which is the order the fault
-  // needs. Earlier and the retry is over before the page stops; later and there
-  // is no retry to steal anything.
+  // 60ms in, the target goes; 70ms in, the page is put where the glide was
+  // heading and the glide lands on its next frame, well inside the 100ms a
+  // retry this would have started has left — so the deadline falls after the
+  // landing, which is the order the fault needs. A machine that cannot produce
+  // a frame in that time lands after the deadline instead, and this test then
+  // passes without having asked its question.
   await pause(60)
   near.remove()
+  await pause(10)
+  window.scrollTo(0, far.offsetTop + 20 - document.documentElement.clientHeight / 2)
 
   await vi.waitUntil(() => centre(far) === far, { timeout: 5000 })
 

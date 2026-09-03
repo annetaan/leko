@@ -165,7 +165,13 @@ page, not just the rule.
   interpolating. Collapse the departing cutout to zero area instead.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JavaScript
   at all and must stay that way. A bounded morph writing precomputed strings
-  reads nothing and is not the same thing.
+  reads nothing and is not the same thing, and nor is the glide reading back
+  the one scroll offset it wrote the frame before.
+- **Using the browser's smooth scroll for the glide.** An animation Leko did
+  not run has to be watched from the outside — a `scrollend` listener, a
+  deadline under it, a check that the page has begun to move — and every engine
+  wanted a rule of its own. The glide is Leko's own frame loop, the way the
+  morph is, so it ends on its own clock and stops when Leko says.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none on
   purpose: a dependency there is a licensing and bundle-size liability for every
   consumer. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` come from

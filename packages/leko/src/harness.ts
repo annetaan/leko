@@ -155,11 +155,10 @@ export const pause = (ms: number): Promise<void> =>
  * a step that scrolls was asked for until the step has been drawn and the page
  * has stopped.
  *
- * Every tick rather than a sample at a chosen moment: how long a smooth scroll
- * runs is the engine's — about 200ms in WebKit whatever the distance, past a
- * second in Chromium for a long one (`spike/a-smooth-scroll-settling/`) — so a
- * test that looked once at a fixed time would be a test that passed on one
- * machine.
+ * Every tick rather than a sample at a chosen moment: the glide ends on its own
+ * clock, but it runs on frames, and on a loaded machine a frame can be a long
+ * time coming — so a test that looked once at a fixed time would be a test
+ * that passed on one machine.
  *
  * `standing` is the mask the scrim carries now, so a sample carrying a
  * different one is the step having been drawn. The watch ends four still ticks
@@ -214,51 +213,12 @@ export async function shown(within = 8000): Promise<void> {
 }
 
 /**
- * Drop every smooth scroll, so a glide is a known 120ms rather than the
- * engine's own curve.
- *
- * For a test that has to catch two of Leko's own timers overlapping, and for
- * nothing else. How long a real smooth scroll runs is the engine's — about
- * 200ms in WebKit whatever the distance, past a second in Chromium for a long
- * one (`spike/a-smooth-scroll-settling/`) — so the moment a glide lands is not
- * a moment a test can put a second timer either side of.
- *
- * **No path is invented for this.** A smooth scroll that moves nothing is what
- * Firefox does to a scroller below the fold, and Leko already answers it: the
- * page has not moved 120ms later, so the glide sets it outright and settles.
- * That is the path this walks, and DESIGN.md argues it under **A page that has
- * not moved at all is set outright**.
- *
- * Instant scrolls go through untouched, which is what lets the glide land and
- * a test put the page back afterwards. `vi.restoreAllMocks` in the `afterEach`
- * above takes it off again.
- */
-export function droppedGlide(): void {
-  const real = window.scrollTo.bind(window)
-  function dropped(options?: ScrollToOptions): void
-  function dropped(x: number, y: number): void
-  function dropped(a?: ScrollToOptions | number, b?: number): void {
-    if (typeof a === 'number') return real(a, b ?? 0)
-    if (a?.behavior === 'smooth') return
-    real(a)
-  }
-  vi.spyOn(window, 'scrollTo').mockImplementation(dropped)
-}
-
-/**
  * Wait for a page Leko set gliding to stop, and for the morph after it.
  *
- * **Watches the offset rather than listening for `scrollend`.** The event is
- * what the presenter waits for and the wrong thing for a test to wait for: one
- * fired by the tidying-up of the test before this one arrives here as a page
- * that has already settled, and the wait then returns while the glide it was
- * supposed to outlast is still running. The offset has no such history.
- *
- * A grace period first, because the offset is still before a glide has begun
- * too, and six still ticks from a standing start would otherwise be reached
- * before the page had set off. Firefox is the slowest to start and is moving by
- * its second frame, so the grace outlasts every start measured by a wide
- * margin.
+ * Watches the offset, because a test has no handle on the glide: the promise
+ * that says it landed is the presenter's. A grace period first, because the
+ * offset is still before the first frame too, and six still ticks from a
+ * standing start would otherwise be reached before the page had set off.
  */
 export async function stopped(cap = 8000): Promise<void> {
   const began = performance.now()

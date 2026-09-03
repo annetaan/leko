@@ -661,58 +661,87 @@ tour is for.
   coordinates and a scroll moves scrim and target together. What would not is
   every decision taken in viewport coordinates: the side of the hole the
   message takes, and the corner the way out sits in. At 320ms, the instant a
-  default morph would be finishing, Chromium still has 372px of a 2000px scroll
-  to go and 2378px of a 5000px one, and Firefox 66px and 213px — so a side
-  chosen then is chosen about a screen the page has already left. WebKit alone
-  would be fine, with a fixed ~200ms curve whatever the distance
-  ([`spike/a-smooth-scroll-settling/`](spike/a-smooth-scroll-settling/)).
-- **`scrollend` ends the wait.** Baseline 2025, present in all three engines,
-  and fired for a scroll an engine chose to apply outright as well, so nothing
-  has to detect which of the two it got. It arrives late rather than early — up
-  to 50ms after the offset stops in Chromium, 183ms in Firefox — and that is a
-  wait taken rather than a poll started. Watching the offset from a frame loop
-  answers sooner and is not worth a poll for it. There is a deadline under the
-  event, and it is a net rather than a fallback: an event that never comes must
-  not leave a tour with nothing drawn.
-- **A port that needs no scroll is never waited on.** Nothing moved, so no
-  `scrollend` fires in any engine — waiting there would hang the tour with the
-  page dimmed and no step on it. The delta decides, and a delta of zero means
-  the step is drawn in the same task the arrival came in on.
-- **A page that has not moved at all is set outright before the step is
-  drawn.** A glide is started only where there was a delta to cover, so a page
-  still exactly where it was 120ms later is a scroll that did not happen, and
-  setting it is unambiguous. Two things get there. A delta the port cannot
-  honour — a target hanging off an edge the page is already against — moves
-  nothing, and a scroll that moves nothing has nothing to say it is over. And an
-  engine that drops the scroll in silence, which is what Firefox does to a
-  scroller below the fold (question 4 of the spike). No engine has been seen to
-  do that to the document, and nothing here claims one does: the guard is kept
-  because the failure has been watched to exist, and what it costs where it is
-  wrong is a jump where a glide would have done, against 2.5 seconds of a dimmed
-  page with no step on it where it is missing. Moved but short is left alone —
-  that is a viewer who took over, and their scroll is not Leko's to undo. **The
-  check runs on a timer and never on an animation frame.** On the two-core CI
-  runner a single frame has been watched taking more than three seconds while
-  timers went on ticking at 16ms; on such a machine a check that waits for
-  frames lands after the deadline has already decided, and the deadline is a
-  timer too.
-- **Every scroll asks for an offset, never a delta.** The geometry hands back a
-  delta, and `scrollBy` is the obvious spelling of one; but `scrollBy` resolves
-  against where the engine says the port is, and while a glide is in flight
-  WebKit says somewhere `scrollY` does not — a `scrollBy` started 100ms into a
-  glide landed 474px off there, where a `scrollTo` of the same offset landed
-  exactly (question 5 of the spike). The box was measured against the `scrollY`
-  this task can see, so `scrollY` plus the delta is the offset the sum is right
-  in, and it is what a step that arrives mid-glide and scrolls lands by.
-- **The page glides; a nested panel is set.** Firefox does not animate a
-  programmatic smooth scroll of a scroller well below the fold — the boundary is
-  one to two screens past it — it does not scroll it at all, leaves `scrollTop`
-  where it was, and fires no `scrollend` to say so. A panel a tour is about to scroll is below the
-  fold by definition, so that is the ordinary case and not an edge of it. Set
-  outright it lands in every engine at every depth, which also makes the page's
-  own delta exact rather than measured against a scroller still in flight. The
-  movement a viewer follows is the page's; a panel's inner scroll is a detail
-  inside a box that is not on screen yet.
+  default morph would be finishing, a browser's own smooth scroll in Chromium
+  still had 372px of a 2000px trip to go and 2378px of a 5000px one, and
+  Firefox 66px and 213px — so a side chosen then is chosen about a screen the
+  page has already left
+  ([`spike/a-smooth-scroll-settling/`](spike/a-smooth-scroll-settling/),
+  question 1). The glide is Leko's own now and the numbers are Leko's too, but
+  the shape is the same: a page that is moving is a different screen every
+  frame, and nothing is decided about it until it stops.
+- **The glide is Leko's own animation, the way the morph is.** A
+  `requestAnimationFrame` loop in `scrim.ts`, eased with the morph's curve,
+  writing one instant `scrollTo` per frame from numbers it
+  computed before the first one, the exact destination on the last frame, and
+  ending on its own clock. Nothing then has to be inferred about when an
+  animation somebody else is running has ended, and nothing has to stop it but
+  Leko. **Do not go back to the browser's smooth scroll for it.**
+  `behavior: 'smooth'` is the obvious spelling and was the first one, and an
+  animation Leko did not run had to be watched from the outside: a `scrollend`
+  listener, a 120ms check that the page had begun to move, a 2.5s deadline
+  under both, and a heuristic telling a `scrollend` of this scroll from one
+  that belonged to something else. Around that sat a rule per engine — a panel
+  set outright because Firefox drops a smooth scroll aimed below the fold,
+  every scroll asked for as an offset because WebKit resolved a `scrollBy`
+  against where its own animation had got to, and a glide the tour had moved
+  past left to finish because Firefox and Chromium could not stop one. Safari
+  had no `scrollend` before 26, so there every scrolling step waited the whole
+  deadline with the page dimmed and no step on it. Questions 2, 4 and 5 of the
+  spike are the record of all that, and none of it has an equivalent here: the
+  loop writes the offsets it computed, so offset against delta does not arise;
+  a panel is set or glided as the design prefers; and a glide is cancelled by
+  cancelling its frame.
+- **A port that needs no scroll is never waited on.** The delta decides, and a
+  delta of zero means the step is drawn in the same task the arrival came in
+  on. So does a destination that clamps to where the page already is — a
+  target hanging off an edge the page is already against — because there is
+  nothing to glide to.
+- **The destination is clamped once, before the first frame**, to the range
+  the page can reach: `scrollHeight` less `clientHeight`, and the same across.
+  The geometry does not clamp, and a port clamps whatever is written to it, so
+  a loop writing offsets past the end would read them back clamped and take
+  that for the viewer. The range is read up front, where reading layout is
+  already allowed, and the loop never writes past it.
+- **The viewer taking over.** Each frame reads the page's offset before it
+  writes one, and where the page is not within a pixel of where the last frame
+  left it, somebody else moved it: the loop stops, and the step is drawn where
+  the page is. Their scroll is not Leko's to undo. That read is of a scroll
+  offset, during a scroll Leko started, and **The morph** says next to the rule
+  why it is neither layout nor the viewer's scroll. A pixel rather than
+  equality because engines round what is written and some report fractions
+  back.
+- **The page glides; a nested panel is set.** The movement a viewer follows is
+  the page's, and a panel's inner scroll is a detail inside a box that is not
+  on screen yet, so the panel is put where it belongs outright, first — which
+  also makes the page's own delta exact rather than measured against a scroller
+  still in flight. It is a preference and no longer a rule an engine dictates.
+  Gliding every port together needs the document's destination worked out from
+  the panel's without re-measuring — the target moves in the viewport by
+  exactly what the panel scrolls, which is arithmetic for `geometry.ts` — and
+  is a second step if it is ever wanted.
+- **A glide grows with the distance, and is much slower than the morph.** A
+  tour is for somebody new to the application, and what passes under the
+  pointer while the page glides is part of what they are there to see — a
+  glide over before it is noticed hides the page it crosses. So a longer way
+  takes longer, **by the cube root of the distance** times `GLIDE_PACE` in
+  `geometry.ts`. Not in proportion: a pace of so many pixels a second was right
+  for a card one screen down and far too slow for a row six screens down,
+  because the eye does not read a long scroll the way it reads a short one — it
+  takes in that the page went a long way, and that sense is what should grow
+  with the distance, not the wait. Set by eye in `scrolls-into-view.ts`: the
+  card one screen down takes about 1.3 seconds, four morphs, and the row six
+  screens down about 2.5. `duration` is the floor under it, so a short move
+  glides for as long as the morph that follows rather than snapping, and `0`
+  turns both off together. It is a distance term on the option a host already
+  has, not a second setting, and the sandbox's pace control does not slow it —
+  a reading speed is not a drawing speed. The root is its own ceiling: eight
+  times the way is twice the wait.
+- **What it costs.** The frames run on the main thread, as the morph's do,
+  where an engine runs its own smooth scroll off it, so under main-thread load
+  this glide stutters where the browser's would not. On a machine that produces
+  no frames it jumps to the end on the next one, which is what the morph does,
+  and what the CI runner already showed a native glide doing at 16ms ticks (the
+  spike's **What it did not settle**).
 - **The scroll animates exactly when the morph does.** `duration: 0` and
   `prefers-reduced-motion` each put the page where it belongs outright, and the
   rule is one predicate in `scrim.ts` read by both, so the two can never
@@ -775,11 +804,12 @@ tour is for.
   change `:nth-child`, the item count of a flex or grid parent, and the host's
   own observers, and its cleanup would hang off a `scrollend` that never fires
   when nothing moved.
-- **Nothing in the geometry clamps; the scrollport does.** A target near the end
-  of the content cannot be put where it belongs, and the delta asked for is the
-  one that would put it there — past the end. The port clamps that, which lands
-  the target as near as the content allows and against the far edge in the
-  limit.
+- **Nothing in the geometry clamps; whoever scrolls does.** A target near the
+  end of the content cannot be put where it belongs, and the delta asked for is
+  the one that would put it there — past the end. The port clamps a panel set
+  outright, and the glide clamps its own destination before its first frame,
+  which lands the target as near as the content allows and against the far edge
+  in the limit.
 - **`scroll-margin` on the target wins over the step's `padding`** wherever it
   asks for more. How much of an application's own sticky chrome is in the way is
   a thing the application knows and Leko cannot guess; the padding is only the
@@ -798,20 +828,17 @@ tour is for.
   resolving and anything being measured. Every redraw goes through `reveal`
   instead — a resize, a framework rendering over the step — and by then the
   viewer may have moved the page on purpose, so none of them scrolls again.
-- **A glide the tour has moved past draws nothing, and stops waiting.** The
-  wait it was is abandoned — timers, listener and all — and an arrival replaces
-  it, so the step that was being glided towards is dropped rather than drawn
-  over the step that overtook it, and a glide nobody is waiting for cannot set
-  the page outright a moment later to somewhere the tour no longer is. The page
-  itself is left to finish, because nothing can stop it: an instant scroll to
-  where the page is, which CSSOM View says aborts the animation, leaves Firefox
-  gliding on to the original destination and Chromium a frame further with no
-  `scrollend` to follow, and only WebKit stops (question 5 of the spike). So a
-  step arriving then that does not scroll is drawn against a page still moving,
-  the same as if the viewer had scrolled after it was drawn — the hole rides the
-  content, and the side the message took is a fact about the screen it was
-  chosen on. One that does scroll replaces the glide with its own, asked for as
-  an offset, and lands.
+- **A glide the tour has moved past is cancelled, and the page stops where it
+  is.** An arrival replaces it and a teardown drops it, and both cancel the
+  next frame first, so the step that was being glided towards is dropped rather
+  than drawn over the step that overtook it, and the page does not slide on to
+  a step the tour has left. A step arriving then that does not scroll is drawn
+  against a page standing still; one that does scroll measures against the
+  page as it stands and runs a glide of its own from there. The browser's glide
+  could not be stopped — an instant scroll to where the page is, which CSSOM
+  View says aborts the animation, left Firefox gliding on and Chromium a frame
+  further in silence (question 5 of the spike) — which is one of the reasons it
+  was given up.
 - **A step with no `target` scrolls nothing**, having nothing to scroll to. Nor
   does a retry: a target that is not on the page yet cannot be brought into
   view, and the scroll happens on the attempt that finds it. The target is
@@ -847,7 +874,12 @@ tour is for.
 - **Any change that reintroduces per-frame JS position math is a regression.**
   That rule is about reading layout while the user scrolls. A bounded morph
   writing a string each frame from numbers it already has reads nothing and is a
-  different thing. On a scrim 12 000px tall, three holes and 120 frames cost
+  different thing. So is the glide under **Bringing a target into view**: each
+  of its frames reads back the one scroll offset it wrote the frame before, to
+  tell whether the viewer has moved the page, and writes the next from numbers
+  it had before the first — a read of a scroll offset during a scroll Leko
+  started, not layout, and not the viewer's scroll. On a scrim 12 000px tall,
+  three holes and 120 frames cost
   nothing measurable in any engine — but **an `<svg>` scrim masked the SVG way
   costs 81ms a frame in WebKit**, which is the tidier design and unusable, and
   only WebKit says so ([`spike/overlapping-holes/`](spike/overlapping-holes/)).

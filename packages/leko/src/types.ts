@@ -289,11 +289,18 @@ export interface LekoStep {
    *
    * **The page glides, and the step is drawn when it stops.** The scroll and
    * the morph are two stages rather than one: a hole is placed from where the
-   * target is on screen, so a morph running alongside a smooth scroll is a
-   * hole placed against a page that has since moved. Nested panels are set
-   * outright rather than glided. Where {@link LekoOptions.duration} is `0`, or
-   * the visitor has asked for reduced motion, the page is set outright too —
-   * the scroll animates exactly when the morph does.
+   * target is on screen, so a morph running alongside a glide is a hole placed
+   * against a page that has since moved. The glide is Leko's own animation,
+   * eased the way the morph is, rather than the browser's smooth scroll. **It
+   * grows with the distance**, by its cube root, and takes at least
+   * {@link LekoOptions.duration}: what passes while the page moves is part of
+   * what a viewer new to the application is there to see, so a long way takes
+   * longer rather than becoming a blur — though eight times the way is only
+   * twice the wait. A viewer who scrolls during
+   * it stops it, and the step is drawn where they left the page. Nested panels are set
+   * outright rather than glided. Where `duration` is `0`, or the visitor has
+   * asked for reduced motion, the page is set outright too — the scroll
+   * animates exactly when the morph does.
    *
    * It is off by default because where a page is scrolled to is the
    * application's own state, and a tour that moves it is a tour reaching into
@@ -580,6 +587,10 @@ export interface LekoOptions {
   /**
    * How long a step-to-step morph runs, in ms. Defaults to `320`, and is
    * ignored when the visitor has asked for reduced motion.
+   *
+   * Also the least a glide runs for, on a step that scrolls. A glide grows
+   * with how far the page has to go — {@link LekoStep.scroll} says why — and
+   * this is the floor under a short one. `0` turns both off together.
    */
   duration?: number
 

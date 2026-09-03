@@ -54,7 +54,14 @@ DESIGN.md. Do not do any of them without reading that page first.
   version of all and costs 81ms a frame in WebKit on a document-tall scrim.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JS at all
   and must stay that way. A bounded morph writing strings from numbers it
-  already has is not the same thing and is fine.
+  already has is not the same thing and is fine, and nor is the glide reading
+  back the one scroll offset it wrote the frame before.
+- **Using the browser's smooth scroll for the glide.** `behavior: 'smooth'` is
+  the obvious spelling, and an animation Leko did not run has to be watched
+  from the outside: a `scrollend` that Safari only fires from 26, a deadline
+  under it, a check that the page has begun to move, and a rule per engine
+  besides. The glide is Leko's own frame loop, the way the morph is, and ends
+  on its own clock.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none,
   deliberately. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` are
   first-party and are fine.

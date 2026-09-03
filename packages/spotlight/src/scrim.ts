@@ -1,6 +1,7 @@
 import {
   complementRects,
   type Cutout,
+  glideDuration,
   hasArea,
   type Insets,
   lerpCutouts,
@@ -171,42 +172,13 @@ export const prefersReducedMotion = (): boolean =>
 const animates = (duration: number): boolean => duration > 0 && !prefersReducedMotion()
 
 /**
- * How long a glide is waited for before it is called over regardless.
+ * A glide in flight: when the page has stopped, and how to stop it.
  *
- * `scrollend` is what ends the wait — it is Baseline 2025 and fires in every
- * engine, including for a scroll an engine chose to apply outright
- * (`spike/a-smooth-scroll-settling/`). This is only the net under it: an event
- * that never comes must not leave a tour with nothing drawn. Generous on
- * purpose, because the failure it guards against is rare and the failure of
- * cutting a glide short is the one this whole staging exists to avoid — the
- * longest scroll measured, 5000px in Chromium, stops at 1160ms and its
- * `scrollend` lands 34ms after that.
- */
-const SETTLE = 2500
-
-/**
- * How long a glide is given to have moved the page before it is set outright.
- *
- * Long enough that every engine measured has begun moving — Firefox is the
- * slowest to start and is moving by its second frame — and short enough that a
- * scroll nobody is going to make costs a jump rather than a wait. What it costs
- * is a glide that has not begun in 120ms, which becomes a jump; on a machine
- * that cannot produce a frame in that time, the glide was not going to be
- * seen.
- */
-const START = 120
-
-/**
- * A glide in flight: when the page has settled, and how to stop waiting on it.
- *
- * `abandon` ends the wait and nothing else — the timers and the listener go,
- * and `settled` never resolves. It does not stop the scroll, because nothing
- * can: an instant scroll to where the page is leaves Firefox gliding on to the
- * original destination and Chromium a frame further with no `scrollend` to
- * follow (`spike/a-smooth-scroll-settling/`, question 5). What it is for is
- * the check the wait would otherwise still make. A glide the tour has moved
- * past must not set the page outright, a moment later, to somewhere the tour
- * no longer is.
+ * `abandon` cancels the next frame and leaves the page where the last one put
+ * it; `settled` then never resolves. The glide is Leko's own loop, so stopping
+ * it is a `cancelAnimationFrame` and nothing has to be inferred about an
+ * animation somebody else is running. A glide the tour has moved past stops
+ * where it is rather than sliding on to a step the tour has left.
  */
 export interface Glide {
   settled: Promise<void>
@@ -220,30 +192,19 @@ export interface Glide {
  * **Before the draw, and never during it.** `undefined` means there is nothing
  * to wait for — every port already held the cutout, or the move was applied
  * outright — and the step is drawn in the same task. A {@link Glide} means the
- * page is moving, and whatever draws waits for it: at 320ms into a smooth
- * scroll Chromium can still have about half of a 5000px trip to go, and a hole
- * is drawn from where the target is on screen, so a morph running alongside a
- * glide is a hole placed against a page that has since moved
- * (`spike/a-smooth-scroll-settling/`). Scroll tracking still runs no JS: a
- * scroll Leko started is not the viewer scrolling.
+ * page is moving, and whatever draws waits for it: a hole is drawn from where
+ * the target is on screen, so a morph running alongside a glide is a hole
+ * placed against a page that has since moved
+ * (`spike/a-smooth-scroll-settling/`, question 1). Scroll tracking still runs
+ * no JS: a scroll Leko started is not the viewer scrolling.
  *
- * **The page glides; a nested scroller is set.** Firefox does not animate a
- * programmatic smooth scroll of a scroller well below the fold — it does not
- * scroll it at all, and fires no `scrollend` to say so (question 4 of the same
- * page) — and below the fold is exactly where a panel is while the page has yet
- * to arrive at it. So a panel is put where it belongs outright, which also
- * makes the page's own delta exact rather than measured against a scroller
- * still in flight. The movement a viewer follows is the page's, and a panel's
- * inner scroll is a detail inside a box that is not on screen yet.
- *
- * **An offset is asked for, never a delta**, though a delta is what the
- * geometry hands back. `scrollBy` resolves against where the engine says the
- * port is, and while a glide is in flight WebKit says somewhere `scrollY` does
- * not: a `scrollBy` started 100ms into a glide landed 474px off there, where a
- * `scrollTo` of the same offset landed exactly (question 5 of the same page).
- * The box was measured against the `scrollY` this task can see, so that is
- * the offset the sum is right in — which is what makes a step that arrives
- * mid-glide and scrolls land where it meant to.
+ * **The page glides; a nested scroller is set.** The movement a viewer follows
+ * is the page's, and a panel's inner scroll is a detail inside a box that is
+ * not on screen yet. Setting it first also makes the page's own delta exact
+ * rather than measured against a scroller still in flight. Gliding every port
+ * together would need the document's destination worked out from the panel's
+ * without re-measuring — the target moves in the viewport by exactly what the
+ * panel scrolls, which is arithmetic — and is a second step if wanted.
  *
  * **The box around every element is what is brought in, and the first
  * element is what is scrolled.** A hole is not an element: a region of several
@@ -267,9 +228,13 @@ export interface Glide {
  * and Leko does not.
  *
  * Where the box ends up is {@link scrollDelta}'s to say: the middle of the
- * port, or nowhere at all if the port already held it. Nothing here clamps —
- * the port does, so a box near the end of the content lands as near the middle
- * as the content allows.
+ * port, or nowhere at all if the port already held it. The geometry does not
+ * clamp, so a box near the end of the content asks for a scroll past the end.
+ * A panel set outright is clamped by the port, as any scroll is. The page's
+ * destination is clamped here, once, before the glide starts — see
+ * {@link glide} for why the loop cannot leave that to the port — and a
+ * destination that clamps to where the page already is means there is nothing
+ * to glide, so that is drawn in the same task too.
  *
  * Innermost first. A `viewport` surface is skipped: what it carries is
  * `position: fixed` and has nowhere to be scrolled to.
@@ -300,87 +265,104 @@ export function bringIntoView(
     }
     // The document, which is the last surface of every chain that has one, so
     // there is nothing after this to measure.
-    const to = { x: window.scrollX + delta.x, y: window.scrollY + delta.y }
+    const from = { x: window.scrollX, y: window.scrollY }
+    const root = document.documentElement
+    const to = {
+      x: clamp(from.x + delta.x, root.scrollWidth - root.clientWidth),
+      y: clamp(from.y + delta.y, root.scrollHeight - root.clientHeight),
+    }
+    if (to.x === from.x && to.y === from.y) return undefined
     if (!animates(duration)) {
       window.scrollTo({ left: to.x, top: to.y, behavior: 'instant' })
       return undefined
     }
-    return glide(to)
+    // Grows with the distance rather than timed by the morph: what passes while
+    // the page glides is part of what a viewer is there to see, and
+    // `glideDuration` says how long that takes. `duration` is the floor.
+    return glide(from, to, glideDuration(Math.hypot(to.x - from.x, to.y - from.y), duration))
   }
   return undefined
 }
 
+/** `n` held within the scroll range `0` to `max`. */
+const clamp = (n: number, max: number): number => Math.min(Math.max(0, n), Math.max(0, max))
+
 /**
- * Scroll the page smoothly to `to`, settled once it has stopped.
+ * How far apart two offsets can be and still be the same offset.
  *
- * `scrollend` is the whole of the answer where it arrives, and it arrives in
- * every engine — up to 183ms after the offset itself stops in Firefox, which is
- * a wait taken rather than a poll started. The deadline under it is a net, not
- * a fallback: see {@link SETTLE}.
- *
- * A `scrollend` the viewer caused settles this too, and that is right — they
- * scrolled during the glide, so the page is where they left it and the step
- * belongs against that. One that arrives while the page is still exactly where
- * it was does not: it belongs to whatever moved the page a moment before, and
- * taking it would draw the step before the glide had begun.
- *
- * **A page that has not moved at all is set outright, and the wait ends.** A
- * glide is started only where there was a delta to cover, so a page still
- * exactly where it was is a scroll that did not happen, and setting it is
- * unambiguous. Two things get here. A delta the port cannot honour — a target
- * hanging off an edge the page is already against — moves nothing, and a
- * scroll that moves nothing has nothing to say it is over. And an engine that
- * drops the scroll in silence, which Firefox does to a scroller below the fold
- * (`spike/a-smooth-scroll-settling/`, question 4). No engine has been seen to
- * do that to the document and nothing here claims one does; the failure has
- * been watched to exist, and guarding against it costs a jump where a glide
- * would have done. Moved but short is left alone: that is a viewer who took
- * over, and their scroll is not Leko's to undo.
- *
- * **On a timer, never on an animation frame.** On the two-core CI runner a
- * single frame has been watched taking more than three seconds while timers
- * went on ticking at 16ms. On such a machine a check that waits for frames
- * lands after {@link SETTLE} has already decided, and the deadline is made of
- * a timer too.
+ * An engine rounds what is written to it, and some report the offset back in
+ * fractions, so a frame that reads back exactly what it wrote is not something
+ * to rely on. A pixel is more than any rounding and less than any scroll a
+ * person makes.
  */
-function glide(to: { x: number; y: number }): Glide {
-  const from = { x: window.scrollX, y: window.scrollY }
-  const unmoved = (): boolean => window.scrollX === from.x && window.scrollY === from.y
+const TOLERANCE = 1
+
+/**
+ * Glide the page from `from` to `to` over `length` ms, settled when it lands.
+ *
+ * **Leko's own animation, the way the morph is**, rather than the browser's
+ * `behavior: 'smooth'`. A frame loop on `requestAnimationFrame`, eased with
+ * the morph's own curve, writing one instant `scrollTo` per frame from numbers
+ * it computed before the first one, and ending on its own clock with the exact
+ * destination written on the last frame. Nothing then has to be inferred about
+ * when an animation somebody else is running has ended, and nothing has to
+ * stop it but Leko. The browser's glide had to be watched from the outside — a
+ * `scrollend` listener, a check that the page had begun to move, a deadline
+ * under both, and a heuristic telling a `scrollend` of this scroll from one
+ * that was not — and each engine wanted a rule of its own besides
+ * (`spike/a-smooth-scroll-settling/`, questions 2, 4 and 5, which are the
+ * record of why it was given up).
+ *
+ * **The viewer taking over.** Each frame reads the page's offset before it
+ * writes one, and where the page is not within {@link TOLERANCE} of where the
+ * last frame left it, somebody else moved it: the loop stops and the page is
+ * left where they put it, so the step is drawn against that. That read is of a
+ * scroll offset, during a scroll Leko started; it is not layout and it is not
+ * the viewer's scroll, so the rule that scroll tracking runs no JS is intact.
+ *
+ * **The destination is clamped before the first frame**, by the caller, to the
+ * range the page can reach. A loop that wrote offsets past the end would read
+ * them back clamped and take that for the viewer, so the range is read once,
+ * up front, where reading layout is already allowed.
+ *
+ * On the main thread, as the morph is, and with the same cost: under load
+ * these frames stutter where an engine's off-thread scroll would not, and on a
+ * machine producing no frames the page jumps to the end on the next one. A
+ * frame reads one offset and writes one, and reads no layout.
+ */
+function glide(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  length: number,
+): Glide {
   let settle!: () => void
   const settled = new Promise<void>((resolve) => {
     settle = resolve
   })
-  let done = false
-  /** Stop waiting, and only that. */
-  function abandon(): void {
-    done = true
-    clearTimeout(over)
-    clearTimeout(starting)
-    window.removeEventListener('scrollend', ended)
+  let frame: number | undefined
+  let last = from
+  const began = performance.now()
+  const abandon = (): void => {
+    if (frame !== undefined) cancelAnimationFrame(frame)
+    frame = undefined
   }
-  function finish(): void {
-    abandon()
-    settle()
+  const taken = (): boolean =>
+    Math.abs(window.scrollX - last.x) > TOLERANCE || Math.abs(window.scrollY - last.y) > TOLERANCE
+  const tick = (now: number): void => {
+    frame = undefined
+    if (taken()) return settle()
+    // Clamped at both ends: the frame's start time can predate the moment this
+    // loop was scheduled, so the first frame's elapsed time is sometimes
+    // negative.
+    const t = Math.min(1, Math.max(0, (now - began) / length))
+    const eased = ease(t)
+    last =
+      t >= 1 ? to : { x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased }
+    window.scrollTo({ left: last.x, top: last.y, behavior: 'instant' })
+    if (t >= 1) return settle()
+    frame = requestAnimationFrame(tick)
   }
-  /** Where the page has not moved at all, set it outright. Whether it did. */
-  function insist(): boolean {
-    if (!unmoved()) return false
-    window.scrollTo({ left: to.x, top: to.y, behavior: 'instant' })
-    return true
-  }
-  function ended(): void {
-    if (!done && !unmoved()) finish()
-  }
-  const over = setTimeout(() => {
-    if (done) return
-    insist()
-    finish()
-  }, SETTLE)
-  const starting = setTimeout(() => {
-    if (!done && insist()) finish()
-  }, START)
-  window.addEventListener('scrollend', ended)
-  window.scrollTo({ left: to.x, top: to.y, behavior: 'smooth' })
+  frame = requestAnimationFrame(tick)
   return { settled, abandon }
 }
 

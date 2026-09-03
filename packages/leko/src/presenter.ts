@@ -198,9 +198,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
    *
    * Held so that what has to be known when one settles is whether it is still
    * the one being waited for, and so that one the tour has moved past can be
-   * told to stop waiting. An arrival replaces it and a teardown drops it, and
-   * both abandon the wait first: a glide nobody is waiting for must not set
-   * the page outright, a moment later, to somewhere the tour no longer is.
+   * stopped. An arrival replaces it and a teardown drops it, and both abandon
+   * the glide first: a glide nobody is waiting for must not go on carrying the
+   * page to somewhere the tour no longer is.
    *
    * **It is also the whole of what says a step is pending.** While it stands,
    * {@link drawn} is the step being left, so everything that redraws without
@@ -754,15 +754,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Stop waiting on a scroll. The page may still be gliding, and it is left to
-   * finish: nothing is drawn from where it ends up, and nothing could stop it
-   * anyway — an instant scroll to where the page is leaves Firefox gliding on
-   * and Chromium a frame further (`spike/a-smooth-scroll-settling/`, question
-   * 5). What ends is the wait, timers and all, so an abandoned glide can no
-   * longer set the page outright.
-   *
-   * The step that was being waited for goes with it. Whatever ends a wait has a
-   * step of its own to draw, or is a teardown and draws nothing.
+   * Stop a scroll. The glide is Leko's own frame loop, so it stops where it is:
+   * the page stays where the last frame left it, and nothing is drawn from
+   * there by this — whatever ends a glide has a step of its own to draw, or is
+   * a teardown and draws nothing. The step that was being waited for goes with
+   * it.
    */
   private endGlide(): void {
     this.gliding?.glide.abandon()

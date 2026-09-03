@@ -17,11 +17,15 @@ import { type Case, html } from '../case.js'
 //
 // It is also the case to watch the staging on. The page glides and the hole
 // stays where it was until the page stops, because a hole is placed from where
-// its target is on screen and a morph running alongside a smooth scroll would
-// land it against a screen the page has already left —
-// `spike/a-smooth-scroll-settling/` has how far off that is. The panel in the
-// fourth step is the other half: it is set rather than glided, because Firefox
-// will not smooth-scroll a panel this far below the fold at all.
+// its target is on screen and a morph running alongside a glide would land it
+// against a screen the page has already left —
+// `spike/a-smooth-scroll-settling/` has how far off that is. The glide is
+// Leko's own frame loop, growing with the distance rather than timed by the morph
+// — what passes while the page moves is part of what a newcomer is there to
+// see — and this is the case its pace was set by eye on. Scroll during it and
+// it stops where you put the page. The panel in the fifth step is the other
+// half: it is set rather than glided, so the movement a viewer follows is the
+// page's alone.
 //
 // **The other half of this — a step that does not scroll — is
 // `message-sides.ts` and not here.** Off is the default, and the pathology it
@@ -159,7 +163,10 @@ export const scrollsIntoView: Case = {
             "little above the middle because the card's scroll-margin-bottom " +
             "says how tall the sandbox's own footer is, and this box had to " +
             'land clear of it. The page glided and nothing was drawn until it ' +
-            'stopped — watch the previous hole ride the page on the way.',
+            'stopped — watch the previous hole ride the page on the way. The ' +
+            "glide is Leko's own and grows with the distance, slowly enough to " +
+            'take in what passes: scroll while it runs and it stops where you ' +
+            'put the page, and the step is drawn there.',
         },
         {
           id: 'one-hole-two-cards',
@@ -189,8 +196,9 @@ export const scrollsIntoView: Case = {
           message:
             'Two ports moved: the list, set outright, and the page, glided. ' +
             'Innermost first, because scrolling the list moves the row inside ' +
-            'the page too. The list is set rather than glided because Firefox ' +
-            'will not smooth-scroll a panel this far below the fold at all.',
+            'the page too. The list is set rather than glided so that the ' +
+            "movement you follow is the page's alone: the list is not on " +
+            'screen while it scrolls, so nothing of its own is missed.',
         },
         {
           id: 'the-last-row',

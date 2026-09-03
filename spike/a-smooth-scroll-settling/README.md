@@ -28,6 +28,24 @@ that became. The fifth is what a tour that moves on mid-glide may do about the
 glide, and it was asked because the implementation had started to rely on an
 answer.
 
+## Where this landed
+
+Question 1 carries the design: a scroll and a morph cannot run together, so a
+step that scrolls is two stages, and DESIGN.md argues that under **Bringing a
+target into view**. Questions 2, 4 and 5 were load-bearing for one
+implementation — the browser's own `behavior: 'smooth'`, waited on from the
+outside — and are now the record of why that was given up. Watching an
+animation somebody else runs meant a `scrollend` listener, a deadline under it,
+a check that the page had begun to move, and a rule per engine for each of the
+three behaviours below; and Safari fired no `scrollend` before 26, so every
+scrolling step there waited the whole deadline. The glide is Leko's own
+`requestAnimationFrame` loop now, the way the morph is, ending on its own clock
+and stopped by Leko. Nothing below has changed as evidence — everything under
+**What it settled** is still true of the browsers — but the paragraph in
+DESIGN.md that turned it into an implementation has, and **What looks like an
+improvement and is not** in CLAUDE.md and CONTRIBUTING.md now lists using the
+browser's smooth scroll for the glide, citing this page.
+
 ## Seen on
 
 Chromium 151.0.7922.34, Firefox 153.0 and WebKit 605.1.15 (`Version/26.5`), all
@@ -96,10 +114,12 @@ has since moved by hundreds of pixels, in two engines out of three. This is not
 a rounding error to absorb; it is a different screen. **Scroll first, draw
 second.**
 
-**`scrollend` is what says the scroll is over, and it is enough.** Present in
-all three, fired for every scroll that moved, and fired for a scroll an engine
-applied outright as well — so an implementation waiting on it does not need to
-know which of the two it got. It is late rather than early: up to 50ms after the
+**`scrollend` is what says a browser's smooth scroll is over, and it is
+enough — where it exists.** Present in all three engines measured here, fired
+for every scroll that moved, and fired for a scroll an engine applied outright
+as well — so an implementation waiting on it does not need to know which of the
+two it got. Safari has it only from 26, which is not measured here and is the
+first of the reasons an implementation no longer waits on it. It is late rather than early: up to 50ms after the
 offset stops in Chromium and up to 183ms in Firefox, which is a wait taken, not
 a poll started. Watching the offset from a frame loop would answer sooner
 (question 3, in the page) and is not worth a poll for that.
@@ -176,7 +196,9 @@ smooth scroll made before it
 [run 33700468572](https://github.com/annetaan/leko/actions/runs/33700468572)).
 The staging holds there all the same — the step was drawn after the page moved
 and the page did not move after — so that is what the test asserts, and whether
-a glide was a glide is left to this page.
+a glide was a glide is left to this page. Leko's own loop has the same
+property by construction: on a machine that gives it one frame, that frame is
+the last one and writes the destination.
 
 **A machine that is not producing frames.** The same red build printed one
 `requestAnimationFrame` in three seconds while timers went on firing every 16ms.

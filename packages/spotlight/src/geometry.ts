@@ -141,9 +141,11 @@ export function outset(rect: Rect, room: Insets): Rect {
  *
  * **Nothing here clamps.** A box near the end of the content cannot be put
  * where it belongs, and the delta this hands back for one asks for a scroll
- * past the end. The scrollport is what clamps that, which lands the box as near
- * as the content allows and leaves it against the far edge in the limit — the
- * honest answer, and it costs no arithmetic here to know the scroll range.
+ * past the end. Whoever scrolls clamps that — the port, for a scroll set
+ * outright, and the glide before its first frame — which lands the box as near
+ * as the content allows and leaves it against the far edge in the limit: the
+ * honest answer, and knowing the scroll range is a read of the page, which
+ * does not belong here.
  *
  * A box wider than the port keeps the near edge: it can be neither held nor
  * centred, and the near edge is where reading starts.
@@ -174,6 +176,35 @@ const holds = (near: number, far: number, portNear: number, portFar: number): bo
 /** What it takes to put the middle of the box on the middle of the port. */
 const centred = (near: number, far: number, portNear: number, portFar: number): number =>
   (near + far) / 2 - (portNear + portFar) / 2
+
+/**
+ * How long a glide takes per cube root of a pixel of the way, in ms.
+ *
+ * A tour is for somebody new to the application, and what passes under the
+ * pointer while the page glides is part of what they are there to see — a
+ * glide fast enough to be over before it is noticed hides the page it crosses.
+ * So a longer way takes longer, rather than every glide taking the morph's
+ * 320ms and a long one being a blur. **The cube root**, because a glide paced
+ * at so many pixels a second was right for one screen and far too slow for
+ * six: the eye does not read a long scroll the way it reads a short one, it
+ * takes in that the page went a long way, so what grows with the distance is
+ * the sense of it and not the time. Set by eye in the sandbox's
+ * `scrolls-into-view` case: a card one screen down, about 750px, takes about
+ * 1.3 seconds, four morphs; the row six screens down about 2.5.
+ */
+export const GLIDE_PACE = 140
+
+/**
+ * How long a glide over `distance` px runs, given `duration`, the morph's.
+ *
+ * The distance term is the point — see {@link GLIDE_PACE} — and `duration` is
+ * only the floor under it, so a short move still glides for as long as the
+ * morph that follows it rather than snapping across. One option, not two: a
+ * host has said how long it wants things to take, and the distance term is
+ * what turns that into a scroll rather than a second setting for the scroll.
+ */
+export const glideDuration = (distance: number, duration: number): number =>
+  Math.max(duration, Math.cbrt(distance) * GLIDE_PACE)
 
 /** A rect collapsed to nothing at its own centre. */
 export function collapse(rect: Rect): Rect {

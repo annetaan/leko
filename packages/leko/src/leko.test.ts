@@ -17,7 +17,6 @@ import {
   shown,
   start,
   stopped,
-  TICK,
 } from './harness.js'
 
 // Claims about layout the browser actually performed: where a hole ended up,
@@ -678,7 +677,8 @@ test('a fixed target is not scrolled to, having nowhere to be scrolled', () => {
 /**
  * A near target at the top of a tall page and a far one below the fold, both in
  * the flow. The pair every test about a glide needs: a step to be standing on,
- * and a step to be carried to.
+ * and a step to be carried to. The far one is not very far — a glide grows
+ * with its distance, and these tests wait for it.
  */
 function nearAndFar(): [HTMLElement, HTMLElement] {
   const near = belowTheFold(2000)
@@ -688,7 +688,7 @@ function nearAndFar(): [HTMLElement, HTMLElement] {
   Object.assign(far.style, {
     position: 'absolute',
     left: '100px',
-    top: '2000px',
+    top: '1200px',
     width: '120px',
     height: '40px',
     margin: '0',
@@ -698,20 +698,22 @@ function nearAndFar(): [HTMLElement, HTMLElement] {
 }
 
 /**
- * Long enough into a glide that the page has moved and short enough that no
- * engine has finished. The fastest measured is WebKit at about 190ms, and
- * Firefox is moving by its second frame — `spike/a-smooth-scroll-settling/`.
+ * Long enough into a glide that the page has moved and short enough that it
+ * has not finished: the shortest glide below is `nearAndFar`'s, which its
+ * distance puts at over a second. The glide is Leko's own, so the only thing that
+ * can stretch it is a machine short of frames, and that makes it later rather
+ * than earlier.
  *
  * Only used where a test has to *do* something mid-flight. A test that
- * **looks** at something mid-flight watches every frame instead; see
+ * **looks** at something mid-flight watches every tick instead; see
  * `duringGlide`.
  */
 const MID_GLIDE = 100
 
 test('a glide draws nothing until the page has stopped', async () => {
-  // The staging, and the reason for it: at 320ms into a smooth scroll Chromium
-  // can still have most of the trip to go, and a hole is placed from where the
-  // target is on screen.
+  // The staging, and the reason for it: a hole is placed from where the target
+  // is on screen, and a page still moving under a morph is a different screen
+  // by the time the morph ends — `spike/a-smooth-scroll-settling/`, question 1.
   const [near, far] = nearAndFar()
 
   const leko = start(
@@ -731,12 +733,12 @@ test('a glide draws nothing until the page has stopped', async () => {
 
   const drawn = flight.findIndex((f) => f.mask !== held)
   expect(drawn).toBeGreaterThanOrEqual(0)
-  // **Scroll first, draw second**, in the one form that holds whatever an engine
-  // does with a smooth scroll: by the tick the step was drawn the page had
-  // already moved, and it did not move again afterwards. A step drawn before
-  // the page set off fails the first half; a morph running alongside a glide
-  // fails the second, because the page goes on moving under a hole already
-  // placed.
+  // **Scroll first, draw second**, in the one form that holds however many
+  // frames a machine gives the glide: by the tick the step was drawn the page
+  // had already moved, and it did not move again afterwards. A step drawn
+  // before the page set off fails the first half; a morph running alongside a
+  // glide fails the second, because the page goes on moving under a hole
+  // already placed.
   expect(flight[drawn]!.scrollY).toBeGreaterThan(0)
   const after = flight.slice(drawn).map((f) => f.scrollY)
   expect(after).toEqual(after.map(() => after[0]))
@@ -745,47 +747,20 @@ test('a glide draws nothing until the page has stopped', async () => {
   // ended up.
   expect(scrim()!.style.maskPosition).not.toBe(held)
   expect(centre(far)).toBe(far)
-  expect(offCentre(far)).toBeCloseTo(0, 0)
+  // Within a pixel rather than half of one: Firefox lands a glide's fractional
+  // destination on a device pixel and reports the offset back in fractions, and
+  // the box measured afterwards is off by the difference.
+  expect(Math.abs(offCentre(far))).toBeLessThanOrEqual(1)
   leko.stop()
   window.scrollTo(0, 0)
 })
 
-test('an engine that drops a smooth scroll is asked again outright', async () => {
-  // Firefox drops a smooth scroll aimed at a scroller well below the fold: the
-  // offset never moves and no `scrollend` ever comes
-  // (`spike/a-smooth-scroll-settling/`, question 4). Panels are set outright
-  // for that reason, so the glide never meets it there, and no engine has been
-  // seen to do it to the document. The guard is kept all the same — a smooth
-  // scroll can be dropped in silence, and a tour that only asked nicely would
-  // wait out its deadline and then draw a step whose target is still off
-  // screen. Mocked, because no engine this suite runs in does it to the page.
-  const [, far] = nearAndFar()
-  const scrollTo = window.scrollTo.bind(window)
-  vi.spyOn(window, 'scrollTo').mockImplementation((...args: unknown[]) => {
-    const options = args[0]
-    // Dropped in silence, the way an engine drops it: no movement, no event.
-    if (typeof options === 'object' && (options as ScrollToOptions).behavior === 'smooth') return
-    ;(scrollTo as (...a: unknown[]) => void)(...args)
-  })
-
-  start([{ id: 'far', target: { elements: () => far, interactive: true }, scroll: true }], {
-    duration: 320,
-  })
-  await stopped()
-
-  // Set outright instead, and the step drawn against where that landed.
-  expect(offCentre(far)).toBeCloseTo(0, 0)
-  expect(centre(far)).toBe(far)
-  window.scrollTo(0, 0)
-})
-
-test('a scroll the port cannot make is not waited out to the deadline', async () => {
+test('a scroll the port cannot make is not glided at all', () => {
   // A target hanging off the left edge of a page already against that edge. The
-  // delta asks for a scroll left and the port has nowhere to go, so nothing
-  // moves — and a scroll that moves nothing has nothing to say it is over. A
-  // tour that only waited on `scrollend` would stand dimmed with no step on it
-  // for the whole of the deadline; this one is set outright, to no effect, and
-  // drawn.
+  // delta asks for a scroll left, and the range the page can reach starts where
+  // the page is, so the destination clamps to where the page already is. There
+  // is nothing to glide, so nothing is waited for: the step is drawn in the
+  // same task the arrival came in on, and the page is left alone.
   const target = keep(document.createElement('button'))
   target.textContent = 'edge'
   Object.assign(target.style, {
@@ -797,22 +772,14 @@ test('a scroll the port cannot make is not waited out to the deadline', async ()
     margin: '0',
   })
   document.body.append(target)
-  const began = performance.now()
 
   start([{ id: 'edge', target: { elements: () => target, interactive: true }, scroll: true }], {
     duration: 320,
   })
 
-  // Nothing yet: the arrival is waiting on a glide, and a first step has no
-  // scrim until it is drawn.
-  expect(scrim()).toBeNull()
-  // Drawn well inside the deadline, which is 2.5s. Waited for on the scrim
-  // rather than the message, because the scrim is made the moment the step is
-  // drawn and the message only once a morph has run.
-  while (!scrim()) {
-    if (performance.now() - began > 2000) throw new Error('drawn only when the deadline ran out')
-    await pause(TICK)
-  }
+  // The scrim is made the moment the step is drawn, so a scrim already here is
+  // a step that did not wait. A first step has none until then.
+  expect(scrim()).not.toBeNull()
   expect(window.scrollX).toBe(0)
   window.scrollTo(0, 0)
 })
@@ -841,9 +808,9 @@ test('a visitor who asked for reduced motion has the page set outright, as the m
 })
 
 test('a nested panel is set rather than glided, so the page delta is exact', async () => {
-  // Firefox does not scroll an off-screen scroller smoothly at all — it does
-  // not scroll it — and off screen is where a panel is while the page has yet
-  // to reach it. So a panel is put where it belongs outright.
+  // A panel is off screen while the page has yet to reach it, so the movement
+  // a viewer follows is the page's, and a panel set first makes the page's own
+  // delta exact rather than measured against a scroller still in flight.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
   document.body.append(spacer)
@@ -920,19 +887,11 @@ test('a step arriving during a glide draws its own step, not the one gliding', a
   window.scrollTo(0, 0)
 })
 
-test('a glide the tour has moved past cannot set the page a moment later', async () => {
-  // The guard that sets an unmoved page outright belongs to the wait it is part
-  // of, and goes when an arrival replaces that wait — or a step the tour has
-  // already left would move the page out from under the one being shown, 120ms
-  // after nobody asked. Mocked as a dropped scroll, because that is the one
-  // case in which the page has not moved by the time the guard looks.
+test('a glide the tour has moved past stops where it is', async () => {
+  // The glide is Leko's own loop, so an arrival that replaces it cancels the
+  // next frame and the page stays where the last one put it — rather than
+  // sliding on to a step the tour has left, under the step that overtook it.
   const [near, far] = nearAndFar()
-  const scrollTo = window.scrollTo.bind(window)
-  vi.spyOn(window, 'scrollTo').mockImplementation((...args: unknown[]) => {
-    const options = args[0]
-    if (typeof options === 'object' && (options as ScrollToOptions).behavior === 'smooth') return
-    ;(scrollTo as (...a: unknown[]) => void)(...args)
-  })
   const leko = start(
     [
       { id: 'near', target: { elements: () => near, interactive: true } },
@@ -949,23 +908,62 @@ test('a glide the tour has moved past cannot set the page a moment later', async
   await shown()
 
   press()
-  // Inside the 120ms the wait gives a glide to have begun.
-  await pause(40)
+  await pause(MID_GLIDE)
   leko.reached('landed')
-  // Well past it, and short of the deadline, which is 2.5s.
-  await pause(400)
+  // Wherever the page was when the tour moved on is where it stays. Read here,
+  // rather than asserted to be short of the destination, because a machine
+  // short of frames can have jumped the whole way in one; what holds on every
+  // machine is that nothing moves it after this.
+  const left = window.scrollY
+  await stopped()
 
   expect(leko.step?.id).toBe('back')
-  expect(window.scrollY).toBe(0)
+  expect(window.scrollY).toBe(left)
+  window.scrollTo(0, 0)
+})
+
+test('a viewer who scrolls during a glide stops it, and the step is drawn where they left the page', async () => {
+  // Each frame reads the offset before it writes one, and a page that is not
+  // where the last frame left it was moved by somebody else. Their scroll is
+  // not Leko's to undo, so the glide stops and the step is drawn against the
+  // page as they put it. Somewhere the glide would never have written to, past
+  // its own destination, so a frame that happened to land nearby cannot be
+  // mistaken for the viewer.
+  const [near, far] = nearAndFar()
+  far.parentElement!.style.height = '6000px'
+  const leko = start(
+    [
+      { id: 'near', target: { elements: () => near, interactive: true } },
+      { id: 'far', target: { elements: () => far, interactive: true }, scroll: true },
+    ],
+    { duration: 320 },
+  )
+  await shown()
+  const held = scrim()!.style.maskPosition
+
+  press()
+  await pause(MID_GLIDE)
+  window.scrollTo(0, 4000)
+  await stopped()
+
+  expect(leko.step?.id).toBe('far')
+  // Within a pixel rather than equal: Firefox reports the offset back in
+  // fractions, and how big the fraction is varies — which is the reason the
+  // takeover check has a pixel of tolerance in it, and the same pixel is
+  // allowed here.
+  expect(Math.abs(window.scrollY - 4000)).toBeLessThanOrEqual(1)
+  // Drawn, against the page where the viewer left it: the hole is cut, and it is
+  // not the one that was standing.
+  expect(scrim()!.style.maskPosition).not.toBe(held)
   window.scrollTo(0, 0)
 })
 
 test('a step that scrolls, arriving during a glide, lands where it meant to', async () => {
-  // The page is mid-flight when the second scroll is asked for, and the box was
-  // measured against the `scrollY` this task can see. Asked for as an offset it
-  // lands; asked for as a `scrollBy` it landed 474px off in WebKit, which
-  // resolves a delta against where its glide has got to rather than where
-  // `scrollY` says (`spike/a-smooth-scroll-settling/`, question 5).
+  // The page is mid-flight when the second scroll is asked for. The first glide
+  // is cancelled where it is, the box is measured against the page as it stands,
+  // and the second glide runs from there to the offset it computed — so it
+  // lands where it meant to, which the browser's own glide only did when asked
+  // in one of two spellings (`spike/a-smooth-scroll-settling/`, question 5).
   const [near, far] = nearAndFar()
   const spacer = near.parentElement!
   spacer.style.height = '5000px'
@@ -974,7 +972,7 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
   Object.assign(other.style, {
     position: 'absolute',
     left: '100px',
-    top: '4000px',
+    top: '2400px',
     width: '120px',
     height: '40px',
     margin: '0',
@@ -1003,7 +1001,10 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
 
   expect(leko.step?.id).toBe('other')
   expect(centre(other)).toBe(other)
-  expect(offCentre(other)).toBeCloseTo(0, 0)
+  // Within a pixel, where every other landing here is within half of one: the
+  // box was measured against an offset Firefox reports mid-glide in fractions
+  // that are not quite the layout's, and the sum inherits the difference.
+  expect(Math.abs(offCentre(other))).toBeLessThanOrEqual(1)
   window.scrollTo(0, 0)
 })
 

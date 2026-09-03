@@ -6,6 +6,8 @@ import {
   cornerRect,
   type Cutout,
   freeCorner,
+  GLIDE_PACE,
+  glideDuration,
   grow,
   clipToSurface,
   hasArea,
@@ -139,6 +141,22 @@ test('nothing here clamps, so the port is what stops at the end of the content',
   // the honest delta: the scrollport clamps it and the box lands as near the
   // middle as the content allows.
   expect(scrollDelta(rect(20, 300, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 220 })
+})
+
+test('a glide takes longer the further it goes, by the cube root of the way', () => {
+  // A person is meant to take in the page while it moves, so the way counts;
+  // but eight times the distance is twice the glide, not eight times it.
+  expect(glideDuration(1000, 320)).toBe(10 * GLIDE_PACE)
+  expect(glideDuration(8000, 320)).toBe(20 * GLIDE_PACE)
+})
+
+test('a short glide still runs for as long as the morph', () => {
+  // The morph's length is the floor, so a small move glides rather than snaps,
+  // and a host that asked for a slower morph gets a glide no quicker than it.
+  // At the default morph the root is over the floor within a few pixels, so
+  // the floor is mostly the slow host's.
+  expect(glideDuration(8, 320)).toBe(320)
+  expect(glideDuration(1000, 5000)).toBe(5000)
 })
 
 test('collapse keeps the centre', () => {
