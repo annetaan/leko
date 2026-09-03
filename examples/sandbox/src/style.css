@@ -658,6 +658,29 @@ button:disabled {
 }
 
 /*
+ * How an application says how much of its own chrome is in the way, for
+ * `scrolls-into-view.ts`, and here it is the sandbox's own: the footer below is
+ * sticky and sits above the scrim, so a target centred on the screen leaves its
+ * message landing in it. Saying so here leans the target that much further up,
+ * and the message lands clear. Leko knows nothing about a host's own chrome
+ * when it places a message — that is issue #141 — and `scroll-margin` is the
+ * answer it does have.
+ */
+.scroll-case [data-far] {
+  scroll-margin-bottom: 236px;
+}
+
+/*
+ * Taller than the screen, which puts it over the half a scrollport at which a
+ * target stops being centred and leads with its top edge instead. That is what
+ * leaves the top half of the screen for the message, so this one needs no room
+ * made for it anywhere.
+ */
+.tall-section {
+  min-height: calc(100vh + 200px);
+}
+
+/*
  * The transform is the point: a common hint to promote a card to its own
  * layer, and it makes the card the containing block of every fixed descendant.
  */

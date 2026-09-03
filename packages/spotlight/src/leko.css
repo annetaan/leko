@@ -4,8 +4,15 @@
  * Override them anywhere: on :root, on a container, per theme.
  */
 :root {
-  /* Colour of the scrim outside the cutouts. */
-  --leko-scrim-color: rgb(0 0 0 / 0.66);
+  /*
+   * Colour of the scrim outside the cutouts.
+   *
+   * Light enough to read the page through. What the dimming has to do is make
+   * one thing the brightest on screen; hiding the rest of the application is
+   * not the job, and a viewer who cannot see where they are in it has lost the
+   * context the step is explaining.
+   */
+  --leko-scrim-color: rgb(0 0 0 / 0.45);
   /* Stacking order of the scrim. */
   --leko-z: 9999;
 

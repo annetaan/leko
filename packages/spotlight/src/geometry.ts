@@ -82,6 +82,97 @@ export function grow(rect: Rect, by: number): Rect {
   }
 }
 
+/**
+ * Room asked for around a box, side by side.
+ *
+ * Four numbers rather than one, because the two things that ask for room here
+ * disagree about shape: a step's `padding` is the same all round, and
+ * `scroll-margin` is written per side by an application that knows which of
+ * its own chrome is in the way.
+ */
+export interface Insets {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+/** A rect with `room` added to each of its sides. {@link grow} where all four agree. */
+export function outset(rect: Rect, room: Insets): Rect {
+  return {
+    x: rect.x - room.left,
+    y: rect.y - room.top,
+    width: rect.width + room.left + room.right,
+    height: rect.height + room.top + room.bottom,
+  }
+}
+
+/**
+ * How far a scrollport has to move to put `box` where a step wants it, and zero
+ * on an axis that already holds it.
+ *
+ * Positive is forward — what `scrollBy` is handed.
+ *
+ * **The middle, not the nearest edge.** A step exists to draw attention to one
+ * thing, and a hole flush against the bottom of the screen is the least
+ * attention a hole can be given: there is no room under it for the message, and
+ * whatever chrome an application keeps down there is over it. So the least
+ * movement is not what is wanted here — the movement that puts the thing where
+ * a person looks is.
+ *
+ * **A box more than half the port tall leads with its top edge instead**, put
+ * at the middle of the port. Centring one of those is what leaves the message
+ * nowhere to go: the taller the hole, the less room there is on either side of
+ * it, and a hole taller than the port leaves none at all. Leading with the top
+ * edge always leaves exactly half a port above the hole, which is a place a
+ * message fits, and gives up only the bottom of a target nobody could take in
+ * at a glance anyway. **Vertically only** — the message is placed above or
+ * below before it is placed beside, so it is height that has to be paid for,
+ * and a box wider than half the port led the same way would hang off the side
+ * for nothing.
+ *
+ * **Zero on an axis that already holds the box** is the refusal a step arriving
+ * owes the viewer: a page somebody has settled is not re-centred because a step
+ * happens to point at something already on screen. It is the whole box that
+ * has to be inside, overhang and asked-for room included, so a hole hanging
+ * half off the bottom is not "already there".
+ *
+ * **Nothing here clamps.** A box near the end of the content cannot be put
+ * where it belongs, and the delta this hands back for one asks for a scroll
+ * past the end. The scrollport is what clamps that, which lands the box as near
+ * as the content allows and leaves it against the far edge in the limit — the
+ * honest answer, and it costs no arithmetic here to know the scroll range.
+ *
+ * A box wider than the port keeps the near edge: it can be neither held nor
+ * centred, and the near edge is where reading starts.
+ */
+export function scrollDelta(box: Rect, port: Rect): { x: number; y: number } {
+  const [left, right] = [box.x, box.x + box.width]
+  const [portLeft, portRight] = [port.x, port.x + port.width]
+  const [top, bottom] = [box.y, box.y + box.height]
+  const [portTop, portBottom] = [port.y, port.y + port.height]
+  return {
+    x: holds(left, right, portLeft, portRight)
+      ? 0
+      : box.width > port.width
+        ? left - portLeft
+        : centred(left, right, portLeft, portRight),
+    y: holds(top, bottom, portTop, portBottom)
+      ? 0
+      : box.height > port.height / 2
+        ? top - (portTop + portBottom) / 2
+        : centred(top, bottom, portTop, portBottom),
+  }
+}
+
+/** Whether this axis of the port already holds this axis of the box, whole. */
+const holds = (near: number, far: number, portNear: number, portFar: number): boolean =>
+  near >= portNear && far <= portFar
+
+/** What it takes to put the middle of the box on the middle of the port. */
+const centred = (near: number, far: number, portNear: number, portFar: number): number =>
+  (near + far) / 2 - (portNear + portFar) / 2
+
 /** A rect collapsed to nothing at its own centre. */
 export function collapse(rect: Rect): Rect {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: 0, height: 0 }

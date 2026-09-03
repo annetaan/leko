@@ -263,6 +263,46 @@ export interface LekoStep {
   radius?: number
 
   /**
+   * Whether this step brings its target into view before drawing it.
+   * Overrides {@link LekoOptions.scroll}, and is off unless one of the two
+   * asks.
+   *
+   * A step draws its target where the target is; it does not go and get it. So
+   * a target below the fold is cut out of a scrim nobody can see, and the
+   * viewer is left to work out that scrolling is what the step wants of them.
+   * Say `true` and every scrollport carrying the target brings the cutout to
+   * the middle of itself, before anything is measured — the middle, because a
+   * step exists to draw attention and a hole against the bottom of the screen
+   * is the least attention one can be given. A cutout more than half the
+   * scrollport tall leads with its top edge instead, put at the middle, which
+   * leaves the message the half above it. A target already in view is left
+   * exactly where it is, and one near the end of the content lands as near as
+   * the content allows.
+   *
+   * **The page glides, and the step is drawn when it stops.** The scroll and
+   * the morph are two stages rather than one: a hole is placed from where the
+   * target is on screen, so a morph running alongside a smooth scroll is a
+   * hole placed against a page that has since moved. Nested panels are set
+   * outright rather than glided. Where {@link LekoOptions.duration} is `0`, or
+   * the visitor has asked for reduced motion, the page is set outright too —
+   * the scroll animates exactly when the morph does.
+   *
+   * It is off by default because where a page is scrolled to is the
+   * application's own state, and a tour that moves it is a tour reaching into
+   * the application. `scroll-margin` on the target is honoured over the step's
+   * `padding` wherever it asks for more room: it is how an application says how
+   * much of its own sticky chrome is in the way, and what it buys is a target
+   * leaning away from that side, so a step's message lands clear of the chrome
+   * rather than under it.
+   *
+   * Nothing happens on a step with no `target`, and nothing happens for a
+   * `position: fixed` target, which has nowhere to be scrolled to. A redraw
+   * never scrolls again: only a step arriving does, because by the time
+   * anything is redrawn the viewer may have moved the page on purpose.
+   */
+  scroll?: boolean
+
+  /**
    * The name of the thing this step is waiting for the application to report.
    *
    * `reached(name)` advances the step only if the step declares that same name,
@@ -516,6 +556,18 @@ export interface LekoOptions {
 
   /** Corner radius of a cutout, in px. Defaults to `8`. */
   radius?: number
+
+  /**
+   * Whether every step brings its target into view before drawing it.
+   * Defaults to `false`, and a step may say either way.
+   *
+   * The whole of what it does is described on {@link LekoStep.scroll}. What
+   * belongs here is why it is a setting at all: scroll position is application
+   * state, so a tour is not given it. A host that would rather its viewers
+   * never hunted for a highlight below the fold turns it on once, here, and a
+   * step that lands somewhere a jump would be wrong says `scroll: false`.
+   */
+  scroll?: boolean
 
   /**
    * How long a step-to-step morph runs, in ms. Defaults to `320`, and is

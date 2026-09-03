@@ -61,6 +61,15 @@ export default defineConfig({
           name: 'leko',
           include: ['packages/leko/src/leko.test.ts', 'packages/leko/src/message.test.ts'],
           browser: browsers(),
+          // Vitest's default of 5s is not enough for the tests about a step that
+          // scrolls, on CI. Those wait for animations the browser owns — a
+          // morph, and a smooth scroll whose length is the engine's — and this
+          // suite puts three browsers on a two-core runner, where a single
+          // animation frame has been watched taking more than three seconds.
+          // What that costs a healthy machine is nothing: every one of those
+          // tests waits on the thing it is about and returns as soon as it
+          // happens.
+          testTimeout: 20_000,
         },
       },
       {

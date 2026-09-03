@@ -12,6 +12,7 @@ import { messageSides } from './message-sides.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
+import { scrollsIntoView } from './scrolls-into-view.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
@@ -40,6 +41,7 @@ export const cases: Case[] = [
   linkedRegions,
   nestedScroller,
   scrollableTarget,
+  scrollsIntoView,
   fixedChrome,
   messageSides,
   targetDisappears,

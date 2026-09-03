@@ -1,8 +1,10 @@
 import type { Host, Presenter } from '@annetaan/leko-machine'
 import {
+  bringIntoView,
   Close,
   type Cutout,
   FocusRing,
+  type Glide,
   grow,
   Message,
   type MessageContent,
@@ -156,6 +158,17 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private drawn: Drawn | undefined
   /** The deadline on a target that is not on the page, while one is running. */
   private retrying: ReturnType<typeof setTimeout> | undefined
+  /**
+   * The scroll in flight, while the page is gliding towards a step that has
+   * not been drawn yet.
+   *
+   * Held so that what has to be known when one settles is whether it is still
+   * the one being waited for, and so that one the tour has moved past can be
+   * told to stop waiting. An arrival replaces it and a teardown drops it, and
+   * both abandon the wait first: a glide nobody is waiting for must not set
+   * the page outright, a moment later, to somewhere the tour no longer is.
+   */
+  private gliding: Glide | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
@@ -170,6 +183,23 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private setting(step: LekoStep, key: 'padding' | 'radius'): number {
     return step[key] ?? this.options[key] ?? DEFAULTS[key]
+  }
+
+  /** How long a morph runs. The scroll before it follows the same number. */
+  private duration(): number {
+    return this.options.duration ?? DEFAULTS.duration
+  }
+
+  /**
+   * Whether this step brings its target into view before it is drawn.
+   *
+   * Step, then instance, and **off unless somebody asks**. Where the page is
+   * scrolled to is application state, and a tour that moves it has touched the
+   * application — so a host says so rather than being given it. DESIGN.md
+   * argues it under **Bringing a target into view**.
+   */
+  private scrolls(step: LekoStep): boolean {
+    return step.scroll ?? this.options.scroll ?? false
   }
 
   /** Whether this step has anything to point at. A step that has not is a wait. */
@@ -394,13 +424,42 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // over the step this call is about. It is also what leaves {@link retry}
     // with only one of itself to think about.
     this.endRetry()
+    this.endGlide()
     // Named a target and it is not on the page yet, which a step whose target
     // renders a moment after its `onEnter` returned is as much as one whose
     // target has gone. A step that named nothing is not looked for.
     if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, animate)
     // An arrival is a fresh attempt at the step, so nothing is owed under the
     // instruction until a guard says otherwise.
-    this.reveal({ step, error: undefined }, anchor, animate)
+    const drawn = { step, error: undefined }
+    // **The one place a scroll happens.** After the target resolved, so there
+    // is something to scroll to, and before anything is measured, so every box
+    // the step is drawn from is read off the page as it ends up. It is here
+    // rather than in {@link reveal} because this is the arrival: a redraw goes
+    // through there and must not scroll again, the viewer having had every
+    // right to move the page since.
+    if (!anchor || !this.scrolls(step)) return this.reveal(drawn, anchor, animate)
+    // The words of the step being left go before the page moves, rather than
+    // riding a glide to somewhere they are not about. Nothing else changes: the
+    // dimming stays, and the standing hole travels with the content it is cut
+    // out of.
+    this.message?.hide()
+    const settling = bringIntoView(anchor, this.setting(step, 'padding'), this.duration())
+    // Nothing to wait for — every port already held the cutout, or the move was
+    // applied outright — so this is the same task the arrival came in on.
+    if (!settling) return this.reveal(drawn, anchor, animate)
+    this.gliding = settling
+    void settling.settled.then(() => {
+      // Another arrival has been and gone, and it is drawing its own step.
+      if (this.gliding !== settling) return
+      this.gliding = undefined
+      // Asked again rather than trusted: a glide is long enough for a framework
+      // to have rendered over the target, and the node resolved before it may
+      // be off the page by now.
+      const landed = this.resolve(step)
+      if (!landed && DomPresenter.pointsAt(step)) return this.retry(step, animate)
+      this.reveal(drawn, landed, animate)
+    })
   }
 
   /**
@@ -454,8 +513,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
-    const duration = this.options.duration ?? DEFAULTS.duration
-    const morphing = inner.morph(resolved, duration)
+    const morphing = inner.morph(resolved, this.duration())
     if (!morphing) {
       this.say(step, drawn.error)
       return
@@ -615,6 +673,19 @@ export class DomPresenter implements Presenter<LekoWorld> {
     }, RETRY)
   }
 
+  /**
+   * Stop waiting on a scroll. The page may still be gliding, and it is left to
+   * finish: nothing is drawn from where it ends up, and nothing could stop it
+   * anyway — an instant scroll to where the page is leaves Firefox gliding on
+   * and Chromium a frame further (`spike/a-smooth-scroll-settling/`, question
+   * 5). What ends is the wait, timers and all, so an abandoned glide can no
+   * longer set the page outright.
+   */
+  private endGlide(): void {
+    this.gliding?.abandon()
+    this.gliding = undefined
+  }
+
   /** End the retry, whichever way it went. The observer is armed again by whatever draws next. */
   private endRetry(): void {
     if (this.retrying === undefined) return
@@ -654,6 +725,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // itself back onto the page 100ms later is the worst of the lot, because
     // nothing is left to take it away again.
     this.endRetry()
+    this.endGlide()
     this.drawn = undefined
     // Whatever is still watching the target goes with the step it was watching
     // for. `endRetry` takes the observer with it only where a retry was running.

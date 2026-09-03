@@ -2,10 +2,13 @@ import {
   complementRects,
   type Cutout,
   hasArea,
+  type Insets,
   lerpCutouts,
   maskLayers,
+  outset,
   padCutouts,
   type Rect,
+  scrollDelta,
   segmentAt,
 } from './geometry.js'
 
@@ -154,15 +157,257 @@ export function paddingBoxWithin(el: HTMLElement, surface: Surface): Rect {
   }
 }
 
+export const prefersReducedMotion = (): boolean =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * Whether a change of `duration` is animated at all, or applied outright.
+ *
+ * One rule, read by the morph and by the scroll that precedes it, so the two
+ * can never disagree about whether the tour is moving things or setting them.
+ * A host that asked for no morph did not ask for a gliding page either.
+ */
+const animates = (duration: number): boolean => duration > 0 && !prefersReducedMotion()
+
+/**
+ * How long a glide is waited for before it is called over regardless.
+ *
+ * `scrollend` is what ends the wait — it is Baseline 2025 and fires in every
+ * engine, including for a scroll an engine chose to apply outright
+ * (`spike/a-smooth-scroll-settling/`). This is only the net under it: an event
+ * that never comes must not leave a tour with nothing drawn. Generous on
+ * purpose, because the failure it guards against is rare and the failure of
+ * cutting a glide short is the one this whole staging exists to avoid — the
+ * longest scroll measured, 5000px in Chromium, stops at 1160ms and its
+ * `scrollend` lands 34ms after that.
+ */
+const SETTLE = 2500
+
+/**
+ * How long a glide is given to have moved the page before it is set outright.
+ *
+ * Long enough that every engine measured has begun moving — Firefox is the
+ * slowest to start and is moving by its second frame — and short enough that a
+ * scroll nobody is going to make costs a jump rather than a wait. What it costs
+ * is a glide that has not begun in 120ms, which becomes a jump; on a machine
+ * that cannot produce a frame in that time, the glide was not going to be
+ * seen.
+ */
+const START = 120
+
+/**
+ * A glide in flight: when the page has settled, and how to stop waiting on it.
+ *
+ * `abandon` ends the wait and nothing else — the timers and the listener go,
+ * and `settled` never resolves. It does not stop the scroll, because nothing
+ * can: an instant scroll to where the page is leaves Firefox gliding on to the
+ * original destination and Chromium a frame further with no `scrollend` to
+ * follow (`spike/a-smooth-scroll-settling/`, question 5). What it is for is
+ * the check the wait would otherwise still make. A glide the tour has moved
+ * past must not set the page outright, a moment later, to somewhere the tour
+ * no longer is.
+ */
+export interface Glide {
+  settled: Promise<void>
+  abandon(): void
+}
+
+/**
+ * Bring `el` to the middle of every scrollport that carries it, and say when the
+ * page has stopped moving.
+ *
+ * **Before the draw, and never during it.** `undefined` means there is nothing
+ * to wait for — every port already held the cutout, or the move was applied
+ * outright — and the step is drawn in the same task. A {@link Glide} means the
+ * page is moving, and whatever draws waits for it: at 320ms into a smooth
+ * scroll Chromium can still have about half of a 5000px trip to go, and a hole
+ * is drawn from where the target is on screen, so a morph running alongside a
+ * glide is a hole placed against a page that has since moved
+ * (`spike/a-smooth-scroll-settling/`). Scroll tracking still runs no JS: a
+ * scroll Leko started is not the viewer scrolling.
+ *
+ * **The page glides; a nested scroller is set.** Firefox does not animate a
+ * programmatic smooth scroll of a scroller well below the fold — it does not
+ * scroll it at all, and fires no `scrollend` to say so (question 4 of the same
+ * page) — and below the fold is exactly where a panel is while the page has yet
+ * to arrive at it. So a panel is put where it belongs outright, which also
+ * makes the page's own delta exact rather than measured against a scroller
+ * still in flight. The movement a viewer follows is the page's, and a panel's
+ * inner scroll is a detail inside a box that is not on screen yet.
+ *
+ * **An offset is asked for, never a delta**, though a delta is what the
+ * geometry hands back. `scrollBy` resolves against where the engine says the
+ * port is, and while a glide is in flight WebKit says somewhere `scrollY` does
+ * not: a `scrollBy` started 100ms into a glide landed 474px off there, where a
+ * `scrollTo` of the same offset landed exactly (question 5 of the same page).
+ * The box was measured against the `scrollY` this task can see, so that is
+ * the offset the sum is right in — which is what makes a step that arrives
+ * mid-glide and scrolls land where it meant to.
+ *
+ * `room` is the hole's own overhang — the step's `padding` — so what is brought
+ * in is the cutout rather than the bare element. `scroll-margin` on the target
+ * is honoured over it wherever it asks for more: a guess about how much room a
+ * sticky header needs is exactly the thing an application already knows and
+ * Leko does not.
+ *
+ * Where the target ends up is {@link scrollDelta}'s to say: the middle of the
+ * port, or nowhere at all if the port already held it. Nothing here clamps —
+ * the port does, so a target near the end of the content lands as near the
+ * middle as the content allows.
+ *
+ * Innermost first, and the box is measured again for each port, because
+ * scrolling an inner scroller moves the target inside every port outside it.
+ * A `viewport` surface is skipped: what it carries is `position: fixed` and has
+ * nowhere to be scrolled to.
+ */
+export function bringIntoView(el: Element, room: number, duration: number): Glide | undefined {
+  const asked = roomAround(el, room)
+  for (const surface of surfaceChain(el)) {
+    const port = scrollport(surface)
+    if (!port) continue
+    const r = el.getBoundingClientRect()
+    const box = outset({ x: r.left, y: r.top, width: r.width, height: r.height }, asked)
+    const delta = scrollDelta(box, port)
+    if (delta.x === 0 && delta.y === 0) continue
+    // `instant` in so many words, every time it is meant. A host with
+    // `scroll-behavior: smooth` on its root would otherwise animate a move this
+    // is relying on having happened by the next line.
+    if (surface.kind === 'scroller') {
+      const panel = surface.element
+      panel.scrollTo({
+        left: panel.scrollLeft + delta.x,
+        top: panel.scrollTop + delta.y,
+        behavior: 'instant',
+      })
+      continue
+    }
+    // The document, which is the last surface of every chain that has one, so
+    // there is nothing after this to measure.
+    const to = { x: window.scrollX + delta.x, y: window.scrollY + delta.y }
+    if (!animates(duration)) {
+      window.scrollTo({ left: to.x, top: to.y, behavior: 'instant' })
+      return undefined
+    }
+    return glide(to)
+  }
+  return undefined
+}
+
+/**
+ * Scroll the page smoothly to `to`, settled once it has stopped.
+ *
+ * `scrollend` is the whole of the answer where it arrives, and it arrives in
+ * every engine — up to 183ms after the offset itself stops in Firefox, which is
+ * a wait taken rather than a poll started. The deadline under it is a net, not
+ * a fallback: see {@link SETTLE}.
+ *
+ * A `scrollend` the viewer caused settles this too, and that is right — they
+ * scrolled during the glide, so the page is where they left it and the step
+ * belongs against that. One that arrives while the page is still exactly where
+ * it was does not: it belongs to whatever moved the page a moment before, and
+ * taking it would draw the step before the glide had begun.
+ *
+ * **A page that has not moved at all is set outright, and the wait ends.** A
+ * glide is started only where there was a delta to cover, so a page still
+ * exactly where it was is a scroll that did not happen, and setting it is
+ * unambiguous. Two things get here. A delta the port cannot honour — a target
+ * hanging off an edge the page is already against — moves nothing, and a
+ * scroll that moves nothing has nothing to say it is over. And an engine that
+ * drops the scroll in silence, which Firefox does to a scroller below the fold
+ * (`spike/a-smooth-scroll-settling/`, question 4). No engine has been seen to
+ * do that to the document and nothing here claims one does; the failure has
+ * been watched to exist, and guarding against it costs a jump where a glide
+ * would have done. Moved but short is left alone: that is a viewer who took
+ * over, and their scroll is not Leko's to undo.
+ *
+ * **On a timer, never on an animation frame.** On the two-core CI runner a
+ * single frame has been watched taking more than three seconds while timers
+ * went on ticking at 16ms. On such a machine a check that waits for frames
+ * lands after {@link SETTLE} has already decided, and the deadline is made of
+ * a timer too.
+ */
+function glide(to: { x: number; y: number }): Glide {
+  const from = { x: window.scrollX, y: window.scrollY }
+  const unmoved = (): boolean => window.scrollX === from.x && window.scrollY === from.y
+  let settle!: () => void
+  const settled = new Promise<void>((resolve) => {
+    settle = resolve
+  })
+  let done = false
+  /** Stop waiting, and only that. */
+  function abandon(): void {
+    done = true
+    clearTimeout(over)
+    clearTimeout(starting)
+    window.removeEventListener('scrollend', ended)
+  }
+  function finish(): void {
+    abandon()
+    settle()
+  }
+  /** Where the page has not moved at all, set it outright. Whether it did. */
+  function insist(): boolean {
+    if (!unmoved()) return false
+    window.scrollTo({ left: to.x, top: to.y, behavior: 'instant' })
+    return true
+  }
+  function ended(): void {
+    if (!done && !unmoved()) finish()
+  }
+  const over = setTimeout(() => {
+    if (done) return
+    insist()
+    finish()
+  }, SETTLE)
+  const starting = setTimeout(() => {
+    if (!done && insist()) finish()
+  }, START)
+  window.addEventListener('scrollend', ended)
+  window.scrollTo({ left: to.x, top: to.y, behavior: 'smooth' })
+  return { settled, abandon }
+}
+
+/** How much room to leave around a target: what the step asks, or what the page asks for more of. */
+function roomAround(el: Element, room: number): Insets {
+  const style = getComputedStyle(el)
+  const side = (value: string): number => Math.max(room, parseFloat(value) || 0)
+  return {
+    top: side(style.scrollMarginTop),
+    right: side(style.scrollMarginRight),
+    bottom: side(style.scrollMarginBottom),
+    left: side(style.scrollMarginLeft),
+  }
+}
+
+/**
+ * What a surface can be scrolled within, in viewport coordinates, or nothing
+ * where it cannot be scrolled at all.
+ *
+ * The client box rather than the border box, both times: a scrollbar's gutter
+ * is not somewhere a target can be brought to, and neither is a border.
+ */
+function scrollport(surface: Surface): Rect | undefined {
+  if (surface.kind === 'viewport') return undefined
+  if (surface.kind === 'document') {
+    const root = document.documentElement
+    return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+  }
+  const el = surface.element
+  const r = el.getBoundingClientRect()
+  return {
+    x: r.left + el.clientLeft,
+    y: r.top + el.clientTop,
+    width: el.clientWidth,
+    height: el.clientHeight,
+  }
+}
+
 /**
  * The name the message anchors to. Declared here because this is the file that
  * makes the element carrying it, and read in `message.ts`, which is the only
  * thing that ever asks for it.
  */
 export const MESSAGE_ANCHOR = '--leko-message-anchor'
-
-export const prefersReducedMotion = (): boolean =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Ease out, so a cutout arrives rather than stops. */
 const ease = (t: number): number => 1 - (1 - t) ** 3
@@ -294,7 +539,7 @@ export class Scrim {
       position,
       left: '0',
       top: '0',
-      background: 'var(--leko-scrim-color, rgb(0 0 0 / 0.66))',
+      background: 'var(--leko-scrim-color, rgb(0 0 0 / 0.45))',
       zIndex: 'var(--leko-z, 9999)',
       // This element paints and nothing else. The blocking is done beside it,
       // for the reason set out on `blocking`.
@@ -738,7 +983,7 @@ export class Scrim {
   morph(to: Cutout[], duration: number): Promise<boolean> | undefined {
     const [from, padded] = padCutouts(this.cutouts, to)
 
-    if (duration <= 0 || prefersReducedMotion()) {
+    if (!animates(duration)) {
       this.set(to)
       return undefined
     }

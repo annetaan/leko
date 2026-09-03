@@ -106,8 +106,10 @@ labelTheme()
 // Slow motion, for watching the drawing itself: a 160ms fade inside a 320ms
 // morph is over before an eye can settle on it. The pace stretches the morph
 // and the halo fade by the same factor, so what is watched slowed down is the
-// same choreography rather than a different one. Kept across reloads the way
-// the theme is.
+// same choreography rather than a different one. A scroll a step asks for is
+// not in it: how long a smooth scroll runs is the engine's rather than a number
+// Leko passes, so a slowed pace is the same glide followed by a slower morph.
+// Kept across reloads the way the theme is.
 const PACES = [1, 4, 10]
 const speedPick = pick<HTMLSelectElement>('[data-speed]')
 const keptPace = Number(localStorage.getItem('leko-sandbox-pace'))

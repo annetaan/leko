@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How long does a smooth scroll take, and what says when it is over?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .good { color: #0a7d32; font-weight: 700; }
+  .bad { color: #c62828; font-weight: 700; }
+  .none { color: #888; font-weight: 400; }
+  @media (prefers-color-scheme: dark) { .good { color: #6ee79b; } .bad { color: #ff8a80; } }
+  button { padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+           background: #2f6fed; color: #fff; font: inherit; cursor: pointer; }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+  .banner { padding: 8px 12px; border-radius: 6px; background: #8881; max-width: 76ch; font-size: 13px; }
+
+  /* The two ports under test: the page's own scroll, and a nested one. How far
+     down the page the nested one sits is set from script, because that turns
+     out to be the whole of question 4. */
+  #panel-room { height: 0; }
+  .scroller { height: 220px; width: 420px; overflow: auto; border: 1px solid #8884; border-radius: 8px; }
+  .scroller-room { height: 6000px; }
+  #page-room { height: 14000px; }
+</style>
+</head>
+<body>
+
+<h1>How long does a smooth scroll take, and what says when it is over?</h1>
+<p>
+  A tour that scrolls to its target has two animations to think about: the
+  scroll, and the morph that carries the hole to where the target ended up.
+  Running them together is only safe if everything the morph is drawn from is
+  the same at the start of the scroll as at the end of it — and what is not is
+  every decision made in <em>viewport</em> coordinates: which side of the hole
+  the message takes, and which corner the way out sits in. Both are chosen once,
+  from where the hole is on screen at that moment.
+</p>
+<p>
+  So the question is how far off that moment can be, and what an implementation
+  can wait for instead. The fourth question was not planned: a nested scroller
+  turned out to answer the first one differently depending on whether it was on
+  screen, and the sweep is what that became. The fifth is what a tour that moves
+  on mid-glide is allowed to do about the glide.
+</p>
+<p class="banner" id="platform"></p>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<h2>1 — How long a smooth scroll runs, and where it is at 320ms</h2>
+<p>
+  Four distances on the document and one inside a nested scroller. Each is
+  driven from a standing start, sampled every frame until the offset stops
+  changing, and reported as: how long it took to settle, how many pixels were
+  still to go at 320ms — the default length of a Leko morph — and what fraction
+  of the trip that is. <strong>The pixels-still-to-go column is the whole
+  question</strong>: it is how far the page moves under a decision made at that
+  instant.
+</p>
+<table id="t1"><thead><tr>
+  <th>port</th><th>distance</th><th>settled after</th><th>left at 320ms</th><th>of the trip</th><th>frames</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>2 — What says the scroll is over</h2>
+<p>
+  <code>scrollend</code> is the event for it, and it is
+  <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollend_event">Baseline
+  2025</a>. Asked here for the cases an implementation actually meets: a smooth
+  scroll on the document and on a scroller, a scroll an engine applied outright,
+  and a port told to scroll to where it already was — which is the one that must
+  never be waited on.
+</p>
+<table id="t2"><thead><tr>
+  <th>case</th><th><code>scrollend</code> fired</th><th>at</th><th>after the offset stopped</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>3 — Whether watching the offset agrees with the event</h2>
+<p>
+  The alternative to the event is to watch the offset each frame and call it
+  settled once it stops moving. That is a poll, and it is only worth having if
+  it answers the same question at about the same time. This is the two put side
+  by side on the same scroll.
+</p>
+<table id="t3"><thead><tr>
+  <th>port</th><th>distance</th><th>event</th><th>offset stopped</th><th>difference</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>4 — Does a scroller below the fold scroll at all?</h2>
+<p>
+  The same 1200px scroll inside the same panel, with only one thing changed:
+  how far down the page the panel sits, the window left at the top. <strong>A
+  panel a tour is about to scroll is below the fold by definition</strong> — the
+  page has not moved yet — so this is not an edge case, it is the ordinary one.
+  Each offset is asked twice, smoothly and outright.
+</p>
+<table id="t4"><thead><tr>
+  <th>panel at</th><th>past the fold by</th><th>smooth: landed</th><th>steps</th><th><code>scrollend</code></th><th>set: landed</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>5 — Can a glide be stopped, or replaced, part-way?</h2>
+<p>
+  A tour that moves on while the page is still gliding has two things it might
+  do to the glide. Set the page to where it is at that instant — CSSOM View says
+  a scroll of any kind aborts the smooth scroll in flight, so an instant one to
+  the current offset ought to leave the page there. Or start a second smooth
+  scroll to a destination of its own and have it land there rather than fight
+  the first — asked two ways, as a <code>scrollBy</code> by the delta from where
+  <code>scrollY</code> says the page is, and as a <code>scrollTo</code> of the
+  same offset, because those ought to be the same request. All three are asked
+  100ms into a 5000px glide, which is far enough in that every engine is moving
+  and short enough that none has arrived.
+</p>
+<table id="t5"><thead><tr>
+  <th>interrupted with</th><th>page was at</th><th>landed</th><th>wanted</th><th><code>scrollend</code> after it</th><th>frames</th>
+</tr></thead><tbody></tbody></table>
+
+<div id="panel-room"></div>
+<div class="scroller" id="scroller"><div class="scroller-room"></div></div>
+<div id="page-room"></div>
+
+<script>
+/*
+ * Everything below drives one scroll at a time and watches it from a rAF loop.
+ * No library, and nothing here knows what Leko is: the only number borrowed
+ * from it is the 320ms a morph runs by default.
+ */
+const MORPH = 320
+
+/** Unchanged frames before a scroll that has moved is called over. */
+const STILL = 4
+/** How long a port that has not moved at all is given before it is called still. */
+const NEVER = 500
+/** How long after the offset stops `scrollend` is still waited for. */
+const DRAIN = 800
+const CAP = 4000
+
+const frame = () => new Promise((r) => requestAnimationFrame(r))
+const settle = (ms) => new Promise((r) => setTimeout(r, ms))
+
+const offsetOf = (port) => (port ? port.scrollTop : window.scrollY)
+const scrollPortBy = (port, top, behavior) => (port ?? window).scrollTo({ top, left: 0, behavior })
+
+/**
+ * One scroll, watched to the end.
+ *
+ * Stillness only counts once the offset has moved at least once. Counting from
+ * a standing start cannot tell "the animation has not begun" from "the
+ * animation is over", and an engine that takes a few frames to start one then
+ * reads as having scrolled instantly.
+ */
+async function drive(port, distance, behavior) {
+  scrollPortBy(port, 0, 'instant')
+  await frame()
+  await settle(60)
+
+  const samples = []
+  let endedAt = null
+  const target = port ?? window
+  const onEnd = () => { if (endedAt === null) endedAt = performance.now() - t0 }
+  target.addEventListener('scrollend', onEnd)
+
+  const t0 = performance.now()
+  scrollPortBy(port, distance, behavior)
+
+  let still = 0
+  let last = offsetOf(port)
+  let atMorph = null
+  let started = false
+  const steps = new Set()
+  for (;;) {
+    await frame()
+    const now = performance.now() - t0
+    const at = offsetOf(port)
+    samples.push({ at, now })
+    steps.add(Math.round(at))
+    if (atMorph === null && now >= MORPH) atMorph = at
+    if (at !== last) started = true
+    still = started && at === last ? still + 1 : 0
+    last = at
+    // Nothing has moved and nothing is going to: the port was already there, or
+    // this engine refused the scroll.
+    if (!started && now > NEVER) break
+    if ((started && still >= STILL) || now > CAP) break
+  }
+  // The event can land well after the offset stops — this is what says how long
+  // after, and an implementation waiting on it waits that much longer than the
+  // scroll looks like it takes. Drained rather than assumed.
+  const drainedAt = performance.now()
+  while (endedAt === null && performance.now() - drainedAt < DRAIN) await frame()
+  target.removeEventListener('scrollend', onEnd)
+
+  const moved = samples.filter((s, i) => i === 0 || s.at !== samples[i - 1].at)
+  const stoppedAt = started && moved.length ? moved[moved.length - 1].now : 0
+  const landed = offsetOf(port)
+  // `atMorph` is null where the whole thing was over inside one frame of the
+  // deadline, which is what an outright scroll looks like from here.
+  const at = atMorph === null ? landed : atMorph
+  return {
+    landed,
+    stoppedAt,
+    endedAt,
+    started,
+    steps: steps.size,
+    leftAtMorph: Math.abs(landed - at),
+    frames: samples.length,
+  }
+}
+
+// ------------------------------------------------------------------ the cases
+
+const scroller = () => document.getElementById('scroller')
+const room = document.getElementById('panel-room')
+const pageTo = (top) => { window.scrollTo({ top, behavior: 'instant' }) }
+/** Put the panel this far down the page, and the window back at the top. */
+const panelAt = (top) => { room.style.height = `${top}px`; pageTo(0) }
+
+const PANEL_DEEP = 4000
+
+const CASES = [
+  { label: 'document', port: null, distance: 200, prepare: () => pageTo(0) },
+  { label: 'document', port: null, distance: 800, prepare: () => pageTo(0) },
+  { label: 'document', port: null, distance: 2000, prepare: () => pageTo(0) },
+  { label: 'document', port: null, distance: 5000, prepare: () => pageTo(0) },
+  {
+    label: 'scroller, on screen',
+    port: scroller,
+    distance: 1200,
+    prepare: () => { panelAt(0) },
+  },
+  {
+    label: 'scroller, below the fold',
+    port: scroller,
+    distance: 1200,
+    prepare: () => { panelAt(PANEL_DEEP) },
+  },
+]
+
+const OFFSETS = [0, 200, 400, 800, 1600, 4000, 8000]
+
+async function measure() {
+  const supported = 'onscrollend' in window
+  const smooth = []
+  for (const c of CASES) {
+    c.prepare()
+    await settle(120)
+    smooth.push({
+      label: c.label,
+      distance: c.distance,
+      result: await drive(c.port?.() ?? null, c.distance, 'smooth'),
+    })
+  }
+
+  // Question 4. The same panel and the same 1200px, moved down the page.
+  const sweep = []
+  for (const top of OFFSETS) {
+    panelAt(top)
+    await settle(120)
+    // Where the panel really is, rather than what it was asked for: the prose
+    // above it is part of the page too, and reporting the spacer's height as
+    // the panel's offset is how the first version of this table read as having
+    // no boundary in it at all.
+    const at = Math.round(scroller().getBoundingClientRect().top)
+    const fold = Math.max(0, at - window.innerHeight)
+    const glided = await drive(scroller(), 1200, 'smooth')
+    panelAt(top)
+    await settle(120)
+    const set = await drive(scroller(), 1200, 'instant')
+    sweep.push({ top: at, fold, showing: at < window.innerHeight, glided, set })
+  }
+  panelAt(0)
+
+  // Question 5. The same glide, interrupted three ways.
+  const interrupted = {
+    stop: await interrupt('stop'),
+    by: await interrupt('by'),
+    to: await interrupt('to'),
+  }
+
+  // Told to scroll to where it already is. Nothing moves, so nothing may be
+  // waited for.
+  pageTo(0)
+  await settle(120)
+  const already = await drive(null, 0, 'smooth')
+  pageTo(0)
+  const instant = await drive(null, 2000, 'instant')
+  return {
+    supported,
+    smooth,
+    sweep,
+    interrupted,
+    already,
+    instant,
+    viewport: window.innerHeight,
+  }
+}
+
+/** How far into a glide it is interrupted: every engine is moving by then, none has arrived. */
+const INTERRUPT = 100
+/** Where the second glide of question 5 is sent. */
+const REPLACE_TO = 800
+
+/**
+ * One 5000px glide on the document, interrupted 100ms in.
+ *
+ * `'stop'` sets the page to where it is, outright. `'by'` starts a second smooth
+ * scroll by the delta from where `scrollY` says the page is to
+ * {@link REPLACE_TO}, and `'to'` asks for {@link REPLACE_TO} as an absolute
+ * offset — the same destination spelled two ways, because an implementation
+ * that has measured a box against the viewport has a delta in hand and has to
+ * choose. What is watched is where the page ends up against where it was
+ * wanted, and whether a `scrollend` follows the interruption at all.
+ *
+ * Watched for at least {@link NEVER} after the interruption whatever the offset
+ * does, because the question for `'stop'` is whether the page moves *at all*
+ * afterwards, and stillness from a standing start says nothing until it has
+ * lasted.
+ */
+async function interrupt(kind) {
+  pageTo(0)
+  await frame()
+  await settle(60)
+  let endedAt = null
+  let t1 = null
+  const onEnd = () => {
+    if (t1 !== null && endedAt === null) endedAt = performance.now() - t1
+  }
+  window.addEventListener('scrollend', onEnd)
+  window.scrollTo({ top: 5000, behavior: 'smooth' })
+  await settle(INTERRUPT)
+  const at = window.scrollY
+  t1 = performance.now()
+  const wanted = kind === 'stop' ? at : REPLACE_TO
+  if (kind === 'stop') window.scrollTo({ top: at, behavior: 'instant' })
+  else if (kind === 'by') window.scrollBy({ top: REPLACE_TO - at, behavior: 'smooth' })
+  else window.scrollTo({ top: REPLACE_TO, behavior: 'smooth' })
+
+  let frames = 0
+  let still = 0
+  let last = window.scrollY
+  for (;;) {
+    await frame()
+    frames += 1
+    const now = performance.now() - t1
+    const y = window.scrollY
+    still = y === last ? still + 1 : 0
+    last = y
+    if ((still >= STILL && now > NEVER) || now > CAP) break
+  }
+  const drainedAt = performance.now()
+  while (endedAt === null && performance.now() - drainedAt < DRAIN) await frame()
+  window.removeEventListener('scrollend', onEnd)
+  return { kind, at, wanted, landed: window.scrollY, endedAt, frames }
+}
+
+// ------------------------------------------------------------------ the tables
+
+const cell = (text, cls) => `<td${cls ? ` class="${cls}"` : ''}>${text}</td>`
+const ms = (v) => (v === null ? '—' : `${Math.round(v)}ms`)
+const arrived = (r, distance) => Math.abs(r.landed - distance) <= 1
+
+function draw(data) {
+  const t1 = document.querySelector('#t1 tbody')
+  t1.innerHTML = ''
+  for (const row of data.smooth) {
+    const r = row.result
+    const share = row.distance === 0 ? 0 : r.leftAtMorph / Math.abs(row.distance)
+    // Eight pixels — the padding a cutout overhangs its target by — is the line
+    // between "a decision made here is the same decision" and "the page moved
+    // out from under it".
+    const ok = r.leftAtMorph <= 8
+    const there = arrived(r, row.distance)
+    t1.insertAdjacentHTML('beforeend', '<tr>' + [
+      cell(row.label), cell(`${row.distance}px`),
+      cell(there ? ms(r.stoppedAt) : 'never moved', there ? '' : 'bad'),
+      cell(`${Math.round(r.leftAtMorph)}px`, ok ? 'good' : 'bad'),
+      cell(`${Math.round(share * 100)}%`), cell(r.frames),
+    ].join('') + '</tr>')
+  }
+
+  const t2 = document.querySelector('#t2 tbody')
+  t2.innerHTML = ''
+  const t2rows = [
+    ['document, 2000px, smooth', data.smooth[2].result],
+    ['scroller on screen, smooth', data.smooth[4].result],
+    ['scroller below the fold, smooth', data.smooth[5].result],
+    ['document, 2000px, outright', data.instant],
+    ['document, already there', data.already],
+  ]
+  for (const [label, r] of t2rows) {
+    const fired = r.endedAt !== null
+    // Nothing moved, so nothing firing is the right answer rather than a
+    // failure — and an implementation that waited here would wait for ever.
+    const cls = r.started ? (fired ? 'good' : 'bad') : 'none'
+    t2.insertAdjacentHTML('beforeend', '<tr>' + [
+      cell(label),
+      cell(fired ? 'yes' : r.started ? 'no' : 'no — and nothing moved', cls),
+      cell(ms(r.endedAt)),
+      cell(r.endedAt === null ? '—' : `${Math.round(r.endedAt - r.stoppedAt)}ms`),
+    ].join('') + '</tr>')
+  }
+
+  const t3 = document.querySelector('#t3 tbody')
+  t3.innerHTML = ''
+  for (const row of data.smooth) {
+    const r = row.result
+    t3.insertAdjacentHTML('beforeend', '<tr>' + [
+      cell(row.label), cell(`${row.distance}px`), cell(ms(r.endedAt)), cell(ms(r.stoppedAt)),
+      cell(r.endedAt === null ? '—' : `${Math.round(r.endedAt - r.stoppedAt)}ms`),
+    ].join('') + '</tr>')
+  }
+
+  const t4 = document.querySelector('#t4 tbody')
+  t4.innerHTML = ''
+  for (const row of data.sweep) {
+    const g = arrived(row.glided, 1200)
+    const s = arrived(row.set, 1200)
+    t4.insertAdjacentHTML('beforeend', '<tr>' + [
+      cell(`${row.top}px`), cell(row.showing ? 'on screen' : `${row.fold}px`),
+      cell(g ? `${row.glided.landed}px` : `${row.glided.landed}px — never moved`, g ? 'good' : 'bad'),
+      cell(row.glided.steps),
+      cell(row.glided.endedAt === null ? 'never' : ms(row.glided.endedAt),
+           row.glided.endedAt === null ? 'bad' : ''),
+      cell(`${row.set.landed}px`, s ? 'good' : 'bad'),
+    ].join('') + '</tr>')
+  }
+
+  const t5 = document.querySelector('#t5 tbody')
+  t5.innerHTML = ''
+  const t5rows = [
+    ['set to where it is', data.interrupted.stop],
+    ['a second glide, scrollBy a delta', data.interrupted.by],
+    ['a second glide, scrollTo an offset', data.interrupted.to],
+  ]
+  for (const [label, r] of t5rows) {
+    const held = Math.abs(r.landed - r.wanted) <= 1
+    t5.insertAdjacentHTML('beforeend', '<tr>' + [
+      cell(label), cell(`${Math.round(r.at)}px`),
+      cell(`${Math.round(r.landed)}px`, held ? 'good' : 'bad'),
+      cell(`${Math.round(r.wanted)}px`),
+      cell(r.endedAt === null ? 'never' : ms(r.endedAt), r.endedAt === null ? 'bad' : 'good'),
+      cell(r.frames),
+    ].join('') + '</tr>')
+  }
+
+  document.getElementById('env').textContent =
+    `'onscrollend' in window: ${data.supported} · morph deadline ${MORPH}ms` +
+    ` · viewport ${data.viewport}px`
+}
+
+document.getElementById('platform').textContent =
+  `${navigator.userAgent} — reduced motion: ${matchMedia('(prefers-reduced-motion: reduce)').matches}`
+
+document.getElementById('measure').addEventListener('click', async () => {
+  draw(await measure())
+})
+
+window.spikeSmooth = { measure }
+</script>
+</body>
+</html>

@@ -315,9 +315,9 @@ not know a tour is running.
 
 ## Settings, and where they are read from
 
-- `padding` and `radius` are read from the step, then from the instance, then a
-  built-in default. `duration`, `nextLabel` and `closeLabel` are read from the
-  instance alone.
+- `padding`, `radius` and `scroll` are read from the step, then from the
+  instance, then a built-in default. `duration`, `nextLabel` and `closeLabel`
+  are read from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.
 - **A story carries no settings.** A per-story value is a `.map()` over `steps`
@@ -644,6 +644,153 @@ and writes the layers, **at step boundaries, never per frame**.
   made reachable, even in principle. That is also why **only one story is ever
   visible** — a second story's rectangles are the complement of a *different*
   set of holes, and land squarely on the first story's target.
+
+### Bringing a target into view
+
+A step draws its target where the target is. **It goes and gets it only where
+the host asked**, with `scroll` on the step or on the instance, and that is off
+by default: where a page is scrolled to is the application's own state, and a
+tour that moves it has reached into the application to do it. Without it, a
+target below the fold is cut out of a scrim nobody can see, and the viewer is
+left to work out that scrolling is what the step wants — honest, and not what a
+tour is for.
+
+- **Two stages, never one: the page glides, and the step is drawn when it
+  stops.** The hole itself would survive a morph running alongside the scroll —
+  the scrim lives inside the scrolling content, so its cutouts are in content
+  coordinates and a scroll moves scrim and target together. What would not is
+  every decision taken in viewport coordinates: the side of the hole the
+  message takes, and the corner the way out sits in. At 320ms, the instant a
+  default morph would be finishing, Chromium still has 372px of a 2000px scroll
+  to go and 2378px of a 5000px one, and Firefox 66px and 213px — so a side
+  chosen then is chosen about a screen the page has already left. WebKit alone
+  would be fine, with a fixed ~200ms curve whatever the distance
+  ([`spike/a-smooth-scroll-settling/`](spike/a-smooth-scroll-settling/)).
+- **`scrollend` ends the wait.** Baseline 2025, present in all three engines,
+  and fired for a scroll an engine chose to apply outright as well, so nothing
+  has to detect which of the two it got. It arrives late rather than early — up
+  to 50ms after the offset stops in Chromium, 183ms in Firefox — and that is a
+  wait taken rather than a poll started. Watching the offset from a frame loop
+  answers sooner and is not worth a poll for it. There is a deadline under the
+  event, and it is a net rather than a fallback: an event that never comes must
+  not leave a tour with nothing drawn.
+- **A port that needs no scroll is never waited on.** Nothing moved, so no
+  `scrollend` fires in any engine — waiting there would hang the tour with the
+  page dimmed and no step on it. The delta decides, and a delta of zero means
+  the step is drawn in the same task the arrival came in on.
+- **A page that has not moved at all is set outright before the step is
+  drawn.** A glide is started only where there was a delta to cover, so a page
+  still exactly where it was 120ms later is a scroll that did not happen, and
+  setting it is unambiguous. Two things get there. A delta the port cannot
+  honour — a target hanging off an edge the page is already against — moves
+  nothing, and a scroll that moves nothing has nothing to say it is over. And an
+  engine that drops the scroll in silence, which is what Firefox does to a
+  scroller below the fold (question 4 of the spike). No engine has been seen to
+  do that to the document, and nothing here claims one does: the guard is kept
+  because the failure has been watched to exist, and what it costs where it is
+  wrong is a jump where a glide would have done, against 2.5 seconds of a dimmed
+  page with no step on it where it is missing. Moved but short is left alone —
+  that is a viewer who took over, and their scroll is not Leko's to undo. **The
+  check runs on a timer and never on an animation frame.** On the two-core CI
+  runner a single frame has been watched taking more than three seconds while
+  timers went on ticking at 16ms; on such a machine a check that waits for
+  frames lands after the deadline has already decided, and the deadline is a
+  timer too.
+- **Every scroll asks for an offset, never a delta.** The geometry hands back a
+  delta, and `scrollBy` is the obvious spelling of one; but `scrollBy` resolves
+  against where the engine says the port is, and while a glide is in flight
+  WebKit says somewhere `scrollY` does not — a `scrollBy` started 100ms into a
+  glide landed 474px off there, where a `scrollTo` of the same offset landed
+  exactly (question 5 of the spike). The box was measured against the `scrollY`
+  this task can see, so `scrollY` plus the delta is the offset the sum is right
+  in, and it is what a step that arrives mid-glide and scrolls lands by.
+- **The page glides; a nested panel is set.** Firefox does not animate a
+  programmatic smooth scroll of a scroller well below the fold — the boundary is
+  one to two screens past it — it does not scroll it at all, leaves `scrollTop`
+  where it was, and fires no `scrollend` to say so. A panel a tour is about to scroll is below the
+  fold by definition, so that is the ordinary case and not an edge of it. Set
+  outright it lands in every engine at every depth, which also makes the page's
+  own delta exact rather than measured against a scroller still in flight. The
+  movement a viewer follows is the page's; a panel's inner scroll is a detail
+  inside a box that is not on screen yet.
+- **The scroll animates exactly when the morph does.** `duration: 0` and
+  `prefers-reduced-motion` each put the page where it belongs outright, and the
+  rule is one predicate in `scrim.ts` read by both, so the two can never
+  disagree about whether the tour is moving things or setting them.
+- **Nothing is drawn for the gap.** The words of the step being left go before
+  the page moves, rather than riding a glide to somewhere they are not about.
+  Nothing else changes while it runs: the dimming stays, and the standing hole
+  travels with the content it is cut out of, which is the same bargain
+  **Nothing is drawn for a retry** strikes.
+- **The middle of the port, not the nearest edge.** A step exists to draw
+  attention to one thing, and a hole flush against the bottom of the screen is
+  the least attention a hole can be given: no room under it for the message, and
+  whatever chrome the application keeps down there sitting over it. The least
+  movement is not what is wanted, so it is not what is asked for. Every
+  scrollport on the target's surface chain centres the cutout in itself,
+  innermost first, with the box measured again for each — scrolling an inner
+  scroller moves the target inside every port outside it.
+- **A port that already holds the cutout is not touched.** A step arriving does
+  not re-centre a page the viewer has settled, and that refusal is
+  `scrollDelta` answering zero rather than a special case anywhere else. It is
+  the whole cutout that has to be inside, overhang and asked-for room included,
+  so a hole hanging half off the bottom is not already there.
+- **A target more than half the port tall leads with its top edge, put at the
+  middle.** Centring one of those is what leaves the message nowhere to go: the
+  taller the hole, the less room on either side of it, and a hole taller than
+  the port leaves none at all. Leading with the top edge always leaves exactly
+  half a port above the hole, which is a place a message fits, and gives up only
+  the bottom of a target nobody could take in at a glance. **Vertically only.**
+  The message is placed above or below before it is placed beside, so height is
+  what has to be paid for; a box wider than half the port led the same way would
+  hang off the side for nothing, so only one wider than the whole port keeps its
+  near edge. This is arithmetic and not a scroll target: nothing of Leko's is
+  put into the host's DOM to steer a scroll by — a zero-area sibling would
+  change `:nth-child`, the item count of a flex or grid parent, and the host's
+  own observers, and its cleanup would hang off a `scrollend` that never fires
+  when nothing moved.
+- **Nothing in the geometry clamps; the scrollport does.** A target near the end
+  of the content cannot be put where it belongs, and the delta asked for is the
+  one that would put it there — past the end. The port clamps that, which lands
+  the target as near as the content allows and against the far edge in the
+  limit.
+- **`scroll-margin` on the target wins over the step's `padding`** wherever it
+  asks for more. How much of an application's own sticky chrome is in the way is
+  a thing the application knows and Leko cannot guess; the padding is only the
+  floor, because the hole itself overhangs the element by that much. It is the
+  box the margin asks for that gets centred, so a margin on one side alone leans
+  the target away from that side, which is how a host keeps a step's message
+  clear of chrome it owns. A margin big enough to take the box over half the
+  port tips it into leading with its top edge, and the room asked for below is
+  then whatever is left of the screen: a box that does not fit cannot be given
+  clearance on its far side.
+- **A `position: fixed` target is not scrolled.** Its chain is the viewport
+  alone, which has nowhere to go. A sticky one is a different destination —
+  past the point where it pins rather than on screen — and belongs with the
+  rest of sticky, which is not built.
+- **Only an arrival scrolls.** The call sits in `show`, between the target
+  resolving and anything being measured. Every redraw goes through `reveal`
+  instead — a resize, a framework rendering over the step — and by then the
+  viewer may have moved the page on purpose, so none of them scrolls again.
+- **A glide the tour has moved past draws nothing, and stops waiting.** The
+  wait it was is abandoned — timers, listener and all — and an arrival replaces
+  it, so the step that was being glided towards is dropped rather than drawn
+  over the step that overtook it, and a glide nobody is waiting for cannot set
+  the page outright a moment later to somewhere the tour no longer is. The page
+  itself is left to finish, because nothing can stop it: an instant scroll to
+  where the page is, which CSSOM View says aborts the animation, leaves Firefox
+  gliding on to the original destination and Chromium a frame further with no
+  `scrollend` to follow, and only WebKit stops (question 5 of the spike). So a
+  step arriving then that does not scroll is drawn against a page still moving,
+  the same as if the viewer had scrolled after it was drawn — the hole rides the
+  content, and the side the message took is a fact about the screen it was
+  chosen on. One that does scroll replaces the glide with its own, asked for as
+  an offset, and lands.
+- **A step with no `target` scrolls nothing**, having nothing to scroll to. Nor
+  does a retry: a target that is not on the page yet cannot be brought into
+  view, and the scroll happens on the attempt that finds it. The target is
+  asked for again when the glide ends, because a glide is long enough for a
+  framework to have rendered over it.
 
 ### The morph
 

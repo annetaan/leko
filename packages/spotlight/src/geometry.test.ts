@@ -12,8 +12,10 @@ import {
   holeImage,
   lerpCutouts,
   maskLayers,
+  outset,
   padCutouts,
   type Rect,
+  scrollDelta,
   segmentAt,
   union,
 } from './geometry.js'
@@ -58,6 +60,85 @@ test('union of nothing is nothing', () => {
 
 test('grow expands on every side', () => {
   expect(grow(rect(10, 10, 40, 20), 5)).toEqual(rect(5, 5, 50, 30))
+})
+
+test('outset takes a side each, where grow takes one for all four', () => {
+  expect(outset(rect(10, 10, 40, 20), { top: 1, right: 2, bottom: 3, left: 4 })).toEqual(
+    rect(6, 9, 46, 24),
+  )
+})
+
+test('a box the port already holds asks for no scroll at all', () => {
+  // The refusal a step arriving owes the viewer, and it lives here rather than
+  // in a check beside the call.
+  expect(scrollDelta(rect(20, 20, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 0 })
+})
+
+test('a box past the far edge is brought to the middle, not to the edge', () => {
+  // 20px over the bottom of a 200px port. The nearest edge would be 20px of
+  // movement; the middle is 100px, and the middle is the point of a step.
+  expect(scrollDelta(rect(20, 180, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 100 })
+})
+
+test('a box past the near edge is brought to the middle too, from the other side', () => {
+  expect(scrollDelta(rect(20, -50, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: -130 })
+})
+
+test('a port already holding one axis is moved on the other only', () => {
+  expect(scrollDelta(rect(240, 40, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 160, y: 0 })
+})
+
+test('a box hanging half off the port is not "already there"', () => {
+  // Visible, and not held: the hole is cut around the whole box, overhang and
+  // all, so half a hole on screen is a step drawn where it cannot be read.
+  expect(scrollDelta(rect(20, 180, 40, 40), rect(0, 0, 200, 200)).y).not.toBe(0)
+})
+
+test('a box more than half the port tall leads with its top edge, at the middle', () => {
+  // 120 tall in a 200 port, so centring it would leave 40 above and 40 below —
+  // nowhere for the message. Its top goes to the middle instead, which always
+  // leaves half a port above the hole.
+  expect(scrollDelta(rect(20, 300, 40, 120), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 200 })
+})
+
+test('a box taller than the whole port leads with its top edge too', () => {
+  // The case where centring leaves no room at all: the hole covers the port and
+  // the message has nowhere on screen to be.
+  expect(scrollDelta(rect(20, 300, 40, 400), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 200 })
+})
+
+test('a box exactly half the port tall is still centred', () => {
+  // The threshold is where being centred stops leaving a quarter of the port on
+  // each side, and at the threshold it still does.
+  expect(scrollDelta(rect(20, 300, 40, 100), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 250 })
+})
+
+test('a tall box the port already holds is left alone all the same', () => {
+  // Leading with the top edge is for a box that has to be moved. One that is
+  // already showing in full is not moved, tall or not: the refusal wins.
+  expect(scrollDelta(rect(20, 30, 40, 120), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 0 })
+})
+
+test('leading with the near edge is vertical only', () => {
+  // 120 wide in a 200 port is more than half of it, and there is no message to
+  // leave room for beside it — the message is placed above or below first. So
+  // this one is centred, and only a box wider than the whole port keeps its
+  // near edge.
+  expect(scrollDelta(rect(300, 20, 120, 40), rect(0, 0, 200, 200))).toEqual({ x: 260, y: 0 })
+  expect(scrollDelta(rect(300, 20, 400, 40), rect(0, 0, 200, 200))).toEqual({ x: 300, y: 0 })
+})
+
+test('a scrollport of its own offset is measured in the same space as the box', () => {
+  // A nested scroller's port is not at the origin. Both rects are in viewport
+  // coordinates, so the delta is worked out between them and nothing else.
+  expect(scrollDelta(rect(100, 100, 40, 40), rect(0, 120, 200, 200))).toEqual({ x: 0, y: -100 })
+})
+
+test('nothing here clamps, so the port is what stops at the end of the content', () => {
+  // A box near the end of the content asks for a scroll past the end. That is
+  // the honest delta: the scrollport clamps it and the box lands as near the
+  // middle as the content allows.
+  expect(scrollDelta(rect(20, 300, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 220 })
 })
 
 test('collapse keeps the centre', () => {

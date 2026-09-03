@@ -23,6 +23,7 @@ tell you what you are allowed to assume.
 | [`overlapping-holes/`](overlapping-holes/) | Can an overlay cut two holes that overlap, and what does each way of doing it cost? |
 | [`fixed-under-an-ancestor/`](fixed-under-an-ancestor/) | Which ancestors take a `position: fixed` element away from the viewport, and does the element say so? |
 | [`the-scrollbar-gutter/`](the-scrollbar-gutter/) | Can a fixed scrim cover the document scrollbar's gutter, and what notices the scrollbar coming and going? |
+| [`a-smooth-scroll-settling/`](a-smooth-scroll-settling/) | How long does a smooth scroll take, what says when it is over, does a panel below the fold scroll at all, and can a glide be stopped or replaced part-way? |
 
 ## Reading them
 
