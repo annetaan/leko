@@ -25,12 +25,13 @@ import { defineConfig } from 'vitest/config'
 // out is the same coverage for a third of the browser time; what decides which
 // file a test belongs in is whether the browser could get it wrong.
 //
-// `machine` and `codegen` run in Node. Neither has a DOM to be wrong about.
-// `machine` decides which step a tour is on, against a presenter the test
-// writes, and its package takes no `lib.dom` at all. `codegen` reads TypeScript
-// source and writes a file, and wants the compiler API and the filesystem
-// instead. Running either three times in three browsers would prove nothing and
-// cost three times as much.
+// `leko-plan`, `machine` and `codegen` run in Node. None has a DOM to be wrong
+// about. `leko-plan` is the presenter's mode and what an event does to it,
+// which is pure and reads no page. `machine` decides which step a tour is on,
+// against a presenter the test writes, and its package takes no `lib.dom` at
+// all. `codegen` reads TypeScript source and writes a file, and wants the
+// compiler API and the filesystem instead. Running any of them three times in
+// three browsers would prove nothing and cost three times as much.
 //
 // A function rather than one shared object, because Vitest names the per-browser
 // projects it derives by mutating what it is handed. Two projects sharing one
@@ -77,6 +78,13 @@ export default defineConfig({
           name: 'leko-wiring',
           include: ['packages/leko/src/wiring.test.ts'],
           browser: { ...browsers(), instances: [{ browser: 'chromium' }] },
+        },
+      },
+      {
+        test: {
+          name: 'leko-plan',
+          include: ['packages/leko/src/plan.test.ts'],
+          environment: 'node',
         },
       },
       {

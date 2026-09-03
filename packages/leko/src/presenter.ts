@@ -4,7 +4,6 @@ import {
   Close,
   type Cutout,
   FocusRing,
-  type Glide,
   grow,
   Message,
   type MessageContent,
@@ -20,7 +19,18 @@ import {
   surfaceChain,
   union,
 } from '@annetaan/leko-spotlight'
-import type { LekoOptions, LekoStep, LekoTarget, LekoWorld } from './types.js'
+import {
+  actionTarget,
+  type Drawn,
+  type Effect,
+  type Event,
+  idle,
+  type Mode,
+  pointsAt,
+  reduce,
+  regionsOf,
+} from './plan.js'
+import type { LekoOptions, LekoStep, LekoWorld } from './types.js'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
 
@@ -41,35 +51,6 @@ const NEXT_LABEL = 'Next'
  */
 const RETRY = 100
 
-/** One cutout, in the one shape everything below reads: what it unions, and whether it is open. */
-interface Region {
-  elements: LekoTarget[]
-  interactive: boolean
-}
-
-/**
- * The step's regions, as a list of that one shape. One cutout each, in the
- * order they were written, so a bare target reads as the region of one that it
- * is.
- *
- * Empty where the step named nothing, which is the step that waits. The type
- * already refuses `interactive` anywhere but the first entry; the index is
- * checked all the same, because this is the last line of defence a story
- * written in plain JavaScript ever meets.
- */
-const regionsOf = (target: LekoStep['target']): Region[] => {
-  if (target === undefined) return []
-  const entries = Array.isArray(target) ? target : [target]
-  return entries.map((entry, i) =>
-    typeof entry === 'object'
-      ? {
-          elements: Array.isArray(entry.elements) ? entry.elements : [entry.elements],
-          interactive: i === 0 && entry.interactive === true,
-        }
-      : { elements: [entry], interactive: false },
-  )
-}
-
 /**
  * Everything in the region a step opened, or nothing where it opened none.
  *
@@ -80,16 +61,6 @@ const openElements = (step: LekoStep): Element[] => {
   const first = regionsOf(step.target)[0]
   return first?.interactive ? resolveTargets(first.elements) : []
 }
-
-/**
- * The one element the step is about: the first element of its first region.
- *
- * `undefined` where the step named no region at all. That step is not a step
- * with a target Leko cannot find. It is a step that points at nothing on
- * purpose, and the page is covered for it.
- */
-const actionTarget = (target: LekoStep['target']): LekoTarget | undefined =>
-  regionsOf(target)[0]?.elements[0]
 
 /**
  * Every element of the hole the step is about, `anchor` first.
@@ -112,33 +83,6 @@ const lit = (step: LekoStep, anchor: Element): [Element, ...Element[]] => {
 }
 
 /**
- * What a viewer is looking at: the step whatever draws was last given, and
- * whatever the last attempt at it was told.
- *
- * Held here and nowhere else. The machine keeps no copy of either half, so
- * everything that redraws without the tour moving reads this to know what to
- * put back.
- */
-interface Drawn {
-  step: LekoStep
-  error: string | undefined
-}
-
-/**
- * A scroll in flight, and what will be drawn when it stops.
- *
- * The step is held beside the glide rather than in {@link Drawn} because it is
- * not drawn: for the length of a glide what is on screen is still the step
- * being left, and everything that redraws without the tour moving has to know
- * that the two have come apart. DESIGN.md argues the gap under **Nothing is
- * drawn for the gap**.
- */
-interface Gliding {
-  glide: Glide
-  pending: Drawn
-}
-
-/**
  * The half of Leko that touches the page: one scrim per surface that carries
  * the target, the hole cut through them, and the message beside it.
  *
@@ -147,8 +91,21 @@ interface Gliding {
  * page and the window resizing — are reported back through {@link Host} rather
  * than acted on, because whether the tour may be measured at all is the
  * machine's to know.
+ *
+ * **Nor does it decide where it is itself.** `plan.ts` answers an event with the
+ * next mode and the effects owed, and this commits the one and performs the
+ * others. What the page says — whether a target resolved, which glide landed —
+ * is read here and carried into the event as data. A decision that lands in
+ * this file is in the wrong file.
  */
 export class DomPresenter implements Presenter<LekoWorld> {
+  /**
+   * Where this is between calls. Written by {@link dispatch} and nothing else,
+   * and read by nothing here but the plan. The chrome below is not part of it:
+   * which scrims stand and whether a message exists are facts about the page,
+   * and the mode says what they are for.
+   */
+  #mode: Mode = idle
   private readonly options: LekoOptions
   private readonly host: Host<LekoWorld>
   /**
@@ -184,35 +141,26 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private ring: FocusRing | undefined
   private onViewportChange: (() => void) | undefined
   /**
-   * The one observer this owns, watching the step on screen or the step being
-   * waited for. Both jobs are the same job, and neither may be armed twice.
+   * The one observer this owns. What it is armed for — the target of the step
+   * on screen, or the page for a target that has not turned up — is the mode's
+   * to say, and the plan arms and disarms it by effect, so neither job can
+   * leave a second one running behind the other.
    */
   private watcher: MutationObserver | undefined
-  /** What is on screen, or nothing where the tour has drawn nothing yet. */
-  private drawn: Drawn | undefined
-  /** The deadline on a target that is not on the page, while one is running. */
-  private retrying: ReturnType<typeof setTimeout> | undefined
   /**
-   * The scroll in flight and the step it is for, while the page is gliding
-   * towards a step that has not been drawn yet.
-   *
-   * Held so that what has to be known when one settles is whether it is still
-   * the one being waited for, and so that one the tour has moved past can be
-   * stopped. An arrival replaces it and a teardown drops it, and both abandon
-   * the glide first: a glide nobody is waiting for must not go on carrying the
-   * page to somewhere the tour no longer is.
-   *
-   * **It is also the whole of what says a step is pending.** While it stands,
-   * {@link drawn} is the step being left, so everything that redraws without
-   * the tour moving reads this first: what is on screen belongs to one step and
-   * the tour is on another, and only for this long.
+   * The clock on a retry, while one runs. Which wait it is for is the mode's
+   * `pending`; this is the handle the page handed back, held here because a
+   * pure plan cannot make one, and armed and cleared by effect the way the
+   * watcher is.
    */
-  private gliding: Gliding | undefined
+  private deadline: ReturnType<typeof setTimeout> | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
     this.host = host
   }
+
+  // -------------------------------------------------------------- what a step asks
 
   /**
    * Step, then instance: the nearer of the two that says anything wins.
@@ -239,11 +187,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private scrolls(step: LekoStep): boolean {
     return step.scroll ?? this.options.scroll ?? false
-  }
-
-  /** Whether this step has anything to point at. A step that has not is a wait. */
-  private static pointsAt(step: LekoStep): boolean {
-    return actionTarget(step.target) !== undefined
   }
 
   resolve(step: LekoStep): Element | null {
@@ -286,6 +229,227 @@ export class DomPresenter implements Presenter<LekoWorld> {
       }))
   }
 
+  // ---------------------------------------------------------- what the machine calls
+
+  show(step: LekoStep, anchor: Element | null, animate: boolean): void {
+    // An arrival is a fresh attempt at the step, so nothing is owed under the
+    // instruction until a guard says otherwise.
+    this.arrive(step, anchor, animate, undefined)
+  }
+
+  /**
+   * An arrival, from the machine or from a hunt that found its target.
+   *
+   * **The one place a scroll happens.** After the target resolved, so there is
+   * something to scroll to, and before anything is measured, so every box the
+   * step is drawn from is read off the page as it ends up. Started here rather
+   * than owed by the plan because it has to start from where the target is,
+   * which only this can ask; what it answered goes into the event as a fact.
+   * A redraw goes through {@link reveal} and must not scroll again, the viewer
+   * having had every right to move the page since.
+   *
+   * `undefined` from `bringIntoView` means there was nothing to wait for —
+   * every port already held the cutout, or the move was applied outright — and
+   * the plan draws the step in the same task the arrival came in on. A glide
+   * means the page is moving, and its landing comes back as its own event, with
+   * the target resolved again where the page stopped. An abandoned glide never
+   * settles, so a landing is always about a glide that was left to run.
+   */
+  private arrive(
+    step: LekoStep,
+    anchor: Element | null,
+    animate: boolean,
+    error: string | undefined,
+  ): void {
+    const glide =
+      anchor && this.scrolls(step)
+        ? bringIntoView(lit(step, anchor), this.setting(step, 'padding'), this.duration())
+        : undefined
+    if (glide) {
+      void glide.settled.then(() => {
+        this.dispatch({ kind: 'settled', glide, anchor: this.resolve(step) })
+      })
+    }
+    this.dispatch({ kind: 'show', step, anchor, animate, glide, error })
+  }
+
+  retell(step: LekoStep, reason: string): void {
+    this.dispatch({ kind: 'retell', step, reason })
+  }
+
+  reject(): void {
+    this.layers[0]?.shake()
+  }
+
+  teardown(): void {
+    this.dispatch({ kind: 'teardown' })
+  }
+
+  // -------------------------------------------------------------------- the shell
+
+  /**
+   * **The mode is written before any effect runs.** `lost` calls into the
+   * machine, which tears this down from inside the call, and what that teardown
+   * finds is the mode as the event left it. An effect that comes back in here —
+   * `reveal`, `arrive`, `lost` — is the last of its outcome, so nothing below
+   * runs against a mode a nested dispatch has replaced; `Outcome` says so, and
+   * `plan.test.ts` checks it.
+   */
+  private dispatch(event: Event): void {
+    const outcome = reduce(this.#mode, event)
+    this.#mode = outcome.mode
+    for (const effect of outcome.effects) this.perform(effect)
+  }
+
+  /**
+   * Make one change to the page. What the page answers comes back as an event
+   * rather than being acted on here, because acting on it is a decision.
+   */
+  private perform(effect: Effect): void {
+    switch (effect.kind) {
+      case 'abandon':
+        return effect.glide.abandon()
+      case 'hide':
+        return this.message?.hide()
+      case 'disarm':
+        return this.disarm()
+      case 'watch':
+        return this.watch(effect.step, effect.anchor)
+      case 'hunt':
+        return this.watch(effect.step, null)
+      case 'deadline': {
+        const { pending } = effect
+        this.cancel()
+        this.deadline = setTimeout(() => this.dispatch({ kind: 'expired', pending }), RETRY)
+        return
+      }
+      case 'cancel':
+        return this.cancel()
+      case 'reveal':
+        return this.reveal(effect.drawn, effect.anchor, effect.animate)
+      case 'replace':
+        return this.replace(effect.drawn, effect.saying)
+      case 'say':
+        return this.say(effect.drawn.step, effect.drawn.error)
+      case 'retell':
+        return this.retold(effect.step, effect.reason)
+      case 'arrive':
+        return this.arrive(effect.pending.step, effect.anchor, effect.pending.animate, effect.error)
+      case 'lost':
+        return this.host.lost(effect.step)
+      case 'destroy':
+        return this.destroy()
+    }
+  }
+
+  // ---------------------------------------------------------------------- drawing
+
+  /**
+   * The layers under `anchor`, cut for `step`, and the cutouts to draw in the
+   * innermost. Every draw and every redraw comes through here, so the sequence
+   * — which surfaces carry the target, the layers for them, the outer holes,
+   * the inner boxes — is written once. `undefined` where there was nothing to
+   * measure, and what that means is the caller's.
+   */
+  private measure(
+    step: LekoStep,
+    anchor: Element | null,
+  ): { inner: Scrim; resolved: Cutout[] } | undefined {
+    const chain = surfaceChain(anchor ?? document.body)
+    const inner = this.restack(chain)
+    const resolved = inner && this.cutouts(step, (el) => rectWithin(el, inner.surface))
+    if (!inner || !resolved) return undefined
+    // These holes move only when layout does, never when something scrolls.
+    this.cutOuterLayers(chain)
+    return { inner, resolved }
+  }
+
+  /**
+   * The way out and the ring, where the holes are now. The words are {@link say}'s.
+   *
+   * Placed from no holes at all where the step's target is not on the page,
+   * which can put the way out over the hole standing there; a corner the viewer
+   * can reach beats one a resize took off screen.
+   */
+  private place(step: LekoStep): void {
+    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect()) ?? [])
+    this.showRing(step)
+  }
+
+  /**
+   * Draw what a viewer is to be looking at. `anchor` is `null` on a step that
+   * points at nothing: there is no surface to find for one of those, so the
+   * document carries it, and everything below lands on the empty list of
+   * cutouts.
+   */
+  private reveal(drawn: Drawn, anchor: Element | null, animate: boolean): void {
+    const { step } = drawn
+    // The step being left is over, so its words go. Nothing is painted between
+    // here and the morph below, so this is the same moment the arrival began.
+    this.message?.hide()
+    const measured = this.measure(step, anchor)
+    // The anchor resolved a moment ago in this same task, so its region has a
+    // box to measure and its chain has a surface, and this is not reached.
+    // Kept as the last line of defence, and it says what happened rather than
+    // guessing what it means.
+    if (!measured) return this.dispatch({ kind: 'unmeasured', step, animate })
+    const { inner, resolved } = measured
+
+    // Open from every hole stretched over the surface, so the scrim converges
+    // each inward rather than opening it out of nothing. The morph below
+    // re-blocks in the same task, so no frame carries the opening's blocking.
+    if (!animate) inner.converge(resolved)
+
+    // Before the morph, not after it. The scrim blocks the page from the moment
+    // it is set, and a page that is blocked with no way out of it is the thing
+    // that control exists to prevent, even for the length of one morph. The
+    // ring too: the message is away for the whole of it and the target is
+    // already reachable, so the ring is already two stops short of what `say`
+    // will make it.
+    this.place(step)
+
+    // The message went when the last step did, and comes back once the cutout
+    // has arrived. The side with room is a fact about where the hole ends up,
+    // so there is nowhere honest to put it while one is on its way. Whether the
+    // morph got there is the one thing read here: which words come back with
+    // it is the plan's.
+    const morphing = inner.morph(resolved, this.duration())
+    if (!morphing) return this.dispatch({ kind: 'morphed', step })
+    void morphing.then((finished) => {
+      if (finished) this.dispatch({ kind: 'morphed', step })
+    })
+  }
+
+  /**
+   * Put the cutouts where they belong, right now and without animating, and
+   * the words beside them where `saying` says.
+   *
+   * The surface moved under the tour rather than the tour moving. Replaying the
+   * opening would blow the cutout back up to the size of the page and converge
+   * again, so for a moment almost nothing would be dimmed. The way out is placed
+   * from the viewport, so it is chosen again too, and where the words come back
+   * they choose their side again: a resize can leave the one they were on
+   * without room.
+   */
+  private replace(drawn: Drawn, saying: boolean): void {
+    const { step } = drawn
+    // A step whose target is not on the page this instant is one a mutation
+    // batch is about to report, and there is no surface to put layers under.
+    // Restacking against the document instead would destroy the layers the
+    // standing hole and its blocking rectangles live in, and the measuring
+    // below would then find nothing to cut in their place, leaving the page
+    // dimmed with nothing held back. Nothing is drawn for a retry, here as
+    // anywhere else — and no words either, which would be said beside holes
+    // that could not be found. The way out is placed all the same.
+    const anchor = this.resolve(step)
+    if (!anchor && pointsAt(step)) return this.place(step)
+    const measured = this.measure(step, anchor)
+    if (!measured) return this.place(step)
+    measured.inner.set(measured.resolved)
+    if (saying) return this.say(step, drawn.error)
+    this.place(step)
+  }
+
   /**
    * Put the message beside the step's cutouts.
    *
@@ -321,6 +485,21 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Last, so the next control is showing by the time the ring is asked
     // whether the message is a stop.
     this.showRing(step)
+  }
+
+  /**
+   * Nothing has moved, so a message already on screen only changes its words.
+   * Re-placing it would jump the box out from under someone in the middle of
+   * reading why they were stopped. A step that had no message until now has
+   * nowhere to jump from, so that one is placed properly.
+   */
+  private retold(step: LekoStep, reason: string): void {
+    if (this.message?.visible) {
+      this.message.setText(step.message ?? '')
+      this.message.setError(reason)
+      return
+    }
+    this.say(step, reason)
   }
 
   /**
@@ -402,8 +581,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * The stack that carries `chain`, made afresh where the one standing is for
-   * other surfaces, and answered innermost first.
+   * The stack that carries `chain`, measured against the surface as it is now,
+   * made afresh where the one standing is for other surfaces, and answered
+   * innermost first.
    *
    * A layer rides what its target rides, so a target that has moved from one
    * surface to another has to be given the layers of the new one. That happens
@@ -413,6 +593,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * layer left under it carries the hole away on the next scroll while the
    * header stays. Rebuilding is not a morph, so it happens outright rather
    * than half-way.
+   *
+   * A stack kept is measured again, because the surface can have changed
+   * size while nothing was drawn. Nothing is drawn for a retry, so a resize
+   * that lands while a target is missing is not acted on then — and the step
+   * drawn afterwards would otherwise go into layers sized for a page that has
+   * since grown, leaving a strip along the new edge neither dimmed nor blocked
+   * until the next resize. Every caller here is already reading layout, so the
+   * measurement costs nothing it was not paying. A fresh stack measures itself
+   * as it is built.
    *
    * Nothing here touches the target watcher. Which node a step is watching is
    * a fact about the step rather than about the surfaces under it, and a
@@ -435,6 +624,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
         (surface, i) => new Scrim(surface, i === 0 ? (this.options.halo ?? 'return') : undefined),
       )
       this.watchViewport()
+    } else {
+      for (const layer of this.layers) layer.resize()
     }
     return this.layers[0]
   }
@@ -457,321 +648,45 @@ export class DomPresenter implements Presenter<LekoWorld> {
     })
   }
 
-  show(step: LekoStep, anchor: Element | null, animate: boolean): void {
-    // Whatever was being waited for, the tour is somewhere else now. Dropped
-    // here rather than left to run, so a target that turns up late is not drawn
-    // over the step this call is about. It is also what leaves {@link retry}
-    // with only one of itself to think about.
-    this.endRetry()
-    this.endGlide()
-    // Named a target and it is not on the page yet, which a step whose target
-    // renders a moment after its `onEnter` returned is as much as one whose
-    // target has gone. A step that named nothing is not looked for.
-    if (!anchor && DomPresenter.pointsAt(step)) return this.retry(step, animate)
-    // An arrival is a fresh attempt at the step, so nothing is owed under the
-    // instruction until a guard says otherwise.
-    const drawn = { step, error: undefined }
-    // **The one place a scroll happens.** After the target resolved, so there
-    // is something to scroll to, and before anything is measured, so every box
-    // the step is drawn from is read off the page as it ends up. It is here
-    // rather than in {@link reveal} because this is the arrival: a redraw goes
-    // through there and must not scroll again, the viewer having had every
-    // right to move the page since.
-    if (!anchor || !this.scrolls(step)) return this.reveal(drawn, anchor, animate)
-    // The words of the step being left go before the page moves, rather than
-    // riding a glide to somewhere they are not about. Nothing else changes: the
-    // dimming stays, and the standing hole travels with the content it is cut
-    // out of.
-    this.message?.hide()
-    const settling = bringIntoView(
-      lit(step, anchor),
-      this.setting(step, 'padding'),
-      this.duration(),
-    )
-    // Nothing to wait for — every port already held the cutout, or the move was
-    // applied outright — so this is the same task the arrival came in on.
-    if (!settling) return this.reveal(drawn, anchor, animate)
-    // The tour has left the step still standing on screen, so nothing may
-    // report against it any more: a target of its own going now would start a
-    // retry for a step nobody is on, and disconnect the arriving step's watcher
-    // when its deadline ran out. Nothing is watched for the length of the glide,
-    // which is right, because nothing is drawn for it either — the standing hole
-    // over a target that has gone is the bargain **Nothing is drawn for a
-    // retry** already strikes. The landing resolves the target again and arms a
-    // watcher through {@link reveal}.
-    this.watcher?.disconnect()
-    this.watcher = undefined
-    this.gliding = { glide: settling, pending: drawn }
-    void settling.settled.then(() => {
-      // Another arrival has been and gone, and it is drawing its own step. The
-      // glide is what is compared, not the record: a reason told mid-glide
-      // replaces the record and leaves this same wait running.
-      const waiting = this.gliding
-      if (waiting?.glide !== settling) return
-      this.gliding = undefined
-      // Asked again rather than trusted: a glide is long enough for a framework
-      // to have rendered over the target, and the node resolved before it may
-      // be off the page by now.
-      const landed = this.resolve(step)
-      if (!landed && DomPresenter.pointsAt(step)) return this.retry(step, animate)
-      // The record that waited, rather than the one made above: a guard that
-      // refused while the page was moving wrote its reason into it, and this is
-      // where those words arrive.
-      this.reveal(waiting.pending, landed, animate)
+  // --------------------------------------------------------------------- watching
+
+  /**
+   * Arm the one observer on the whole document, for `step`.
+   *
+   * Two jobs and one callback. With an `anchor`, this notices the step's target
+   * leaving the page: the cutout stands over the gap the element left until
+   * something answers, and without this that is where the tour would stay,
+   * the page dimmed and the one thing the user was told to act on not there.
+   * With none, it is the hunt for a target that has not turned up. Either way
+   * the step is resolved again on the spot rather than the old node re-checked,
+   * because `isConnected` on a node that has been replaced is false for ever
+   * and a fresh resolve finds the replacement — and because the batch that took
+   * a node away usually carries what replaced it, which an observer armed a
+   * moment later would never hear about. A `target` given as a function that
+   * hands back a held element has no selector to run again, so it cannot be
+   * recovered, and a retry for it waits out the deadline for nothing.
+   *
+   * Mutations are watched rather than polled, so this stays off the frame
+   * budget. What the batch means is the plan's: this reports what resolved.
+   */
+  private watch(step: LekoStep, anchor: Element | null): void {
+    this.disarm()
+    this.watcher = new MutationObserver(() => {
+      if (anchor?.isConnected) return
+      this.dispatch({ kind: 'mutated', step, found: this.resolve(step) })
     })
-  }
-
-  /**
-   * Draw what a viewer is to be looking at, and remember it.
-   *
-   * `drawn` rather than a step, because a redraw that the tour did not ask for
-   * has to put back what was there, reason and all. `anchor` is `null` on a
-   * step that points at nothing. There is no surface to find for one of those,
-   * so the document carries it, and everything below lands on the empty list of
-   * cutouts.
-   */
-  private reveal(drawn: Drawn, anchor: Element | null, animate: boolean): void {
-    const { step } = drawn
-    // The step being left is over, so its words go. Nothing is painted between
-    // here and the morph below, so this is the same moment the arrival began.
-    this.message?.hide()
-    const chain = surfaceChain(anchor ?? document.body)
-    const inner = this.restack(chain)
-    if (!inner) return this.retry(step, animate)
-
-    const resolved = this.cutouts(step, (el) => rectWithin(el, inner.surface))
-    if (!resolved) return this.retry(step, animate)
-
-    // Kept so that anything which redraws without the tour moving has what to
-    // put back.
-    this.drawn = drawn
-
-    // These holes move only when layout does, never when something scrolls.
-    this.cutOuterLayers(chain)
-
-    // Open from every hole stretched over the surface, so the scrim converges
-    // each inward rather than opening it out of nothing. The morph below
-    // re-blocks in the same task, so no frame carries the opening's blocking.
-    if (!animate) inner.converge(resolved)
-
-    // Nothing to watch on a step that points at nothing, and a watcher left
-    // armed on the step before would report against this one.
-    this.watcher?.disconnect()
-    this.watcher = undefined
-    if (anchor) this.watchTarget(anchor)
-
-    // Before the morph, not after it. The scrim blocks the page from the moment
-    // it is set, and a page that is blocked with no way out of it is the thing
-    // this control exists to prevent, even for the length of one morph.
-    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect()) ?? [])
-    // Before the morph too. The message is away for the whole of it, and the
-    // target is already reachable, so the ring is already two stops short of
-    // what `say` will make it.
-    this.showRing(step)
-
-    // The message went when the last step did, and comes back once the cutout
-    // has arrived. The side with room is a fact about where the hole ends up,
-    // so there is nowhere honest to put it while one is on its way.
-    const morphing = inner.morph(resolved, this.duration())
-    if (!morphing) {
-      this.say(step, drawn.error)
-      return
-    }
-    // The message comes back with the hole it belongs beside, and only if the
-    // morph got there. Another arrival starting is the only thing that
-    // interrupts one, and that arrival is drawing its own step already.
-    void morphing.then((finished) => {
-      if (finished) this.say(step, drawn.error)
-    })
-  }
-
-  /**
-   * Put the cutouts where they belong, right now and without animating.
-   *
-   * The surface moved under the tour rather than the tour moving. Replaying the
-   * opening would blow the cutout back up to the size of the page and converge
-   * again, so for a moment almost nothing would be dimmed.
-   *
-   * **The machine is not asked.** Which step the tour is on has not changed, so
-   * there is nothing for it to decide: this draws the step it was already given
-   * again, which is what {@link watchTarget} does about a replaced node too.
-   */
-  private replace(): void {
-    const held = this.drawn
-    if (!held) return
-    // A step whose target is not on the page this instant is one a retry is
-    // waiting out, and there is no surface to put layers under. Restacking
-    // against the document instead would destroy the layers the standing hole
-    // and its blocking rectangles live in, and the resolve below would then
-    // abort before cutting a fresh hole, leaving the page dimmed with nothing
-    // held back. Nothing is drawn for a retry, here as anywhere else.
-    const anchor = this.resolve(held.step)
-    if (!anchor && DomPresenter.pointsAt(held.step)) return
-    // The chain is read again rather than assumed: a resize can move the target
-    // from one surface to another, and {@link restack} is what puts the layers
-    // back under it when it has.
-    const chain = surfaceChain(anchor ?? document.body)
-    const inner = this.restack(chain)
-    if (!inner) return
-    for (const layer of this.layers) layer.resize()
-    this.cutOuterLayers(chain)
-    const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.surface))
-    if (!resolved) return
-    inner.set(resolved)
-    // A step is on its way, so the words stay away. `say` would put the leaving
-    // step's message back beside a hole the page is carrying off, in words the
-    // landing is about to replace. The way out is placed all the same: a resize
-    // can take away the corner it is standing in, and a page blocked with no way
-    // out of it is what that control exists to prevent, glide or no glide.
-    if (this.gliding) {
-      this.showClose(this.cutouts(held.step, (el) => el.getBoundingClientRect()) ?? [])
-      this.showRing(held.step)
-      return
-    }
-    // The message needs no help to follow a scroll, but a resize can leave the
-    // side it was put on without room, so that choice is made again. The way out
-    // is placed from the viewport, so it is chosen again too.
-    this.say(held.step, held.error)
-  }
-
-  /**
-   * Nothing has moved, so a message already on screen only changes its words.
-   * Re-placing it would jump the box out from under someone in the middle of
-   * reading why they were stopped. A step that had no message until now has
-   * nowhere to jump from, so that one is placed properly.
-   *
-   * **A step on its way is told, and nothing is said.** The message is away for
-   * the length of a glide, and the step on screen is the one being left, so
-   * saying anything here would place a box beside a hole the page is still
-   * carrying — the decision the two stages exist to avoid. The reason goes into
-   * the record waiting to be drawn and arrives with it.
-   */
-  retell(step: LekoStep, reason: string): void {
-    const waiting = this.gliding
-    if (waiting) {
-      this.gliding = { ...waiting, pending: { ...waiting.pending, error: reason } }
-      return
-    }
-    // Held, because everything that redraws without the tour moving reads it.
-    // Without this a re-render over the step would take the reason off the page
-    // while leaving the step it belongs to standing.
-    if (this.drawn) this.drawn = { ...this.drawn, error: reason }
-    if (this.message?.visible) {
-      this.message.setText(step.message ?? '')
-      this.message.setError(reason)
-      return
-    }
-    this.say(step, reason)
-  }
-
-  reject(): void {
-    this.layers[0]?.shake()
-  }
-
-  /**
-   * Notice when the step's target leaves the page.
-   *
-   * The cutout stands over the gap the element left until this answers, and
-   * without it that is where the tour would stay: the page dimmed, and the one
-   * thing the user was told to act on not there. Mutations are watched rather
-   * than polled, so this stays off the frame budget.
-   *
-   * The step is read off {@link drawn} rather than closed over, because what has
-   * to be drawn again is whatever was drawn last.
-   */
-  private watchTarget(action: Element): void {
-    this.watch(() => {
-      if (action.isConnected) return
-      const held = this.drawn
-      if (!held) return
-      // The batch that disconnected this node usually carries its replacement,
-      // and that is the whole of a framework rendering over the step. A retry
-      // started now would never see it: the mutation that added it has already
-      // been delivered, and an observer hears nothing about the past. So the
-      // selector is run here, and a re-render costs a morph and nothing else.
-      const back = this.resolve(held.step)
-      if (back) return this.reveal(held, back, true)
-      // Nothing is holding what this hands back. The machine hears about this
-      // wait only if it runs out, and then it hears `lost`.
-      this.retry(held.step, true)
-    })
-  }
-
-  /**
-   * Arm the one observer on the whole document.
-   *
-   * Both things this watches for are the same event: a batch of mutations that
-   * may have taken the step's target away or brought it back. One observer, so
-   * neither job can leave a second one running behind the other.
-   */
-  private watch(run: () => void): void {
-    this.watcher?.disconnect()
-    this.watcher = new MutationObserver(run)
     this.watcher.observe(document.body, { childList: true, subtree: true })
   }
 
-  /**
-   * A target that is not on the page is given a moment to turn up.
-   *
-   * Two things arrive here. A target that is not there when the step is drawn,
-   * which is a framework that has not painted yet, and a target that leaves
-   * after the step was drawn, which is a framework rendering over it.
-   *
-   * **Nothing on screen changes while this runs.** Whatever was drawn a moment
-   * ago stays exactly as it was, so a target that comes back costs a morph and
-   * nothing else. The hole stands over the gap the target left while it does,
-   * and DESIGN.md argues that trade under **Nothing is drawn for a retry**.
-   *
-   * **The target is resolved again rather than the old element re-checked.**
-   * `isConnected` on a node that has been replaced is false for ever, and a
-   * fresh resolve finds the replacement. A `target` given as an `HTMLElement`
-   * has no selector to run again, so it cannot be recovered and this waits out
-   * the deadline for nothing.
-   *
-   * The retry rides the same observer that noticed the loss, so it costs no
-   * polling and the deadline is a bound rather than a wait anybody sits
-   * through. Found in time, the step is drawn again and nothing about the tour
-   * has changed. Not found, `Host.lost` means what it has always meant.
-   *
-   * **Nothing is handed back and nobody is waiting.** As far as the machine is
-   * concerned the step is on screen, and it is: what is on screen is whatever
-   * this was showing a moment ago. `Host.lost` is the only part of this the
-   * machine ever hears.
-   *
-   * Only one of these can be running. Every call into {@link show} ends the
-   * last one, and the observer that starts the other one is armed only while
-   * none is.
-   */
-  private retry(step: LekoStep, animate: boolean): void {
-    this.watch(() => {
-      const found = this.resolve(step)
-      if (found) this.show(step, found, animate)
-    })
-    this.retrying = setTimeout(() => {
-      this.endRetry()
-      this.host.lost(step)
-    }, RETRY)
-  }
-
-  /**
-   * Stop a scroll. The glide is Leko's own frame loop, so it stops where it is:
-   * the page stays where the last frame left it, and nothing is drawn from
-   * there by this — whatever ends a glide has a step of its own to draw, or is
-   * a teardown and draws nothing. The step that was being waited for goes with
-   * it.
-   */
-  private endGlide(): void {
-    this.gliding?.glide.abandon()
-    this.gliding = undefined
-  }
-
-  /** End the retry, whichever way it went. The observer is armed again by whatever draws next. */
-  private endRetry(): void {
-    if (this.retrying === undefined) return
-    clearTimeout(this.retrying)
-    this.retrying = undefined
+  private disarm(): void {
     this.watcher?.disconnect()
     this.watcher = undefined
+  }
+
+  private cancel(): void {
+    if (this.deadline === undefined) return
+    clearTimeout(this.deadline)
+    this.deadline = undefined
   }
 
   /**
@@ -781,9 +696,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * the one drawn for a fixed target is fixed itself, so neither moves at all.
    */
   private watchViewport(): void {
-    this.onViewportChange = () => this.replace()
+    this.onViewportChange = () => this.dispatch({ kind: 'resized' })
     window.addEventListener('resize', this.onViewportChange)
   }
+
+  // ------------------------------------------------------------------ taking down
 
   /**
    * The scrims and the resize listener that redraws them. The message outlives
@@ -799,17 +716,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.layers = []
   }
 
-  teardown(): void {
-    // The retry goes with everything else. A tour that has been stopped drawing
-    // itself back onto the page 100ms later is the worst of the lot, because
-    // nothing is left to take it away again.
-    this.endRetry()
-    this.endGlide()
-    this.drawn = undefined
-    // Whatever is still watching the target goes with the step it was watching
-    // for. `endRetry` takes the observer with it only where a retry was running.
-    this.watcher?.disconnect()
-    this.watcher = undefined
+  /** Everything this put on the page. The watcher and the deadline went by effects of their own. */
+  private destroy(): void {
     this.destroyLayers()
     this.message?.destroy()
     this.message = undefined

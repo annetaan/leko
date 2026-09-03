@@ -349,6 +349,12 @@ is not something Leko knows.
 - `start()` on a story whose first target has not rendered blocks nothing for
   those 100ms. The tour has drawn nothing and the page is exactly as it was, so
   there is nothing for a stray click to interrupt.
+- A resize that lands while the retry runs puts the standing holes back and
+  says nothing, as one during a glide does, and the layers are measured
+  against the surface again when the step is drawn all the same: where the
+  target that went is the one standing there is nothing to put back, and a
+  step drawn into layers sized for the page as it was would leave the part the
+  page grew by neither dimmed nor blocked until the next resize.
 
 ## One gate, and what it refuses
 
@@ -824,10 +830,12 @@ tour is for.
   alone, which has nowhere to go. A sticky one is a different destination —
   past the point where it pins rather than on screen — and belongs with the
   rest of sticky, which is not built.
-- **Only an arrival scrolls.** The call sits in `show`, between the target
-  resolving and anything being measured. Every redraw goes through `reveal`
-  instead — a resize, a framework rendering over the step — and by then the
-  viewer may have moved the page on purpose, so none of them scrolls again.
+- **Only an arrival scrolls.** The call sits in `arrive` in `presenter.ts`,
+  which `show` is, between the target resolving and anything being measured,
+  and what it answered goes into the `show` event as a fact. Every redraw goes
+  through `reveal` instead — a resize, a framework rendering over the step —
+  and by then the viewer may have moved the page on purpose, so none of them
+  scrolls again.
 - **A glide the tour has moved past is cancelled, and the page stops where it
   is.** An arrival replaces it and a teardown drops it, and both cancel the
   next frame first, so the step that was being glided towards is dropped rather
@@ -982,6 +990,18 @@ the manifest does not depend on.**
   `scrim.ts`, `message.ts` and `presenter.ts` and stays small. Logic that gets
   hard to follow inside a class usually wanted to be a function in
   `geometry.ts` with a test of its own.
+- **Where a class has to wait on more than one thing, its mode is one union
+  and a pure function says what an event does to it.** The machine is
+  `plan.ts` and `machine.ts`; the presenter is `plan.ts` and `presenter.ts` in
+  `packages/leko`, the same split. The presenter waits on a glide, a morph and
+  a retry deadline and listens to an observer and `resize`, and which of those
+  is running used to be four nullable fields read together, with the rules
+  about their combinations written as prose that nothing checked. One field of
+  four variants, each carrying what belongs to it, spells only the states the
+  prose allowed, and the transitions — where every recent presenter bug had
+  been — are tested in Node one `(mode, event)` pair at a time. What the page
+  says goes into the event as data; the shell reads the page and never decides
+  what it means.
 - **jsdom is not an option for anything about layout** — it has none. What
   sorts a test is whether a browser could get the answer wrong, not whether the
   test mentions the DOM. The table of which project a test belongs in is in

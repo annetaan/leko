@@ -56,7 +56,7 @@ pnpm lint           # oxlint
 pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
 pnpm check:pack     # what a published package would import, and whether it could
-pnpm test           # vitest: five projects, three of them in browsers
+pnpm test           # vitest: six projects, three of them in browsers
 pnpm model          # search the Quint model of the machine for a broken invariant
 pnpm model:traces   # regenerate the traces that search replays against
 ```
@@ -71,7 +71,8 @@ that found it. [`packages/machine/model/README.md`](packages/machine/model/READM
 says what the model covers and what it does not.
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
-`leko-wiring` in Chromium alone, and `machine` and `codegen` in Node.
+`leko-wiring` in Chromium alone, and `leko-plan`, `machine` and `codegen` in
+Node.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in
 each one. The short version is whether a browser could get the answer wrong.
 

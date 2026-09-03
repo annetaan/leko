@@ -66,8 +66,8 @@ drive the case.
 pnpm test
 ```
 
-284 test runs across 17 files. It takes about 8 seconds on a laptop once the
-browsers are installed. Five Vitest projects, three of them in real browsers.
+633 test runs across 16 files. It takes about 20 seconds on a laptop once the
+browsers are installed. Six Vitest projects, three of them in real browsers.
 
 ## The shape of the code
 
@@ -107,7 +107,8 @@ it.
 | --- | --- |
 | `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
 | `packages/leko/src/leko.ts` | The public class. Four getters and six methods |
-| `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired |
+| `packages/leko/src/plan.ts` | The presenter's mode, and what each event does to it. Pure |
+| `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired. It performs the plan's effects and decides nothing |
 | `packages/machine/src/types.ts` | What a host brings (`World`, `StepBase`, `StoryBase`) and what a presenter owes (`Presenter`, `Host`) |
 | `packages/machine/src/plan.ts` | The state, and what each event does to it. Pure |
 | `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
@@ -172,10 +173,15 @@ rectangles from `complementRects` on the page.
 
 The box. Mostly inline styles and one interesting function, `chooseSide`.
 
-**7. `packages/leko/src/presenter.ts`**
+**7. `packages/leko/src/plan.ts`, then `presenter.ts`**
 
-Now the wiring makes sense. `DomPresenter` implements the `Presenter` interface
-from step 2 using the three files from steps 4 to 6.
+Now the wiring makes sense, and it is the machine's split again. `plan.ts` is
+the mode the presenter is in — `idle`, `drawn`, `retrying` or `gliding`, one
+union — and `reduce` answers an event with the next mode and the effects owed.
+`DomPresenter` implements the `Presenter` interface from step 2 using the three
+files from steps 4 to 6: it resolves targets, measures, and is a `switch` over
+those effects. Read `dispatch` and `perform` there the way you read them in
+`machine.ts`.
 
 **8. `packages/leko/src/leko.ts`**
 
@@ -199,11 +205,11 @@ This is the trace worth walking with the files open. The application calls
 | 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `show`, then `reveal` | Drops whatever retry was running, then works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
+| 7 | `presenter.ts` `show`, then `plan.ts` the `show` event, then `presenter.ts` `reveal` | The plan stops whatever glide was running and moves to `drawn`, owing a `watch` and a `reveal`. `reveal` works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
-| 11 | `presenter.ts` `say` | Runs after the morph settles, and only if it finished |
+| 11 | `plan.ts` the `morphed` event, then `presenter.ts` `say` | The morph finished, so the plan owes the words — whatever the step has been told by now — and `say` puts them beside the hole |
 | 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
 | 13 | `message.ts` `place` | Picks a side from viewport measurements and writes `position-area` |
 | 14 | `plan.ts` the `drawn` event, then `machine.ts` `perform` | Owes the report and makes it. The instance's `onStep`, told which story |
@@ -350,8 +356,8 @@ them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts` `watch` | The one `MutationObserver`, armed on the step on screen and on a target that has not turned up. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement. Reports `Host.lost` where the retry runs out |
-| `presenter.ts` `watchViewport` | A `resize` listener. Draws the step it already has again, without asking |
+| `presenter.ts` `watch` | The one `MutationObserver`, armed by the plan on the step on screen and on a target that has not turned up. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement, and hands the plan what it found. `Host.lost` is owed by the plan where the retry runs out |
+| `presenter.ts` `watchViewport` | A `resize` listener. The plan owes a redraw of the step it already has, without asking |
 | `focus.ts` constructor | `keydown` and `focusin`, both capturing. They keep Tab inside the ring and move nothing |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 | `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |
@@ -377,11 +383,12 @@ a listener, written against a particular step and with no job outside the tour.
 
 ## Which Vitest project a new test belongs in
 
-Five projects, defined in `vitest.config.ts`. The question that sorts them is
+Six projects, defined in `vitest.config.ts`. The question that sorts them is
 whether a browser could get the answer wrong.
 
 | Project | Runs in | Take a test here when |
 | --- | --- | --- |
+| `leko-plan` | Node | The claim is about which mode the presenter is in and what it owes for an event, with no page |
 | `machine` | Node | The claim never touches layout. Which step, when, what was reported |
 | `codegen` | Node | The claim is about reading TypeScript source or writing a file |
 | `spotlight` | Chromium, Firefox, WebKit | The claim is about geometry or what an engine does with `clip-path` |
@@ -405,6 +412,7 @@ DESIGN.md says so under
 | A new option on a step or story | `leko/src/types.ts`, then `machine/src/types.ts` if the machine reads it |
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
+| What a target going, a glide landing or a resize does to what is drawn | `leko/src/plan.ts`, and its tests |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `leko/src/presenter.ts` |
 | What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |

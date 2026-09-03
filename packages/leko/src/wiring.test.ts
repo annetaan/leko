@@ -755,6 +755,109 @@ test('a target that is not there yet leaves the page alone until it is', async (
   await vi.waitUntil(() => leko.state === 'running', { timeout: 1000 })
 })
 
+// A resize that lands while a retry runs is not acted on then — nothing is
+// drawn for a retry — and the layers are measured against the surface again
+// when the step is drawn. Without that, the step goes into layers sized for the
+// page as it was, and the part the page grew by is neither dimmed nor blocked
+// until the next resize. The two tests stage the same thing from the retry's
+// two entrances: a target not there yet, and a target that went.
+
+/** A box in the document rather than against the viewport, so the document layer is the one measured. */
+const inFlow = (top: string): Partial<CSSStyleDeclaration> => ({
+  position: 'absolute',
+  left: '100px',
+  top,
+  width: '120px',
+  height: '40px',
+})
+
+/**
+ * Grow the page by a screenful or three and say so, the way a window growing
+ * would. Answers with an element in the part that grew.
+ */
+function grown(): HTMLElement {
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const far = box('far', inFlow('2800px'))
+  window.dispatchEvent(new Event('resize'))
+  return far
+}
+
+/** Whether the tour blocks `el`, looked at with `el` on screen. */
+function blockedWhenSeen(el: HTMLElement): boolean {
+  window.scrollTo(0, el.offsetTop - 200)
+  const blocked = absorbed(el)
+  window.scrollTo(0, 0)
+  return blocked
+}
+
+test('a resize whose task took the target away leaves the words where they were', () => {
+  const target = box('target', inFlow('100px'))
+  target.id = 'anchor'
+  start([{ id: 'one', target: { elements: '#anchor', interactive: true }, message: 'Press it.' }])
+  const words = document.querySelector<HTMLElement>('.leko-message')!
+  expect(getComputedStyle(words).visibility).toBe('visible')
+
+  // A responsive breakpoint: the application's own resize listener renders
+  // over the step and takes the target with it, in the same task as the
+  // resize. The batch that took it away has not been delivered yet, so the
+  // step is still drawn as far as the presenter knows, and there is nothing to
+  // put back.
+  target.remove()
+  window.dispatchEvent(new Event('resize'))
+
+  // The words stay beside the hole standing over the gap rather than jumping
+  // to the foot of the screen with no hole to sit beside. The way out is placed
+  // all the same.
+  expect(getComputedStyle(words).visibility).toBe('visible')
+  expect(words.style.bottom).not.toContain('leko-message-dock')
+  expect(closer()).not.toBeNull()
+})
+
+test('a resize while a target is not there yet is measured when the step is drawn', async () => {
+  const first = box('first', inFlow('100px'))
+  const leko = holding({
+    id: 'story',
+    steps: [
+      { id: 'a', target: { elements: () => first, interactive: true } },
+      { id: 'b', target: { elements: '#late', interactive: true } },
+    ],
+  })
+  begin(leko, 'story')
+
+  // `b` arrives with its target still rendering, and the page grows inside
+  // the moment it is given.
+  press()
+  const far = grown()
+  const late = box('late', inFlow('300px'))
+  late.id = 'late'
+  await vi.waitUntil(() => centre(late) === late, { timeout: 1000 })
+
+  expect(leko.step?.id).toBe('b')
+  expect(blockedWhenSeen(far)).toBe(true)
+})
+
+test('a resize while a target is gone is measured when the step is drawn again', async () => {
+  const target = box('target', inFlow('100px'))
+  target.id = 'anchor'
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'a', target: { elements: '#anchor', interactive: true } }],
+  })
+  begin(leko, 'story')
+
+  target.remove()
+  await observed()
+  const far = grown()
+  const back = box('target', inFlow('100px'))
+  back.id = 'anchor'
+  await vi.waitUntil(() => centre(back) === back, { timeout: 1000 })
+
+  expect(leko.state).toBe('running')
+  expect(blockedWhenSeen(far)).toBe(true)
+})
+
 // --- what a glide leaves standing
 //
 // A step told to `scroll` is drawn only once the page has stopped, so for the

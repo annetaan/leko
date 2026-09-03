@@ -99,7 +99,11 @@ Functional core, thin imperative shell — DESIGN.md says why. Geometry goes in
 DOM work stays in `scrim.ts`, `message.ts`, `presenter.ts` and `leko.ts` and
 stays small. A handle a timer or a frame hands back is data about what is
 running, so it belongs in the state that names it rather than in a field of its
-own.
+own. Where that state is a pure plan's, the plan cannot make the handle: the
+mode names the wait (`Pending` in `packages/leko/src/plan.ts`) and the shell
+holds what the page handed back, armed and cleared by effect, the way its
+observer is. The glide goes the other way — the shell mints it before the event
+and the mode carries it — so the plan can say what to stop.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
 a `document` in it is a compile error. It is the same split again inside:
@@ -111,6 +115,15 @@ decided it, written out rather than given a name of its own.
 
 The three types a host brings are one parameter, `W extends World`. A signature
 names one type, never three.
+
+The presenter is split the same way. `packages/leko/src/plan.ts` is the mode
+the presenter is in — one union, `idle`, `drawn`, `retrying` or `gliding`, each
+variant carrying what belongs to it — and what an event does to it, as the next
+mode and a list of effects. It is pure and its tests run in Node. `presenter.ts`
+resolves targets, measures, builds the chrome and is a `switch` over the
+effects. What the page says — whether a target resolved, which glide landed —
+goes into the event as data, and a decision that lands in `presenter.ts` is in
+the wrong file.
 
 `packages/spotlight` draws and knows nothing about steps. `packages/leko` wires
 the two together, owns the public types, and is the only package that publishes.
