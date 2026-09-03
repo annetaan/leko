@@ -214,6 +214,38 @@ export async function shown(within = 8000): Promise<void> {
 }
 
 /**
+ * Drop every smooth scroll, so a glide is a known 120ms rather than the
+ * engine's own curve.
+ *
+ * For a test that has to catch two of Leko's own timers overlapping, and for
+ * nothing else. How long a real smooth scroll runs is the engine's — about
+ * 200ms in WebKit whatever the distance, past a second in Chromium for a long
+ * one (`spike/a-smooth-scroll-settling/`) — so the moment a glide lands is not
+ * a moment a test can put a second timer either side of.
+ *
+ * **No path is invented for this.** A smooth scroll that moves nothing is what
+ * Firefox does to a scroller below the fold, and Leko already answers it: the
+ * page has not moved 120ms later, so the glide sets it outright and settles.
+ * That is the path this walks, and DESIGN.md argues it under **A page that has
+ * not moved at all is set outright**.
+ *
+ * Instant scrolls go through untouched, which is what lets the glide land and
+ * a test put the page back afterwards. `vi.restoreAllMocks` in the `afterEach`
+ * above takes it off again.
+ */
+export function droppedGlide(): void {
+  const real = window.scrollTo.bind(window)
+  function dropped(options?: ScrollToOptions): void
+  function dropped(x: number, y: number): void
+  function dropped(a?: ScrollToOptions | number, b?: number): void {
+    if (typeof a === 'number') return real(a, b ?? 0)
+    if (a?.behavior === 'smooth') return
+    real(a)
+  }
+  vi.spyOn(window, 'scrollTo').mockImplementation(dropped)
+}
+
+/**
  * Wait for a page Leko set gliding to stop, and for the morph after it.
  *
  * **Watches the offset rather than listening for `scrollend`.** The event is

@@ -7,13 +7,17 @@ import {
   centre,
   closer,
   control,
+  droppedGlide,
   frame,
   holding,
   holes,
+  keep,
   observed,
   pair,
+  pause,
   press,
   scrim,
+  shown,
   start,
   watched,
 } from './harness.js'
@@ -750,6 +754,194 @@ test('a target that is not there yet leaves the page alone until it is', async (
   // A turn later than the hole, because what the machine is holding is the
   // promise the retry handed back and a promise settles in a microtask.
   await vi.waitUntil(() => leko.state === 'running', { timeout: 1000 })
+})
+
+// --- what a glide leaves standing
+//
+// A step told to `scroll` is drawn only once the page has stopped, so for the
+// length of the glide the tour is on one step and the screen is showing
+// another. Three things redraw without the tour moving — the target watcher,
+// a reason the guard gave, and a resize — and each of them reads a record here.
+//
+// Here rather than in `leko.test.ts` because none of it is about layout: what
+// is being pinned down is which step's record each of them reads, and no engine
+// has an opinion about that. The glide is the browser's own smooth scroll, left
+// real wherever "mid-glide" is all a test needs — a look taken on a timer a few
+// tens of milliseconds in is inside the shortest glide any engine runs.
+
+/**
+ * Two targets far apart on a tall page, so a step that scrolls to the second
+ * has a glide long enough to look at while it runs.
+ */
+function farApart(): [HTMLElement, HTMLElement] {
+  const page = keep(document.createElement('div'))
+  page.style.height = '4000px'
+  document.body.append(page)
+  const at = (top: number, id: string): HTMLElement => {
+    const el = document.createElement('button')
+    el.textContent = id
+    el.id = id
+    Object.assign(el.style, {
+      position: 'absolute',
+      left: '100px',
+      top: `${top}px`,
+      width: '120px',
+      height: '40px',
+      margin: '0',
+    })
+    page.append(el)
+    return el
+  }
+  return [at(100, 'near'), at(2600, 'far')]
+}
+
+/** A story that walks from the near target to the far one, which scrolls. */
+const goingFar = (steps: Partial<LekoStep> = {}) => ({
+  id: 'story',
+  steps: [
+    { id: 'near', target: { elements: '#near', interactive: true } },
+    { id: 'far', target: { elements: '#far', interactive: true }, scroll: true, ...steps },
+  ],
+})
+
+/** Whether the box holding the instruction is on screen. */
+const saying = (): boolean => {
+  const el = document.querySelector<HTMLElement>('.leko-message')
+  return el !== null && getComputedStyle(el).visibility === 'visible'
+}
+
+test('a target lost while the page glides does not disarm the step arriving', async () => {
+  // The one of these that needs a glide of known length. What it is about is
+  // two of Leko's own timers overlapping, and the window is only as wide as the
+  // arithmetic below.
+  droppedGlide()
+  const [near, far] = farApart()
+  const leko = holding(goingFar(), { duration: 320 })
+
+  begin(leko, 'story')
+  await shown()
+  press()
+
+  // Mid-glide, and the step being left loses its target. The tour has left it,
+  // so nothing is watching it. Watched, it would start a retry of its own, and
+  // that retry's deadline disconnects whatever watcher is standing when it runs
+  // out — which by then is the one the landing armed for the step arriving.
+  //
+  // 60ms in: the glide lands at 120 and the retry this would start runs out at
+  // 160, so the deadline falls after the landing, which is the order the fault
+  // needs. Earlier and the retry is over before the page stops; later and there
+  // is no retry to steal anything.
+  await pause(60)
+  near.remove()
+
+  await vi.waitUntil(() => centre(far) === far, { timeout: 5000 })
+
+  // So the step that landed is watched, and losing its target ends the tour.
+  // Without that the page stays dimmed around a hole over a gap, and
+  // `target-lost` never comes.
+  far.remove()
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+  expect(scrim()).toBeNull()
+
+  window.scrollTo(0, 0)
+})
+
+test('a replacement that lands while the page glides draws nothing', async () => {
+  const [near, far] = farApart()
+  const leko = holding(goingFar(), { duration: 320 })
+
+  begin(leko, 'story')
+  await shown()
+  press()
+  // The scrim's mask is written in the content's own coordinates, so a page
+  // gliding under it does not touch this. Anything that moves it is something
+  // having been drawn.
+  const standing = scrim()!.style.maskPosition
+
+  // A framework rendering over the step the tour has just left, while the page
+  // is still on its way to the next one. Watched, this is the worse half of the
+  // same fault: the hole morphs back to a step the tour has left, mid-glide,
+  // and its message comes with it if the morph gets there first.
+  await pause(40)
+  const fresh = keep(document.createElement('button'))
+  fresh.id = 'near'
+  Object.assign(fresh.style, {
+    position: 'absolute',
+    left: '100px',
+    top: '700px',
+    width: '120px',
+    height: '40px',
+    margin: '0',
+  })
+  near.replaceWith(fresh)
+  await observed()
+  await frame()
+
+  // Nothing moved and nothing was said. The standing hole travels with the
+  // content it is cut out of, which is the whole of what happens for the gap.
+  expect(scrim()!.style.maskPosition).toBe(standing)
+  expect(saying()).toBe(false)
+
+  await vi.waitUntil(() => centre(far) === far, { timeout: 5000 })
+  expect(leko.step?.id).toBe('far')
+
+  window.scrollTo(0, 0)
+})
+
+test('a reason told while the page glides is drawn when it lands', async () => {
+  const [, far] = farApart()
+  const leko = holding(
+    goingFar({ message: 'Fill it in.', validate: () => false, error: 'not yet' }),
+    { duration: 320 },
+  )
+
+  begin(leko, 'story')
+  await shown()
+  press()
+
+  // The control goes with the message for the length of the glide, so a press
+  // here is one only a script can make. What it asks for is real all the same:
+  // the guard refuses, and the words it gave have to reach the step they are
+  // about. Written onto the step being left they would be said beside a hole
+  // the page is still carrying, and gone by the time it lands.
+  await frame()
+  press()
+  await pause(40)
+
+  expect(saying()).toBe(false)
+
+  await vi.waitUntil(() => reason() === 'not yet', { timeout: 5000 })
+  expect(centre(far)).toBe(far)
+
+  window.scrollTo(0, 0)
+})
+
+test('a resize while the page glides puts the holes back and says nothing', async () => {
+  const [, far] = farApart()
+  const leko = holding(goingFar(), { duration: 320 })
+
+  begin(leko, 'story')
+  await shown()
+  press()
+
+  await pause(40)
+  window.dispatchEvent(new Event('resize'))
+  await frame()
+
+  // The layers are remade against the surface as it is now and the standing
+  // hole is put back in them. The message is not: it belongs to the step being
+  // left, and the landing has its own to draw. The way out is placed all the
+  // same — a resize can take away the corner it was standing in.
+  expect(holes()).toBe(1)
+  expect(saying()).toBe(false)
+  const out = closer()!.querySelector('button')!
+  expect(centre(out)).toBe(out)
+
+  await vi.waitUntil(() => saying(), { timeout: 5000 })
+  expect(centre(far)).toBe(far)
+  expect(leko.step?.id).toBe('far')
+
+  window.scrollTo(0, 0)
 })
 
 // --- what the presenter reports on its own account

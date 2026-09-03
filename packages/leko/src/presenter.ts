@@ -105,6 +105,20 @@ interface Drawn {
 }
 
 /**
+ * A scroll in flight, and what will be drawn when it stops.
+ *
+ * The step is held beside the glide rather than in {@link Drawn} because it is
+ * not drawn: for the length of a glide what is on screen is still the step
+ * being left, and everything that redraws without the tour moving has to know
+ * that the two have come apart. DESIGN.md argues the gap under **Nothing is
+ * drawn for the gap**.
+ */
+interface Gliding {
+  glide: Glide
+  pending: Drawn
+}
+
+/**
  * The half of Leko that touches the page: one scrim per surface that carries
  * the target, the hole cut through them, and the message beside it.
  *
@@ -159,16 +173,21 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /** The deadline on a target that is not on the page, while one is running. */
   private retrying: ReturnType<typeof setTimeout> | undefined
   /**
-   * The scroll in flight, while the page is gliding towards a step that has
-   * not been drawn yet.
+   * The scroll in flight and the step it is for, while the page is gliding
+   * towards a step that has not been drawn yet.
    *
    * Held so that what has to be known when one settles is whether it is still
    * the one being waited for, and so that one the tour has moved past can be
    * told to stop waiting. An arrival replaces it and a teardown drops it, and
    * both abandon the wait first: a glide nobody is waiting for must not set
    * the page outright, a moment later, to somewhere the tour no longer is.
+   *
+   * **It is also the whole of what says a step is pending.** While it stands,
+   * {@link drawn} is the step being left, so everything that redraws without
+   * the tour moving reads this first: what is on screen belongs to one step and
+   * the tour is on another, and only for this long.
    */
-  private gliding: Glide | undefined
+  private gliding: Gliding | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
@@ -448,17 +467,33 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Nothing to wait for — every port already held the cutout, or the move was
     // applied outright — so this is the same task the arrival came in on.
     if (!settling) return this.reveal(drawn, anchor, animate)
-    this.gliding = settling
+    // The tour has left the step still standing on screen, so nothing may
+    // report against it any more: a target of its own going now would start a
+    // retry for a step nobody is on, and disconnect the arriving step's watcher
+    // when its deadline ran out. Nothing is watched for the length of the glide,
+    // which is right, because nothing is drawn for it either — the standing hole
+    // over a target that has gone is the bargain **Nothing is drawn for a
+    // retry** already strikes. The landing resolves the target again and arms a
+    // watcher through {@link reveal}.
+    this.watcher?.disconnect()
+    this.watcher = undefined
+    this.gliding = { glide: settling, pending: drawn }
     void settling.settled.then(() => {
-      // Another arrival has been and gone, and it is drawing its own step.
-      if (this.gliding !== settling) return
+      // Another arrival has been and gone, and it is drawing its own step. The
+      // glide is what is compared, not the record: a reason told mid-glide
+      // replaces the record and leaves this same wait running.
+      const waiting = this.gliding
+      if (waiting?.glide !== settling) return
       this.gliding = undefined
       // Asked again rather than trusted: a glide is long enough for a framework
       // to have rendered over the target, and the node resolved before it may
       // be off the page by now.
       const landed = this.resolve(step)
       if (!landed && DomPresenter.pointsAt(step)) return this.retry(step, animate)
-      this.reveal(drawn, landed, animate)
+      // The record that waited, rather than the one made above: a guard that
+      // refused while the page was moving wrote its reason into it, and this is
+      // where those words arrive.
+      this.reveal(waiting.pending, landed, animate)
     })
   }
 
@@ -559,6 +594,16 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const resolved = this.cutouts(held.step, (el) => rectWithin(el, inner.surface))
     if (!resolved) return
     inner.set(resolved)
+    // A step is on its way, so the words stay away. `say` would put the leaving
+    // step's message back beside a hole the page is carrying off, in words the
+    // landing is about to replace. The way out is placed all the same: a resize
+    // can take away the corner it is standing in, and a page blocked with no way
+    // out of it is what that control exists to prevent, glide or no glide.
+    if (this.gliding) {
+      this.showClose(this.cutouts(held.step, (el) => el.getBoundingClientRect()) ?? [])
+      this.showRing(held.step)
+      return
+    }
     // The message needs no help to follow a scroll, but a resize can leave the
     // side it was put on without room, so that choice is made again. The way out
     // is placed from the viewport, so it is chosen again too.
@@ -570,8 +615,19 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * Re-placing it would jump the box out from under someone in the middle of
    * reading why they were stopped. A step that had no message until now has
    * nowhere to jump from, so that one is placed properly.
+   *
+   * **A step on its way is told, and nothing is said.** The message is away for
+   * the length of a glide, and the step on screen is the one being left, so
+   * saying anything here would place a box beside a hole the page is still
+   * carrying — the decision the two stages exist to avoid. The reason goes into
+   * the record waiting to be drawn and arrives with it.
    */
   retell(step: LekoStep, reason: string): void {
+    const waiting = this.gliding
+    if (waiting) {
+      this.gliding = { ...waiting, pending: { ...waiting.pending, error: reason } }
+      return
+    }
     // Held, because everything that redraws without the tour moving reads it.
     // Without this a re-render over the step would take the reason off the page
     // while leaving the step it belongs to standing.
@@ -680,9 +736,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * and Chromium a frame further (`spike/a-smooth-scroll-settling/`, question
    * 5). What ends is the wait, timers and all, so an abandoned glide can no
    * longer set the page outright.
+   *
+   * The step that was being waited for goes with it. Whatever ends a wait has a
+   * step of its own to draw, or is a teardown and draws nothing.
    */
   private endGlide(): void {
-    this.gliding?.abandon()
+    this.gliding?.glide.abandon()
     this.gliding = undefined
   }
 

@@ -722,6 +722,19 @@ tour is for.
   Nothing else changes while it runs: the dimming stays, and the standing hole
   travels with the content it is cut out of, which is the same bargain
   **Nothing is drawn for a retry** strikes.
+- **Nothing is watched for it either, and a reason waits with the step.** For
+  the length of a glide the tour is on one step and the screen is showing
+  another, so everything that redraws without the tour moving would otherwise
+  act on a step the tour has left. The target watcher goes when the glide
+  starts: a target lost then belongs to nobody, and a retry begun for it would
+  take the watcher out from under the step that lands — leaving a hole over a
+  gap that never ends the tour. The landing resolves the target again and arms
+  one, so the window is the one **Nothing is drawn for a retry** already
+  accepts. A reason the guard gave is written into the step on its way and
+  drawn when it arrives, rather than onto the step being left, where it would
+  be said beside a hole the page is still carrying and gone by the time it
+  landed. A resize puts the standing holes back and places the way out again,
+  and says nothing.
 - **The middle of the port, not the nearest edge.** A step exists to draw
   attention to one thing, and a hole flush against the bottom of the screen is
   the least attention a hole can be given: no room under it for the message, and
