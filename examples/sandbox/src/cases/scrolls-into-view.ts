@@ -40,7 +40,9 @@ export const scrollsIntoView: Case = {
     'glides and the step is drawn when it stops, nested panels are set ' +
     'outright, a cutout already showing is left alone, and one that cannot be ' +
     'centred leads with its top edge at the middle — more than half a ' +
-    'scrollport tall — or stops where the scrollport runs out of content.',
+    'scrollport tall — or stops where the scrollport runs out of content. A ' +
+    'region of several elements is brought in by its hole, not its first ' +
+    'element.',
 
   options: { scroll: true },
 
@@ -72,6 +74,26 @@ export const scrollsIntoView: Case = {
           <p class="hint">
             Nothing about this card is special. It is simply not on the screen
             when the step arrives, so the step goes and gets it.
+          </p>
+        </div>
+
+        <div class="scroll-room"></div>
+
+        <div class="milestone" data-pair-upper>
+          <h3>Two cards, one hole</h3>
+          <p class="hint">
+            This card and the one below are named in one region, so one hole is
+            cut around both, gap included.
+          </p>
+        </div>
+
+        <div class="scroll-gap"></div>
+
+        <div class="milestone" data-pair-lower>
+          <h3>The other end of the hole</h3>
+          <p class="hint">
+            Brought in by the first card alone, this one would sit half the gap
+            below where it is — and past the fold, given a wide enough gap.
           </p>
         </div>
 
@@ -138,6 +160,17 @@ export const scrollsIntoView: Case = {
             "says how tall the sandbox's own footer is, and this box had to " +
             'land clear of it. The page glided and nothing was drawn until it ' +
             'stopped — watch the previous hole ride the page on the way.',
+        },
+        {
+          id: 'one-hole-two-cards',
+          target: { elements: ['[data-pair-upper]', '[data-pair-lower]'] },
+          message:
+            'One region of two cards, so one hole around both, and it is the ' +
+            'hole that is at the middle of the screen: the upper card sits ' +
+            'above the middle and the lower one below it by the same amount. ' +
+            'The hole is what the step is about, so the hole is what is ' +
+            'brought in — not the first card, with the second left to hang ' +
+            'wherever the gap puts it.',
         },
         {
           id: 'tall-section',

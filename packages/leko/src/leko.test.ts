@@ -539,6 +539,85 @@ test('scroll-margin on the target is honoured over the step padding', () => {
   window.scrollTo(0, 0)
 })
 
+/**
+ * Two small elements one above the other on a tall page, `gap` apart, for a
+ * region that names both. The hole is the union, and the union is what the
+ * tests below expect to see brought in.
+ */
+function twoApart(gap: number): [HTMLElement, HTMLElement] {
+  const upper = belowTheFold(2000)
+  upper.parentElement!.style.height = '6000px'
+  const lower = document.createElement('button')
+  lower.textContent = 'lower'
+  Object.assign(lower.style, {
+    position: 'absolute',
+    left: '100px',
+    top: `${2000 + gap}px`,
+    width: '120px',
+    height: '40px',
+    margin: '0',
+  })
+  upper.parentElement!.append(lower)
+  return [upper, lower]
+}
+
+test('a region of several elements is brought in by its hole, not its first element', () => {
+  const [upper, lower] = twoApart(200)
+
+  start([
+    {
+      id: 'pair',
+      target: { elements: [() => upper, () => lower], interactive: true },
+      scroll: true,
+    },
+  ])
+
+  // One hole around both, so it is the hole that lands at the middle: the
+  // upper element above it and the lower below it by the same amount. Centred
+  // on the first element alone, the hole would sit half the gap low, and a gap
+  // wide enough would leave the lower element past the fold.
+  const hole = {
+    top: upper.getBoundingClientRect().top,
+    bottom: lower.getBoundingClientRect().bottom,
+  }
+  expect((hole.top - 8 + hole.bottom + 8) / 2).toBeCloseTo(port().height / 2, 0)
+  expect(offCentre(upper)).toBeCloseTo(-100, 0)
+  expect(centre(upper)).toBe(upper)
+  expect(centre(lower)).toBe(lower)
+  window.scrollTo(0, 0)
+})
+
+test('a region whose hole is taller than half the screen leads with its top edge', () => {
+  // Two elements each a fraction of the screen, far enough apart that the hole
+  // around them is not. It is the hole's height the rule reads, so this one
+  // leads like a tall section does and leaves the message its half above.
+  const half = document.documentElement.clientHeight / 2
+  const [upper, lower] = twoApart(half + 100)
+
+  start([{ id: 'pair', target: { elements: [() => upper, () => lower] }, scroll: true }])
+
+  expect(upper.getBoundingClientRect().top - 8).toBeCloseTo(half, 0)
+  window.scrollTo(0, 0)
+})
+
+test('a later region is not brought in', () => {
+  // The first region is the one the step is about. A later one is shown to be
+  // looked at, and a step that wants it on screen puts it in the first.
+  const [upper, lower] = twoApart(port().height * 2)
+
+  start([
+    {
+      id: 'linked',
+      target: [{ elements: () => upper, interactive: true }, () => lower],
+      scroll: true,
+    },
+  ])
+
+  expect(offCentre(upper)).toBeCloseTo(0, 0)
+  expect(lower.getBoundingClientRect().top).toBeGreaterThan(port().height)
+  window.scrollTo(0, 0)
+})
+
 test('every scrollport carrying the target is scrolled, innermost first', () => {
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'

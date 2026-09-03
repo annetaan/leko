@@ -64,6 +64,8 @@ export function resolveTargets(targets: readonly Target[]): Element[] {
  * therefore interactive — which is the reason the public type asks for adjacent
  * elements.
  */
+export function union(rects: readonly [Rect, ...Rect[]]): Rect
+export function union(rects: readonly Rect[]): Rect | null
 export function union(rects: readonly Rect[]): Rect | null {
   if (rects.length === 0) return null
   const left = Math.min(...rects.map((r) => r.x))

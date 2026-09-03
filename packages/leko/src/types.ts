@@ -279,6 +279,14 @@ export interface LekoStep {
    * exactly where it is, and one near the end of the content lands as near as
    * the content allows.
    *
+   * **What is brought in is the first region's cutout** — one hole around every
+   * element the region names — and not its first element alone, so a region of
+   * two lands with the hole at the middle rather than the first element, and a
+   * hole taller than half the scrollport leads with its top edge whatever the
+   * height of the elements in it. Later regions stay where they are: a hole the
+   * step shows without opening is there to be looked at, and a step that wants
+   * one on screen puts it in the first region.
+   *
    * **The page glides, and the step is drawn when it stops.** The scroll and
    * the morph are two stages rather than one: a hole is placed from where the
    * target is on screen, so a morph running alongside a smooth scroll is a

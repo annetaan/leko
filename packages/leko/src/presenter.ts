@@ -92,6 +92,26 @@ const actionTarget = (target: LekoStep['target']): LekoTarget | undefined =>
   regionsOf(target)[0]?.elements[0]
 
 /**
+ * Every element of the hole the step is about, `anchor` first.
+ *
+ * What a scroll brings in, and the whole first region rather than `anchor`
+ * alone, because the hole is what the step is about. Centred on its first
+ * element, a region of two cuts a hole that sits half their gap low — the
+ * second element below the middle, or past the fold with a gap wide enough —
+ * and a union taller than half the port is centred like a small one, which is
+ * the case the top-edge rule exists for. Later regions are not brought in: a
+ * hole the step shows without opening is there to be looked at, and a step that
+ * wants it on screen puts it in the first region.
+ *
+ * `anchor` is the first element already resolved, so it heads the list rather
+ * than being resolved twice, and the list is never empty.
+ */
+const lit = (step: LekoStep, anchor: Element): [Element, ...Element[]] => {
+  const [, ...rest] = regionsOf(step.target)[0]?.elements ?? []
+  return [anchor, ...resolveTargets(rest)]
+}
+
+/**
  * What a viewer is looking at: the step whatever draws was last given, and
  * whatever the last attempt at it was told.
  *
@@ -463,7 +483,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // dimming stays, and the standing hole travels with the content it is cut
     // out of.
     this.message?.hide()
-    const settling = bringIntoView(anchor, this.setting(step, 'padding'), this.duration())
+    const settling = bringIntoView(
+      lit(step, anchor),
+      this.setting(step, 'padding'),
+      this.duration(),
+    )
     // Nothing to wait for — every port already held the cutout, or the move was
     // applied outright — so this is the same task the arrival came in on.
     if (!settling) return this.reveal(drawn, anchor, animate)

@@ -743,6 +743,19 @@ tour is for.
   scrollport on the target's surface chain centres the cutout in itself,
   innermost first, with the box measured again for each — scrolling an inner
   scroller moves the target inside every port outside it.
+- **What is brought in is the first region's hole, not its first element.** A
+  region of several elements cuts one hole around all of them, and the hole is
+  what the step is about, so the union of the region is what is measured
+  against each port, the same way the element was. Measured on the first
+  element alone, a region of two landed its hole half their gap low: the second
+  element hung below the middle, and past the fold with a gap wide enough. The
+  worse half was that the top-edge rule below read the element's height, so a
+  hole taller than half the port was centred like a small one and left the
+  message the room a small one leaves — the case that rule exists for.
+  `scroll-margin` still comes off the first element, because it is the
+  application's word about the element it wrote it on. Later regions stay where
+  they are: a hole the step shows without opening is there to be looked at, and
+  a step that wants it on screen puts it in the first region.
 - **A port that already holds the cutout is not touched.** A step arriving does
   not re-centre a page the viewer has settled, and that refusal is
   `scrollDelta` answering zero rather than a special case anywhere else. It is

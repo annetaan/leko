@@ -671,6 +671,19 @@ button:disabled {
 }
 
 /*
+ * The space between the two cards of one region in `scrolls-into-view.ts`. It
+ * is inside the hole with them, and it is what would put the lower card half a
+ * gap low if the first card alone were brought in. Sized off the screen so the
+ * hole — two cards of some 100px each, the gap, and the padding — stays under
+ * half a scrollport at any height a laptop has, and the step is about a hole
+ * that is centred rather than one that leads with its top edge. A fixed gap
+ * tipped over at a 720px screen.
+ */
+.scroll-gap {
+  min-height: max(40px, 50vh - 300px);
+}
+
+/*
  * Taller than the screen, which puts it over the half a scrollport at which a
  * target stops being centred and leads with its top edge instead. That is what
  * leaves the top half of the screen for the message, so this one needs no room

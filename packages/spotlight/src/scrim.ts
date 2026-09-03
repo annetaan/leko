@@ -10,6 +10,7 @@ import {
   type Rect,
   scrollDelta,
   segmentAt,
+  union,
 } from './geometry.js'
 
 /**
@@ -213,8 +214,8 @@ export interface Glide {
 }
 
 /**
- * Bring `el` to the middle of every scrollport that carries it, and say when the
- * page has stopped moving.
+ * Bring the box around `lit` to the middle of every scrollport that carries
+ * it, and say when the page has stopped moving.
  *
  * **Before the draw, and never during it.** `undefined` means there is nothing
  * to wait for — every port already held the cutout, or the move was applied
@@ -244,30 +245,46 @@ export interface Glide {
  * the offset the sum is right in — which is what makes a step that arrives
  * mid-glide and scrolls land where it meant to.
  *
+ * **The box around every element is what is brought in, and the first
+ * element is what is scrolled.** A hole is not an element: a region of several
+ * elements cuts one hole around all of them, and the hole is what the step is
+ * about, so the hole is what has to end up in the port. Measured against the
+ * first element alone, a hole around two elements sat half their gap low, and
+ * one taller than half the port was centred as if it were small — which is the
+ * case the top-edge rule in {@link scrollDelta} exists for. The box is measured
+ * again for each port, because scrolling an inner scroller moves everything
+ * inside it. The first element names the surfaces to scroll, on the
+ * assumption that one hole's elements share them — nothing checks it, and a
+ * hole spread across scrollers lands wherever scrolling the first element's
+ * puts the rest, the same bargain a later region strikes. It is also the
+ * element `scroll-margin` is read off, because that is the application's word
+ * about the element it wrote it on.
+ *
  * `room` is the hole's own overhang — the step's `padding` — so what is brought
- * in is the cutout rather than the bare element. `scroll-margin` on the target
- * is honoured over it wherever it asks for more: a guess about how much room a
- * sticky header needs is exactly the thing an application already knows and
- * Leko does not.
+ * in is the cutout rather than the bare box. `scroll-margin` on the first
+ * element is honoured over it wherever it asks for more: a guess about how much
+ * room a sticky header needs is exactly the thing an application already knows
+ * and Leko does not.
  *
- * Where the target ends up is {@link scrollDelta}'s to say: the middle of the
+ * Where the box ends up is {@link scrollDelta}'s to say: the middle of the
  * port, or nowhere at all if the port already held it. Nothing here clamps —
- * the port does, so a target near the end of the content lands as near the
- * middle as the content allows.
+ * the port does, so a box near the end of the content lands as near the middle
+ * as the content allows.
  *
- * Innermost first, and the box is measured again for each port, because
- * scrolling an inner scroller moves the target inside every port outside it.
- * A `viewport` surface is skipped: what it carries is `position: fixed` and has
- * nowhere to be scrolled to.
+ * Innermost first. A `viewport` surface is skipped: what it carries is
+ * `position: fixed` and has nowhere to be scrolled to.
  */
-export function bringIntoView(el: Element, room: number, duration: number): Glide | undefined {
-  const asked = roomAround(el, room)
-  for (const surface of surfaceChain(el)) {
+export function bringIntoView(
+  lit: readonly [Element, ...Element[]],
+  room: number,
+  duration: number,
+): Glide | undefined {
+  const [anchor] = lit
+  const asked = roomAround(anchor, room)
+  for (const surface of surfaceChain(anchor)) {
     const port = scrollport(surface)
     if (!port) continue
-    const r = el.getBoundingClientRect()
-    const box = outset({ x: r.left, y: r.top, width: r.width, height: r.height }, asked)
-    const delta = scrollDelta(box, port)
+    const delta = scrollDelta(outset(around(lit), asked), port)
     if (delta.x === 0 && delta.y === 0) continue
     // `instant` in so many words, every time it is meant. A host with
     // `scroll-behavior: smooth` on its root would otherwise animate a move this
@@ -365,6 +382,18 @@ function glide(to: { x: number; y: number }): Glide {
   window.addEventListener('scrollend', ended)
   window.scrollTo({ left: to.x, top: to.y, behavior: 'smooth' })
   return { settled, abandon }
+}
+
+/** The box around every element of `lit`, in viewport coordinates. */
+function around(lit: readonly [Element, ...Element[]]): Rect {
+  const [first, ...rest] = lit
+  return union([bounds(first), ...rest.map(bounds)])
+}
+
+/** Where `el` is on screen, as a {@link Rect}. */
+function bounds(el: Element): Rect {
+  const r = el.getBoundingClientRect()
+  return { x: r.left, y: r.top, width: r.width, height: r.height }
 }
 
 /** How much room to leave around a target: what the step asks, or what the page asks for more of. */
