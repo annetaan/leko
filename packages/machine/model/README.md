@@ -25,6 +25,10 @@ pnpm model:traces   # regenerate the corpus under traces/
 pnpm test           # among other things, replay the corpus
 ```
 
+Both commands cover the presenter's model as well; see
+[`packages/leko/model/README.md`](../../leko/model/README.md). What is written
+below is about this one.
+
 `pnpm model` takes about 10 seconds here and runs in CI. It needs no JVM.
 Quint's Rust backend is the default and comes with the npm package, and only
 `quint verify` wants Apalache and a Java runtime.
@@ -268,9 +272,15 @@ that are knobs on the world.
 ignored on a step that declares `awaits`.
 
 The world is a `var` written once in `init` rather than a `pure val`. That puts
-it into every state of the trace, and `replay.test.ts` builds its fixture out of
-the trace. Otherwise the fixture would be written twice and the two copies would
-drift apart, which is the largest drift surface there is.
+it into the trace, and `replay.test.ts` builds its fixture out of the trace.
+Otherwise the fixture would be written twice and the two copies would drift
+apart, which is the largest drift surface there is. It is written once in
+`init`, so `scripts/model-traces.mjs` hoists it to the trace's header rather
+than leaving the same map repeated in every state. That script checks the
+assumption rather than trusting it: a trace whose states do not all carry the
+same world fails the harvest. An invariant would ask the same question of
+200,000 traces instead of one, and this world is five stories deep — it cost
+this search 71% more time when it was tried.
 
 ## Two searches
 

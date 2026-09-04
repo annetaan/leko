@@ -41,11 +41,12 @@
   },
   "scripts": {
     "build": "tsdown && cp node_modules/@annetaan/leko-spotlight/src/leko.css dist/leko.css",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p type-tests/bare.tsconfig.json && tsc --noEmit -p type-tests/loose.tsconfig.json && tsc --noEmit -p type-tests/strict.tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p type-tests/bare.tsconfig.json && tsc --noEmit -p type-tests/loose.tsconfig.json && tsc --noEmit -p type-tests/strict.tsconfig.json"
   },
   "devDependencies": {
     "@annetaan/leko-machine": "workspace:*",
     "@annetaan/leko-spotlight": "workspace:*",
+    "@types/node": "^24.13.3",
     "tsdown": "^0.22.14"
   }
 }

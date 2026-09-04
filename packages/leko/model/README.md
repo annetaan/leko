@@ -21,6 +21,8 @@ only as far as the examples somebody wrote happen to reach.
 
 ```bash
 pnpm model          # both models: search for a state that breaks an invariant
+pnpm model:traces   # regenerate the corpora under traces/, both models
+pnpm test           # among other things, replay this one's
 ```
 
 `pnpm model` runs this after the machine's model, from the same script. It takes
@@ -118,6 +120,7 @@ for a state predicate to hold is the mode against the implicit state:
 | `glidingIsBare` | `gliding` has the message hidden, and its glide is the only one moving the page |
 | `idleIsClean` | `idle` has nothing on the page, no words and no morph |
 | `boundedReentry` | nothing came back in deeper than the interpreter unrolls |
+| `worldIsFixed` | the step table never changes, which is what lets `pointsAt` read it off the `pure val` while everything with a state reads the variable |
 
 One more is a predicate over an `Outcome` rather than a state, and it is the
 gap the issue was most concerned with:
@@ -131,19 +134,84 @@ gap the issue was most concerned with:
 effects each `reduce` of the last action owed and asks it of every outcome any
 trace reaches.
 
-The claims about what a *transition* did — a stale `settled` draws nothing, an
-abandoned glide never moves the page again, an `expired` for a wait that ended
-is answered with nothing however long ago it was set — are stage 2's, and go
-into a harvested corpus replayed against the real `reduce`. The witnesses below
-are what will aim the harvest.
+The claims about what a *transition* did cannot be seen by a predicate over one
+state at all, and writing them into the model as a flag an action sets would
+make them true by construction. They live in
+[`../src/replay.test.ts`](../src/replay.test.ts), where the thing being asked is
+the real `reduce`:
+
+| | |
+| --- | --- |
+| 1 | a stale `settled` draws nothing, and moves nothing |
+| 2 | an abandoned glide is told to stop, and never moves the page again, and nothing but the glide the mode holds is still carrying it |
+| 3 | an `expired` for a wait that ended is answered with nothing, however long ago it was set |
+| 4 | a `resized` mid-glide puts the standing holes back and says nothing |
+| 5 | a re-entrant effect is last, on the real outcomes rather than the model's |
+
+The model's job for those is to reach the state where the question can be
+asked, and the witnesses below are what aim the harvest.
+
+## The corpus
+
+`traces/` holds 16 traces, harvested the way the machine's are: `quint run` is
+handed the negation of a target as its invariant, and the shortest thing that
+breaks "this never happens" is a trace where it does. The targets and the seeds
+are in `HARVEST` in `scripts/model-traces.mjs`, under this model's entry.
+
+`../src/replay.test.ts` reads every `.itf.json` in that directory and drives the
+events into the real `reduce`, with a fake interpreter standing in for the
+shell. The machine's replay is a real `Machine` over a fake presenter; this is
+that arrangement inverted, and it is lighter than the machine's was — nothing
+here is asynchronous, there is no teardown window to drain, and no browser is
+involved.
+
+After every event the oracle runs in two halves. First **what each `reduce`
+owed**: the effect lists the real plan produced, against the ones the model's
+`reduce` produced, rendered to a shape both can be written to — an anchor
+becomes whether there was one, a `Glide` becomes the model's token for it, a
+step becomes its id. Then **the state performing them left**: the mode and what
+it carries, the watcher and what it is armed for, the deadline, what is on the
+page, the words, the morph, the glides and the page itself. The glides by
+identity rather than by number: a `show` over a glide abandons one and mints
+another, so a mode left holding the abandoned one runs the same count and owes
+the same effects, and which token the mode holds is the only thing that tells
+the two apart.
+
+Both halves, because two effects can leave the same footprint. A `say` owed
+where a `retell` was re-places the message box instead of swapping its words —
+which is the jump out from under a reader that `retold` exists to prevent — and
+either way the message ends up showing. The state comparison alone sees
+nothing there. Neither half is the model checking itself: the shell is driven
+by the effects the **real** `reduce` owed.
+
+The identities are what the trace cannot carry. A `Pending` is an object the
+plan mints per wait and a `Glide` is one the shell mints per scroll, and both
+are told from a stale one with `!==`. The model numbers them; the replay reads
+the number off the mode the plan just committed and ties it to the object, so a
+`settled` for glide 0 five states later is dispatched with the object glide 0
+was. That is what makes claims 1 and 3 mean anything.
+
+They are tied by order rather than by reading whichever mode an action ended
+in. Both sides take every token off one counter that only goes up, so the nth
+glide the shell minted is the nth token the model added, whatever depth of
+re-entry either was reached at. A count that disagrees is the harness having
+stopped following the plan — a different thing from a corpus that is wrong —
+and it says so rather than failing later on a lookup.
+
+The world is in each trace's header rather than in every state. It is a model
+variable so that it reaches the trace at all, which is what lets the fixture be
+built from the trace rather than written a second time by hand; it is written
+once in `init`, so `scripts/model-traces.mjs` writes it once too, and
+`worldIsFixed` is the invariant that says it stays that way.
 
 ## What it found
 
-Nothing in `plan.ts`. Every invariant held over 100,000 traces of 24 steps.
+Nothing in `plan.ts`. Every invariant held over 100,000 traces of 24 steps, and
+every trace replayed green against the real `reduce` the first time it ran.
 
-What it can see was measured the way the machine's was: break the model on
-purpose and watch whether the search notices. Each row is one edit to
-`plan.qnt`, searched for 20,000 traces.
+What the search can see was measured the way the machine's was: break the model
+on purpose and watch whether it notices. Each row is one edit to `plan.qnt`,
+searched for 20,000 traces.
 
 | What was broken | Caught by |
 | --- | --- |
@@ -160,6 +228,75 @@ call disarms the observer itself, and the state the search rests in is clean
 either way. A search sees states, and there is no state in which that `disarm`
 did anything. It stays in `plan.ts` because it costs nothing and says what the
 case means; the model is what says it is not load-bearing.
+
+## What the corpus found, and what it did not
+
+The same exercise against the code rather than the model: twenty edits to
+`plan.ts`, each run past `plan.test.ts` and past the replay separately. Ten of
+them were the obvious ones and both suites caught all ten. These are the other
+ten, and they are where the two differ.
+
+| What was broken in `plan.ts` | `plan.test.ts` | A replayed trace |
+| --- | --- | --- |
+| a hunt takes a batch about a step it is not looking for | **no** | yes |
+| a `show` over a glide keeps the abandoned glide on the new mode | **no** | yes |
+| a `retell` on the step on screen owes a `say` instead | yes | yes |
+| an unmeasured draw retries with the step it failed to draw standing | yes | yes |
+| a `retell` mid-glide is dropped instead of held | yes | yes |
+| a hunt that arrives drops what the wait was told | yes | yes |
+| what stands behind a glide is the step on its way | yes | yes |
+| a re-render redraws without animating | yes | yes |
+| a retry keeps the watcher it had rather than hunting | yes | yes |
+| a teardown leaves the watcher armed | yes | yes |
+| a morph landing is not checked against the step it drew | yes | **no** |
+| an unmeasured report is not checked against the step it drew | yes | **no** |
+
+The first row is what the corpus is for. `plan.test.ts` drives one `(mode,
+event)` pair at a time and had no example of a hunt hearing about another step,
+so a plan that answered one went green. `mutated-elsewhere` is the mark for it
+now, and `hunt-elsewhere` is the trace.
+
+The second cost a trace and a field on the oracle, and it is the sharpest thing
+here. A `show` that glides, made while the page is already gliding, is the one
+state where two glides are alive at once, and no trace reached it: `showOverGlide`
+admits that state, but its seed landed on a `show` that retried instead. So a
+mode holding the abandoned glide looked exactly like one holding the right glide
+— same effects, same number still running — and every trace replayed green.
+`glide-over-glide` is the trace, `glideOverGlide` the state it aims at, and the
+oracle now compares which glide the mode holds rather than how many are running.
+In a browser that mutant is a hang rather than a cosmetic slip: the new glide
+settles, the mode is holding the old one, `reduce` answers with nothing, and the
+step never draws on a page that has already scrolled to it.
+
+The third is what the effect half of the oracle is for, and it went green against
+every trace while the oracle read state alone. A `say` and a `retell` both end
+with the message showing.
+
+Two rows arrived late. A glide begun from a retry that had **nothing** standing
+looks exactly like one that inherited nothing at all, so the first corpus
+replayed green against a plan that dropped `standing` on the way;
+`glideOverStanding` is the state that tells them apart. And how a draw was to
+animate is only ever visible again when the draw fails to measure and the
+`Pending` carries it into a retry, which is `redrawUnmeasured`. Both are traces
+now, and both mutants are caught.
+
+The last two rows are the honest ones, and they are the same shape as the
+`disarm` row above. Each is a guard on a state the model says is unreachable:
+
+```
+--invariant='not(went(m, "morphed-stale") and kindOf(m.mode) == "drawn")'
+[ok] No violation found (13624ms)
+--invariant='not(went(m, "unmeasured-ignored"))'
+[ok] No violation found (14456ms)
+```
+
+200,000 traces each, 24 steps, and neither state once. A morph is halted by
+every redraw and every `replace`, so the only `morphed` that arrives is the one
+for the step on screen; an `unmeasured` is dispatched from inside `reveal`
+against the mode `reveal` has just committed. A replay can only reach states the
+model can reach. A hand-written test can build any state at all, and that is why
+both suites are here: `plan.test.ts` says what the rule is, and the corpus finds
+the rules nobody thought to name.
 
 ## The world, and how big it is
 
@@ -182,7 +319,13 @@ rather than fails, so `scripts/model-check.mjs` reads the counts and fails on a
 zero, for this model as for the machine's.
 
 There is one per branch of `reduce` a trace can reach, read off the mark each
-branch writes. `unmeasured-ignored` is the one branch without: `unmeasured`
+branch writes. One branch has two marks: `plan.ts` turns down a batch about a
+step the hunt is not looking for and a batch that found nothing in the same
+condition, and `mutated-elsewhere` and `mutated-ignored` are the two halves
+worth aiming at, the way `advance` in `machine.qnt` tells `refuse-said` from
+`refuse-mute`.
+
+`unmeasured-ignored` is the one branch without a witness: `unmeasured`
 only ever arrives from inside `reveal`, against the `drawn` that reveal just
 committed, so the stale-`unmeasured` guard in `plan.ts` is exercised by nothing,
 here or anywhere, and a witness for it would sit at zero for ever.
@@ -197,6 +340,11 @@ that assumed it had succeeded, is the shape of the `Effect` type now — `replac
 carries `saying` — and has no witness because there is no longer a branch to
 reach.
 
+Three more exist because the replay asked for them rather than the search:
+`glideOverStanding`, `redrawUnmeasured` and `mutatedElsewhere` are each a state
+in which a plan that had got something wrong would otherwise have looked
+exactly like one that had not. The section above says what each was found by.
+
 `scripts/model-check.mjs` reads the witnesses, and the invariants, out of this
 file: every `val` under the heading of that name. A list kept in the script
 would be a second copy, and a `val` added to one and not the other would be
@@ -204,6 +352,19 @@ neither checked nor alarmed on.
 
 A witness at zero is a model whose actions have stopped describing the code,
 and every run since is green about nothing.
+
+## When a replay diverges
+
+The failure names the state and the call: `state 8, after doSettled
+(settled-retry)`. The model and the code disagree about what that event did.
+One of them is wrong. Read the state in the `.itf.json` alongside the definition
+it is named after: every mark in `plan.qnt` names the branch of `reduce` it
+stands for, `perform` there is `perform` in `presenter.ts`, and the fake shell
+in `replay.test.ts` is that same `perform` in TypeScript.
+
+A divergence in the identities reads differently — a `settled` or an `expired`
+that should have been answered with nothing and was not. Those are claims 1 to
+3 above, and they fail with a message rather than a field comparison.
 
 ## When `pnpm model` fails
 
@@ -248,10 +409,9 @@ the commit, because a model that lies is worse than no model.
   knob for it.
 - Whether a `mutated` for a watched target means the target left or was
   replaced. The page is a set of names, and a replacement has the same name.
-- The transitions. A stale `settled` drawing nothing, an abandoned glide never
-  moving the page again, a late `expired` answered with nothing: those are
-  claims about what a call did, not about a state, and they wait for the
-  corpus.
+- Anything the corpus does not reach. The replay drives the traces under
+  `traces/` and no other path, so a claim about a transition is checked exactly
+  where a trace goes. `traces/` is 16 of them, and the search is what aimed each.
 - Any depth at all, in the sense of a finished search. `nextToken` grows and
   nothing resets it, so the state space is infinite and only a bound is on
   offer. `quint verify` has not been run against this model.

@@ -258,7 +258,10 @@ machine a search can walk, in
 finds are replayed against the real class by `packages/machine/src/replay.test.ts`.
 The presenter's `plan.ts` has a model of the same shape in
 [`packages/leko/model/plan.qnt`](packages/leko/model/plan.qnt), and the same
-command walks it. Read the README beside each model before changing either
+command walks it; its traces are replayed against the real `reduce` by
+`packages/leko/src/replay.test.ts`, which is the machine's arrangement inverted
+— a real plan over fake effects rather than a real machine over a fake
+presenter. Read the README beside each model before changing either
 half, because a model that has drifted away from the code is worse than no
 model.
 

@@ -188,9 +188,15 @@ class Recorder extends Fake {
   }
 }
 
-/** Turn the `world` the trace carries into the objects the machine takes. */
-function build(raw: Record<string, Itf>, run: () => Run): Map<string, Story> {
-  const world = map((raw['m'] as Record<string, Itf>)['world'])
+/**
+ * Turn the `world` the trace carries into the objects the machine takes.
+ *
+ * It sits in the trace's header rather than in each state: `world` is a model
+ * variable so that it reaches the trace at all, and it is written once in
+ * `init`, so `scripts/model-traces.mjs` writes it once too.
+ */
+function build(raw: Itf, run: () => Run): Map<string, Story> {
+  const world = map(raw)
   const stories = new Map<string, Story>()
   for (const [, spec] of world) {
     const story = spec as {
@@ -385,6 +391,8 @@ afterEach(() => {
 interface Trace {
   target: string
   seed: string
+  /** The model's `world`, written once. See {@link build}. */
+  world: Itf
   states: Record<string, Itf>[]
 }
 
@@ -441,7 +449,7 @@ describe('every trace the model found', () => {
       const reports: Run['reports'] = []
       const problems: Problem<Fixture>[] = []
       let fake!: Recorder
-      const stories = build(trace.states[0]!, () => run)
+      const stories = build(trace.world, () => run)
       const tour = new Machine<Fixture>(
         {
           onStep: (step) => {

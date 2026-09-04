@@ -122,6 +122,14 @@ module plan {
     waits: Set[Pending],
     nextToken: int,
     // --- the world
+    // The steps, as {@link STEPS} defines them. Here rather than read off that
+    // `pure val` alone so that the table lands in every state of a trace, and
+    // `packages/leko/src/replay.test.ts` builds its fixture out of the trace
+    // rather than out of a second copy written by hand. One definition, two
+    // readers: everything with a state reads this, and {@link pointsAt} reads
+    // `STEPS` because `reduce` is handed no state, the way `plan.ts` reads the
+    // step object it was given.
+    world: str -> StepSpec,
     // Which targets are on the page. Written by every event that carries a
     // fact about it, so the page always agrees with what the shell last saw.
     page: Set[str],
@@ -307,7 +315,12 @@ module plan {
             else if (e.found) revealing(d, true, true, [], "mutated-redraw")
             else retrying({ step: d.step, animate: true, token: fresh }, d.error, Just(d), [], "mutated-retry")
           | Retrying(r) =>
-            if (r.pending.step != e.step or not(e.found)) nothing(mode, "mutated-ignored")
+            // One condition in `plan.ts` and two marks here, the way `advance`
+            // in `machine.qnt` tells `refuse-said` from `refuse-mute`: a batch
+            // about a step the hunt is not looking for and a batch that found
+            // nothing are the two halves worth aiming at.
+            if (r.pending.step != e.step) nothing(mode, "mutated-elsewhere")
+            else if (not(e.found)) nothing(mode, "mutated-ignored")
             else { mode: mode, effects: [Arrive({ pending: r.pending, error: r.error })], mark: "mutated-arrive" }
           | _ => nothing(mode, "mutated-ignored")
         }
@@ -361,7 +374,7 @@ module plan {
   /// The page after the shell saw `step`'s target resolve or not. A step that
   /// points at nothing has nothing to write.
   pure def saw(s: M, step: str, present: bool): M =
-    match STEPS.get(step).target {
+    match s.world.get(step).target {
       | Nothing => s
       | Just(t) => s.with("page", if (present) s.page.union(Set(t)) else s.page.exclude(Set(t)))
     }
@@ -406,7 +419,7 @@ module plan {
         // A target that is not on the page this instant is one a mutation
         // batch is about to report, and `replace` places the way out and
         // nothing else: no holes, and no words even where `saying` asked.
-        val resolvable = match STEPS.get(r.drawn.step).target {
+        val resolvable = match s.world.get(r.drawn.step).target {
           | Nothing => true
           | Just(t) => s.page.contains(t)
         }
@@ -599,6 +612,7 @@ module plan {
     glides: Set(),
     waits: Set(),
     nextToken: 0,
+    world: STEPS,
     page: TARGETS,
     from: "idle",
     marks: [],
@@ -693,6 +707,14 @@ module plan {
       | _ => true
     }
 
+  /// The step table never changes. It is in the state so that it reaches a
+  /// trace and `packages/leko/src/replay.test.ts` can build its fixture from
+  /// one, and being in the state is what makes that worth saying out loud:
+  /// `pointsAt` reads {@link STEPS} directly, because `reduce` is handed no
+  /// state, so anything that wrote `world` would leave the two disagreeing and
+  /// every trace harvested afterwards would carry the disagreement.
+  val worldIsFixed: bool = m.world == STEPS
+
   /// **An effect that comes back into the plan goes last.** Each replaces the
   /// mode while the shell is still working through the list, so anything after
   /// one would run against a mode that is gone. `plan.test.ts` asserts this on
@@ -744,7 +766,17 @@ module plan {
   val mutatedRetry: bool = went(m, "mutated-retry")
   val mutatedArrive: bool = went(m, "mutated-arrive")
   val mutatedIgnored: bool = went(m, "mutated-ignored")
+
+  /// A batch about a step the hunt is not looking for. The plan turns it down,
+  /// and `packages/leko/src/replay.test.ts` is what caught a plan that took it:
+  /// `plan.test.ts` had no example for a hunt hearing about another step.
+  val mutatedElsewhere: bool = went(m, "mutated-elsewhere")
   val unmeasuredRetry: bool = went(m, "unmeasured-retry")
+
+  /// A re-render whose redraw then found nothing to measure. The one state in
+  /// which how a draw was to animate is still visible afterwards: it rides the
+  /// `Pending` the retry carries, and nothing else ever reads it back.
+  val redrawUnmeasured: bool = went(m, "mutated-redraw") and went(m, "unmeasured-retry")
   val expiredLost: bool = went(m, "expired-lost")
   val expiredStale: bool = went(m, "expired-stale")
   val resizedSaid: bool = went(m, "resized-said")
@@ -759,6 +791,30 @@ module plan {
   /// Its `standing` is inherited, and {@link screenIsTheModes} checks it.
   val glideFromRetry: bool =
     m.marks == ["mutated-arrive", "show-glide"] or (m.marks == ["show-glide"] and m.from == "retrying")
+
+  /// The same, with a step standing behind the glide, so what it inherited is
+  /// a step rather than nothing.
+  ///
+  /// `packages/leko/src/replay.test.ts` is why this is separate from the one
+  /// above. A glide begun from a retry that had nothing standing looks exactly
+  /// like one that inherited nothing at all, so a corpus that only reached
+  /// that one replayed green against a plan which dropped `standing` on the
+  /// way. This is the state that tells the two apart.
+  val glideOverStanding: bool =
+    glideFromRetry and (match m.mode {
+      | Gliding(g) => g.standing != Nothing
+      | _ => false
+    })
+
+  /// A `show` that glides, made while the page was already gliding.
+  ///
+  /// The one state in which two glides are alive at once: the old one
+  /// abandoned, the new one running, and the mode holding exactly one of them.
+  /// `replay.test.ts` compares which — the corpus reached no such state before,
+  /// and a plan that kept the abandoned glide on the new mode replayed green.
+  /// In a browser that is a hang: the new glide settles, the mode holds the old
+  /// one, and the step never draws on a page that has already scrolled to it.
+  val glideOverGlide: bool = m.from == "gliding" and first(m) == "show-glide"
 
   /// A resize while the page glides, with a step standing to put back.
   val resizedInGlide: bool = went(m, "resized-holes") and kindOf(m.mode) == "gliding"

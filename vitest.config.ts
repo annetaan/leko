@@ -27,7 +27,9 @@ import { defineConfig } from 'vitest/config'
 //
 // `leko-plan`, `machine` and `codegen` run in Node. None has a DOM to be wrong
 // about. `leko-plan` is the presenter's mode and what an event does to it,
-// which is pure and reads no page. `machine` decides which step a tour is on,
+// which is pure and reads no page: `plan.test.ts` one `(mode, event)` pair at a
+// time, and `replay.test.ts` over the traces the Quint search harvested, with a
+// fake interpreter where the shell would be. `machine` decides which step a tour is on,
 // against a presenter the test writes, and its package takes no `lib.dom` at
 // all. `codegen` reads TypeScript source and writes a file, and wants the
 // compiler API and the filesystem instead. Running any of them three times in
@@ -83,7 +85,7 @@ export default defineConfig({
       {
         test: {
           name: 'leko-plan',
-          include: ['packages/leko/src/plan.test.ts'],
+          include: ['packages/leko/src/plan.test.ts', 'packages/leko/src/replay.test.ts'],
           environment: 'node',
         },
       },

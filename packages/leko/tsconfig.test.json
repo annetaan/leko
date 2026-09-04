@@ -2,7 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"],
+    // The replay reads its corpus off disk, so this takes Node's types beside
+    // the DOM ones the rest of the package is written against. Only here:
+    // `tsconfig.json` is what the build reads, and nothing that ships touches
+    // the filesystem.
+    "types": ["vitest/globals", "node"],
     // Resolve `@annetaan/leko-machine` and `@annetaan/leko-spotlight` through
     // their `development` export condition, which points at src.
     //
