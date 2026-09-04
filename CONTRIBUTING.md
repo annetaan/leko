@@ -57,18 +57,22 @@ pnpm format         # oxfmt --write
 pnpm format:check   # oxfmt --check, which is what CI runs
 pnpm check:pack     # what a published package would import, and whether it could
 pnpm test           # vitest: six projects, three of them in browsers
-pnpm model          # search the Quint model of the machine for a broken invariant
+pnpm model          # search the Quint models of the machine and the plan for a broken invariant
 pnpm model:traces   # regenerate the traces that search replays against
 ```
 
-`pnpm model` walks [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt),
-which is `plan.ts` written down as a state machine, looking for a state that
-breaks one of its invariants. The traces it finds are committed and replayed
-against the real class by `packages/machine/src/replay.test.ts`. It takes about
-7 seconds, needs no JVM, and runs in CI. Its seeds are fresh every run, so a
+`pnpm model` walks two Quint models, looking for a state that breaks one of
+their invariants. [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt)
+is the machine's `plan.ts` written down as a state machine; the traces it finds
+are committed and replayed against the real class by
+`packages/machine/src/replay.test.ts`. [`packages/leko/model/plan.qnt`](packages/leko/model/plan.qnt)
+is the presenter's `plan.ts` written down the same way, with what the shell keeps
+implicitly said out loud so the invariants can read it. Together they take
+twenty to forty seconds depending on the machine, need no JVM, and run in CI. The seeds are fresh every run, so a
 failure there will not reproduce from the workflow file. The run prints the seed
 that found it. [`packages/machine/model/README.md`](packages/machine/model/README.md)
-says what the model covers and what it does not.
+and [`packages/leko/model/README.md`](packages/leko/model/README.md) say what
+each model covers and what it does not.
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
 `leko-wiring` in Chromium alone, and `leko-plan`, `machine` and `codegen` in

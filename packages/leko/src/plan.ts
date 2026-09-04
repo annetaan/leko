@@ -7,7 +7,8 @@ import type { LekoStep, LekoTarget } from './types.js'
 // `presenter.ts` resolves targets, measures, builds the chrome and makes the
 // calls owed here, and decides nothing: the split `packages/machine` makes
 // between its own `plan.ts` and `machine.ts`, made again for the half that
-// draws.
+// draws. `../model/plan.qnt` is this file written down as a state machine a
+// search can walk, and `pnpm model` walks it.
 
 // ---------------------------------------------------------------- reading a step
 

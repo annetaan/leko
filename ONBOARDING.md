@@ -256,9 +256,11 @@ machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
 finds are replayed against the real class by `packages/machine/src/replay.test.ts`.
-Read [that directory's README](packages/machine/model/README.md) before changing
-either half, because a model that has drifted away from the code is worse than
-no model.
+The presenter's `plan.ts` has a model of the same shape in
+[`packages/leko/model/plan.qnt`](packages/leko/model/plan.qnt), and the same
+command walks it. Read the README beside each model before changing either
+half, because a model that has drifted away from the code is worse than no
+model.
 
 `state` is derived rather than stored, and it reads one of the two.
 
