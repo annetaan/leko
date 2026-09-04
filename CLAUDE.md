@@ -144,7 +144,13 @@ augmentation applies to a whole compilation.
 ## Working in this repository
 
 - Commits use the GitHub noreply address, set locally. Do not change
-  `git config --global`.
+  `git config --global`. The whole history is authored, committed and signed
+  under that address, and a `Co-authored-by:` trailer is spelled exactly that
+  way — that capitalisation, and the numeric
+  `2579373+michiharu@users.noreply.github.com` where the co-author is the
+  maintainer. Git reads the key case-insensitively and GitHub accepts the
+  address without the id, so nothing breaks when a trailer drifts; it just
+  stops being greppable, and the history was normalised once already.
 - `packages/leko` is built by `tsdown`, not `tsc`, because it bundles
   `@annetaan/leko-machine` and `@annetaan/leko-spotlight` in. Both are private
   and neither is on the registry, so an import of either left in `dist/` is a
