@@ -38,7 +38,12 @@ module plan {
   type Mode =
     | Idle
     | Drawn(Picture)
-    | Retrying({ pending: Pending, error: Maybe[str], standing: Maybe[Picture] })
+    // `unmeasured` on `Retrying` is the flag of the same name on the mode in
+    // plan.ts: the wait a draw with nothing to measure began, which the
+    // deadline gives up however the last resolve answers. On the mode rather
+    // than on `Pending`, which `Gliding` carries too and where it would mean
+    // nothing.
+    | Retrying({ pending: Pending, unmeasured: bool, error: Maybe[str], standing: Maybe[Picture] })
     | Gliding({ glide: int, pending: Pending, error: Maybe[str], standing: Maybe[Picture] })
 
   /// `Event` in plan.ts. `anchor` and `found` are `Element | null` there and a
@@ -51,7 +56,7 @@ module plan {
     | Morphed({ step: str })
     | Mutated({ step: str, found: bool })
     | Unmeasured({ step: str, animate: bool })
-    | Expired({ pending: Pending })
+    | Expired({ pending: Pending, found: bool })
     | Resized
 
   /// `Effect` in plan.ts. `Reword` is its `retell`, renamed because the event
@@ -230,9 +235,10 @@ module plan {
 
   /// `retrying` in plan.ts.
   pure def retrying(
-    pending: Pending, error: Maybe[str], standing: Maybe[Picture], before: List[Effect], mark: str
+    pending: Pending, error: Maybe[str], standing: Maybe[Picture], before: List[Effect],
+    unmeasured: bool, mark: str
   ): Outcome = {
-    mode: Retrying({ pending: pending, error: error, standing: standing }),
+    mode: Retrying({ pending: pending, unmeasured: unmeasured, error: error, standing: standing }),
     effects: before.concat([Hunt({ step: pending.step }), Deadline(pending)]),
     mark: mark,
   }
@@ -259,7 +265,7 @@ module plan {
         val before = leaving(mode)
         val pending = { step: e.step, animate: e.animate, token: fresh }
         if (not(e.anchor) and pointsAt(e.step))
-          retrying(pending, e.error, standingIn(mode), before, "show-retry")
+          retrying(pending, e.error, standingIn(mode), before, false, "show-retry")
         else
           match e.glide {
             | Just(g) => {
@@ -295,7 +301,7 @@ module plan {
         match mode {
           | Gliding(g) =>
             if (g.glide != e.glide) nothing(mode, "settled-stale")
-            else if (not(e.anchor)) retrying(g.pending, g.error, g.standing, [], "settled-retry")
+            else if (not(e.anchor)) retrying(g.pending, g.error, g.standing, [], false, "settled-retry")
             else revealing({ step: g.pending.step, error: g.error }, true, g.pending.animate, [], "settled-draw")
           | _ => nothing(mode, "settled-stale")
         }
@@ -313,7 +319,7 @@ module plan {
           | Drawn(d) =>
             if (d.step != e.step) nothing(mode, "mutated-ignored")
             else if (e.found) revealing(d, true, true, [], "mutated-redraw")
-            else retrying({ step: d.step, animate: true, token: fresh }, d.error, Just(d), [], "mutated-retry")
+            else retrying({ step: d.step, animate: true, token: fresh }, d.error, Just(d), [], false, "mutated-retry")
           | Retrying(r) =>
             // One condition in `plan.ts` and two marks here, the way `advance`
             // in `machine.qnt` tells `refuse-said` from `refuse-mute`: a batch
@@ -329,7 +335,8 @@ module plan {
         match mode {
           | Drawn(d) =>
             if (d.step != e.step) nothing(mode, "unmeasured-ignored")
-            else retrying({ step: d.step, animate: e.animate, token: fresh }, d.error, Nothing, [], "unmeasured-retry")
+            else retrying({ step: d.step, animate: e.animate, token: fresh },
+                          d.error, Nothing, [], true, "unmeasured-retry")
           | _ => nothing(mode, "unmeasured-ignored")
         }
 
@@ -337,6 +344,16 @@ module plan {
         match mode {
           | Retrying(r) =>
             if (r.pending != e.pending) nothing(mode, "expired-stale")
+            // Asked once more before giving up: the deadline bounds the wait
+            // rather than having the last word on it, because a target can
+            // turn up without the hunt's observer hearing anything.
+            else if (e.found and not(r.unmeasured))
+              { mode: mode, effects: [Arrive({ pending: r.pending, error: r.error })], mark: "expired-arrive" }
+            // The wait a draw began, which resolving cannot end: the anchor
+            // resolved in the same task that could not measure it, so an
+            // arrival here would fail the same way and arm another deadline.
+            else if (e.found)
+              { mode: Idle, effects: [Disarm, Lost({ step: r.pending.step })], mark: "expired-unmeasured" }
             else { mode: Idle, effects: [Disarm, Lost({ step: r.pending.step })], mark: "expired-lost" }
           | _ => nothing(mode, "expired-stale")
         }
@@ -583,13 +600,22 @@ module plan {
 
   /// A deadline firing, for any wait ever begun. For the one armed it is the
   /// retry running out; for any other it is stale, and offered for the reason
-  /// {@link doSettled} offers one.
-  action doExpired(p: Pending): bool = all {
+  /// {@link doSettled} offers one. `found` is what the shell resolved as the
+  /// timer fired, written to the page the way a `mutated` writes it.
+  ///
+  /// Knobs, because a deadline that finds its target arrives, and an arrival
+  /// is where a glide begins: the same reason {@link doMutated} carries them.
+  action doExpired(p: Pending, found: bool, k: Knobs): bool = all {
     m.waits.contains(p),
     m' = {
       val s = begin(m)
-      val fired = if (s.deadline == Just(p)) s.with("deadline", Nothing) else s
-      dispatch(fired, Expired({ pending: p }), NO_KNOBS)
+      val e = Expired({ pending: p, found: found and pointsAt(p.step) })
+      // What it resolved is written to the page only for the deadline the
+      // retry is actually running, the way {@link doSettled} writes a landing
+      // only for the glide the mode holds: a stale one is answered with
+      // nothing, so what it saw is nothing the page has to agree with.
+      if (s.deadline == Just(p)) dispatch(saw(s, p.step, found).with("deadline", Nothing), e, k)
+      else dispatch(s, e, k)
     },
   }
 
@@ -643,7 +669,9 @@ module plan {
     nondet mutateKnobs = KNOBS.oneOf()
     doMutated(mutatedStep, found, mutateKnobs),
     nondet waitPick = m.waits.oneOf()
-    doExpired(waitPick),
+    nondet expiredFound = Bool.oneOf()
+    nondet expireKnobs = KNOBS.oneOf()
+    doExpired(waitPick, expiredFound, expireKnobs),
     doResized,
   }
 
@@ -777,6 +805,11 @@ module plan {
   /// which how a draw was to animate is still visible afterwards: it rides the
   /// `Pending` the retry carries, and nothing else ever reads it back.
   val redrawUnmeasured: bool = went(m, "mutated-redraw") and went(m, "unmeasured-retry")
+  val expiredArrive: bool = went(m, "expired-arrive")
+  /// A deadline that found its target and gave it up all the same, because the
+  /// wait was one a draw began. The branch that keeps the retry from arming
+  /// itself for ever at 100ms a turn.
+  val expiredUnmeasured: bool = went(m, "expired-unmeasured")
   val expiredLost: bool = went(m, "expired-lost")
   val expiredStale: bool = went(m, "expired-stale")
   val resizedSaid: bool = went(m, "resized-said")

@@ -590,7 +590,9 @@ export class Scrim {
     }
 
     this.mount().append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
-    this.resize()
+    // The size alone: there are no holes yet, so there is nothing to write from
+    // it. Everything after this goes through {@link resize}.
+    this.measureSurface()
   }
 
   /** Where this layer's elements go: inside the scroller, or on the body for the other two. */
@@ -653,6 +655,24 @@ export class Scrim {
    * box is clipped to the viewport, so nothing shows.
    */
   resize(): void {
+    this.measureSurface()
+    // And what was drawn *from* the size: the blocking rectangles are the
+    // complement of the holes within it, so a layer that only grew its box
+    // would leave the part the page grew by neither dimmed nor blocked. The
+    // holes are trimmed to it too. Not through `draw`, which halts whatever is
+    // running: a morph cut short here settles unfinished, and unfinished is how
+    // the presenter knows an arrival was interrupted — the step would keep its
+    // hole and never be given its words. A morph's own frames are written from
+    // cutouts in a space a resize does not move, so it can go on running, and
+    // the next one of them paints against the size measured above.
+    if (this.frame === undefined) this.paint(this.cutouts)
+    // Either way, because a morph blocks where its holes are heading rather
+    // than following them, so this is that same destination against the new
+    // size rather than anything mid-flight.
+    this.block(this.cutouts)
+  }
+
+  private measureSurface(): void {
     const root = document.documentElement
     const [w, h] =
       this.surface.kind === 'scroller'

@@ -39,6 +39,28 @@ export interface Cutout extends Rect {
 }
 
 /**
+ * Whether an element has a box on the page.
+ *
+ * The list rather than the rect, because a rect cannot tell the two apart:
+ * `getBoundingClientRect` answers all zeros both for an element with no box and
+ * for a rendered one of zero size, and the second has a place on the page while
+ * the first has none. An element with no box answers with an empty list —
+ * `display: none` on it or on anything it is inside, `display: contents`, and a
+ * subtree a `content-visibility: hidden` is skipping — and a rendered element
+ * answers with at least one however small it is.
+ *
+ * `visibility: hidden` and `opacity: 0` have boxes, so an element hidden either
+ * way is one the tour still points at. It has a place on the page, which is the
+ * whole of what is asked here. Which of several matches a selector means is a
+ * different question and is not this one.
+ *
+ * A layout read, so it is asked where layout is read already — resolving a
+ * target, which happens on an arrival, on a retry tick and on a landing — and
+ * never while something scrolls.
+ */
+export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
+
+/**
  * Ask a target where it is, now. Selectors take the first match; a selector is
  * never read as "all matches", because widening that later would silently
  * change what existing tours highlight.
@@ -48,10 +70,24 @@ export interface Cutout extends Rect {
  * was. A function that hands back a node the document has let go of is treated
  * as no answer at all, which is the same `null` a selector matching nothing
  * gives and the same entrance to the search for a lost target.
+ *
+ * **An element with no box is not found either**, and for the same reason: what
+ * a target is asked for is a place to cut a hole, and an element that is not
+ * rendered has none. Answering with it instead would put the whole of a
+ * region's hole in the corner of the viewport, because its all-zero rect is
+ * unioned at the origin, and would draw a step whose region is that element
+ * alone around nothing, with no retry to save it. So a step arriving at a
+ * hidden target takes the same route out as one whose target was never there.
+ * What this does not decide is anything after the draw: a target hidden once
+ * its hole is cut keeps the hole, because nothing resolves it again. DESIGN.md
+ * argues both under **A target is a question** and **What Leko does not do**.
+ *
+ * `isConnected` is asked first because it is free, and a node a framework has
+ * replaced is the commonest no of the two.
  */
 export function resolveTarget(target: Target): Element | null {
   const el = typeof target === 'string' ? document.querySelector(target) : target()
-  return el?.isConnected ? el : null
+  return el?.isConnected && hasBox(el) ? el : null
 }
 
 export function resolveTargets(targets: readonly Target[]): Element[] {

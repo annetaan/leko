@@ -732,6 +732,190 @@ test('a target that goes missing leaves what was drawn where it was', async () =
   expect(scrim()).toBeNull()
 })
 
+test('a target hidden after its step was drawn leaves the tour alone', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const { leko, seen } = watched({
+    id: 'story',
+    steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
+  })
+
+  begin(leko, 'story')
+  seen.length = 0
+
+  // The node stays exactly where it is and loses its box. Nothing reports it:
+  // the watcher asks `isConnected`, and past the draw the page belongs to the
+  // application — what a step assumes is `onEnter`'s to build and to keep.
+  // DESIGN.md draws the line under **What Leko does not do**, and this is here
+  // so that a watcher on styles cannot come back by accident.
+  target.style.display = 'none'
+  await observed()
+
+  // Well past the 100ms a target taken out of the document would have got.
+  await pause(300)
+
+  expect(leko.state).toBe('running')
+  expect(holes()).toBe(1)
+  expect(seen).toEqual([])
+})
+
+test('a target given its box back inside the retry is drawn, though no node moved', async () => {
+  const problems: LekoProblem[] = []
+  const target = box('target', {
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+    display: 'none',
+  })
+  target.id = 'anchor'
+  const leko = holding(
+    { id: 'story', steps: [{ id: 'late', target: { elements: '#anchor', interactive: true } }] },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+
+  begin(leko, 'story')
+
+  // On the page and not rendered, so not found, so the hunt is running and
+  // nothing is drawn.
+  expect(scrim()).toBeNull()
+  expect(leko.state).toBe('running')
+
+  // Given its box back by a style, which is what a framework does a tick after
+  // `onEnter` returned. No node moved, so no batch of nodes coming and going
+  // reports it and the hunt's observer hears nothing at all: what finds it is
+  // the deadline asking once more before it gives the step up.
+  await pause(20)
+  target.style.display = ''
+
+  await vi.waitUntil(() => scrim() !== null, { timeout: 2000 })
+
+  expect(leko.state).toBe('running')
+  expect(problems).toEqual([])
+  expect(centre(target)).toBe(target)
+})
+
+test('a guarded step whose target was hidden ends on the press, not on the guard', async () => {
+  const problems: LekoProblem[] = []
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  target.id = 'anchor'
+  const leko = holding(
+    {
+      id: 'story',
+      steps: [
+        {
+          id: 'guarded',
+          target: { elements: '#anchor', interactive: true },
+          message: 'Here.',
+          // The guard is handed the element, so it needs one: the parameter is
+          // `(el: Element) => boolean` and not nullable.
+          validate: () => true,
+        },
+        { id: 'after', target: { elements: '#anchor', interactive: true } },
+      ],
+    },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+
+  begin(leko, 'story')
+  await shown()
+
+  // Nothing watches a drawn step for this, so the step stands as it was — and
+  // `validate` is the one moment past the draw where the page is asked
+  // anything. It resolves afresh to find the guard its anchor, a hidden
+  // element is not one, and there is nothing to hand a guard that must be
+  // handed an element. So the press ends the tour rather than advancing.
+  target.style.display = 'none'
+  press()
+
+  expect(leko.state).toBe('idle')
+  expect(problems).toEqual([
+    {
+      kind: 'target-lost',
+      step: expect.objectContaining({ id: 'guarded' }),
+      story: expect.objectContaining({ id: 'story' }),
+    },
+  ])
+})
+
+test('a resize while the target is hidden takes the standing layers with it', () => {
+  // Absolute rather than the harness default of fixed, so the document carries
+  // the layer and its size is the document's rather than the viewport's.
+  const target = box('target', {
+    position: 'absolute',
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+  })
+  target.id = 'anchor'
+  const spacer = keep(document.createElement('div'))
+  document.body.append(spacer)
+  const leko = holding({
+    id: 'story',
+    steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
+  })
+
+  begin(leko, 'story')
+  const layer = scrim()!
+
+  // Hidden where it stands, which nothing reports and nothing ends: the step
+  // stays drawn for as long as it would have.
+  target.style.display = 'none'
+  spacer.style.height = '4000px'
+  window.dispatchEvent(new Event('resize'))
+
+  // There is nothing to restack against and nothing new to cut, but the
+  // surface still moved. A layer left at the height it had would leave
+  // everything past it neither dimmed nor blocked for the rest of the step.
+  expect(leko.state).toBe('running')
+  expect(layer.getBoundingClientRect().height).toBeGreaterThan(3000)
+  expect(holes()).toBe(1)
+})
+
+test('a resize while the target is hidden does not cut the morph short', async () => {
+  const target = box('target', {
+    position: 'absolute',
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+  })
+  target.id = 'anchor'
+  const leko = holding(
+    {
+      id: 'story',
+      steps: [
+        { id: 'standing', target: { elements: '#anchor', interactive: true }, message: 'Here.' },
+      ],
+    },
+    // A real duration, so there is a morph in flight to interrupt. The rest of
+    // this suite runs at 0, where a step is drawn and said in one task.
+    { duration: 320 },
+  )
+
+  begin(leko, 'story')
+
+  // Nothing has been said yet: the words come back with the hole they belong
+  // beside, and the hole is still on its way.
+  expect(control()).toBeNull()
+
+  // Hidden inside the morph, which the tour is left alone for, so the step
+  // stays drawn — and then a resize, which is the one thing that redraws
+  // without the tour moving.
+  target.style.display = 'none'
+  window.dispatchEvent(new Event('resize'))
+
+  // Whether the morph reached its end is how the presenter tells an arrival
+  // from one something interrupted, and only an arrival is said. A resize that
+  // halted the morph would leave this step with its hole, no message and no
+  // way on for the rest of the step.
+  await shown()
+
+  expect(leko.state).toBe('running')
+  expect(holes()).toBe(1)
+})
+
 test('a target that is not there yet leaves the page alone until it is', async () => {
   const leko = holding({
     id: 'story',

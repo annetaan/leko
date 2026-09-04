@@ -81,6 +81,7 @@ interface Told {
   kind: string
   glide: number | undefined
   pending: Wait | undefined
+  unmeasured: boolean | undefined
   error: string | undefined
   standing: Picture | undefined
   step: string | undefined
@@ -91,6 +92,7 @@ function told(value: Itf): Told {
     kind: tag(value),
     glide: undefined,
     pending: undefined,
+    unmeasured: undefined,
     error: undefined,
     standing: undefined,
     step: undefined,
@@ -100,11 +102,18 @@ function told(value: Itf): Told {
     const drawn = picture(payload(value))
     return { ...bare, step: drawn.step, error: drawn.error }
   }
-  const inner = payload(value) as { glide?: Itf; pending: Itf; error: Itf; standing: Itf }
+  const inner = payload(value) as {
+    glide?: Itf
+    pending: Itf
+    unmeasured?: Itf
+    error: Itf
+    standing: Itf
+  }
   return {
     ...bare,
     glide: inner.glide === undefined ? undefined : int(inner.glide),
     pending: wait(inner.pending),
+    unmeasured: inner.unmeasured === undefined ? undefined : (inner.unmeasured as boolean),
     error: maybe(inner.error, str),
     standing: maybe(inner.standing, picture),
   }
@@ -547,11 +556,18 @@ class Shell {
     this.dispatch({ kind: 'mutated', step, found: found && pointsAt(step) ? ANCHOR : null })
   }
 
-  expired(token: number): void {
+  expired(token: number, found: boolean): void {
     const pending = this.waits.get(token)
     if (!pending) throw new Error(`the trace expires a wait nothing began: ${token}`)
-    if (this.deadline === pending) this.deadline = undefined
-    this.dispatch({ kind: 'expired', pending })
+    if (this.deadline === pending) {
+      this.saw(pending.step, found)
+      this.deadline = undefined
+    }
+    this.dispatch({
+      kind: 'expired',
+      pending,
+      found: found && pointsAt(pending.step) ? ANCHOR : null,
+    })
   }
 
   /**
@@ -659,6 +675,8 @@ interface Observed {
   step: string | undefined
   error: string | undefined
   pending: { step: string; animate: boolean } | undefined
+  /** Whether a draw began the wait, which is what a deadline's answer turns on. */
+  unmeasured: boolean | undefined
   standing: { step: string; error: string | undefined } | undefined
   watcher: string
   watching: string | undefined
@@ -705,6 +723,7 @@ const observe = (shell: Shell): Observed => {
       mode.kind === 'retrying' || mode.kind === 'gliding'
         ? { step: mode.pending.step.id, animate: mode.pending.animate }
         : undefined,
+    unmeasured: mode.kind === 'retrying' ? mode.unmeasured : undefined,
     standing: standing && { step: standing.step.id, error: standing.error },
   }
 }
@@ -715,6 +734,7 @@ const expected = (now: Snapshot): Observed => ({
   step: now.mode.kind === 'Drawn' ? now.mode.step : undefined,
   error: now.mode.error,
   pending: now.mode.pending && { step: now.mode.pending.step, animate: now.mode.pending.animate },
+  unmeasured: now.mode.unmeasured,
   standing: now.mode.standing && { step: now.mode.standing.step, error: now.mode.standing.error },
   watcher: now.watcher.kind.toLowerCase(),
   watching: now.watcher.step,
@@ -754,6 +774,8 @@ const corpus = fileURLToPath(new URL('../model/traces/', import.meta.url))
 const exercised = {
   staleSettled: 0,
   staleExpired: 0,
+  expiredArrival: 0,
+  expiredUnmeasured: 0,
   settledAbandoned: 0,
   resizedMidGlide: 0,
   glideOverGlide: 0,
@@ -766,6 +788,14 @@ afterAll(() => {
   expect(
     exercised.staleExpired,
     'no trace fired a deadline for a wait that had ended',
+  ).toBeGreaterThan(0)
+  expect(
+    exercised.expiredArrival,
+    'no trace ran a deadline out onto a target that had turned up',
+  ).toBeGreaterThan(0)
+  expect(
+    exercised.expiredUnmeasured,
+    'no trace ran out a deadline that a draw had begun onto a target that was there',
   ).toBeGreaterThan(0)
   expect(
     exercised.settledAbandoned,
@@ -845,7 +875,10 @@ describe('every trace the model found', () => {
             shell.mutated(str(picks['mutatedStep']!), picks['found'] as boolean)
             break
           case 'doExpired':
-            shell.expired(wait(picks['waitPick']!).token)
+            // Knobs here too: a deadline that finds its target arrives, and an
+            // arrival is where a glide begins.
+            shell.knobs = knobs(picks['expireKnobs']!)
+            shell.expired(wait(picks['waitPick']!).token, picks['expiredFound'] as boolean)
             break
           case 'doResized':
             shell.dispatch({ kind: 'resized' })
@@ -930,6 +963,39 @@ describe('every trace the model found', () => {
           exercised.staleExpired += 1
           expect(flat, `${where}: a deadline for a wait that had ended was acted on`).toEqual([])
           expect(observe(shell), `${where}: and it moved the page`).toEqual(before)
+        }
+
+        // 3b. A deadline that runs out onto a target that has turned up is an
+        //     arrival rather than an ending. The hunt hears a batch of nodes
+        //     coming and going and nothing else, so the bound asks once more
+        //     before it ends the tour.
+        if (now.marks.includes('expired-arrive')) {
+          exercised.expiredArrival += 1
+          expect(
+            flat.map((effect) => effect.kind),
+            `${where}: a deadline gave up on a target that was there`,
+          ).not.toContain('lost')
+          expect(
+            flat.some((effect) => effect.kind === 'arrive'),
+            `${where}: a deadline found its target and did not arrive at it`,
+          ).toBe(true)
+        }
+
+        // 3c. And the one wait a resolve cannot end is given up whatever the
+        //     last question answers. Otherwise the deadline stops being a
+        //     bound on anything: the anchor resolved in the same task that
+        //     could not measure it, so an arrival here fails the same way and
+        //     arms another deadline, every 100ms for ever.
+        if (now.marks.includes('expired-unmeasured')) {
+          exercised.expiredUnmeasured += 1
+          expect(
+            flat.map((effect) => effect.kind),
+            `${where}: a deadline a draw began arrived instead of giving up`,
+          ).not.toContain('arrive')
+          expect(
+            flat.some((effect) => effect.kind === 'lost'),
+            `${where}: a deadline a draw began neither arrived nor ended the run`,
+          ).toBe(true)
         }
 
         // 4. A `resized` mid-glide puts the standing holes back and says

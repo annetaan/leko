@@ -70,6 +70,10 @@ const CORPORA = [
       { name: 'landed-with-reason', target: 'landedWithReason', seed: '0x7' },
       { name: 'hunt-arrives', target: 'mutatedArrive', seed: '0x8' },
       { name: 'expired-lost', target: 'expiredLost', seed: '0x9' },
+      { name: 'expired-arrive', target: 'expiredArrive', seed: '0x11' },
+      // The same deadline finding its target and giving it up anyway, because
+      // a draw began the wait. `plan.qnt` says beside `expiredUnmeasured` why.
+      { name: 'expired-unmeasured', target: 'expiredUnmeasured', seed: '0x12' },
       { name: 'unmeasured-retry', target: 'unmeasuredRetry', seed: '0xa' },
       // A redraw that then found nothing to measure. The only trace in which
       // how a draw was to animate is visible afterwards.

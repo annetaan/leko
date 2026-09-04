@@ -22,6 +22,24 @@ type TargetFunction = () => Element | null
  * There is no element form. An element is an answer somebody worked out when
  * the story was written, and by the time the step runs the page has moved on.
  *
+ * **An element that is not rendered is not found**, and a step gets the answer
+ * it gets for a target that is not there at all: a moment for it to turn up,
+ * and the tour stops rather than point at nothing. `display: none` on it or on
+ * anything it is inside, so a closed tab, a collapsed panel and a row a
+ * framework is about to render all come to the same thing. Open the panel in
+ * the step's `onEnter`, which runs before the target is looked for and is where
+ * a step builds what it assumes. `visibility: hidden` and `opacity: 0` are not
+ * this: those keep a box, and a hole is cut at it.
+ *
+ * A selector that would have matched a hidden element therefore matches
+ * nothing, rather than taking the next one along. Which of several matches a
+ * selector means is a question a step does not get to answer yet.
+ *
+ * **This is asked up to the moment the step is drawn, and not after it.** A
+ * target hidden or moved once its hole is cut keeps the hole where it was: the
+ * page is measured at the draw and the tour does not watch it again, a scroll
+ * excepted. What a step assumes is `onEnter`'s to build and to keep.
+ *
  * An element inside an `<svg>` is a target like any other: everything asked of
  * a target is asked of `getBoundingClientRect`, and an SVG shape answers it the
  * same way, `viewBox` scaling and transforms included.

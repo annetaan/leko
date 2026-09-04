@@ -83,6 +83,70 @@ test('two regions get a cutout each rather than being unioned', () => {
   expect(absorbed(between)).toBe(true)
 })
 
+test('an element with no box is dropped from its region rather than unioned at the corner', () => {
+  const rendered = box('rendered', { left: '300px', top: '300px', width: '120px', height: '40px' })
+  // The second element of the region, and not rendered. Its rect is all zeros,
+  // which reads as a box at the origin of the viewport rather than as no box.
+  const hidden = box('hidden', {
+    left: '320px',
+    top: '360px',
+    width: '120px',
+    height: '40px',
+    display: 'none',
+  })
+  const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
+
+  start([{ id: 'one', target: { elements: [() => rendered, () => hidden], interactive: true } }])
+
+  expect(holes()).toBe(1)
+  expect(centre(rendered)).toBe(rendered)
+  // The union that mattered: one zero box at the origin reaches from the corner
+  // of the page to the far edge of whatever else the region names, and whatever
+  // the host keeps up there is then open. Constraint 1.
+  expect(absorbed(corner)).toBe(true)
+})
+
+test('a later region with nothing rendered in it is a hole the step does not cut', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const aside = box('aside', {
+    left: '100px',
+    top: '400px',
+    width: '120px',
+    height: '40px',
+    display: 'none',
+  })
+  const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
+
+  start([{ id: 'one', target: [{ elements: () => target, interactive: true }, () => aside] }])
+
+  // The same rule a later region that resolves to nothing already followed.
+  expect(holes()).toBe(1)
+  expect(centre(target)).toBe(target)
+  expect(absorbed(corner)).toBe(true)
+})
+
+test('a step whose target has no box draws nothing at all', () => {
+  const target = box('target', {
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+    display: 'none',
+  })
+  target.id = 'anchor'
+  const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
+
+  start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+
+  // The other face of the same box. Drawn, it was a hole of no area at the
+  // corner with the message docked beside it and no retry running, because a
+  // hidden target was a found one. Now it is a step whose target is not on the
+  // page: nothing is drawn, nothing is blocked, and the page is exactly as it
+  // was for as long as the retry runs.
+  expect(scrim()).toBeNull()
+  expect(centre(corner)).toBe(corner)
+})
+
 test('a step that says nothing shows its target and does not hand it over', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
 

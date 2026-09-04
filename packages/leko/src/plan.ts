@@ -127,6 +127,23 @@ export type Mode =
   | {
       readonly kind: 'retrying'
       readonly pending: Pending
+      /**
+       * Whether a draw that had this target is what began the wait, rather
+       * than the target not being on the page.
+       *
+       * Read by the deadline, and the reason it is still a bound. A wait for a
+       * target that is not there ends the moment it resolves, so the deadline
+       * asks once more before giving up. A wait a draw began is not that one:
+       * resolution is not what failed — the anchor resolved in the same task
+       * that could not measure it — so the last question can only ever answer
+       * "found", and a deadline answered with an arrival that fails to measure
+       * again arms another deadline. Every 100ms, for ever, with nothing drawn
+       * and nothing reported.
+       *
+       * Here rather than on {@link Pending}, which `gliding` carries too and
+       * where this would mean nothing.
+       */
+      readonly unmeasured: boolean
       readonly error: string | undefined
       readonly standing: Drawn | undefined
     }
@@ -188,8 +205,11 @@ export type Event =
    * draws the step the way it was asked.
    */
   | { kind: 'unmeasured'; step: LekoStep; animate: boolean }
-  /** A retry's deadline ran out. `pending` names the wait it was set for. */
-  | { kind: 'expired'; pending: Pending }
+  /**
+   * A retry's deadline ran out. `pending` names the wait it was set for, and
+   * `found` is what resolving that step one last time turned up.
+   */
+  | { kind: 'expired'; pending: Pending; found: Element | null }
   | { kind: 'resized' }
 
 // ------------------------------------------------------------------- the effects
@@ -301,8 +321,9 @@ const retrying = (
   error: string | undefined,
   standing: Drawn | undefined,
   before: Effect[],
+  unmeasured = false,
 ): Outcome => ({
-  mode: { kind: 'retrying', pending, error, standing },
+  mode: { kind: 'retrying', pending, unmeasured, error, standing },
   effects: [...before, { kind: 'hunt', step: pending.step }, { kind: 'deadline', pending }],
 })
 
@@ -436,7 +457,7 @@ export function reduce(mode: Mode, event: Event): Outcome {
         // morph and nothing else.
         if (event.found) return revealing(drawn, event.found, true, [])
         // What is standing is this step, over the gap its target left.
-        return retrying({ step: mode.step, animate: true }, mode.error, drawn, [])
+        return retrying({ step: mode.step, animate: true }, mode.error, drawn, [], false)
       }
       if (mode.kind === 'retrying') {
         if (mode.pending.step !== event.step || !event.found) return nothing(mode)
@@ -459,18 +480,37 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // Nothing was drawn, so nothing is standing that this knows of: the
       // stack may have been rebuilt on the way to finding nothing.
       if (mode.kind !== 'drawn' || mode.step !== event.step) return nothing(mode)
-      return retrying({ step: mode.step, animate: event.animate }, mode.error, undefined, [])
+      // The one wait a resolve cannot end, and the last argument says so.
+      return retrying({ step: mode.step, animate: event.animate }, mode.error, undefined, [], true)
 
-    case 'expired':
+    case 'expired': {
       // The one it was set for, and no other: a deadline left over from a wait
       // that ended is answered with nothing, however long ago it was set.
       if (mode.kind !== 'retrying' || mode.pending !== event.pending) return nothing(mode)
+      // **Asked once more before giving up.** The deadline is a bound on the
+      // wait rather than the last word on it, because a target can turn up
+      // without the hunt's observer hearing anything: a style that gives it
+      // back the box it needs to be found at all, a render inside a shadow root
+      // the observer does not enter, a stylesheet arriving in the head. Found,
+      // it is the fresh arrival a hunt's own find is, through `show` for the
+      // reason that one goes through it. Except for the one wait resolving
+      // cannot end, which is given up however it answers: `unmeasured` on the
+      // mode says why, and it is what keeps the bound a bound.
+      if (event.found && !mode.unmeasured) {
+        return {
+          mode,
+          effects: [
+            { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
+          ],
+        }
+      }
       // Over before the call is made. `lost` ends the run, and the teardown it
       // brings arrives from inside the call and finds nothing pending.
       return {
         mode: idle,
         effects: [{ kind: 'disarm' }, { kind: 'lost', step: mode.pending.step }],
       }
+    }
 
     case 'resized': {
       // The surface moved under the tour rather than the tour moving, so this

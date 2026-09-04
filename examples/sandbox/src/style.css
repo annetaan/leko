@@ -357,6 +357,17 @@ button:disabled {
   font-size: 13.5px;
 }
 
+/*
+ * Two rows one region names together, in `hidden-target`. They need a gap, so
+ * that the hole cut around one of them is plainly not the hole cut around both.
+ * Its own name rather than `.rows`, which is the list the two scroller cases
+ * render and which this would turn into a grid.
+ */
+.notice-rows {
+  display: grid;
+  gap: 8px;
+}
+
 .notice {
   display: flex;
   align-items: center;

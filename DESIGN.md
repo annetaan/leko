@@ -127,6 +127,27 @@ flag past the rule structurally.
 - The element type is `Element`, not `HTMLElement`: everything asked of a
   target is asked of `getBoundingClientRect`, so a shape inside an `<svg>` is a
   target like any other, `viewBox` scaling included. See `svg-target.ts`.
+- **An element with no box is not found**, however connected it is. What a
+  target is asked for is somewhere to cut a hole, and an element that is not
+  rendered has nowhere: `getBoundingClientRect` answers all zeros for it, which
+  is a box at the origin of the viewport rather than no box at all. A region
+  that kept one unioned its hole from the corner of the page to the far edge of
+  whatever else the region named — and opened that corner, along with whatever
+  the host keeps there, which is constraint 1. Alone in a region it was worse
+  in the other direction: the anchor resolved, so the step was drawn, around a
+  hole of no area at the corner with the message docked beside it, and no retry
+  ever started because a hidden target was a found one.
+  - The question is `getClientRects().length`, not the rect. A rect cannot tell
+    an element that is not rendered from a rendered one of no size, and the
+    second has a place on the page that a step may legitimately point at.
+  - `visibility: hidden` and `opacity: 0` keep their boxes and are therefore
+    still pointed at. They have a place on the page, which is the whole of what
+    is asked; a hole over something invisible is the story's mistake rather
+    than a target Leko failed to find.
+  - A selector whose first match is hidden matches nothing, rather than moving
+    on to the next match. Which of several matches a selector means is a
+    separate question and is not answered here.
+  - See `hidden-target.ts`.
 
 ### The message anchors to a marker, never to the target
 
@@ -215,7 +236,27 @@ reports the event via `reached()`.
 ## Target loss & recovery
 
 - A missing or replaced target gets a 100ms grace period, during which the target (selector or function) is resolved again on every mutation — so a framework re-render that swaps the node recovers without ending the tour.
+- **And once more as the grace period runs out**, before the tour is given up.
+  A mutation is not the only way a target turns up: a style can give it back
+  the box it needs to be found at all, a framework can render it inside a
+  shadow root the observer does not enter, a stylesheet can arrive in the head.
+  So the deadline is a bound on the wait rather than the last word on it, and
+  the ways in are a batch heard while it runs and one question at the end.
 - If recovery fails, the tour ends with `target-lost`. A function that returns a held element can never recover, because the old node stays disconnected — prefer selectors, or functions that resolve fresh. See `target-disappears.ts`.
+- **An element with no box is not found when the target is resolved**, so a
+  step arriving at a hidden target is a step whose target is not there: it
+  waits its 100ms and ends the same way. That is resolution answering, and
+  resolution runs on an arrival, on a retry tick and on a landing — always
+  before the step is drawn.
+- **Nothing watches a drawn step for a target hidden where it stands, and that
+  is the boundary rather than a gap.** The watcher asks `isConnected`, so a
+  node taken out of the document is a loss and a style that hides one where it
+  stands is not. The one moment past the draw where the page is asked anything
+  is `validate`, which resolves afresh to hand the guard its anchor and ends
+  the tour where there is none. Past the draw the page belongs to the
+  application, which is argued under **What Leko does not do**; the visible
+  consequence is that `v-if` ends a drawn step and `v-show` leaves its hole
+  standing over the gap.
 
 ## What a step and a story assume
 
@@ -519,6 +560,33 @@ application is free to drive the real elements while a step is showing.**
   purpose. **Time passing does not advance a step either** — a step that ends
   after five seconds has established nothing about whether the user did
   anything.
+- **The page is measured when a step is drawn, and not again.** A hole is cut
+  where the target was at the draw, the morph carries it there, and nothing
+  measures the target after that: not a target that moves, not one hidden where
+  it stands, not one whose box changes size. A scroll is the exception and it
+  costs nothing — the scrim lives inside whatever scrolls the target, so the
+  two move together with no script running, which is the rule under
+  **Scrolling**. A resize is the other: the surface moved under the tour, so
+  the holes are placed again.
+  - So **a target that keeps moving gets one morph and no more.** A card
+    animating into place, an element under a running transform, anything a
+    frame loop is moving: the hole is measured once and stays. Following one
+    would mean reading the target's layout every frame, which is the one thing
+    **Scrolling** rules out, and a product tour points at the affordances a
+    user acts on — a field, a row, a control — rather than at something in
+    motion. A step whose target is still arriving belongs after the animation:
+    that is what `onEnter` and a step with `awaits` are for. Where the motion
+    is the point — a mascot that sways, and the application's atmosphere is
+    not Leko's to freeze — a step will be able to ask for its holes to be
+    followed, at the price of that measurement per frame and off unless it
+    asks. That is issue #158 and it is not the default this bullet describes.
+  - And **what a step assumes is `onEnter`'s to build and to keep.** Up to the
+    draw Leko is deciding what to point at, so an element with no box is
+    nothing to point at and the step waits for one. Past the draw the page is
+    the application's again. A panel collapsing over a drawn target is
+    therefore not Leko's to notice, and the consequence is stated where the
+    loss rules are: `v-if` ends a drawn step because the node goes, and
+    `v-show` leaves its hole standing.
 - **There are no chapters.** Grouping steps, jumping between the groups,
   recording how far somebody got — all worth wanting, none of it here. Given a
   setup of its own, a chapter stops being a label and becomes an object, and

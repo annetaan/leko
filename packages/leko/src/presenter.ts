@@ -320,7 +320,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
       case 'deadline': {
         const { pending } = effect
         this.cancel()
-        this.deadline = setTimeout(() => this.dispatch({ kind: 'expired', pending }), RETRY)
+        // Resolved here rather than trusted to the hunt. What the observer can
+        // hear is a batch of nodes coming and going, and a target can turn up
+        // without one; whether that makes the wait an arrival or an ending is
+        // the plan's, so this reports what resolved and no more.
+        this.deadline = setTimeout(
+          () => this.dispatch({ kind: 'expired', pending, found: this.resolve(pending.step) }),
+          RETRY,
+        )
         return
       }
       case 'cancel':
@@ -433,16 +440,24 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private replace(drawn: Drawn, saying: boolean): void {
     const { step } = drawn
-    // A step whose target is not on the page this instant is one a mutation
-    // batch is about to report, and there is no surface to put layers under.
-    // Restacking against the document instead would destroy the layers the
-    // standing hole and its blocking rectangles live in, and the measuring
-    // below would then find nothing to cut in their place, leaving the page
-    // dimmed with nothing held back. Nothing is drawn for a retry, here as
+    // A step whose target is not on the page this instant has no surface to put
+    // layers under. Restacking against the document instead would destroy the
+    // layers the standing hole and its blocking rectangles live in, and the
+    // measuring below would then find nothing to cut in their place, leaving
+    // the page dimmed with nothing held back. So the layers standing are kept
+    // and told the surface moved: they follow it without being rebuilt, and
+    // what they hold is what was cut, in a space a resize did not change.
+    // Without that they keep the size they had and the part the page grew by
+    // is neither dimmed nor blocked — which lasted 100ms when only a removed
+    // target could get here, and lasts the rest of the step now that a target
+    // hidden where it stands can. Nothing is drawn for a retry, here as
     // anywhere else — and no words either, which would be said beside holes
     // that could not be found. The way out is placed all the same.
     const anchor = this.resolve(step)
-    if (!anchor && pointsAt(step)) return this.place(step)
+    if (!anchor && pointsAt(step)) {
+      for (const layer of this.layers) layer.resize()
+      return this.place(step)
+    }
     const measured = this.measure(step, anchor)
     if (!measured) return this.place(step)
     measured.inner.set(measured.resolved)

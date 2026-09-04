@@ -145,6 +145,7 @@ the real `reduce`:
 | 1 | a stale `settled` draws nothing, and moves nothing |
 | 2 | an abandoned glide is told to stop, and never moves the page again, and nothing but the glide the mode holds is still carrying it |
 | 3 | an `expired` for a wait that ended is answered with nothing, however long ago it was set |
+| 3b | an `expired` that runs out onto a target that has turned up arrives at it rather than giving it up |
 | 4 | a `resized` mid-glide puts the standing holes back and says nothing |
 | 5 | a re-entrant effect is last, on the real outcomes rather than the model's |
 
@@ -153,7 +154,7 @@ asked, and the witnesses below are what aim the harvest.
 
 ## The corpus
 
-`traces/` holds 16 traces, harvested the way the machine's are: `quint run` is
+`traces/` holds 18 traces, harvested the way the machine's are: `quint run` is
 handed the negation of a target as its invariant, and the shortest thing that
 breaks "this never happens" is a trace where it does. The targets and the seeds
 are in `HARVEST` in `scripts/model-traces.mjs`, under this model's entry.
@@ -411,7 +412,7 @@ the commit, because a model that lies is worse than no model.
   replaced. The page is a set of names, and a replacement has the same name.
 - Anything the corpus does not reach. The replay drives the traces under
   `traces/` and no other path, so a claim about a transition is checked exactly
-  where a trace goes. `traces/` is 16 of them, and the search is what aimed each.
+  where a trace goes. `traces/` is 18 of them, and the search is what aimed each.
 - Any depth at all, in the sense of a finished search. `nextToken` grows and
   nothing resets it, so the state space is infinite and only a bound is on
   offer. `quint verify` has not been run against this model.

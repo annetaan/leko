@@ -5,6 +5,7 @@ import { branching } from './branching.js'
 import { fixedChrome } from './fixed-chrome.js'
 import { formValidation } from './form-validation.js'
 import { haloFollows } from './halo-follows.js'
+import { hiddenTarget } from './hidden-target.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
 import { lookThenUse } from './look-then-use.js'
@@ -45,6 +46,7 @@ export const cases: Case[] = [
   fixedChrome,
   messageSides,
   targetDisappears,
+  hiddenTarget,
   insideShadowDom,
   svgTarget,
 ]

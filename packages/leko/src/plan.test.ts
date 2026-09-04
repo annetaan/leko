@@ -82,7 +82,8 @@ const drawn = (error: string | undefined = undefined): Mode => ({ kind: 'drawn',
 const retrying = (
   pending: Pending = { step, animate: true },
   standing: Drawn | undefined = left,
-): Retrying => ({ kind: 'retrying', pending, error: undefined, standing })
+  unmeasured = false,
+): Retrying => ({ kind: 'retrying', pending, unmeasured, error: undefined, standing })
 
 /** The page on its way to `step`, having left `standing`. */
 const gliding = (flight: Glide = glide(), standing: Drawn | undefined = left): Gliding => ({
@@ -154,6 +155,7 @@ describe('an arrival', () => {
     expect(outcome.mode).toEqual({
       kind: 'retrying',
       pending: { step, animate: true },
+      unmeasured: false,
       error: undefined,
       // What was on screen stays on screen, reason and all.
       standing: { step, error: 'was told' },
@@ -251,6 +253,7 @@ describe('a glide landing', () => {
     expect(outcome.mode).toEqual({
       kind: 'retrying',
       pending: before.pending,
+      unmeasured: false,
       error: undefined,
       standing: left,
     })
@@ -299,6 +302,7 @@ describe('the page changing under a step', () => {
     expect(outcome.mode).toEqual({
       kind: 'retrying',
       pending: { step, animate: true },
+      unmeasured: false,
       error: 'not yet',
       // The hole stands over the gap, and this is the step it was cut for.
       standing: { step, error: 'not yet' },
@@ -361,6 +365,9 @@ describe('a draw that found nothing to measure', () => {
     expect(outcome.mode).toEqual({
       kind: 'retrying',
       pending: { step, animate: false },
+      // A draw that found nothing to measure is the one wait resolving
+      // cannot end, and the mode is where that is written.
+      unmeasured: true,
       error: 'not yet',
       // Nothing was drawn, and the stack may have been rebuilt on the way to
       // finding nothing, so nothing is known to be standing.
@@ -381,10 +388,43 @@ describe('a deadline running out', () => {
   test('gives the step up, and is over before the machine is told', () => {
     const before = retrying()
 
-    const outcome = put(before, { kind: 'expired', pending: before.pending })
+    const outcome = put(before, { kind: 'expired', pending: before.pending, found: null })
 
     // `lost` ends the run, and the teardown that arrives from inside the call
     // finds nothing pending.
+    expect(outcome.mode).toBe(idle)
+    expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'lost', step }])
+  })
+
+  test('arrives at a target that turned up rather than giving it up', () => {
+    // The hunt hears a batch of nodes coming and going and nothing else, and a
+    // target can turn up without one: a style that gives it back the box it
+    // needs to be found at all, a render inside a shadow root the observer
+    // does not enter. So the bound asks once more before it ends the tour.
+    // Told something while it hunted, so that what the wait was told is seen
+    // to travel with the arrival.
+    const before: Retrying = { ...retrying(), error: 'not yet' }
+
+    const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
+
+    // A fresh arrival, through `show` for the reason a hunt's own find goes
+    // through it, carrying what the wait had been told.
+    expect(outcome.mode).toBe(before)
+    expect(outcome.effects).toEqual([
+      { kind: 'arrive', pending: before.pending, anchor, error: 'not yet' },
+    ])
+  })
+
+  test('gives up a wait a draw began, whatever the last question answers', () => {
+    // `unmeasured` is the one wait resolving cannot end: the anchor resolved in
+    // the same task that could not measure it, so the last question can only
+    // ever answer "found". A deadline answered with an arrival here would fail
+    // to measure again and arm another deadline, every 100ms for ever with
+    // nothing drawn and nothing reported. This is what keeps the bound a bound.
+    const before = retrying({ step, animate: true }, undefined, true)
+
+    const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
+
     expect(outcome.mode).toBe(idle)
     expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'lost', step }])
   })
@@ -394,7 +434,7 @@ describe('a deadline running out', () => {
     // while the second wait has most of its time left.
     const before = retrying({ step, animate: true })
 
-    const outcome = put(before, { kind: 'expired', pending: { step, animate: true } })
+    const outcome = put(before, { kind: 'expired', pending: { step, animate: true }, found: null })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
@@ -403,7 +443,11 @@ describe('a deadline running out', () => {
   test('is ignored in every mode that is not retrying', () => {
     for (const kind of ['idle', 'drawn', 'gliding'] as const) {
       const before = MODES[kind]()
-      const outcome = put(before, { kind: 'expired', pending: { step, animate: true } })
+      const outcome = put(before, {
+        kind: 'expired',
+        pending: { step, animate: true },
+        found: null,
+      })
       expect(outcome.mode).toBe(before)
       expect(outcome.effects).toEqual([])
     }
