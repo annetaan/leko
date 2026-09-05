@@ -1115,6 +1115,7 @@ carry anything on its own.
 | The presenter's modes, in a form a search can walk             | [`packages/leko/model/`](packages/leko/model/)               |
 | How to walk the code, the layout, which project a test goes in | [ONBOARDING.md](ONBOARDING.md)                               |
 | How to work in the repository                                  | [CONTRIBUTING.md](CONTRIBUTING.md)                           |
+| How settled each state core is, and how that was measured      | [STATE-HEALTH.md](STATE-HEALTH.md)                           |
 | Which implementation came before, and what it got wrong        | the commits                                                  |
 
 **This file carries no history.** Where a rule came out of a bug, what gets
