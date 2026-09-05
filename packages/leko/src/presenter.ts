@@ -52,14 +52,51 @@ const NEXT_LABEL = 'Next'
 const RETRY = 100
 
 /**
+ * One hole of a step, as the page answered for it: which elements it unions,
+ * and whether the step opened it.
+ *
+ * A {@link Cutout} is this with a box, and the box is the half that depends on
+ * where the page has put things. Splitting them is what lets one draw ask the
+ * page where its targets are once and then measure them in as many spaces as it
+ * needs. It holds `Element`s, so it cannot live in `plan.ts`, which is pure.
+ *
+ * Never empty: a region nothing resolved in is not a hole at all, and saying so
+ * in the type is what lets `union` answer with a box rather than with `null`.
+ */
+interface Hole {
+  elements: [Element, ...Element[]]
+  interactive: boolean
+}
+
+/** A region as the page answered for it, or `null` where nothing in it is there to cut. */
+const hole = (elements: Element[], interactive: boolean): Hole | null => {
+  const [head, ...rest] = elements
+  return head === undefined ? null : { elements: [head, ...rest], interactive }
+}
+
+/** The layers a draw is going into, and the step's holes in each space that draw reads. */
+interface Measured {
+  inner: Scrim
+  /** Resolved once, so the words placed beside them ask the page nothing more. */
+  holes: Hole[]
+  /** Those holes as boxes, in the innermost scrim's own coordinates. */
+  resolved: Cutout[]
+}
+
+/**
  * Everything in the region a step opened, or nothing where it opened none.
  *
  * The ring's first segment. A step that shows a hole without opening it has
  * nothing here, so Tab has nowhere to be but Leko's own chrome.
+ *
+ * Read off the holes the draw resolved rather than resolved again. The first
+ * hole is the step's first region: a draw whose first region resolved to
+ * nothing has no holes at all, and one that points at nothing has none either,
+ * so both land on the empty list the way they always did.
  */
-const openElements = (step: LekoStep): Element[] => {
-  const first = regionsOf(step.target)[0]
-  return first?.interactive ? resolveTargets(first.elements) : []
+const openElements = (holes: readonly Hole[] | null): Element[] => {
+  const first = holes?.[0]
+  return first?.interactive ? first.elements : []
 }
 
 /**
@@ -195,38 +232,69 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * The step's cutouts, in whatever space `measure` reports in.
+   * Where the step's regions are on the page — the one time a draw asks.
    *
-   * The scrim wants them in its own content coordinates; the message wants the
-   * same shapes in viewport coordinates, to work out which side of them has room
-   * on screen. Same geometry, two readers, so the space is the parameter.
+   * Half of what a cutout is; {@link cutouts} is the other half, and the reason
+   * the two are apart is that a draw has more than one reader for the same
+   * holes. Asking here once and measuring there per space is what keeps a
+   * resize from running every `querySelector` in the step three times over.
+   *
+   * `null` where the step points at something and its first region resolved to
+   * nothing: that region is the one the step is about, and a step with nothing
+   * to point at is not drawn at all. A later region that resolves to nothing is
+   * a hole this step does not cut, and nothing else follows from it.
+   *
+   * `anchor` is the first element of the first region, already resolved, so it
+   * heads that region rather than being resolved twice — the rule {@link lit}
+   * follows. `null` there asks the page for every element.
    */
-  private cutouts(step: LekoStep, measure: (el: Element) => Rect): Cutout[] | null {
+  private holes(step: LekoStep, anchor: Element | null): Hole[] | null {
     const regions = regionsOf(step.target)
     // A step that names nothing cuts nothing, and a scrim with no holes in it
     // is one rectangle over everything. That is the whole of what a step that
     // waits looks like, so it is the empty list rather than the `null` below.
     if (regions.length === 0) return []
+    const cut = regions.map((region, i) =>
+      hole(
+        i === 0 && anchor
+          ? [anchor, ...resolveTargets(region.elements.slice(1))]
+          : resolveTargets(region.elements),
+        region.interactive,
+      ),
+    )
+    if (!cut[0]) return null
+    return cut.filter((h): h is Hole => h !== null)
+  }
+
+  /**
+   * Those holes as cutouts, in whatever space `measure` reports in.
+   *
+   * The scrim wants them in its own content coordinates; the message wants the
+   * same shapes in viewport coordinates, to work out which side of them has room
+   * on screen. Same geometry, two readers, so the space is the parameter — and
+   * the holes are a parameter for the same reason, so the second reader measures
+   * what the first one resolved instead of asking the page again.
+   */
+  private cutouts(
+    step: LekoStep,
+    holes: readonly Hole[],
+    measure: (el: Element) => Rect,
+  ): Cutout[] {
     const padding = this.setting(step, 'padding')
     const radius = this.setting(step, 'radius')
-    // One box per region. A region is unioned because the space between its
-    // elements is meant to be inside the hole with them. Two regions stay
-    // apart because the union of two distant ones would cover everything
-    // between them, which is a hole the size of the page.
-    const boxes = regions.map((region) => union(resolveTargets(region.elements).map(measure)))
-    // The first region is the one the step is about, and a step with nothing to
-    // point at is not drawn at all. A later one that resolves to nothing is a
-    // hole this step does not cut, and nothing else follows from it.
-    if (!boxes[0]) return null
-    return boxes
-      .flatMap((box, i) => (box === null ? [] : [[box, i] as const]))
-      .map(([box, i]) => ({
-        ...grow(box, padding),
-        radius,
-        // Open only where the region asked, which the type allows of the first
-        // alone. A later region is there to be looked at, and no flag opens one.
-        interactive: regions[i]?.interactive === true,
-      }))
+    // One box per hole. A hole is unioned because the space between its
+    // elements is meant to be inside it with them. Two holes stay apart because
+    // the union of two distant ones would cover everything between them, which
+    // is a hole the size of the page. Its head is measured apart from its tail
+    // so that what `union` is handed is the non-empty tuple a hole is, and it
+    // answers with a box rather than with a `null` no hole could produce.
+    return holes.map(({ elements: [head, ...rest], interactive }) => ({
+      ...grow(union([measure(head), ...rest.map(measure)]), padding),
+      radius,
+      // Open only where the region asked, which the type allows of the first
+      // alone. A later region is there to be looked at, and no flag opens one.
+      interactive,
+    }))
   }
 
   // ---------------------------------------------------------- what the machine calls
@@ -352,23 +420,29 @@ export class DomPresenter implements Presenter<LekoWorld> {
   // ---------------------------------------------------------------------- drawing
 
   /**
-   * The layers under `anchor`, cut for `step`, and the cutouts to draw in the
-   * innermost. Every draw and every redraw comes through here, so the sequence
-   * — which surfaces carry the target, the layers for them, the outer holes,
-   * the inner boxes — is written once. `undefined` where there was nothing to
-   * measure, and what that means is the caller's.
+   * The layers under `anchor`, `holes` cut in the innermost, and the boxes to
+   * draw them at. Every draw and every redraw comes through here, so the
+   * sequence — which surfaces carry the target, the layers for them, the outer
+   * holes, the inner boxes — is written once. `undefined` where there was
+   * nothing to measure, and what that means is the caller's.
+   *
+   * `holes` is the caller's because the caller has other readers for them: it
+   * resolves them once and hands the same list here and to whatever places the
+   * chrome. `null` is a step that points at something not on the page, which is
+   * nothing to measure the same way a missing surface is.
    */
   private measure(
     step: LekoStep,
     anchor: Element | null,
-  ): { inner: Scrim; resolved: Cutout[] } | undefined {
+    holes: Hole[] | null,
+  ): Measured | undefined {
     const chain = surfaceChain(anchor ?? document.body)
     const inner = this.restack(chain)
-    const resolved = inner && this.cutouts(step, (el) => rectWithin(el, inner.surface))
-    if (!inner || !resolved) return undefined
+    if (!inner || !holes) return undefined
+    const resolved = this.cutouts(step, holes, (el) => rectWithin(el, inner.surface))
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
-    return { inner, resolved }
+    return { inner, holes, resolved }
   }
 
   /**
@@ -376,11 +450,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
    *
    * Placed from no holes at all where the step's target is not on the page,
    * which can put the way out over the hole standing there; a corner the viewer
-   * can reach beats one a resize took off screen.
+   * can reach beats one a resize took off screen. That is what `null` here is,
+   * and it is the caller's answer rather than this one's, because the caller
+   * asked the page.
    */
-  private place(step: LekoStep): void {
-    this.showClose(this.cutouts(step, (el) => el.getBoundingClientRect()) ?? [])
-    this.showRing(step)
+  private place(step: LekoStep, holes: Hole[] | null): void {
+    this.showClose(holes ? this.cutouts(step, holes, (el) => el.getBoundingClientRect()) : [])
+    this.showRing(holes)
   }
 
   /**
@@ -394,7 +470,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
     this.message?.hide()
-    const measured = this.measure(step, anchor)
+    // Resolved once for the whole draw, and handed to everything below that
+    // wants to know where the step's regions are.
+    const holes = this.holes(step, anchor)
+    const measured = this.measure(step, anchor, holes)
     // The anchor resolved a moment ago in this same task, so its region has a
     // box to measure and its chain has a surface, and this is not reached.
     // Kept as the last line of defence, and it says what happened rather than
@@ -413,7 +492,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // ring too: the message is away for the whole of it and the target is
     // already reachable, so the ring is already two stops short of what `say`
     // will make it.
-    this.place(step)
+    this.place(step, holes)
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
@@ -456,42 +535,55 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const anchor = this.resolve(step)
     if (!anchor && pointsAt(step)) {
       for (const layer of this.layers) layer.resize()
-      return this.place(step)
+      return this.place(step, this.holes(step, null))
     }
-    const measured = this.measure(step, anchor)
-    if (!measured) return this.place(step)
+    const holes = this.holes(step, anchor)
+    const measured = this.measure(step, anchor, holes)
+    if (!measured) return this.place(step, holes)
     measured.inner.set(measured.resolved)
-    if (saying) return this.say(step, drawn.error)
-    this.place(step)
+    // Said from what was just measured. Nothing between here and there moves
+    // the page, so asking it again would be asking a question already answered.
+    if (saying) return this.say(step, drawn.error, measured)
+    this.place(step, holes)
   }
 
   /**
    * Put the message beside the step's cutouts.
    *
-   * Two measurements of the same holes. The side is chosen from viewport
-   * coordinates, because what decides it is how much room is on screen right
-   * now. The anchor point is written in the scrim's coordinates, because that
-   * is the space the scroller carries — and once it is written, the browser
-   * holds the message beside it through every scroll that follows, with no
-   * script involved.
+   * The same holes in two spaces. The side is chosen from viewport coordinates,
+   * because what decides it is how much room is on screen right now. The anchor
+   * point is written in the scrim's coordinates, because that is the space the
+   * scroller carries — and once it is written, the browser holds the message
+   * beside it through every scroll that follows, with no script involved.
+   *
+   * `measured` is what a caller that has just measured these holes hands over:
+   * {@link replace} measures and says in one task, with nothing in between that
+   * could move the page, so the words go beside the boxes it already has. The
+   * `say` after a morph passes none — that is a task later, and the hole is
+   * somewhere else by then, which is the whole reason the words waited for it.
    */
-  private say(step: LekoStep, error: string | undefined): void {
+  private say(step: LekoStep, error: string | undefined, measured?: Measured): void {
     const content = this.content(step, error)
-    const onScreen = this.cutouts(step, (el) => el.getBoundingClientRect())
-    this.showClose(onScreen ?? [])
+    const holes = measured?.holes ?? this.holes(step, null)
+    const onScreen = holes ? this.cutouts(step, holes, (el) => el.getBoundingClientRect()) : []
+    this.showClose(onScreen)
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
-      this.showRing(step)
+      this.showRing(holes)
       return
     }
     this.message ??= new Message(() => this.host.next())
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
-    const within = inner && this.cutouts(step, (el) => rectWithin(el, inner.surface))
+    const within =
+      measured?.resolved ??
+      (inner && holes
+        ? this.cutouts(step, holes, (el) => rectWithin(el, inner.surface))
+        : undefined)
     const box = within && union(within)
     this.message.show(
       content,
-      onScreen ?? [],
+      onScreen,
       gap,
       // Absent where there is no scrim to hang the anchor in, which is what
       // makes the box dock instead.
@@ -499,7 +591,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     )
     // Last, so the next control is showing by the time the ring is asked
     // whether the message is a stop.
-    this.showRing(step)
+    this.showRing(holes)
   }
 
   /**
@@ -585,11 +677,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * The message goes in whether or not it is showing. A hidden one has nothing
    * Tab would land on, so `FocusRing` drops it, and a step with no next control
    * on its message drops out the same way.
+   *
+   * `holes` is the draw's, resolved once: what Tab may reach is the first one
+   * where the step opened it, so this needs no step and asks the page nothing.
    */
-  private showRing(step: LekoStep): void {
+  private showRing(holes: Hole[] | null): void {
     this.ring ??= new FocusRing()
     this.ring.set([
-      openElements(step),
+      openElements(holes),
       this.message ? [this.message.element] : [],
       this.close ? [this.close.element] : [],
     ])

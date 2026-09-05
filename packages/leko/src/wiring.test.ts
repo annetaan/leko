@@ -1042,6 +1042,72 @@ test('a resize while a target is gone is measured when the step is drawn again',
   expect(blockedWhenSeen(far)).toBe(true)
 })
 
+// A draw resolves the step's regions once and measures them in as many spaces
+// as it needs. The counts below are what "once" means: a resize fires in bursts
+// while a window is dragged, and every extra `querySelector` and every extra
+// `getBoundingClientRect` in that path is paid once per event.
+
+/** A target function that answers with `el` and counts having been asked. */
+const asked = (el: Element) => vi.fn(() => el)
+
+test("a resize asks each of the step's targets once, and reads each box once per space", () => {
+  const [first, second] = pair()
+  const later = box('later', { left: '100px', top: '500px', width: '120px', height: '40px' })
+  const elements = [first, second, later]
+  const targets = elements.map(asked)
+  const rects = elements.map((el) => vi.spyOn(el, 'getBoundingClientRect'))
+  const laid = elements.map((el) => vi.spyOn(el, 'getClientRects'))
+
+  start([
+    {
+      id: 'one',
+      target: [
+        { elements: [targets[0]!, targets[1]!], interactive: true },
+        { elements: targets[2]! },
+      ],
+      message: 'Here.',
+    },
+  ])
+
+  for (const target of targets) target.mockClear()
+  for (const rect of rects) rect.mockClear()
+  for (const boxes of laid) boxes.mockClear()
+  window.dispatchEvent(new Event('resize'))
+
+  // Once each. Whether an element is the one the step opened, another in its
+  // region or one of a region the step only shows makes no difference: the draw
+  // asks the page where its targets are, and then it has them.
+  for (const target of targets) expect(target).toHaveBeenCalledTimes(1)
+  for (const boxes of laid) expect(boxes).toHaveBeenCalledTimes(1)
+
+  // Twice each, and no more: the scrim's own coordinates, which is where the
+  // holes are cut, and the viewport, which is what decides the side the message
+  // has room on. These boxes are `position: fixed`, so the surface is the
+  // viewport and no container is measured beside them.
+  for (const rect of rects) expect(rect).toHaveBeenCalledTimes(2)
+})
+
+test('the words after a morph are placed from the holes read then, not the ones the draw left with', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const asks = asked(target)
+  const leko = holding(
+    { id: 'story', steps: [{ id: 'one', target: { elements: asks, interactive: true } }] },
+    // A real duration, so the words come back a task later than the draw.
+    { duration: 320 },
+  )
+
+  begin(leko, 'story')
+  asks.mockClear()
+
+  await shown()
+
+  // The morph took the hole somewhere, and where the words go is a fact about
+  // where it ended up. So this one is measured again on purpose, and the sharing
+  // the counts above are about is between a measurement and the words said in
+  // the same task as it.
+  expect(asks).toHaveBeenCalled()
+})
+
 // --- what a glide leaves standing
 //
 // A step told to `scroll` is drawn only once the page has stopped, so for the
