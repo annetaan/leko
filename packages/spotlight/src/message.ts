@@ -1,5 +1,6 @@
 import { type Rect, union } from './geometry.js'
-import { MESSAGE_ANCHOR, prefersReducedMotion } from './scrim.js'
+import { prefersReducedMotion } from './motion.js'
+import { MESSAGE_ANCHOR } from './scrim.js'
 
 /** How long the message takes to fade back in after a morph. */
 const FADE = 120

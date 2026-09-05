@@ -1,10 +1,12 @@
 import { afterEach, expect, test } from 'vitest'
 
 import {
+  clamp,
   collapse,
   complementRects,
   cornerRect,
   type Cutout,
+  ease,
   freeCorner,
   GLIDE_PACE,
   glideDuration,
@@ -439,6 +441,51 @@ test('a two-path morph always sits on its only span', () => {
   expect(segmentAt(2, -5)).toEqual({ index: 0, local: 0 })
   expect(segmentAt(2, 0.25)).toEqual({ index: 0, local: 0.25 })
   expect(segmentAt(2, 1)).toEqual({ index: 0, local: 1 })
+})
+
+// --- the curve, and the range a scroll is held in
+
+test('the ease starts at nothing and ends at everything', () => {
+  expect(ease(0)).toBe(0)
+  expect(ease(1)).toBe(1)
+})
+
+test('the ease is out: half the time has covered most of the way', () => {
+  expect(ease(0.5)).toBeCloseTo(0.875, 10)
+})
+
+test('the ease never turns back', () => {
+  let last = ease(0)
+  for (let t = 0; t <= 1.0000001; t += 0.01) {
+    const now = ease(t)
+    expect(now).toBeGreaterThanOrEqual(last)
+    last = now
+  }
+})
+
+test('a cutout arrives rather than stops', () => {
+  // What the curve is for: the last tenth of the time covers far less ground
+  // than the first, so a hole slows into place instead of halting on arrival.
+  const first = ease(0.1) - ease(0)
+  const final = ease(1) - ease(0.9)
+  expect(final).toBeLessThan(first)
+})
+
+test('clamp holds a value inside the range', () => {
+  expect(clamp(40, 100)).toBe(40)
+})
+
+test('a value past the end is the end, and one before the start is the start', () => {
+  expect(clamp(140, 100)).toBe(100)
+  expect(clamp(-40, 100)).toBe(0)
+})
+
+test('a range with no room at all clamps to zero', () => {
+  // A page shorter than its viewport has a negative scroll range, and the only
+  // offset it can reach is `0`. A clamp that took the negative end for a
+  // maximum would answer with it.
+  expect(clamp(40, -100)).toBe(0)
+  expect(clamp(-40, -100)).toBe(0)
 })
 
 // What the scrim blocks with. The property that matters is not the shape of the

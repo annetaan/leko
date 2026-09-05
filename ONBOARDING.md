@@ -114,6 +114,7 @@ it.
 | `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
 | `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
 | `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
+| `packages/spotlight/src/glide.ts` | The scroll that brings a target into view |
 | `packages/spotlight/src/message.ts` | The box beside the hole |
 | `packages/spotlight/src/focus.ts` | The ring Tab cannot leave |
 | `packages/codegen/src/scan.ts` | Every name a `reached()` call reports |
@@ -418,6 +419,7 @@ DESIGN.md says so under
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
 | What a target going, a glide landing or a resize does to what is drawn | `leko/src/plan.ts`, and its tests |
+| How the page is brought to a target | `spotlight/src/glide.ts`, with `scrollDelta` and `glideDuration` in `geometry.ts` |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `leko/src/presenter.ts` |
 | What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |

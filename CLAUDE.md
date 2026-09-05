@@ -96,14 +96,14 @@ DESIGN.md. Do not do any of them without reading that page first.
 
 Functional core, thin imperative shell — DESIGN.md says why. Geometry goes in
 `packages/spotlight/src/geometry.ts` as pure functions with tests of their own;
-DOM work stays in `scrim.ts`, `message.ts`, `presenter.ts` and `leko.ts` and
-stays small. A handle a timer or a frame hands back is data about what is
-running, so it belongs in the state that names it rather than in a field of its
-own. Where that state is a pure plan's, the plan cannot make the handle: the
-mode names the wait (`Pending` in `packages/leko/src/plan.ts`) and the shell
-holds what the page handed back, armed and cleared by effect, the way its
-observer is. The glide goes the other way — the shell mints it before the event
-and the mode carries it — so the plan can say what to stop.
+DOM work stays in `scrim.ts`, `glide.ts`, `message.ts`, `presenter.ts` and
+`leko.ts` and stays small. A handle a timer or a frame hands back is data about
+what is running, so it belongs in the state that names it rather than in a
+field of its own. Where that state is a pure plan's, the plan cannot make the
+handle: the mode names the wait (`Pending` in `packages/leko/src/plan.ts`) and
+the shell holds what the page handed back, armed and cleared by effect, the way
+its observer is. The glide goes the other way — the shell mints it before the
+event and the mode carries it — so the plan can say what to stop.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
 a `document` in it is a compile error. It is the same split again inside:

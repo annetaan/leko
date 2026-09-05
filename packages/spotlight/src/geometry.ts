@@ -254,7 +254,8 @@ export function hasArea(rect: Rect): boolean {
 
 const round = (n: number): number => Math.round(n * 100) / 100
 
-const clamp = (value: number, max: number): number => Math.min(max, Math.max(0, value))
+/** `n` held between `0` and `max`. A `max` below zero is no room to move at all. */
+export const clamp = (n: number, max: number): number => Math.min(Math.max(0, n), Math.max(0, max))
 
 const ascending = <T>(list: readonly T[], by: (item: T) => number): T[] =>
   list.toSorted((a, b) => by(a) - by(b))
@@ -551,3 +552,6 @@ export function segmentAt(count: number, progress: number): { index: number; loc
   const index = Math.min(Math.floor(p * spans), spans - 1)
   return { index, local: p * spans - index }
 }
+
+/** Ease out, so a cutout arrives rather than stops. */
+export const ease = (t: number): number => 1 - (1 - t) ** 3

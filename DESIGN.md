@@ -744,7 +744,7 @@ tour is for.
   the shape is the same: a page that is moving is a different screen every
   frame, and nothing is decided about it until it stops.
 - **The glide is Leko's own animation, the way the morph is.** A
-  `requestAnimationFrame` loop in `scrim.ts`, eased with the morph's curve,
+  `requestAnimationFrame` loop in `glide.ts`, eased with the morph's curve,
   writing one instant `scrollTo` per frame from numbers it
   computed before the first one, the exact destination on the last frame, and
   ending on its own clock. Nothing then has to be inferred about when an
@@ -818,7 +818,7 @@ tour is for.
   spike's **What it did not settle**).
 - **The scroll animates exactly when the morph does.** `duration: 0` and
   `prefers-reduced-motion` each put the page where it belongs outright, and the
-  rule is one predicate in `scrim.ts` read by both, so the two can never
+  rule is one predicate in `motion.ts` read by both, so the two can never
   disagree about whether the tour is moving things or setting them.
 - **Nothing is drawn for the gap.** The words of the step being left go before
   the page moves, rather than riding a glide to somewhere they are not about.
@@ -1055,9 +1055,9 @@ the manifest does not depend on.**
   so it is tested by stating properties — *no blocking rectangle ever overlaps
   a hole*, *every path has the same segment list* — rather than by driving a
   browser. Reading layout and owning elements cannot be pure, so that stays in
-  `scrim.ts`, `message.ts` and `presenter.ts` and stays small. Logic that gets
-  hard to follow inside a class usually wanted to be a function in
-  `geometry.ts` with a test of its own.
+  `scrim.ts`, `glide.ts`, `message.ts` and `presenter.ts` and stays small.
+  Logic that gets hard to follow inside a class usually wanted to be a function
+  in `geometry.ts` with a test of its own.
 - **Where a class has to wait on more than one thing, its mode is one union
   and a pure function says what an event does to it.** The machine is
   `plan.ts` and `machine.ts`; the presenter is `plan.ts` and `presenter.ts` in

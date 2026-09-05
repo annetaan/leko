@@ -16,8 +16,6 @@ export { Close } from './close.js'
 export { FocusRing } from './focus.js'
 export { Message, type MessageContent, type Side } from './message.js'
 export {
-  bringIntoView,
-  type Glide,
   type HaloMode,
   paddingBoxWithin,
   rectWithin,
@@ -26,3 +24,4 @@ export {
   type Surface,
   surfaceChain,
 } from './scrim.js'
+export { bringIntoView, type Glide } from './glide.js'
