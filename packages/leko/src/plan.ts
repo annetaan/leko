@@ -93,8 +93,8 @@ export interface Pending {
  *
  * - `idle` — nothing drawn and nothing armed. Before the first step, and after
  *   a teardown.
- * - `drawn` — a step on screen, with the watcher on its target where it has
- *   one. A step that points at nothing has nothing to watch.
+ * - `drawn` — a step on screen and nothing armed at all. Past the draw the
+ *   page belongs to the application again.
  * - `retrying` — a target that is not on the page, given a moment to turn up:
  *   the deadline running and the watcher hunting. What is on screen is
  *   `standing`, whatever was there, untouched. DESIGN.md, **Nothing is drawn
@@ -111,8 +111,8 @@ export interface Pending {
  * was on screen when the wait began.
  *
  * The rules the presenter used to state in prose — a glide is the whole of what
- * says a step is pending, nothing is watched for its length, only one retry
- * ever runs — are the shape of this type. Four nullable fields read together
+ * says a step is pending, nothing but a hunt is ever armed, only one retry ever
+ * runs — are the shape of this type. Four nullable fields read together
  * admitted every combination, including the ones those sentences forbade; a
  * union admits these four.
  *
@@ -193,9 +193,8 @@ export type Event =
   /** The morph that drew `step` got to the end. */
   | { kind: 'morphed'; step: LekoStep }
   /**
-   * The page changed under a step whose target is not on it — gone since the
-   * step was drawn, or not there yet — and `found` is what resolving the step
-   * again turned up.
+   * The page changed while a step was waiting for a target that has not turned
+   * up yet, and `found` is what resolving the step again turned up.
    */
   | { kind: 'mutated'; step: LekoStep; found: Element | null }
   /**
@@ -225,8 +224,6 @@ export type Effect =
   | { kind: 'hide' }
   /** Nothing is watched. */
   | { kind: 'disarm' }
-  /** Watch `anchor`, and report when it leaves the page. */
-  | { kind: 'watch'; step: LekoStep; anchor: Element }
   /** Watch the page for `step`'s target turning up. */
   | { kind: 'hunt'; step: LekoStep }
   /** Start the clock on a wait. */
@@ -298,20 +295,24 @@ const standingIn = (mode: Mode): Drawn | undefined => {
 }
 
 /**
- * `retry`. A target that is not on the page is given a moment to turn up.
+ * `retry`. A target that is not on the page when its step arrives is given a
+ * moment to turn up.
  *
- * **Nothing on screen changes while this runs.** Whatever was drawn a moment
- * ago stays exactly as it was, so a target that comes back costs a morph and
- * nothing else. The hole stands over the gap the target left while it does,
- * and DESIGN.md argues that trade under **Nothing is drawn for a retry**.
+ * **Nothing *new* is drawn while this runs.** Whatever was drawn a moment ago
+ * stands exactly as it was, so a target that turns up costs a morph and
+ * nothing else. A morph already asked for is not cut short either — `leaving`
+ * stops a glide and a deadline, and a morph is on neither mode — so it paints
+ * to its end, and the `morphed` it reports is ignored because the mode is no
+ * longer `drawn`. The hole stands over the gap while that happens, and
+ * DESIGN.md argues that trade under **Nothing is drawn for a retry**.
  *
- * The retry rides the same observer that noticed the loss, so it costs no
- * polling, and the deadline is a bound rather than a wait anybody sits through.
- * Found in time, the target is a fresh arrival and nothing about the tour has
- * changed. Not found, `Host.lost` means what it has always meant. Nothing is
- * handed back and nobody is waiting: as far as the machine is concerned the
- * step is on screen, and it is — what is on screen is whatever this was
- * showing a moment ago.
+ * The hunt is armed here, and it hears mutations rather than polling, so the
+ * wait stays off the frame budget; the deadline is a bound rather than a wait
+ * anybody sits through. Found in time, the target is a fresh arrival and
+ * nothing about the tour has changed. Not found, `Host.lost` means what it has
+ * always meant. Nothing is handed back and nobody is waiting: as far as the
+ * machine is concerned the step is on screen, and it is — what is on screen is
+ * whatever this was showing a moment ago.
  *
  * Only one of these can be running, and that is the type: a `retrying` mode
  * holds one `pending`, and an arrival replaces the whole mode.
@@ -335,11 +336,16 @@ const retrying = (
  * that points at nothing: there is no surface to find for one of those, so the
  * shell draws it on the document and cuts no hole.
  *
- * Watched before it is drawn, and the watcher left over from the step before
- * goes either way, because one left armed on that step would report against
- * this one. Before rather than after, so that a draw which finds nothing to
- * measure — the last line of defence, and it reports `unmeasured` — hands the
- * hunt a watcher to replace rather than being replaced by one.
+ * **A step on screen arms nothing.** A hunt left over from the step before
+ * goes here, because one still running would report against this step; past
+ * that the page is the application's, and whether the target is still on it is
+ * nobody's question until the next arrival resolves it afresh.
+ *
+ * Disarmed before `reveal` rather than after. A draw that finds nothing to
+ * measure — the last line of defence, and it reports `unmeasured` from inside
+ * itself — arms a hunt, and a `disarm` behind it would take that hunt off the
+ * moment it went on. The rule on {@link Outcome} that an effect coming back
+ * into the plan goes last forces the same order.
  */
 const revealing = (
   drawn: Drawn,
@@ -348,11 +354,7 @@ const revealing = (
   before: Effect[],
 ): Outcome => ({
   mode: { kind: 'drawn', step: drawn.step, error: drawn.error },
-  effects: [
-    ...before,
-    anchor ? { kind: 'watch', step: drawn.step, anchor } : { kind: 'disarm' },
-    { kind: 'reveal', drawn, anchor, animate },
-  ],
+  effects: [...before, { kind: 'disarm' }, { kind: 'reveal', drawn, anchor, animate }],
 })
 
 // -------------------------------------------------------------------- the events
@@ -377,11 +379,10 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // The page is moving. The words of the step being left go before it
       // does, rather than riding a glide to somewhere they are not about, and
       // nothing else changes: the dimming stays and the standing hole travels
-      // with the content it is cut out of. Nothing is watched for the length of
-      // the glide either. The tour has left the step still on screen, so a
-      // target of its own going now belongs to nobody, and a retry begun for it
-      // would take the watcher out from under the step that lands. The landing
-      // resolves the target again and arms one.
+      // with the content it is cut out of. Nothing is armed for the length of
+      // the glide either: a glide entered over a retry leaves that retry's hunt
+      // running for a step the tour has moved past, and `disarm` is what takes
+      // it off.
       if (glide) {
         return {
           mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
@@ -444,36 +445,23 @@ export function reduce(mode: Mode, event: Event): Outcome {
       return { mode, effects: [{ kind: 'say', drawn: { step: mode.step, error: mode.error } }] }
 
     case 'mutated': {
-      if (mode.kind === 'drawn') {
-        // Named rather than read off the mode, so a batch about the step
-        // before is told apart from one about this step.
-        if (mode.step !== event.step) return nothing(mode)
-        const drawn: Drawn = { step: mode.step, error: mode.error }
-        // The batch that disconnected the target usually carries its
-        // replacement, and that is the whole of a framework rendering over the
-        // step. A retry started now would never see it: the mutation that
-        // added it has already been delivered, and an observer hears nothing
-        // about the past. So the replacement is drawn, and a re-render costs a
-        // morph and nothing else.
-        if (event.found) return revealing(drawn, event.found, true, [])
-        // What is standing is this step, over the gap its target left.
-        return retrying({ step: mode.step, animate: true }, mode.error, drawn, [], false)
+      // A hunt is the only thing ever armed, and only `retrying` arms one, so a
+      // batch landing on any other mode came from an observer already
+      // disconnected. Kept as the same last line of defence the stale guard on
+      // `unmeasured` is, and unreachable in the same way.
+      if (mode.kind !== 'retrying') return nothing(mode)
+      // Named rather than read off the mode, so a batch about the step before
+      // is told apart from one about the step being waited for.
+      if (mode.pending.step !== event.step || !event.found) return nothing(mode)
+      // Found, and a fresh arrival: it goes through `show`, because the scroll
+      // happens on the attempt that finds the target and only the shell can
+      // start one. What the wait was told goes with it.
+      return {
+        mode,
+        effects: [
+          { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
+        ],
       }
-      if (mode.kind === 'retrying') {
-        if (mode.pending.step !== event.step || !event.found) return nothing(mode)
-        // Found, and a fresh arrival: it goes through `show`, because the
-        // scroll happens on the attempt that finds the target and only the
-        // shell can start one. What the wait was told goes with it.
-        return {
-          mode,
-          effects: [
-            { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
-          ],
-        }
-      }
-      // Nothing is watched while the page glides, and nothing while idle, so a
-      // batch landing here is one from a watcher already disconnected.
-      return nothing(mode)
     }
 
     case 'unmeasured':

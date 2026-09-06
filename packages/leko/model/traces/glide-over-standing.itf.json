@@ -997,9 +997,9 @@
         "outcomes": [
           [
             {
-              "tag": "Watch",
+              "tag": "Disarm",
               "value": {
-                "step": "two"
+                "#tup": []
               }
             },
             {
@@ -1045,8 +1045,10 @@
           "#set": []
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "two"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doShow",

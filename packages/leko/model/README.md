@@ -45,7 +45,7 @@ the move `machine.qnt` made with `drawn`, `presenterUp` and `inflight`:
 
 | | `presenter.ts` |
 | --- | --- |
-| `watcher` | the one `MutationObserver`, and whether it watches a step's target or hunts for one |
+| `watcher` | the one `MutationObserver`, armed for a hunt and for nothing else, and which step it is hunting for |
 | `deadline` | the timer on a retry, and which `Pending` it was set for |
 | `screen` | the step whose cutouts the innermost scrim holds |
 | `messageUp` | whether the message is visible |
@@ -116,7 +116,7 @@ for a state predicate to hold is the mode against the implicit state:
 | | |
 | --- | --- |
 | `screenIsTheModes` | what is on the page is what the mode says: nothing in `idle`, the step in `drawn`, `standing` in `retrying` and `gliding` |
-| `armedIsTheModes` | a deadline is armed exactly in `retrying`, for the `pending` it holds; the observer watches in `drawn`, hunts in `retrying`, and is off otherwise |
+| `armedIsTheModes` | a deadline is armed exactly in `retrying`, for the `pending` it holds; the observer hunts in `retrying` and is off in every other mode, a step on screen included |
 | `glidingIsBare` | `gliding` has the message hidden, and its glide is the only one moving the page |
 | `idleIsClean` | `idle` has nothing on the page, no words and no morph |
 | `boundedReentry` | nothing came back in deeper than the interpreter unrolls |
@@ -154,7 +154,7 @@ asked, and the witnesses below are what aim the harvest.
 
 ## The corpus
 
-`traces/` holds 18 traces, harvested the way the machine's are: `quint run` is
+`traces/` holds 17 traces, harvested the way the machine's are: `quint run` is
 handed the negation of a target as its invariant, and the shortest thing that
 breaks "this never happens" is a trace where it does. The targets and the seeds
 are in `HARVEST` in `scripts/model-traces.mjs`, under this model's entry.
@@ -246,7 +246,6 @@ ten, and they are where the two differ.
 | a `retell` mid-glide is dropped instead of held | yes | yes |
 | a hunt that arrives drops what the wait was told | yes | yes |
 | what stands behind a glide is the step on its way | yes | yes |
-| a re-render redraws without animating | yes | yes |
 | a retry keeps the watcher it had rather than hunting | yes | yes |
 | a teardown leaves the watcher armed | yes | yes |
 | a morph landing is not checked against the step it drew | yes | **no** |
@@ -273,13 +272,13 @@ The third is what the effect half of the oracle is for, and it went green agains
 every trace while the oracle read state alone. A `say` and a `retell` both end
 with the message showing.
 
-Two rows arrived late. A glide begun from a retry that had **nothing** standing
+One row arrived late. A glide begun from a retry that had **nothing** standing
 looks exactly like one that inherited nothing at all, so the first corpus
 replayed green against a plan that dropped `standing` on the way;
-`glideOverStanding` is the state that tells them apart. And how a draw was to
-animate is only ever visible again when the draw fails to measure and the
-`Pending` carries it into a retry, which is `redrawUnmeasured`. Both are traces
-now, and both mutants are caught.
+`glideOverStanding` is the state that tells them apart, and it is a trace now.
+How a draw was to animate is only ever visible again when the draw fails to
+measure and the `Pending` carries it into a retry, which is `unmeasured-retry`
+and has a trace of its own.
 
 The last two rows are the honest ones, and they are the same shape as the
 `disarm` row above. Each is a guard on a state the model says is unreachable:
@@ -326,10 +325,14 @@ condition, and `mutated-elsewhere` and `mutated-ignored` are the two halves
 worth aiming at, the way `advance` in `machine.qnt` tells `refuse-said` from
 `refuse-mute`.
 
-`unmeasured-ignored` is the one branch without a witness: `unmeasured`
-only ever arrives from inside `reveal`, against the `drawn` that reveal just
-committed, so the stale-`unmeasured` guard in `plan.ts` is exercised by nothing,
-here or anywhere, and a witness for it would sit at zero for ever.
+Two branches have no witness, and each is a guard the model cannot reach.
+`unmeasured-ignored`: `unmeasured` only ever arrives from inside `reveal`,
+against the `drawn` that reveal just committed, so the stale-`unmeasured` guard
+in `plan.ts` is exercised by nothing, here or anywhere. `mutated-unarmed`: a
+hunt is armed in `retrying` and nowhere else — a step on screen arms nothing —
+so a batch can only ever land on `retrying`, and the arm that turns down one
+landing anywhere else is the defence against an observer already disconnected.
+A witness for either would sit at zero for ever.
 
 A few more are the pair of a mark and the mode it landed in. Two of the three
 review findings were entrances of that shape — a glide begun from a retry, a
@@ -341,10 +344,10 @@ that assumed it had succeeded, is the shape of the `Effect` type now — `replac
 carries `saying` — and has no witness because there is no longer a branch to
 reach.
 
-Three more exist because the replay asked for them rather than the search:
-`glideOverStanding`, `redrawUnmeasured` and `mutatedElsewhere` are each a state
-in which a plan that had got something wrong would otherwise have looked
-exactly like one that had not. The section above says what each was found by.
+Two more exist because the replay asked for them rather than the search:
+`glideOverStanding` and `mutatedElsewhere` are each a state in which a plan that
+had got something wrong would otherwise have looked exactly like one that had
+not. The section above says what each was found by.
 
 `scripts/model-check.mjs` reads the witnesses, and the invariants, out of this
 file: every `val` under the heading of that name. A list kept in the script
@@ -408,11 +411,9 @@ the commit, because a model that lies is worse than no model.
   over a list, so a first region whose first element resolved a moment ago has
   a box. The model's `Replace` takes it that measuring succeeds, and reads no
   knob for it.
-- Whether a `mutated` for a watched target means the target left or was
-  replaced. The page is a set of names, and a replacement has the same name.
 - Anything the corpus does not reach. The replay drives the traces under
   `traces/` and no other path, so a claim about a transition is checked exactly
-  where a trace goes. `traces/` is 18 of them, and the search is what aimed each.
+  where a trace goes. `traces/` is 17 of them, and the search is what aimed each.
 - Any depth at all, in the sense of a finished search. `nextToken` grows and
   nothing resets it, so the state space is infinite and only a bound is on
   offer. `quint verify` has not been run against this model.

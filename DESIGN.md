@@ -80,7 +80,7 @@ Without a built-in close control, host applications risk trapping users under th
 
 ## A target is a question
 
-A step specifies its target with a selector or a function, but both are treated as a dynamic query rather than a static reference. Leko queries the DOM on every render (at step changes, viewport resizes, and DOM mutations) and never retains element references.
+A step specifies its target with a selector or a function, but both are treated as a dynamic query rather than a static reference. Leko queries the DOM on every render — at step changes and at viewport resizes, and on every mutation while a step is waiting for a target that has not turned up yet — and never retains element references.
 
 ```ts
 type Selector = string;
@@ -235,28 +235,23 @@ reports the event via `reached()`.
 
 ## Target loss & recovery
 
-- A missing or replaced target gets a 100ms grace period, during which the target (selector or function) is resolved again on every mutation — so a framework re-render that swaps the node recovers without ending the tour.
+- **A target that is not on the page when its step arrives gets a 100ms grace period**, during which the target — selector or function — is resolved again on every mutation. The application is mid-render, and that is the whole of what the window is for: a step whose target renders a moment after its `onEnter` returned is drawn as though nothing had happened.
 - **And once more as the grace period runs out**, before the tour is given up.
   A mutation is not the only way a target turns up: a style can give it back
   the box it needs to be found at all, a framework can render it inside a
   shadow root the observer does not enter, a stylesheet can arrive in the head.
   So the deadline is a bound on the wait rather than the last word on it, and
   the ways in are a batch heard while it runs and one question at the end.
-- If recovery fails, the tour ends with `target-lost`. A function that returns a held element can never recover, because the old node stays disconnected — prefer selectors, or functions that resolve fresh. See `target-disappears.ts`.
+- If recovery fails, the tour ends with `target-lost`. A function that returns a held element can never recover, because the old node stays disconnected — prefer selectors, or functions that resolve fresh. See `target-not-there-yet.ts`.
 - **An element with no box is not found when the target is resolved**, so a
   step arriving at a hidden target is a step whose target is not there: it
   waits its 100ms and ends the same way. That is resolution answering, and
   resolution runs on an arrival, on a retry tick and on a landing — always
   before the step is drawn.
-- **Nothing watches a drawn step for a target hidden where it stands, and that
-  is the boundary rather than a gap.** The watcher asks `isConnected`, so a
-  node taken out of the document is a loss and a style that hides one where it
-  stands is not. The one moment past the draw where the page is asked anything
-  is `validate`, which resolves afresh to hand the guard its anchor and ends
-  the tour where there is none. Past the draw the page belongs to the
-  application, which is argued under **What Leko does not do**; the visible
-  consequence is that `v-if` ends a drawn step and `v-show` leaves its hole
-  standing over the gap.
+- **Whether the target is still there stops being watched once the step is
+  drawn** — `validate` still asks on a press, and a target gone by then ends
+  the tour here with no window at all. The rule is stated in one place, under
+  **What Leko does not do**.
 
 ## What a step and a story assume
 
@@ -368,10 +363,14 @@ not know a tour is running.
 
 ## Nothing is drawn for a retry
 
-The one wait Leko has on its own account is a target that is not on the page —
-not yet rendered when its step is drawn, or gone since. **Nothing on screen
-changes while it runs.** Whatever was drawn last stays put, and a target that
-comes back costs a morph and nothing else.
+The one wait Leko has on its own account is a step arriving at a target that is
+not on the page — not rendered yet, or taken away in the moment before its
+holes could be measured. **Nothing *new* is drawn while it runs.** Whatever was
+drawn last stays put, and a target that turns up costs a morph and nothing else.
+A morph already asked for is not cut short — a retry stops a glide and a
+deadline, and a morph is on neither of those — so it paints to its end, and
+what it reports when it gets there is ignored, because the step it was drawing
+is no longer the one on screen.
 
 That leaves a hole standing over the gap, but only for 100ms — a target is
 usually missing because a framework is mid-render, so the ordinary outcome is
@@ -383,10 +382,9 @@ is not something Leko knows.
   step's own `message`. A retry is a wait Leko is having; a waiting step is a
   wait the application declared, and only the second has anything to say about
   itself.
-- The machine hears about a retry only when a step is still arriving. A target
-  lost after the step was drawn changes nothing on screen and is not reported —
-  a host cannot catch a window that short. Giving up is what both report, and
-  `Host.lost` is that.
+- **Every retry belongs to an arrival, so `Host.lost` is only ever about a step
+  that was arriving.** Giving up is the whole of what the machine hears: the
+  wait itself is not reported, because a host cannot catch a window that short.
 - `start()` on a story whose first target has not rendered blocks nothing for
   those 100ms. The tour has drawn nothing and the page is exactly as it was, so
   there is nothing for a stray click to interrupt.
@@ -563,7 +561,8 @@ application is free to drive the real elements while a step is showing.**
 - **The page is measured when a step is drawn, and not again.** A hole is cut
   where the target was at the draw, the morph carries it there, and nothing
   measures the target after that: not a target that moves, not one hidden where
-  it stands, not one whose box changes size. A scroll is the exception and it
+  it stands, not one whose box changes size, not one taken out of the document,
+  not one a re-render replaced. A scroll is the exception and it
   costs nothing — the scrim lives inside whatever scrolls the target, so the
   two move together with no script running, which is the rule under
   **Scrolling**. A resize is the other: the surface moved under the tour, so
@@ -580,13 +579,22 @@ application is free to drive the real elements while a step is showing.**
     not Leko's to freeze — a step will be able to ask for its holes to be
     followed, at the price of that measurement per frame and off unless it
     asks. That is issue #158 and it is not the default this bullet describes.
-  - And **what a step assumes is `onEnter`'s to build and to keep.** Up to the
-    draw Leko is deciding what to point at, so an element with no box is
-    nothing to point at and the step waits for one. Past the draw the page is
-    the application's again. A panel collapsing over a drawn target is
-    therefore not Leko's to notice, and the consequence is stated where the
-    loss rules are: `v-if` ends a drawn step because the node goes, and
-    `v-show` leaves its hole standing.
+  - And **what a step assumes is `onEnter`'s to build and to keep, for the
+    whole length of the step.** Up to the draw Leko is deciding what to point
+    at, so an element with no box is nothing to point at and the step waits for
+    one. Past the draw **a drawn step watches nothing**: not the target's box,
+    and not whether the target is still on the page at all. A step named it, so
+    keeping it there while the step is showing is the application's promise and
+    not Leko's question — which is what a tour costing the host nothing but the
+    story means at the one place it costs something. This is about *whether*
+    the target is there; *where* it is is the question this bullet's parent
+    answers, and #158 is the opt-in that would change that answer rather than
+    this one. Watching nothing is not the same as asking nothing: `validate`
+    resolves the target afresh on a press, to hand the guard the element its
+    parameter is not nullable for, and a step whose target has gone by then
+    ends the tour with `target-lost` on that press. So `v-if` and `v-show` are
+    the same thing here — each leaves the hole standing over the gap it left,
+    and neither ends the step the hole was cut for.
 - **There are no chapters.** Grouping steps, jumping between the groups,
   recording how far somebody got — all worth wanting, none of it here. Given a
   setup of its own, a chapter stops being a label and becomes an object, and
@@ -825,19 +833,17 @@ tour is for.
   Nothing else changes while it runs: the dimming stays, and the standing hole
   travels with the content it is cut out of, which is the same bargain
   **Nothing is drawn for a retry** strikes.
-- **Nothing is watched for it either, and a reason waits with the step.** For
+- **Nothing is armed for it either, and a reason waits with the step.** For
   the length of a glide the tour is on one step and the screen is showing
   another, so everything that redraws without the tour moving would otherwise
-  act on a step the tour has left. The target watcher goes when the glide
-  starts: a target lost then belongs to nobody, and a retry begun for it would
-  take the watcher out from under the step that lands — leaving a hole over a
-  gap that never ends the tour. The landing resolves the target again and arms
-  one, so the window is the one **Nothing is drawn for a retry** already
-  accepts. A reason the guard gave is written into the step on its way and
-  drawn when it arrives, rather than onto the step being left, where it would
-  be said beside a hole the page is still carrying and gone by the time it
-  landed. A resize puts the standing holes back and places the way out again,
-  and says nothing.
+  act on a step the tour has left. A glide entered over a retry is the one case
+  with anything running at all, and the hunt goes when the glide starts: a
+  target turning up now for the step the tour has just moved past would be an
+  arrival at a step nobody is waiting for. A reason the guard gave is written
+  into the step on its way and drawn when it arrives, rather than onto the step
+  being left, where it would be said beside a hole the page is still carrying
+  and gone by the time it landed. A resize puts the standing holes back and
+  places the way out again, and says nothing.
 - **The middle of the port, not the nearest edge.** A step exists to draw
   attention to one thing, and a hole flush against the bottom of the screen is
   the least attention a hole can be given: no room under it for the message, and

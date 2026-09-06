@@ -12,12 +12,12 @@ type TargetFunction = () => Element | null
  * framework ref; a row your own code picks out of a list.
  *
  * **Whichever form, it is asked again every time anything needs the box** — at
- * the step boundary, on a viewport change, and on every mutation while a lost
- * target is being looked for. So a function must be cheap and must not have
- * side effects, and the element it hands back is the answer for that moment
- * only. A function that closes over a live reference recovers from a node being
- * replaced; one that hands back a variable captured once does not, and that is
- * the host's answer to give.
+ * the step boundary, on a viewport change, and on every mutation while a step
+ * that has arrived is waiting for its target to turn up. So a function must be
+ * cheap and must not have side effects, and the element it hands back is the
+ * answer for that moment only. A function that closes over a live reference
+ * recovers from a node being replaced; one that hands back a variable captured
+ * once does not, and that is the host's answer to give.
  *
  * There is no element form. An element is an answer somebody worked out when
  * the story was written, and by the time the step runs the page has moved on.
@@ -36,9 +36,10 @@ type TargetFunction = () => Element | null
  * selector means is a question a step does not get to answer yet.
  *
  * **This is asked up to the moment the step is drawn, and not after it.** A
- * target hidden or moved once its hole is cut keeps the hole where it was: the
- * page is measured at the draw and the tour does not watch it again, a scroll
- * excepted. What a step assumes is `onEnter`'s to build and to keep.
+ * target hidden, moved or taken away once its hole is cut keeps the hole where
+ * it was: the page is measured at the draw and the tour does not watch it
+ * again, a scroll excepted. What a step assumes is `onEnter`'s to build and to
+ * keep — for the length of the step, not only up to its first frame.
  *
  * An element inside an `<svg>` is a target like any other: everything asked of
  * a target is asked of `getBoundingClientRect`, and an SVG shape answers it the
@@ -244,8 +245,8 @@ export interface LekoStep {
    * it is the only position that may declare `interactive`, every later entry
    * being a {@link LekoShownRegion}. Its first element is what
    * {@link validate} is handed, what the message anchors beside, and the one
-   * Leko watches for: a step whose first region is not on the page is not
-   * drawn, and Leko looks for it. A later region that resolves to nothing is a
+   * Leko looks for: a step whose first region is not on the page is not drawn,
+   * and Leko waits a moment for it. A later region that resolves to nothing is a
    * hole this step does not cut, and nothing else happens.
    *
    * A target that scrolls is fine in a region that was opened: the wheel,
@@ -825,15 +826,22 @@ export type LekoProblem =
    */
   | { kind: 'tour-running'; story: LekoStory; running: LekoStory }
   /**
-   * A step's target was not on the page and did not come back within 100ms, so
-   * the run stopped.
+   * A step's target was not on the page when it was wanted, so the run stopped.
    *
-   * A loss is given that long because a framework replacing a node with an
-   * identical one disconnects the old one, and the tour should not end because
-   * an application rendered normally. The target is asked again throughout, so
-   * whether the step recovers is whether the answer changes: a selector finds
-   * the new node, and so does a function reading a live reference. A function
-   * handing back one variable captured when the story was written cannot.
+   * Two roads reach here. A step arriving at a target that is not on the page
+   * is given 100ms first, because the application is still rendering: `onEnter`
+   * has just returned and a framework paints a frame after that, so the step
+   * that pointed at something a moment too early should not end the tour. The
+   * target is asked again throughout that window, so whether the step recovers
+   * is whether the answer changes: a selector finds the node when it lands, and
+   * so does a function reading a live reference. A function handing back one
+   * variable captured when the story was written cannot.
+   *
+   * The other is a press on a step that declares {@link LekoStep.validate}.
+   * That resolves the target afresh to hand the guard its element, and where
+   * there is none the tour ends here instead of advancing. It gets no window:
+   * a press is not a mid-render instant, and a target that has gone by then is
+   * a step pointing at something the application took away.
    */
   | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
 

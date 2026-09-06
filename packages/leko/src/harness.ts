@@ -240,9 +240,10 @@ export async function stopped(cap = 8000): Promise<void> {
  * Let a `MutationObserver` deliver what a test just did to the page.
  *
  * Its callback is a microtask, so one turn of the queue is enough. {@link frame}
- * is two frames, which is far more time than a retry gets: a target that leaves
- * the page is given 100ms, and a loaded machine can spend longer than that on
- * two frames and end the tour while a test thinks it is watching one wait.
+ * is two frames, which is far more time than a retry gets: a step arriving at a
+ * target the page does not have yet is given 100ms, and a loaded machine can
+ * spend longer than that on two frames and end the tour while a test thinks it
+ * is watching one wait.
  */
 export const observed = (): Promise<void> => Promise.resolve()
 

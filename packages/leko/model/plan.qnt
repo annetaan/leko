@@ -60,13 +60,12 @@ module plan {
     | Resized
 
   /// `Effect` in plan.ts. `Reword` is its `retell`, renamed because the event
-  /// above already has the name. `Watch` carries no anchor: what the shell
-  /// observes is a node, and what the model can say is which step's.
+  /// above already has the name. `Hunt` carries no anchor: there is no node to
+  /// hold on to yet, and what the model can say is which step is looked for.
   type Effect =
     | Abandon(int)
     | Hide
     | Disarm
-    | Watch({ step: str })
     | Hunt({ step: str })
     | Deadline(Pending)
     | Cancel
@@ -82,10 +81,10 @@ module plan {
   /// detail for a witness to aim at.
   type Outcome = { mode: Mode, effects: List[Effect], mark: str }
 
-  /// What the shell is armed for. `watch` and `hunt` in plan.ts both become
-  /// one `MutationObserver` in `presenter.ts`; which job it has is the mode's
-  /// to say, and this is where the model checks that it does.
-  type Watcher = Off | Watching(str) | Hunting(str)
+  /// What the shell is armed for. The one `MutationObserver` in `presenter.ts`
+  /// is armed for a hunt and for nothing else — a step on screen watches for
+  /// nothing — and this is where the model checks that it is.
+  type Watcher = Off | Hunting(str)
 
   /// The knobs on the page that an effect turns: whether `bringIntoView` had
   /// somewhere to go, whether a draw found anything to measure, and whether the
@@ -249,7 +248,7 @@ module plan {
   ): Outcome = {
     mode: Drawn(drawn),
     effects: before.concat([
-      if (anchor) Watch({ step: drawn.step }) else Disarm,
+      Disarm,
       Reveal({ drawn: drawn, anchor: anchor, animate: animate }),
     ]),
     mark: mark,
@@ -316,10 +315,6 @@ module plan {
 
       | Mutated(e) =>
         match mode {
-          | Drawn(d) =>
-            if (d.step != e.step) nothing(mode, "mutated-ignored")
-            else if (e.found) revealing(d, true, true, [], "mutated-redraw")
-            else retrying({ step: d.step, animate: true, token: fresh }, d.error, Just(d), [], false, "mutated-retry")
           | Retrying(r) =>
             // One condition in `plan.ts` and two marks here, the way `advance`
             // in `machine.qnt` tells `refuse-said` from `refuse-mute`: a batch
@@ -328,7 +323,13 @@ module plan {
             if (r.pending.step != e.step) nothing(mode, "mutated-elsewhere")
             else if (not(e.found)) nothing(mode, "mutated-ignored")
             else { mode: mode, effects: [Arrive({ pending: r.pending, error: r.error })], mark: "mutated-arrive" }
-          | _ => nothing(mode, "mutated-ignored")
+          // A hunt is armed in `retrying` and nowhere else, so this arm is
+          // unreachable in the model: `doMutated` needs the observer on, and
+          // the observer is only ever on here. It is the same last line of
+          // defence the guard in `plan.ts` is, against a batch from an
+          // observer already disconnected, and it carries no witness for the
+          // same reason.
+          | _ => nothing(mode, "mutated-unarmed")
         }
 
       | Unmeasured(e) =>
@@ -407,7 +408,6 @@ module plan {
       | Abandon(g) => s.with("moving", s.moving.exclude(Set(g)))
       | Hide => s.with("messageUp", false)
       | Disarm => s.with("watcher", Off)
-      | Watch(w) => s.with("watcher", Watching(w.step))
       | Hunt(h) => s.with("watcher", Hunting(h.step))
       // `cancel()` then `setTimeout`, so there is never a second one.
       | Deadline(p) => s.with("deadline", Just(p))
@@ -704,13 +704,12 @@ module plan {
     }
 
   /// A deadline is armed exactly while the mode is `retrying`, and for the
-  /// `pending` it holds; the observer watches in `drawn`, on the step's target
-  /// where it has one, hunts in `retrying`, and is off otherwise.
+  /// `pending` it holds; the observer hunts in `retrying`, for that same step,
+  /// and is off in every other mode. A step on screen arms nothing.
   val armedIsTheModes: bool =
     match m.mode {
       | Idle => m.deadline == Nothing and m.watcher == Off
-      | Drawn(d) =>
-        m.deadline == Nothing and m.watcher == (if (pointsAt(d.step)) Watching(d.step) else Off)
+      | Drawn(_) => m.deadline == Nothing and m.watcher == Off
       | Retrying(r) => m.deadline == Just(r.pending) and m.watcher == Hunting(r.pending.step)
       | Gliding(_) => m.deadline == Nothing and m.watcher == Off
     }
@@ -790,8 +789,6 @@ module plan {
   /// A morph that outlived the mode it was drawing for: the target left the
   /// page mid-morph, or the tour glided on, and the morph landed anyway.
   val morphedStale: bool = went(m, "morphed-stale")
-  val mutatedRedraw: bool = went(m, "mutated-redraw")
-  val mutatedRetry: bool = went(m, "mutated-retry")
   val mutatedArrive: bool = went(m, "mutated-arrive")
   val mutatedIgnored: bool = went(m, "mutated-ignored")
 
@@ -800,11 +797,6 @@ module plan {
   /// `plan.test.ts` had no example for a hunt hearing about another step.
   val mutatedElsewhere: bool = went(m, "mutated-elsewhere")
   val unmeasuredRetry: bool = went(m, "unmeasured-retry")
-
-  /// A re-render whose redraw then found nothing to measure. The one state in
-  /// which how a draw was to animate is still visible afterwards: it rides the
-  /// `Pending` the retry carries, and nothing else ever reads it back.
-  val redrawUnmeasured: bool = went(m, "mutated-redraw") and went(m, "unmeasured-retry")
   val expiredArrive: bool = went(m, "expired-arrive")
   /// A deadline that found its target and gave it up all the same, because the
   /// wait was one a draw began. The branch that keeps the retry from arming

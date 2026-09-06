@@ -124,14 +124,14 @@ describe('reading a step', () => {
 })
 
 describe('an arrival', () => {
-  test('draws a step whose target is on the page, and watches the target', () => {
+  test('draws a step whose target is on the page, and arms nothing', () => {
     const outcome = put(idle, arrival())
 
     expect(outcome.mode).toEqual({ kind: 'drawn', step, error: undefined })
-    // Watched before it is drawn, so a draw that finds nothing to measure hands
-    // the hunt a watcher to replace rather than being replaced by one.
-    expect(owed(outcome)).toEqual(['watch', 'reveal'])
-    expect(the(outcome, 'watch')).toEqual({ kind: 'watch', step, anchor })
+    // A step on screen is watched for nothing at all, whether or not its target
+    // resolved. Disarmed before it is drawn, so a draw that finds nothing to
+    // measure arms its hunt after this rather than having it taken off again.
+    expect(owed(outcome)).toEqual(['disarm', 'reveal'])
     expect(the(outcome, 'reveal')).toEqual({
       kind: 'reveal',
       drawn: { step, error: undefined },
@@ -140,11 +140,12 @@ describe('an arrival', () => {
     })
   })
 
-  test('draws a step that points at nothing on the document, and watches nothing', () => {
+  test('draws a step that points at nothing on the document, and arms nothing either', () => {
     const outcome = put(drawn(), arrival({ step: waiting, anchor: null }))
 
     expect(outcome.mode).toEqual({ kind: 'drawn', step: waiting, error: undefined })
-    // The watcher on the step before goes, or it would report against this one.
+    // The same nothing as the step above arms: what this test tells apart is
+    // the anchor the draw is given, which is `null` for a step that waits.
     expect(owed(outcome)).toEqual(['disarm', 'reveal'])
     expect(the(outcome, 'reveal').anchor).toBeNull()
   })
@@ -166,20 +167,23 @@ describe('an arrival', () => {
     expect(the(outcome, 'deadline').pending).toBe((outcome.mode as Retrying).pending)
   })
 
-  test('holds the pending step behind a glide, hides the words and watches nothing', () => {
+  test('holds the pending step behind a glide, hides the words and takes a retry off', () => {
     const flight = glide()
 
-    const outcome = put(drawn('not yet'), arrival({ glide: flight }))
+    const outcome = put(retrying(), arrival({ glide: flight }))
 
     expect(outcome.mode).toEqual({
       kind: 'gliding',
       glide: flight,
       pending: { step, animate: true },
       error: undefined,
-      // What is on screen, reason and all, so a resize mid-glide can put it back.
-      standing: { step, error: 'not yet' },
+      // What the retry was standing over, so a resize mid-glide can put it back.
+      standing: left,
     })
-    expect(owed(outcome)).toEqual(['hide', 'disarm'])
+    // Entered from a retry, because that is the one mode with anything armed:
+    // the clock stops, the words go, and the hunt for the step the tour has
+    // just moved past goes with them.
+    expect(owed(outcome)).toEqual(['cancel', 'hide', 'disarm'])
   })
 
   test('stops a glide the tour has moved past before anything else', () => {
@@ -187,14 +191,14 @@ describe('an arrival', () => {
 
     const outcome = put(gliding(flight), arrival({ step: other }))
 
-    expect(owed(outcome)).toEqual(['abandon', 'watch', 'reveal'])
+    expect(owed(outcome)).toEqual(['abandon', 'disarm', 'reveal'])
     expect(the(outcome, 'abandon').glide).toBe(flight)
   })
 
   test("stops a retry's clock before anything else", () => {
     const outcome = put(retrying(), arrival())
 
-    expect(owed(outcome)).toEqual(['cancel', 'watch', 'reveal'])
+    expect(owed(outcome)).toEqual(['cancel', 'disarm', 'reveal'])
   })
 
   test('a wait begun from a wait keeps what is standing, because nothing was drawn between', () => {
@@ -235,7 +239,7 @@ describe('a glide landing', () => {
     const outcome = put(told, { kind: 'settled', glide: flight, anchor })
 
     expect(outcome.mode).toEqual(drawn('not yet'))
-    expect(owed(outcome)).toEqual(['watch', 'reveal'])
+    expect(owed(outcome)).toEqual(['disarm', 'reveal'])
     expect(the(outcome, 'reveal')).toEqual({
       kind: 'reveal',
       drawn: { step, error: 'not yet' },
@@ -281,39 +285,15 @@ describe('a glide landing', () => {
 })
 
 describe('the page changing under a step', () => {
-  test('a replacement that came with the batch is drawn again, reason and all', () => {
-    const outcome = put(drawn('not yet'), { kind: 'mutated', step, found: replacement })
+  test('a batch that lands on a drawn step is ignored, because a drawn step arms nothing', () => {
+    // A step on screen watches for nothing, so a batch about one came from an
+    // observer already disconnected. A node swapped in under the step is not
+    // drawn again either: a replacement almost always lands where the old one
+    // was, so the standing hole is still right, and where it does not the hole
+    // is stale in the way a moved target's is.
+    const before = drawn('not yet')
 
-    expect(outcome.mode).toEqual(drawn('not yet'))
-    expect(owed(outcome)).toEqual(['watch', 'reveal'])
-    expect(the(outcome, 'watch').anchor).toBe(replacement)
-    // A re-render costs a morph and nothing else.
-    expect(the(outcome, 'reveal')).toEqual({
-      kind: 'reveal',
-      drawn: { step, error: 'not yet' },
-      anchor: replacement,
-      animate: true,
-    })
-  })
-
-  test('a target gone with nothing in its place is given a moment, and the reason waits with it', () => {
-    const outcome = put(drawn('not yet'), { kind: 'mutated', step, found: null })
-
-    expect(outcome.mode).toEqual({
-      kind: 'retrying',
-      pending: { step, animate: true },
-      unmeasured: false,
-      error: 'not yet',
-      // The hole stands over the gap, and this is the step it was cut for.
-      standing: { step, error: 'not yet' },
-    })
-    expect(owed(outcome)).toEqual(['hunt', 'deadline'])
-  })
-
-  test('a batch about a step that is not the one on screen is ignored', () => {
-    const before = drawn()
-
-    const outcome = put(before, { kind: 'mutated', step: other, found: null })
+    const outcome = put(before, { kind: 'mutated', step, found: replacement })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])

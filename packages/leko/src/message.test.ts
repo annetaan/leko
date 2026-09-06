@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-import { begin, box, control, frame, keep, observed, press, start } from './harness.js'
+import { begin, box, control, frame, keep, press, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -491,9 +491,6 @@ test('stopping takes the message with it, and gives the target its anchor name b
 test('the message does not move when the target leaves the page', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.id = 'anchor'
-  // A selector, so the target is given a moment to come back and the tour is
-  // still standing when this looks. Without one it stops and the message would
-  // go with it, which would prove nothing.
   const leko = start([
     { id: 'one', target: { elements: '#anchor', interactive: true }, message: 'Press it.' },
   ])
@@ -502,11 +499,11 @@ test('the message does not move when the target leaves the page', async () => {
   const before = rect(message()!)
 
   target.remove()
-  await observed()
+  await frame()
 
-  // Nothing is redrawn while a target is looked for, and the box is not an
-  // exception. It hangs off a marker inside the scrim rather than off the
-  // target, so the element leaving the page moves nothing.
+  // A drawn step arms nothing, so the tour is left standing exactly as it was.
+  // The box hangs off a marker inside the scrim rather than off the target, so
+  // the element leaving the page moves nothing either way.
   expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('one')
   expect(visible()).toBe(true)

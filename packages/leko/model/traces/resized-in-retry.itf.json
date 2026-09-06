@@ -189,12 +189,300 @@
       },
       "m": {
         "deadline": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["resized-nothing"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "1"
+        },
+        "onPage": false,
+        "outcomes": [[]],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": []
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doResized",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "resolved": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 2
+      },
+      "m": {
+        "deadline": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "2"
+        },
+        "onPage": false,
+        "outcomes": [[]],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": []
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "resolved": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "wait"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 3
+      },
+      "m": {
+        "deadline": {
           "tag": "Just",
           "value": {
-            "animate": false,
+            "animate": true,
             "step": "two",
             "token": {
-              "#bigint": "0"
+              "#bigint": "2"
             }
           }
         },
@@ -215,10 +503,10 @@
               }
             },
             "pending": {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "2"
               }
             },
             "standing": {
@@ -240,7 +528,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "1"
+          "#bigint": "3"
         },
         "onPage": false,
         "outcomes": [
@@ -254,10 +542,10 @@
             {
               "tag": "Deadline",
               "value": {
-                "animate": false,
+                "animate": true,
                 "step": "two",
                 "token": {
-                  "#bigint": "0"
+                  "#bigint": "2"
                 }
               }
             }
@@ -275,10 +563,10 @@
         "waits": {
           "#set": [
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "2"
               }
             }
           ]
@@ -292,7 +580,7 @@
       "mbt::nondetPicks": {
         "animate": {
           "tag": "Some",
-          "value": false
+          "value": true
         },
         "expireKnobs": {
           "tag": "None",
@@ -357,7 +645,7 @@
           "value": {
             "measured": true,
             "outright": false,
-            "somewhere": false
+            "somewhere": true
           }
         },
         "showStep": {
@@ -374,16 +662,16 @@
     },
     {
       "#meta": {
-        "index": 2
+        "index": 4
       },
       "m": {
         "deadline": {
           "tag": "Just",
           "value": {
-            "animate": false,
+            "animate": true,
             "step": "two",
             "token": {
-              "#bigint": "0"
+              "#bigint": "2"
             }
           }
         },
@@ -402,10 +690,10 @@
               "value": "no"
             },
             "pending": {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "2"
               }
             },
             "standing": {
@@ -427,7 +715,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "4"
         },
         "onPage": false,
         "outcomes": [[]],
@@ -443,10 +731,10 @@
         "waits": {
           "#set": [
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "2"
               }
             }
           ]
@@ -544,7 +832,386 @@
     },
     {
       "#meta": {
-        "index": 3
+        "index": 5
+      },
+      "m": {
+        "deadline": {
+          "tag": "Just",
+          "value": {
+            "animate": false,
+            "step": "two",
+            "token": {
+              "#bigint": "4"
+            }
+          }
+        },
+        "deep": false,
+        "from": "retrying",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["show-retry"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Retrying",
+          "value": {
+            "error": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            },
+            "pending": {
+              "animate": false,
+              "step": "two",
+              "token": {
+                "#bigint": "4"
+              }
+            },
+            "standing": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            },
+            "unmeasured": false
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "5"
+        },
+        "onPage": false,
+        "outcomes": [
+          [
+            {
+              "tag": "Cancel",
+              "value": {
+                "#tup": []
+              }
+            },
+            {
+              "tag": "Hunt",
+              "value": {
+                "step": "two"
+              }
+            },
+            {
+              "tag": "Deadline",
+              "value": {
+                "animate": false,
+                "step": "two",
+                "token": {
+                  "#bigint": "4"
+                }
+              }
+            }
+          ]
+        ],
+        "page": {
+          "#set": ["first"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": false,
+              "step": "two",
+              "token": {
+                "#bigint": "4"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "2"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Hunting",
+          "value": "two"
+        }
+      },
+      "mbt::actionTaken": "doShow",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "Some",
+          "value": false
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "resolved": {
+          "tag": "Some",
+          "value": false
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showKnobs": {
+          "tag": "Some",
+          "value": {
+            "measured": true,
+            "outright": false,
+            "somewhere": false
+          }
+        },
+        "showStep": {
+          "tag": "Some",
+          "value": "two"
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 6
+      },
+      "m": {
+        "deadline": {
+          "tag": "Just",
+          "value": {
+            "animate": false,
+            "step": "two",
+            "token": {
+              "#bigint": "4"
+            }
+          }
+        },
+        "deep": false,
+        "from": "retrying",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-held"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Retrying",
+          "value": {
+            "error": {
+              "tag": "Just",
+              "value": "no"
+            },
+            "pending": {
+              "animate": false,
+              "step": "two",
+              "token": {
+                "#bigint": "4"
+              }
+            },
+            "standing": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            },
+            "unmeasured": false
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "6"
+        },
+        "onPage": false,
+        "outcomes": [[]],
+        "page": {
+          "#set": ["first"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": false,
+              "step": "two",
+              "token": {
+                "#bigint": "4"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "2"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Hunting",
+          "value": "two"
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "resolved": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "wait"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 7
       },
       "m": {
         "deadline": {
@@ -558,7 +1225,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -574,13 +1241,13 @@
               }
             },
             "glide": {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             "pending": {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "7"
               }
             },
             "standing": {
@@ -600,12 +1267,12 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "8"
         },
         "onPage": false,
         "outcomes": [
@@ -645,14 +1312,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -750,7 +1424,7 @@
     },
     {
       "#meta": {
-        "index": 4
+        "index": 8
       },
       "m": {
         "deadline": {
@@ -764,7 +1438,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -786,7 +1460,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "9"
         },
         "onPage": false,
         "outcomes": [
@@ -794,7 +1468,7 @@
             {
               "tag": "Abandon",
               "value": {
-                "#bigint": "2"
+                "#bigint": "6"
               }
             },
             {
@@ -826,14 +1500,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -935,7 +1616,7 @@
     },
     {
       "#meta": {
-        "index": 5
+        "index": 9
       },
       "m": {
         "deadline": {
@@ -949,7 +1630,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -971,7 +1652,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "6"
+          "#bigint": "10"
         },
         "onPage": false,
         "outcomes": [
@@ -1005,14 +1686,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -1114,7 +1802,7 @@
     },
     {
       "#meta": {
-        "index": 6
+        "index": 10
       },
       "m": {
         "deadline": {
@@ -1128,7 +1816,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -1150,7 +1838,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "7"
+          "#bigint": "11"
         },
         "onPage": false,
         "outcomes": [[]],
@@ -1169,14 +1857,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -1278,7 +1973,7 @@
     },
     {
       "#meta": {
-        "index": 7
+        "index": 11
       },
       "m": {
         "deadline": {
@@ -1292,7 +1987,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -1318,7 +2013,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "8"
+          "#bigint": "12"
         },
         "onPage": true,
         "outcomes": [
@@ -1360,14 +2055,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -1465,7 +2167,7 @@
     },
     {
       "#meta": {
-        "index": 8
+        "index": 12
       },
       "m": {
         "deadline": {
@@ -1479,7 +2181,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             }
           ]
         },
@@ -1507,7 +2209,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "9"
+          "#bigint": "13"
         },
         "onPage": true,
         "outcomes": [
@@ -1539,14 +2241,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -1648,7 +2357,7 @@
     },
     {
       "#meta": {
-        "index": 9
+        "index": 13
       },
       "m": {
         "deadline": {
@@ -1662,10 +2371,10 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
@@ -1681,13 +2390,13 @@
               }
             },
             "glide": {
-              "#bigint": "9"
+              "#bigint": "13"
             },
             "pending": {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             "standing": {
@@ -1713,12 +2422,12 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "11"
+          "#bigint": "15"
         },
         "onPage": true,
         "outcomes": [
@@ -1750,21 +2459,28 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -1862,7 +2578,7 @@
     },
     {
       "#meta": {
-        "index": 10
+        "index": 14
       },
       "m": {
         "deadline": {
@@ -1876,17 +2592,17 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
-        "marks": ["settled-stale"],
-        "messageUp": false,
+        "marks": ["settled-draw", "morphed-said"],
+        "messageUp": true,
         "mode": {
-          "tag": "Gliding",
+          "tag": "Drawn",
           "value": {
             "error": {
               "tag": "Nothing",
@@ -1894,28 +2610,7 @@
                 "#tup": []
               }
             },
-            "glide": {
-              "#bigint": "9"
-            },
-            "pending": {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            "standing": {
-              "tag": "Just",
-              "value": {
-                "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "step": "wait"
-              }
-            }
+            "step": "one"
           }
         },
         "morphing": {
@@ -1925,23 +2620,58 @@
           }
         },
         "moving": {
-          "#set": [
-            {
-              "#bigint": "9"
-            }
-          ]
+          "#set": []
         },
         "nextToken": {
-          "#bigint": "12"
+          "#bigint": "17"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          [
+            {
+              "tag": "Disarm",
+              "value": {
+                "#tup": []
+              }
+            },
+            {
+              "tag": "Reveal",
+              "value": {
+                "anchor": true,
+                "animate": true,
+                "drawn": {
+                  "error": {
+                    "tag": "Nothing",
+                    "value": {
+                      "#tup": []
+                    }
+                  },
+                  "step": "one"
+                }
+              }
+            }
+          ],
+          [
+            {
+              "tag": "Say",
+              "value": {
+                "error": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "step": "one"
+              }
+            }
+          ]
+        ],
         "page": {
           "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -1949,21 +2679,28 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -2004,7 +2741,7 @@
         "glidePick": {
           "tag": "Some",
           "value": {
-            "#bigint": "2"
+            "#bigint": "13"
           }
         },
         "landedOn": {
@@ -2065,7 +2802,7 @@
     },
     {
       "#meta": {
-        "index": 11
+        "index": 15
       },
       "m": {
         "deadline": {
@@ -2075,48 +2812,27 @@
           }
         },
         "deep": false,
-        "from": "gliding",
+        "from": "drawn",
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
-        "marks": ["retell-held"],
-        "messageUp": false,
+        "marks": ["retell-said"],
+        "messageUp": true,
         "mode": {
-          "tag": "Gliding",
+          "tag": "Drawn",
           "value": {
             "error": {
               "tag": "Just",
               "value": "no"
             },
-            "glide": {
-              "#bigint": "9"
-            },
-            "pending": {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            "standing": {
-              "tag": "Just",
-              "value": {
-                "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "step": "wait"
-              }
-            }
+            "step": "one"
           }
         },
         "morphing": {
@@ -2126,23 +2842,29 @@
           }
         },
         "moving": {
-          "#set": [
-            {
-              "#bigint": "9"
-            }
-          ]
+          "#set": []
         },
         "nextToken": {
-          "#bigint": "13"
+          "#bigint": "18"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          [
+            {
+              "tag": "Reword",
+              "value": {
+                "reason": "no",
+                "step": "wait"
+              }
+            }
+          ]
+        ],
         "page": {
           "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -2150,21 +2872,28 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -2264,7 +2993,7 @@
     },
     {
       "#meta": {
-        "index": 12
+        "index": 16
       },
       "m": {
         "deadline": {
@@ -2273,24 +3002,24 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "18"
             }
           }
         },
         "deep": false,
-        "from": "gliding",
+        "from": "drawn",
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["show-retry"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -2304,19 +3033,17 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -2332,17 +3059,11 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "14"
+          "#bigint": "19"
         },
         "onPage": true,
         "outcomes": [
           [
-            {
-              "tag": "Abandon",
-              "value": {
-                "#bigint": "9"
-              }
-            },
             {
               "tag": "Hunt",
               "value": {
@@ -2355,7 +3076,7 @@
                 "animate": false,
                 "step": "two",
                 "token": {
-                  "#bigint": "13"
+                  "#bigint": "18"
                 }
               }
             }
@@ -2366,7 +3087,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -2374,28 +3095,35 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -2491,7 +3219,7 @@
     },
     {
       "#meta": {
-        "index": 13
+        "index": 17
       },
       "m": {
         "deadline": {
@@ -2500,7 +3228,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "18"
             }
           }
         },
@@ -2509,15 +3237,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["retell-held"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -2529,19 +3257,17 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -2557,7 +3283,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "15"
+          "#bigint": "20"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -2566,7 +3292,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -2574,28 +3300,35 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -2693,7 +3426,7 @@
     },
     {
       "#meta": {
-        "index": 14
+        "index": 18
       },
       "m": {
         "deadline": {
@@ -2702,7 +3435,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "18"
             }
           }
         },
@@ -2711,15 +3444,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["settled-stale"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -2731,19 +3464,17 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -2759,7 +3490,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "16"
+          "#bigint": "21"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -2768,7 +3499,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -2776,28 +3507,35 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -2836,7 +3574,7 @@
         "glidePick": {
           "tag": "Some",
           "value": {
-            "#bigint": "2"
+            "#bigint": "13"
           }
         },
         "landedOn": {
@@ -2897,7 +3635,7 @@
     },
     {
       "#meta": {
-        "index": 15
+        "index": 19
       },
       "m": {
         "deadline": {
@@ -2906,7 +3644,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "18"
             }
           }
         },
@@ -2915,15 +3653,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["mutated-elsewhere"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -2935,19 +3673,17 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -2963,7 +3699,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "17"
+          "#bigint": "22"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -2972,7 +3708,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -2980,28 +3716,35 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -3099,7 +3842,7 @@
     },
     {
       "#meta": {
-        "index": 16
+        "index": 20
       },
       "m": {
         "deadline": {
@@ -3108,7 +3851,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "18"
             }
           }
         },
@@ -3117,15 +3860,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["expired-stale"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3137,19 +3880,17 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -3165,7 +3906,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "18"
+          "#bigint": "23"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -3174,7 +3915,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -3182,28 +3923,35 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "18"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "10"
+                "#bigint": "14"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -3297,9 +4045,9 @@
           "tag": "Some",
           "value": {
             "animate": true,
-            "step": "one",
+            "step": "two",
             "token": {
-              "#bigint": "10"
+              "#bigint": "2"
             }
           }
         }
@@ -3307,7 +4055,7 @@
     },
     {
       "#meta": {
-        "index": 17
+        "index": 21
       },
       "m": {
         "deadline": {
@@ -3316,7 +4064,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "18"
+              "#bigint": "23"
             }
           }
         },
@@ -3325,15 +4073,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["show-retry"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3347,19 +4095,17 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "18"
+                "#bigint": "23"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -3375,7 +4121,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "19"
+          "#bigint": "24"
         },
         "onPage": true,
         "outcomes": [
@@ -3398,7 +4144,7 @@
                 "animate": true,
                 "step": "one",
                 "token": {
-                  "#bigint": "18"
+                  "#bigint": "23"
                 }
               }
             }
@@ -3409,7 +4155,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -3417,35 +4163,42 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
                 "#bigint": "18"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "14"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -3541,7 +4294,7 @@
     },
     {
       "#meta": {
-        "index": 18
+        "index": 22
       },
       "m": {
         "deadline": {
@@ -3550,7 +4303,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "18"
+              "#bigint": "23"
             }
           }
         },
@@ -3559,15 +4312,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["retell-held"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3579,19 +4332,17 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "18"
+                "#bigint": "23"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -3607,7 +4358,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "20"
+          "#bigint": "25"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -3616,7 +4367,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -3624,35 +4375,42 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
                 "#bigint": "18"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "14"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -3750,7 +4508,7 @@
     },
     {
       "#meta": {
-        "index": 19
+        "index": 23
       },
       "m": {
         "deadline": {
@@ -3759,7 +4517,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "18"
+              "#bigint": "23"
             }
           }
         },
@@ -3768,15 +4526,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["mutated-elsewhere"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3788,19 +4546,17 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "18"
+                "#bigint": "23"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -3816,7 +4572,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "21"
+          "#bigint": "26"
         },
         "onPage": true,
         "outcomes": [[]],
@@ -3825,7 +4581,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -3833,35 +4589,42 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
                 "#bigint": "18"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "14"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]
@@ -3959,7 +4722,7 @@
     },
     {
       "#meta": {
-        "index": 20
+        "index": 24
       },
       "m": {
         "deadline": {
@@ -3968,7 +4731,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "18"
+              "#bigint": "23"
             }
           }
         },
@@ -3977,15 +4740,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "2"
+              "#bigint": "6"
             },
             {
-              "#bigint": "9"
+              "#bigint": "13"
             }
           ]
         },
         "marks": ["resized-holes"],
-        "messageUp": false,
+        "messageUp": true,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3997,19 +4760,17 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "18"
+                "#bigint": "23"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "no"
                 },
-                "step": "wait"
+                "step": "one"
               }
             },
             "unmeasured": false
@@ -4025,7 +4786,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "22"
+          "#bigint": "27"
         },
         "onPage": true,
         "outcomes": [
@@ -4035,12 +4796,10 @@
               "value": {
                 "drawn": {
                   "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
+                    "tag": "Just",
+                    "value": "no"
                   },
-                  "step": "wait"
+                  "step": "one"
                 },
                 "saying": false
               }
@@ -4052,7 +4811,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "wait"
+          "value": "one"
         },
         "waits": {
           "#set": [
@@ -4060,35 +4819,42 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "0"
+                "#bigint": "4"
               }
             },
             {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
-                "#bigint": "10"
-              }
-            },
-            {
-              "animate": true,
-              "step": "one",
-              "token": {
                 "#bigint": "18"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "14"
+              }
+            },
+            {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "3"
+                "#bigint": "2"
+              }
+            },
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "7"
               }
             }
           ]

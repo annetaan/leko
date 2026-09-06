@@ -75,9 +75,6 @@ const CORPORA = [
       // a draw began the wait. `plan.qnt` says beside `expiredUnmeasured` why.
       { name: 'expired-unmeasured', target: 'expiredUnmeasured', seed: '0x12' },
       { name: 'unmeasured-retry', target: 'unmeasuredRetry', seed: '0xa' },
-      // A redraw that then found nothing to measure. The only trace in which
-      // how a draw was to animate is visible afterwards.
-      { name: 'redraw-unmeasured', target: 'redrawUnmeasured', seed: '0xe' },
       // A hunt hearing about a step it is not looking for.
       { name: 'hunt-elsewhere', target: 'mutatedElsewhere', seed: '0xf' },
       { name: 'morphed-stale', target: 'morphedStale', seed: '0xb' },

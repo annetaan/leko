@@ -389,9 +389,9 @@
         "outcomes": [
           [
             {
-              "tag": "Watch",
+              "tag": "Disarm",
               "value": {
-                "step": "one"
+                "#tup": []
               }
             },
             {
@@ -437,8 +437,10 @@
           "#set": []
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "one"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doShow",
@@ -588,8 +590,10 @@
           "#set": []
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "one"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doRetell",
@@ -741,8 +745,10 @@
           "#set": []
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "one"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doRetell",
@@ -900,8 +906,10 @@
           "#set": []
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "one"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doResized",

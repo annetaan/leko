@@ -47,7 +47,7 @@ const NEXT_LABEL = 'Next'
  *
  * A wait the application knows it is having is a step of its own, with no
  * `target` and an `awaits`. This is for the gap between a step arriving and its
- * target existing, and for a target that goes away again afterwards.
+ * target existing, and for nothing else.
  */
 const RETRY = 100
 
@@ -141,10 +141,10 @@ const lit = (step: LekoStep, anchor: Element): [Element, ...Element[]] => {
  * the target, the hole cut through them, and the message beside it.
  *
  * It decides nothing about where the tour is. Every call here comes from the
- * machine, and the two things this notices on its own — a target leaving the
- * page and the window resizing — are reported back through {@link Host} rather
- * than acted on, because whether the tour may be measured at all is the
- * machine's to know.
+ * machine, and the two things this notices on its own — a target that has not
+ * turned up yet turning up, and the window resizing — are reported back
+ * through {@link Host} rather than acted on, because whether the tour may be
+ * measured at all is the machine's to know.
  *
  * **Nor does it decide where it is itself.** `plan.ts` answers an event with the
  * next mode and the effects owed, and this commits the one and performs the
@@ -195,10 +195,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private ring: FocusRing | undefined
   private onViewportChange: (() => void) | undefined
   /**
-   * The one observer this owns. What it is armed for — the target of the step
-   * on screen, or the page for a target that has not turned up — is the mode's
-   * to say, and the plan arms and disarms it by effect, so neither job can
-   * leave a second one running behind the other.
+   * The one observer this owns, and it hunts: it is armed only while a target
+   * the tour is arriving at has not turned up. The mode says whether there is
+   * one, and the plan arms and disarms it by effect, so no hunt can be left
+   * running behind another.
    */
   private watcher: MutationObserver | undefined
   /**
@@ -400,10 +400,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
         return this.message?.hide()
       case 'disarm':
         return this.disarm()
-      case 'watch':
-        return this.watch(effect.step, effect.anchor)
       case 'hunt':
-        return this.watch(effect.step, null)
+        return this.hunt(effect.step)
       case 'deadline': {
         const { pending } = effect
         this.cancel()
@@ -563,11 +561,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // and told the surface moved: they follow it without being rebuilt, and
     // what they hold is what was cut, in a space a resize did not change.
     // Without that they keep the size they had and the part the page grew by
-    // is neither dimmed nor blocked — which lasted 100ms when only a removed
-    // target could get here, and lasts the rest of the step now that a target
-    // hidden where it stands can. Nothing is drawn for a retry, here as
-    // anywhere else — and no words either, which would be said beside holes
-    // that could not be found. The way out is placed all the same.
+    // is neither dimmed nor blocked, for the rest of the step: a target taken
+    // out of the document and a target hidden where it stands are the same
+    // thing here, and nothing is coming to report either. Nothing is drawn for
+    // a retry, here as anywhere else — and no words either, which would be said
+    // beside holes that could not be found. The way out is placed all the same.
     const anchor = this.resolve(step)
     if (!anchor && pointsAt(step)) {
       for (const layer of this.layers) layer.resize()
@@ -751,9 +749,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * measurement costs nothing it was not paying. A fresh stack measures itself
    * as it is built.
    *
-   * Nothing here touches the target watcher. Which node a step is watching is
-   * a fact about the step rather than about the surfaces under it, and a
-   * redraw that leaves the step where it was leaves that alone.
+   * Nothing here touches the hunt. A `replace` can land while a retry runs —
+   * a resize with the target still missing — and what the hunt is looking for
+   * is a fact about the step rather than about the surfaces under it, so it has
+   * to survive a stack rebuilt beneath it.
    */
   private restack(chain: Surface[]): Scrim | undefined {
     const same =
@@ -796,31 +795,25 @@ export class DomPresenter implements Presenter<LekoWorld> {
     })
   }
 
-  // --------------------------------------------------------------------- watching
+  // ---------------------------------------------------------------------- hunting
 
   /**
-   * Arm the one observer on the whole document, for `step`.
+   * Arm the one observer on the whole document, hunting for `step`'s target.
    *
-   * Two jobs and one callback. With an `anchor`, this notices the step's target
-   * leaving the page: the cutout stands over the gap the element left until
-   * something answers, and without this that is where the tour would stay,
-   * the page dimmed and the one thing the user was told to act on not there.
-   * With none, it is the hunt for a target that has not turned up. Either way
-   * the step is resolved again on the spot rather than the old node re-checked,
-   * because `isConnected` on a node that has been replaced is false for ever
-   * and a fresh resolve finds the replacement — and because the batch that took
-   * a node away usually carries what replaced it, which an observer armed a
-   * moment later would never hear about. A `target` given as a function that
-   * hands back a held element has no selector to run again, so it cannot be
-   * recovered, and a retry for it waits out the deadline for nothing.
+   * The step is resolved again on every batch rather than any node being
+   * re-checked: what is being waited for is a target that does not exist yet,
+   * so there is nothing to hold on to, and running the step's own question is
+   * the only thing that can answer it. A `target` given as a function that
+   * hands back an element captured when the story was written has no question
+   * to run again, so it cannot be recovered, and a hunt for it waits out the
+   * deadline for nothing.
    *
-   * Mutations are watched rather than polled, so this stays off the frame
-   * budget. What the batch means is the plan's: this reports what resolved.
+   * Mutations are heard rather than polled, so this stays off the frame budget.
+   * What a batch means is the plan's: this reports what resolved.
    */
-  private watch(step: LekoStep, anchor: Element | null): void {
+  private hunt(step: LekoStep): void {
     this.disarm()
     this.watcher = new MutationObserver(() => {
-      if (anchor?.isConnected) return
       this.dispatch({ kind: 'mutated', step, found: this.resolve(step) })
     })
     this.watcher.observe(document.body, { childList: true, subtree: true })
@@ -852,8 +845,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
   /**
    * The scrims and the resize listener that redraws them. The message outlives
-   * this, and so does the target watcher: a stack rebuilt under a step that has
-   * not moved is still watching the same node.
+   * this, and so does a hunt: what a hunt is looking for is a step's target,
+   * and rebuilding the stack under it changes nothing about the question.
    */
   private destroyLayers(): void {
     if (this.onViewportChange) {
@@ -864,7 +857,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.layers = []
   }
 
-  /** Everything this put on the page. The watcher and the deadline went by effects of their own. */
+  /** Everything this put on the page. The hunt and the deadline went by effects of their own. */
   private destroy(): void {
     this.destroyLayers()
     this.message?.destroy()

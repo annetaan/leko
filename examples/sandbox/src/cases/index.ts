@@ -19,7 +19,7 @@ import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
 import { styledTour } from './styled-tour.js'
 import { svgTarget } from './svg-target.js'
-import { targetDisappears } from './target-disappears.js'
+import { targetNotThereYet } from './target-not-there-yet.js'
 import { twoStories } from './two-stories.js'
 
 // The plain one first, because it is the one to open while working on the
@@ -45,7 +45,7 @@ export const cases: Case[] = [
   scrollsIntoView,
   fixedChrome,
   messageSides,
-  targetDisappears,
+  targetNotThereYet,
   hiddenTarget,
   insideShadowDom,
   svgTarget,

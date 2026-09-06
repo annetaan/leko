@@ -153,11 +153,11 @@ export interface Presenter<W extends World> {
  */
 export interface Host<W extends World> {
   /**
-   * The anchor of `step` left the page and did not come back. Named, because
-   * the tour may have moved on.
+   * The anchor of `step` was not on the page when the step arrived, and never
+   * turned up. Named, because the tour may have moved on.
    *
    * A target that is missing is retried for a moment first, and nothing here is
-   * told about that. Nothing on screen changes while a retry runs, so there is
+   * told about that. Nothing new is drawn while a retry runs, so there is
    * nothing a host could act on and nothing the machine could decide. This is
    * the give-up.
    */

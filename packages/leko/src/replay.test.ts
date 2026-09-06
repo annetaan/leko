@@ -154,8 +154,6 @@ function toldEffect(value: Itf): Owed {
       return { kind: 'cancel' }
     case 'Destroy':
       return { kind: 'destroy' }
-    case 'Watch':
-      return { kind: 'watch', step: str(inner['step']) }
     case 'Hunt':
       return { kind: 'hunt', step: str(inner['step']) }
     case 'Lost':
@@ -345,7 +343,7 @@ class Flight implements Glide {
 
 class Shell {
   mode: Mode = idle
-  watcher: { kind: 'watching' | 'hunting'; step: LekoStep } | undefined
+  watcher: { kind: 'hunting'; step: LekoStep } | undefined
   deadline: Pending | undefined
   screen: LekoStep | undefined
   messageUp = false
@@ -429,9 +427,6 @@ class Shell {
       case 'disarm':
         this.watcher = undefined
         return
-      case 'watch':
-        this.watcher = { kind: 'watching', step: effect.step }
-        return
       case 'hunt':
         this.watcher = { kind: 'hunting', step: effect.step }
         return
@@ -464,9 +459,9 @@ class Shell {
         return
       }
       case 'replace': {
-        // A target that is not on the page this instant is one a mutation batch
-        // is about to report, and `replace` places the way out and nothing
-        // else: no holes, and no words even where `saying` asked.
+        // Where the step's target is not on the page this instant, `replace`
+        // places the way out and nothing else: no holes, and no words even
+        // where `saying` asked.
         const target = targetOf(effect.drawn.step)
         if (target !== undefined && !this.page.has(target)) return
         // `set`, which halts a morph in flight: it settles unfinished and the
@@ -608,8 +603,6 @@ class Shell {
     switch (effect.kind) {
       case 'abandon':
         return { kind: 'abandon', glide: this.tokenOf(effect.glide) }
-      case 'watch':
-        return { kind: 'watch', step: effect.step.id }
       case 'hunt':
         return { kind: 'hunt', step: effect.step.id }
       case 'lost':

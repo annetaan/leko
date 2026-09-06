@@ -203,57 +203,53 @@ test('a story with no steps in it shows nothing', () => {
   expect(scrim()).toBeNull()
 })
 
-test('a target replaced by an identical one is found again, and nothing ends', async () => {
+test('a target replaced after its step was drawn leaves the standing hole where it was', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const { leko, seen } = watched({
     id: 'story',
-    steps: [{ id: 'doomed', target: { elements: '#anchor', interactive: true } }],
+    steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
   })
 
   begin(leko, 'story')
   seen.length = 0
 
   // What a framework does when it renders over the step: the old node is
-  // disconnected and an identical one takes its place, both in the same batch
-  // of mutations. Ending the tour here would be punishing an application for
-  // working normally.
+  // disconnected and an identical one takes its place. Nobody notices, and
+  // nobody has to — a replacement lands where the node it replaced was, so the
+  // hole cut for the old one is still over the new one.
   target.remove()
   const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   fresh.id = 'anchor'
 
-  // Long enough for the loss to be noticed and answered. The replacement is
-  // already on the page by then, so it is resolved on the spot and the retry
-  // never starts.
-  await new Promise((r) => setTimeout(r, 50))
+  // Well past the 100ms a target the step arrived without would have got.
+  await pause(300)
 
   expect(centre(fresh)).toBe(fresh)
   expect(leko.state).toBe('running')
-  expect(leko.step?.id).toBe('doomed')
-  // The machine was never told anything happened, so nothing was reported.
+  expect(leko.step?.id).toBe('standing')
+  // Nothing was drawn again and the machine was never told anything happened.
   expect(seen).toEqual([])
 })
 
 test('a tour stopped while a target is being waited for does not draw itself back', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
   const leko = holding({
     id: 'story',
     steps: [{ id: 'only', target: { elements: '#anchor', interactive: true } }],
   })
 
+  // The story's own first step arrives at a target nothing has rendered, so the
+  // hunt and the deadline are both running and nothing is drawn.
   begin(leko, 'story')
-  target.remove()
-  await observed()
+  expect(scrim()).toBeNull()
 
-  // Stopped with a deadline running and an observer armed on a target that has
-  // not come back. Nothing Leko owns may outlive the tour: a timer that fires
-  // or an observer that answers after this would draw the step onto a page with
-  // nothing left to take it away again.
+  // Stopped with both of them running. Nothing Leko owns may outlive the tour:
+  // a timer that fires or an observer that answers after this would draw the
+  // step onto a page with nothing left to take it away again.
   leko.stop()
   const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   fresh.id = 'anchor'
-  await new Promise((r) => setTimeout(r, 300))
+  await pause(300)
 
   expect(document.querySelectorAll('[class^=leko-]').length).toBe(0)
   expect(leko.state).toBe('idle')
@@ -262,7 +258,7 @@ test('a tour stopped while a target is being waited for does not draw itself bac
 /** The words under the instruction, or `null` where the step is not refusing. */
 const reason = () => document.querySelector('.leko-message-error')?.textContent
 
-test('a re-render over a refused step keeps the reason on screen', async () => {
+test('a resize over a refused step keeps the reason on screen', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.id = 'anchor'
   const leko = holding({
@@ -284,46 +280,45 @@ test('a re-render over a refused step keeps the reason on screen', async () => {
 
   expect(reason()).toBe('A name, not a number.')
 
-  // What a framework does a moment later, for reasons of its own. The step is
-  // where it was and the reason still applies to it, so redrawing must put it
-  // back: the machine holds no copy to ask for, and a refusal that vanished
-  // because something re-rendered would read as a press that worked.
-  const fresh = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
-  fresh.id = 'anchor'
-  target.remove()
-  await observed()
+  // A resize is the one thing that redraws while the tour stays where it is.
+  // The step is where it was and the reason still applies to it, so the redraw
+  // must put it back: the machine holds no copy to ask for, and a refusal that
+  // vanished because the window changed size would read as a press that worked.
+  window.dispatchEvent(new Event('resize'))
+  await frame()
 
-  expect(centre(fresh)).toBe(fresh)
+  expect(centre(target)).toBe(target)
   expect(leko.step?.id).toBe('one')
   expect(reason()).toBe('A name, not a number.')
 })
 
-test('a target that comes back inside the retry is drawn again', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
+test('a target that turns up inside the retry is drawn again', async () => {
+  const [first] = pair()
   const { leko, seen } = watched({
     id: 'story',
-    steps: [{ id: 'doomed', target: { elements: '#anchor', interactive: true } }],
+    steps: [
+      { id: 'here', target: { elements: () => first, interactive: true } },
+      { id: 'late', target: { elements: '#anchor', interactive: true } },
+    ],
   })
 
   begin(leko, 'story')
+  press()
   seen.length = 0
 
-  // Nothing to resolve in the batch that took it away, so this one waits. The
-  // hole is left standing where it was: nothing is redrawn while a retry runs,
-  // and the machine is not told a thing.
-  target.remove()
-  await observed()
-
+  // The step arrived with nothing to resolve, so it waits. What is standing is
+  // the step before it, exactly as it was: nothing new is drawn while a retry
+  // runs, and the machine is not told a thing.
   expect(holes()).toBe(1)
+  expect(centre(first)).toBe(first)
   expect(leko.state).toBe('running')
-  expect(leko.step?.id).toBe('doomed')
+  expect(leko.step?.id).toBe('late')
 
-  const fresh = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  fresh.id = 'anchor'
+  const late = box('late', { left: '100px', top: '500px', width: '120px', height: '40px' })
+  late.id = 'anchor'
 
-  // A later batch, which is what the retry's own observer is armed for.
-  await vi.waitUntil(() => centre(fresh) === fresh, { timeout: 2000 })
+  // The batch that put it on the page, which is what the hunt is armed for.
+  await vi.waitUntil(() => centre(late) === late, { timeout: 2000 })
 
   expect(leko.state).toBe('running')
   expect(seen).toEqual([])
@@ -700,30 +695,43 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
   expect(undone).toEqual(['unmounted'])
 })
 
-// The retry. A target that is not on the page when its step is drawn and a
-// target that leaves after it was drawn are the same situation: something is
-// rendering. Both are given a moment, and **nothing on screen changes while the
-// moment passes** — whatever was drawn last stays exactly as it was.
+// The retry, and it has one entrance: a step arriving at a target the page does
+// not have yet, because the application is still rendering it. It is given a
+// moment, and **nothing new is drawn while the moment passes** — whatever was
+// drawn last stays exactly as it was. A target that goes after its step was
+// drawn is not a retry and not anything: a drawn step arms nothing.
 
-test('a target that goes missing leaves what was drawn where it was', async () => {
+test('a step arriving at a target that has gone leaves the step before it standing, then ends', async () => {
   const [first, second] = pair()
   second.id = 'anchor'
+  const bystander = box('bystander', {
+    left: '100px',
+    top: '500px',
+    width: '120px',
+    height: '40px',
+  })
   const leko = holding({
     id: 'story',
-    steps: [{ id: 'doomed', target: { elements: '#anchor', interactive: true } }],
+    steps: [
+      { id: 'here', target: { elements: () => first, interactive: true } },
+      { id: 'gone', target: { elements: '#anchor', interactive: true } },
+    ],
   })
 
   begin(leko, 'story')
-  expect(centre(second)).toBe(second)
+  expect(centre(first)).toBe(first)
 
+  // The step arrives at a target the page no longer has, which is the same
+  // situation as one whose target has not been rendered yet.
   second.remove()
-  await observed()
+  press()
 
-  // The hole stands over the gap the target left, for as long as the retry
+  // The hole of the step before stands where it was for as long as the retry
   // runs. Everything else is where it was too: the page outside the hole is
   // still blocked, and the way out is still reachable.
   expect(holes()).toBe(1)
-  expect(absorbed(first)).toBe(true)
+  expect(centre(first)).toBe(first)
+  expect(absorbed(bystander)).toBe(true)
   const out = closer()!.querySelector('button')!
   expect(centre(out)).toBe(out)
 
@@ -732,31 +740,38 @@ test('a target that goes missing leaves what was drawn where it was', async () =
   expect(scrim()).toBeNull()
 })
 
-test('a target hidden after its step was drawn leaves the tour alone', async () => {
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const { leko, seen } = watched({
-    id: 'story',
-    steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
-  })
+test('a target hidden or removed after its step was drawn leaves the tour alone', async () => {
+  // Hidden where it stands and taken out of the document altogether. They are
+  // the same kind of fact about the page and a drawn step arms nothing for
+  // either: past the draw the page belongs to the application, and what a step
+  // assumes is `onEnter`'s to build and to keep. DESIGN.md draws the line under
+  // **What Leko does not do**, and this is here so that watching a drawn step
+  // cannot come back by accident on either half.
+  for (const take of ['hide', 'remove'] as const) {
+    const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+    target.id = 'anchor'
+    const { leko, seen } = watched({
+      id: 'story',
+      steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
+    })
 
-  begin(leko, 'story')
-  seen.length = 0
+    begin(leko, 'story')
+    seen.length = 0
 
-  // The node stays exactly where it is and loses its box. Nothing reports it:
-  // the watcher asks `isConnected`, and past the draw the page belongs to the
-  // application — what a step assumes is `onEnter`'s to build and to keep.
-  // DESIGN.md draws the line under **What Leko does not do**, and this is here
-  // so that a watcher on styles cannot come back by accident.
-  target.style.display = 'none'
-  await observed()
+    if (take === 'hide') target.style.display = 'none'
+    else target.remove()
+    await observed()
 
-  // Well past the 100ms a target taken out of the document would have got.
-  await pause(300)
+    // Well past the 100ms a target that had not turned up yet would have got.
+    await pause(300)
 
-  expect(leko.state).toBe('running')
-  expect(holes()).toBe(1)
-  expect(seen).toEqual([])
+    expect(leko.state, take).toBe('running')
+    expect(holes(), take).toBe(1)
+    expect(seen, take).toEqual([])
+
+    leko.stop()
+    target.remove()
+  }
 })
 
 test('a target given its box back inside the retry is drawn, though no node moved', async () => {
@@ -795,82 +810,102 @@ test('a target given its box back inside the retry is drawn, though no node move
   expect(centre(target)).toBe(target)
 })
 
-test('a guarded step whose target was hidden ends on the press, not on the guard', async () => {
-  const problems: LekoProblem[] = []
-  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  target.id = 'anchor'
-  const leko = holding(
-    {
-      id: 'story',
-      steps: [
-        {
-          id: 'guarded',
-          target: { elements: '#anchor', interactive: true },
-          message: 'Here.',
-          // The guard is handed the element, so it needs one: the parameter is
-          // `(el: Element) => boolean` and not nullable.
-          validate: () => true,
-        },
-        { id: 'after', target: { elements: '#anchor', interactive: true } },
-      ],
-    },
-    { onDiagnostic: (problem) => problems.push(problem) },
-  )
+test('a guarded step whose target has gone ends on the press, not before it', async () => {
+  // Both halves of gone, because this is why DESIGN.md cannot say that a loss
+  // past the draw goes unnoticed. Nothing watches a drawn step — and `validate`
+  // is the one moment past the draw where the page is asked anything at all.
+  for (const take of ['hide', 'remove'] as const) {
+    const problems: LekoProblem[] = []
+    const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+    target.id = 'anchor'
+    const leko = holding(
+      {
+        id: 'story',
+        steps: [
+          {
+            id: 'guarded',
+            target: { elements: '#anchor', interactive: true },
+            message: 'Here.',
+            // The guard is handed the element, so it needs one: the parameter is
+            // `(el: Element) => boolean` and not nullable.
+            validate: () => true,
+          },
+          { id: 'after', target: { elements: '#anchor', interactive: true } },
+        ],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
 
-  begin(leko, 'story')
-  await shown()
+    begin(leko, 'story')
+    await shown()
 
-  // Nothing watches a drawn step for this, so the step stands as it was — and
-  // `validate` is the one moment past the draw where the page is asked
-  // anything. It resolves afresh to find the guard its anchor, a hidden
-  // element is not one, and there is nothing to hand a guard that must be
-  // handed an element. So the press ends the tour rather than advancing.
-  target.style.display = 'none'
-  press()
+    // The step stands as it was, whichever way the target went. The press
+    // resolves it afresh to find the guard its anchor; neither a hidden element
+    // nor one that has left the document is one, and there is nothing to hand a
+    // guard that must be handed an element. So the press ends the tour rather
+    // than advancing — and it gets no moment to turn up, because a press is not
+    // a mid-render instant.
+    if (take === 'hide') target.style.display = 'none'
+    else target.remove()
+    press()
 
-  expect(leko.state).toBe('idle')
-  expect(problems).toEqual([
-    {
-      kind: 'target-lost',
-      step: expect.objectContaining({ id: 'guarded' }),
-      story: expect.objectContaining({ id: 'story' }),
-    },
-  ])
+    expect(leko.state, take).toBe('idle')
+    expect(problems, take).toEqual([
+      {
+        kind: 'target-lost',
+        step: expect.objectContaining({ id: 'guarded' }),
+        story: expect.objectContaining({ id: 'story' }),
+      },
+    ])
+
+    leko.stop()
+    target.remove()
+  }
 })
 
-test('a resize while the target is hidden takes the standing layers with it', () => {
-  // Absolute rather than the harness default of fixed, so the document carries
-  // the layer and its size is the document's rather than the viewport's.
-  const target = box('target', {
-    position: 'absolute',
-    left: '100px',
-    top: '100px',
-    width: '120px',
-    height: '40px',
-  })
-  target.id = 'anchor'
-  const spacer = keep(document.createElement('div'))
-  document.body.append(spacer)
-  const leko = holding({
-    id: 'story',
-    steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
-  })
+test('a resize while the target is hidden or removed takes the standing layers with it', () => {
+  // Both halves of gone, and the same answer for each: the step stays drawn for
+  // the rest of its length, so this is the whole of what keeps the layers
+  // honest while it does.
+  for (const take of ['hide', 'remove'] as const) {
+    // Absolute rather than the harness default of fixed, so the document
+    // carries the layer and its size is the document's rather than the
+    // viewport's.
+    const target = box('target', {
+      position: 'absolute',
+      left: '100px',
+      top: '100px',
+      width: '120px',
+      height: '40px',
+    })
+    target.id = 'anchor'
+    const spacer = keep(document.createElement('div'))
+    document.body.append(spacer)
+    const leko = holding({
+      id: 'story',
+      steps: [{ id: 'standing', target: { elements: '#anchor', interactive: true } }],
+    })
 
-  begin(leko, 'story')
-  const layer = scrim()!
+    begin(leko, 'story')
+    const layer = scrim()!
 
-  // Hidden where it stands, which nothing reports and nothing ends: the step
-  // stays drawn for as long as it would have.
-  target.style.display = 'none'
-  spacer.style.height = '4000px'
-  window.dispatchEvent(new Event('resize'))
+    // Nothing reports either and nothing ends it.
+    if (take === 'hide') target.style.display = 'none'
+    else target.remove()
+    spacer.style.height = '4000px'
+    window.dispatchEvent(new Event('resize'))
 
-  // There is nothing to restack against and nothing new to cut, but the
-  // surface still moved. A layer left at the height it had would leave
-  // everything past it neither dimmed nor blocked for the rest of the step.
-  expect(leko.state).toBe('running')
-  expect(layer.getBoundingClientRect().height).toBeGreaterThan(3000)
-  expect(holes()).toBe(1)
+    // There is nothing to restack against and nothing new to cut, but the
+    // surface still moved. A layer left at the height it had would leave
+    // everything past it neither dimmed nor blocked for the rest of the step.
+    expect(leko.state, take).toBe('running')
+    expect(layer.getBoundingClientRect().height, take).toBeGreaterThan(3000)
+    expect(holes(), take).toBe(1)
+
+    leko.stop()
+    target.remove()
+    spacer.remove()
+  }
 })
 
 test('a resize while the target is hidden does not cut the morph short', async () => {
@@ -939,12 +974,13 @@ test('a target that is not there yet leaves the page alone until it is', async (
   await vi.waitUntil(() => leko.state === 'running', { timeout: 1000 })
 })
 
-// A resize that lands while a retry runs is not acted on then — nothing is
+// A resize that lands while a retry runs is not acted on then — nothing new is
 // drawn for a retry — and the layers are measured against the surface again
 // when the step is drawn. Without that, the step goes into layers sized for the
 // page as it was, and the part the page grew by is neither dimmed nor blocked
-// until the next resize. The two tests stage the same thing from the retry's
-// two entrances: a target not there yet, and a target that went.
+// until the next resize. The retry has one entrance, so there is one test of
+// it; the step that stays drawn over a target that went is covered by the
+// standing layers above.
 
 /** A box in the document rather than against the viewport, so the document layer is the one measured. */
 const inFlow = (top: string): Partial<CSSStyleDeclaration> => ({
@@ -985,9 +1021,8 @@ test('a resize whose task took the target away leaves the words where they were'
 
   // A responsive breakpoint: the application's own resize listener renders
   // over the step and takes the target with it, in the same task as the
-  // resize. The batch that took it away has not been delivered yet, so the
-  // step is still drawn as far as the presenter knows, and there is nothing to
-  // put back.
+  // resize. The step is still drawn — a drawn step arms nothing, so nothing is
+  // ever going to report this — and there is nothing to put back.
   target.remove()
   window.dispatchEvent(new Event('resize'))
 
@@ -1019,26 +1054,6 @@ test('a resize while a target is not there yet is measured when the step is draw
   await vi.waitUntil(() => centre(late) === late, { timeout: 1000 })
 
   expect(leko.step?.id).toBe('b')
-  expect(blockedWhenSeen(far)).toBe(true)
-})
-
-test('a resize while a target is gone is measured when the step is drawn again', async () => {
-  const target = box('target', inFlow('100px'))
-  target.id = 'anchor'
-  const leko = holding({
-    id: 'story',
-    steps: [{ id: 'a', target: { elements: '#anchor', interactive: true } }],
-  })
-  begin(leko, 'story')
-
-  target.remove()
-  await observed()
-  const far = grown()
-  const back = box('target', inFlow('100px'))
-  back.id = 'anchor'
-  await vi.waitUntil(() => centre(back) === back, { timeout: 1000 })
-
-  expect(leko.state).toBe('running')
   expect(blockedWhenSeen(far)).toBe(true)
 })
 
@@ -1172,8 +1187,9 @@ test('the words after a morph are placed from the holes read then, not the ones 
 //
 // A step told to `scroll` is drawn only once the page has stopped, so for the
 // length of the glide the tour is on one step and the screen is showing
-// another. Three things redraw without the tour moving — the target watcher,
-// a reason the guard gave, and a resize — and each of them reads a record here.
+// another. Two things redraw without the tour moving — a reason the guard gave
+// and a resize — and each of them reads a record here. A batch of mutations is
+// not a third: a glide arms nothing, so nothing is listening for one.
 //
 // Here rather than in `leko.test.ts` because none of it is about layout: what
 // is being pinned down is which step's record each of them reads, and no engine
@@ -1221,47 +1237,6 @@ const saying = (): boolean => {
   return el !== null && getComputedStyle(el).visibility === 'visible'
 }
 
-test('a target lost while the page glides does not disarm the step arriving', async () => {
-  // The one of these that needs the glide to land at a moment it knows. What it
-  // is about is two of Leko's own clocks overlapping, and the window is only as
-  // wide as the arithmetic below — so rather than waiting for a glide that grows
-  // with its distance, the test ends it: a scroll of its own, which the glide takes
-  // for the viewer and stops at on its next frame.
-  const [near, far] = farApart()
-  const leko = holding(goingFar(), { duration: 320 })
-
-  begin(leko, 'story')
-  await shown()
-  press()
-
-  // Mid-glide, and the step being left loses its target. The tour has left it,
-  // so nothing is watching it. Watched, it would start a retry of its own, and
-  // that retry's deadline disconnects whatever watcher is standing when it runs
-  // out — which by then is the one the landing armed for the step arriving.
-  //
-  // 60ms in, the target goes; 70ms in, the page is put where the glide was
-  // heading and the glide lands on its next frame, well inside the 100ms a
-  // retry this would have started has left — so the deadline falls after the
-  // landing, which is the order the fault needs. A machine that cannot produce
-  // a frame in that time lands after the deadline instead, and this test then
-  // passes without having asked its question.
-  await pause(60)
-  near.remove()
-  await pause(10)
-  window.scrollTo(0, far.offsetTop + 20 - document.documentElement.clientHeight / 2)
-
-  await vi.waitUntil(() => centre(far) === far, { timeout: 5000 })
-
-  // So the step that landed is watched, and losing its target ends the tour.
-  // Without that the page stays dimmed around a hole over a gap, and
-  // `target-lost` never comes.
-  far.remove()
-  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
-  expect(scrim()).toBeNull()
-
-  window.scrollTo(0, 0)
-})
-
 test('a replacement that lands while the page glides draws nothing', async () => {
   const [near, far] = farApart()
   const leko = holding(goingFar(), { duration: 320 })
@@ -1275,9 +1250,9 @@ test('a replacement that lands while the page glides draws nothing', async () =>
   const standing = scrim()!.style.maskPosition
 
   // A framework rendering over the step the tour has just left, while the page
-  // is still on its way to the next one. Watched, this is the worse half of the
-  // same fault: the hole morphs back to a step the tour has left, mid-glide,
-  // and its message comes with it if the morph gets there first.
+  // is still on its way to the next one. Watched, the hole would morph back to
+  // a step the tour has left, mid-glide, with its message coming after it if
+  // the morph got there first.
   await pause(40)
   const fresh = keep(document.createElement('button'))
   fresh.id = 'near'
@@ -1394,7 +1369,7 @@ test('a target missing on arrival hands the machine nothing, and says nothing ye
   presenter.teardown()
 })
 
-test('a target lost after the step was drawn is a wait the machine is never told about', async () => {
+test('a target lost after the step was drawn is not a wait at all', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const { presenter, lost } = watching()
@@ -1405,12 +1380,12 @@ test('a target lost after the step was drawn is a wait the machine is never told
   target.remove()
   await observed()
 
-  // Nobody asked for this one and nothing on screen changed for it, so there is
-  // nothing a host could act on and nothing is said. Giving up is the one part
-  // of it the machine hears.
+  // No wait begins and nothing is ever given up. `Host.lost` is a retry's
+  // give-up, every retry belongs to an arrival, and this step arrived at a
+  // target that was there. Three hundred milliseconds is three times the moment
+  // an arrival would have got.
+  await pause(300)
   expect(lost).toEqual([])
-  await vi.waitUntil(() => lost.length > 0, { timeout: 1000 })
-  expect(lost).toEqual(['only'])
 
   presenter.teardown()
 })

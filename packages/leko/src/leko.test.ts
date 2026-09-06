@@ -1184,12 +1184,13 @@ test('a resize that pins the target puts the layers back under it', () => {
   window.scrollTo(0, 0)
 })
 
-test('a resize while a retry waits leaves the standing hole alone', () => {
-  // The step is drawn, its target is gone for a moment, and the page resizes
-  // inside that window. There is nothing to restack against: rebuilding the
-  // layers from the document would take the hole and the blocking rectangles
-  // with them and cut nothing in their place, so the page would be dimmed with
-  // nothing held back at all.
+test('a resize whose task took the target away leaves the standing hole alone', () => {
+  // The step is drawn, its target goes, and the page resizes in the same task.
+  // No retry begins — nothing watches a drawn step — so the redraw finds the
+  // step still on screen and its target not on the page. There is nothing to
+  // restack against: rebuilding the layers from the document would take the
+  // hole and the blocking rectangles with them and cut nothing in their place,
+  // so the page would be dimmed with nothing held back at all.
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })

@@ -293,8 +293,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
 
     case 'lost': {
       const here = core.position
-      // Named rather than read off the position, so a watcher still armed on the
-      // step before is told apart from one reporting this step.
+      // Named rather than read off the position, so a report about a step the
+      // tour has moved past is told apart from one about the step it is on.
       if (!here || stepOf(core) !== event.step) return nothing(core)
       return ending(core, undefined, [
         {

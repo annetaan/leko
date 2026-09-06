@@ -2272,9 +2272,9 @@
               }
             },
             {
-              "tag": "Watch",
+              "tag": "Disarm",
               "value": {
-                "step": "two"
+                "#tup": []
               }
             },
             {
@@ -2319,8 +2319,10 @@
           ]
         },
         "watcher": {
-          "tag": "Watching",
-          "value": "two"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
       "mbt::actionTaken": "doMutated",

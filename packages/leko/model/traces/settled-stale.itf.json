@@ -246,9 +246,9 @@
         "outcomes": [
           [
             {
-              "tag": "Watch",
+              "tag": "Disarm",
               "value": {
-                "step": "one"
+                "#tup": []
               }
             },
             {

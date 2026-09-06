@@ -182,7 +182,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | --- | --- | --- |
 | `story` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
 | `step` | `step-setup` | press Next. Each `onEnter` runs inside the call that moved the tour |
-| a target that left the page | `target-disappears` | press **Dismiss for a moment**. The target comes back inside the retry, nothing is redrawn while it is away, and no phase says so |
+| a target that has not turned up yet | `target-not-there-yet` | start **arrives-late**. The row comes back inside the retry, nothing is drawn while it is away, and no phase says so |
 | a step that waits | `step-setup`, `story-setup` | press Next onto the step with no `target`. The page goes under, and the signal the step names is what ends it |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
 | `ending`, and then `story` | `branching` | press either path button. The story that ran out names the one that follows it |
@@ -190,7 +190,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
 | a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name. `machine.test.ts` has it |
 | a `start()` the gate turned down | none | the same one-call window as the row above. `machine.test.ts` has it |
-| `Host.lost` ending a run | `target-disappears` | press **Dismiss**. The hole stands where it was for 100ms, then the tour stops |
+| `Host.lost` ending a run | `target-not-there-yet` | start **never-arrives**. Nothing is drawn at all, 100ms passes, and the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
 | `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |
 | a story handing the tour on | `branching` | press either path button. `intro` runs out and its `next` answers with the branch the page recorded |

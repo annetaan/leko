@@ -53,8 +53,10 @@ export const hiddenTarget: Case = {
           the tour does nothing: the hole stays where it was cut, over the gap
           the row left. The page is measured when a step is drawn and is the
           application’s after that, so a target hidden in place is not a target
-          that has gone. End the tour to reach <strong>Put everything
-          back</strong>.
+          that has gone. Taking the node away instead comes to the same thing:
+          whether the target is still there is not a question Leko asks once
+          the step is drawn, and <code>target-not-there-yet</code> is that half.
+          End the tour to reach <strong>Put everything back</strong>.
         </p>
       </div>
     `)

@@ -207,7 +207,7 @@ This is the trace worth walking with the files open. The application calls
 | 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
-| 7 | `presenter.ts` `show`, then `plan.ts` the `show` event, then `presenter.ts` `reveal` | The plan stops whatever glide was running and moves to `drawn`, owing a `watch` and a `reveal`. `reveal` works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
+| 7 | `presenter.ts` `show`, then `plan.ts` the `show` event, then `presenter.ts` `reveal` | The plan stops whatever glide was running and moves to `drawn`, owing a `disarm` and a `reveal`. `reveal` works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
 | 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
@@ -221,20 +221,23 @@ survived being drawn. A progress readout that heard about a step while its
 `onEnter` was still running would be naming something the user cannot see. In
 `plan.ts` those are two events, so nothing can quietly put the report first.
 
-The other direction is three calls. `Host.lost` when a target has gone and is
-not coming back, `Host.next` when the step's control is pressed, and
+The other direction is three calls. `Host.lost` when a target a step arrived at
+never turned up, `Host.next` when the step's control is pressed, and
 `Host.close` when the one that ends the tour is. The machine hands the presenter
 three closures in its constructor, so the presenter cannot reach anything else
 on the machine.
 
-Every one of them either ends the run or moves it on. A resize and a node
-swapped for an identical one reach the machine through none of them: the
-presenter draws the step it already has again, which is not a decision anybody
-has to be asked about.
+Every one of them either ends the run or moves it on. A resize reaches the
+machine through none of them: the presenter draws the step it already has
+again, which is not a decision anybody has to be asked about. A node swapped
+for an identical one under a drawn step reaches nothing at all — the presenter
+is not watching, and the hole a replacement lands in is the one that was
+already cut for it.
 
-`Host.lost` is the one to read the argument for. A target that goes missing is
-retried for 100ms before it is said, and the presenter redraws nothing while
-that runs, so a wait too short to act on never reaches the machine at all.
+`Host.lost` is the one to read the argument for. It is only ever about a step
+that was arriving: a target that is not on the page when its step gets there is
+hunted for 100ms first, and the presenter draws nothing new while that runs, so
+a wait too short to act on never reaches the machine at all.
 
 ## The two fields in the machine
 
@@ -363,7 +366,7 @@ them advances a step.
 
 | Where | Why |
 | --- | --- |
-| `presenter.ts` `watch` | The one `MutationObserver`, armed by the plan on the step on screen and on a target that has not turned up. Runs the selector again on the spot, because the batch that took the node away usually carries its replacement, and hands the plan what it found. `Host.lost` is owed by the plan where the retry runs out |
+| `presenter.ts` `hunt` | The one `MutationObserver`, armed by the plan for a target a step has arrived at and the page does not have yet. It runs the step's target again on every batch and hands the plan what it found. `Host.lost` is owed by the plan where the retry runs out. A step on screen arms nothing at all |
 | `presenter.ts` `watchViewport` | A `resize` listener. The plan owes a redraw of the step it already has, without asking |
 | `focus.ts` constructor | `keydown` and `focusin`, both capturing. They keep Tab inside the ring and move nothing |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
