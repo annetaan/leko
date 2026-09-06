@@ -24,6 +24,7 @@ import {
   resolveTargets,
   scrollDelta,
   segmentAt,
+  shift,
   union,
 } from './geometry.js'
 
@@ -179,6 +180,29 @@ test('outset takes a side each, where grow takes one for all four', () => {
   expect(outset(rect(10, 10, 40, 20), { top: 1, right: 2, bottom: 3, left: 4 })).toEqual(
     rect(6, 9, 46, 24),
   )
+})
+
+// --- moving a box between two spaces
+//
+// Two coordinate spaces that differ by a translation and nothing else, which is
+// what a scrim's surface and the viewport are. `originOf` says how far apart
+// they are; this is what does the moving, and it is what lets a draw read each
+// box once and have it in both.
+
+test('shift moves a rect and leaves its size alone', () => {
+  expect(shift(rect(10, 20, 40, 30), { x: 5, y: -7 })).toEqual(rect(15, 13, 40, 30))
+})
+
+test("shift carries a cutout's radius and whether it is open", () => {
+  // The reason it is generic. A cutout stripped to a rect on the way between
+  // spaces would come out of the second one square and blocked.
+  expect(shift(cutout(10, 20, 40, 30, 6), { x: 100, y: 0 })).toEqual(cutout(110, 20, 40, 30, 6))
+})
+
+test('shifting by nothing is the rect itself', () => {
+  // Which is the viewport's own origin, and the whole of what a draw on a fixed
+  // target pays to have its boxes in both spaces.
+  expect(shift(rect(10, 20, 40, 30), { x: 0, y: 0 })).toEqual(rect(10, 20, 40, 30))
 })
 
 test('a box the port already holds asks for no scroll at all', () => {

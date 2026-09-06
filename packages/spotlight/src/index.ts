@@ -17,4 +17,10 @@ export { FocusRing } from './focus.js'
 export { Message, type MessageContent, type Side } from './message.js'
 export { type HaloMode, Scrim } from './scrim.js'
 export { bringIntoView, type Glide } from './glide.js'
-export { paddingBoxWithin, rectWithin, sameSurface, type Surface, surfaceChain } from './surface.js'
+export {
+  paddingBoxWithin,
+  sameSurface,
+  type Surface,
+  surfaceChain,
+  withinSurface,
+} from './surface.js'

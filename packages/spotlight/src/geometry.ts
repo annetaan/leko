@@ -22,6 +22,22 @@ export interface Rect {
 }
 
 /**
+ * A place on the page, or a distance across it — the same two numbers either
+ * way.
+ *
+ * It has a name because the two things that deal in one here are two halves of
+ * the same move: `originOf` answers where a surface's coordinate space begins,
+ * and {@link shift} is handed how far to move a rect. Handing the first
+ * straight to the second is the whole of what turns a box read on screen into
+ * the same box in a scrim's own coordinates, so the type is what says they are
+ * the same pair rather than two that happen to be shaped alike.
+ */
+export interface Point {
+  x: number
+  y: number
+}
+
+/**
  * A hole in the scrim.
  *
  * `interactive` is the one field here that is not geometry. A cutout always
@@ -118,6 +134,23 @@ export function grow(rect: Rect, by: number): Rect {
     width: rect.width + by * 2,
     height: rect.height + by * 2,
   }
+}
+
+/**
+ * `rect` moved by `by`, the size it was.
+ *
+ * What it is for: two coordinate spaces that differ by a translation and
+ * nothing else. A hole is read off the page once, against the viewport, and is
+ * the same hole in the space a scrim carries once it is moved by that
+ * surface's origin — so the second space costs arithmetic rather than a second
+ * `getBoundingClientRect`.
+ *
+ * Generic, so a {@link Cutout} moved is still a cutout: its radius and whether
+ * the step opened it ride along rather than being dropped and put back, which
+ * is the flavour {@link clipToSurface} already writes.
+ */
+export function shift<T extends Rect>(rect: T, by: Point): T {
+  return { ...rect, x: rect.x + by.x, y: rect.y + by.y }
 }
 
 /**

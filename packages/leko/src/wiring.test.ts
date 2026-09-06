@@ -1050,7 +1050,7 @@ test('a resize while a target is gone is measured when the step is drawn again',
 /** A target function that answers with `el` and counts having been asked. */
 const asked = (el: Element) => vi.fn(() => el)
 
-test("a resize asks each of the step's targets once, and reads each box once per space", () => {
+test("a resize asks each of the step's targets once, and reads each box once", () => {
   const [first, second] = pair()
   const later = box('later', { left: '100px', top: '500px', width: '120px', height: '40px' })
   const elements = [first, second, later]
@@ -1080,11 +1080,71 @@ test("a resize asks each of the step's targets once, and reads each box once per
   for (const target of targets) expect(target).toHaveBeenCalledTimes(1)
   for (const boxes of laid) expect(boxes).toHaveBeenCalledTimes(1)
 
-  // Twice each, and no more: the scrim's own coordinates, which is where the
-  // holes are cut, and the viewport, which is what decides the side the message
-  // has room on. These boxes are `position: fixed`, so the surface is the
-  // viewport and no container is measured beside them.
-  for (const rect of rects) expect(rect).toHaveBeenCalledTimes(2)
+  // Once each, and no more. Two spaces still want these boxes — the scrim's own
+  // coordinates, which is where the holes are cut, and the viewport, which is
+  // what decides the side the message has room on — but the two differ by a
+  // translation, so the second is arithmetic on the first rather than a second
+  // question for the page. These boxes are `position: fixed`, so that
+  // translation is nothing at all and no container is measured beside them; the
+  // test below is the same count where there is one.
+  for (const rect of rects) expect(rect).toHaveBeenCalledTimes(1)
+})
+
+test("a resize reads a scroller's own box once for the surface, not once per element", () => {
+  const panel = keep(document.createElement('div'))
+  Object.assign(panel.style, {
+    position: 'fixed',
+    left: '40px',
+    top: '40px',
+    width: '300px',
+    height: '200px',
+    overflow: 'auto',
+    border: '4px solid black',
+  })
+  const content = document.createElement('div')
+  content.style.height = '1200px'
+  const inside = (top: number): HTMLElement => {
+    const el = document.createElement('button')
+    Object.assign(el.style, {
+      position: 'absolute',
+      left: '20px',
+      top: `${top}px`,
+      width: '120px',
+      height: '40px',
+      margin: '0',
+    })
+    content.append(el)
+    return el
+  }
+  const targets = [inside(20), inside(80), inside(400)].map(asked)
+  panel.append(content)
+  document.body.append(panel)
+
+  const container = vi.spyOn(panel, 'getBoundingClientRect')
+
+  start([
+    {
+      id: 'one',
+      target: [
+        { elements: [targets[0]!, targets[1]!], interactive: true },
+        { elements: targets[2]! },
+      ],
+      message: 'Here.',
+    },
+  ])
+
+  container.mockClear()
+  window.dispatchEvent(new Event('resize'))
+
+  // Twice, whatever is inside it. The scroller is one surface however many of
+  // the step's elements ride it, so its box answers where that surface's
+  // coordinates begin once for the whole draw — and the layer outside it is cut
+  // to the scroller's own shape, which is the other. It used to be four: one
+  // for each of the three elements, because each was measured against a
+  // container measured again beside it, and the outer layer's on top of those.
+  // Counting the elements' own boxes in, this resize reads five where it read
+  // ten.
+  expect(container).toHaveBeenCalledTimes(2)
 })
 
 test('the words after a morph are placed from the holes read then, not the ones the draw left with', async () => {

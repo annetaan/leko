@@ -340,6 +340,74 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   }
 })
 
+/** The SVG one mask layer carries, readable again. */
+const svgOf = (mask: string): string =>
+  decodeURIComponent(/url\("?data:image\/svg\+xml;utf8,([^")]*)"?\)/.exec(mask)?.[1] ?? '')
+
+/** Two decimal places, which is what the mask is written to. */
+const round = (n: number): number => Math.round(n * 100) / 100
+
+test("a hole in a scroller is cut where the scroller's own coordinates put it", () => {
+  // The claim this pins down is that a draw reading each box once and shifting
+  // it into the scrim's space puts the hole where measuring it there directly
+  // used to. Those two reach the same number by different arithmetic — one
+  // subtraction associated the other way round — so the low bits can differ,
+  // and whether the rounding the mask is written to absorbs that is a fact
+  // about the rects an engine hands back rather than something to reason out.
+  // Hence the fractions below, and hence three engines.
+  const panel = keep(document.createElement('div'))
+  Object.assign(panel.style, {
+    position: 'fixed',
+    left: '40.5px',
+    top: '40.5px',
+    width: '300px',
+    height: '200px',
+    overflow: 'auto',
+    border: '3.5px solid black',
+    padding: '7.5px',
+  })
+  const content = document.createElement('div')
+  content.style.height = '1400px'
+  const target = document.createElement('button')
+  Object.assign(target.style, {
+    position: 'absolute',
+    left: '20.5px',
+    top: '400.25px',
+    width: '120.5px',
+    height: '40.25px',
+    margin: '0',
+  })
+  content.append(target)
+  panel.append(content)
+  document.body.append(panel)
+  panel.scrollTop = 137
+
+  const PADDING = 8
+  start([{ id: 'deep', target: { elements: () => target, interactive: true }, padding: PADDING }])
+
+  // Where the hole belongs, worked out here from the page rather than from
+  // anything Leko wrote: the target's box on screen, brought inside the panel's
+  // border and forward by however far its content has been scrolled, and grown
+  // by the step's padding.
+  const r = target.getBoundingClientRect()
+  const c = panel.getBoundingClientRect()
+  const x = r.left - c.left - panel.clientLeft + panel.scrollLeft - PADDING
+  const y = r.top - c.top - panel.clientTop + panel.scrollTop - PADDING
+
+  const layer = scrim()!
+  // One mask layer for the surface and one per hole, so the hole is the second.
+  const placed = layer.style.maskPosition.split(',')[1]!.trim().split(/\s+/).map(parseFloat)
+  expect(placed[0]!).toBeCloseTo(round(x), 2)
+  expect(placed[1]!).toBeCloseTo(round(y), 2)
+
+  // And the image is the size of the hole, whole: nothing is clipped away here,
+  // so the rect inside it rides at the origin.
+  const svg = svgOf(layer.style.maskImage)
+  expect(svg).toContain(`width="${round(r.width + PADDING * 2)}"`)
+  expect(svg).toContain(`height="${round(r.height + PADDING * 2)}"`)
+  expect(svg).toContain('<rect x="0" y="0"')
+})
+
 test('a fixed target keeps its hole while the page scrolls under it', () => {
   // Tall enough to scroll, so there is a scroll for the hole to be carried
   // off by. The document's scrim would be: it lives in the document and rides

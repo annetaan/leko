@@ -9,7 +9,6 @@ import {
   type MessageContent,
   paddingBoxWithin,
   type Rect,
-  rectWithin,
   resolveTarget,
   resolveTargets,
   sameSurface,
@@ -18,6 +17,7 @@ import {
   type Surface,
   surfaceChain,
   union,
+  withinSurface,
 } from '@annetaan/leko-spotlight'
 import {
   actionTarget,
@@ -57,8 +57,8 @@ const RETRY = 100
  *
  * A {@link Cutout} is this with a box, and the box is the half that depends on
  * where the page has put things. Splitting them is what lets one draw ask the
- * page where its targets are once and then measure them in as many spaces as it
- * needs. It holds `Element`s, so it cannot live in `plan.ts`, which is pure.
+ * page where its targets are once and hand the answer to everything that wants
+ * a box. It holds `Element`s, so it cannot live in `plan.ts`, which is pure.
  *
  * Never empty: a region nothing resolved in is not a hole at all, and saying so
  * in the type is what lets `union` answer with a box rather than with `null`.
@@ -81,7 +81,24 @@ interface Measured {
   holes: Hole[]
   /** Those holes as boxes, in the innermost scrim's own coordinates. */
   resolved: Cutout[]
+  /**
+   * The same holes as boxes on screen, which is where they were read.
+   *
+   * The two spaces differ by a translation, so only one of them is a question
+   * for the page: this is the answer, and {@link resolved} is the arithmetic on
+   * it. Kept beside it because the readers differ — a hole is cut in the
+   * scrim's own coordinates, and which side of it has room is a fact about the
+   * screen.
+   */
+  onScreen: Cutout[]
 }
+
+/**
+ * An element's box on screen — the one question a draw puts to the page about
+ * where something is. Every other space a box is wanted in is arithmetic on
+ * this one.
+ */
+const screenBox = (el: Element): Rect => el.getBoundingClientRect()
 
 /**
  * Everything in the region a step opened, or nothing where it opened none.
@@ -236,8 +253,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
    *
    * Half of what a cutout is; {@link cutouts} is the other half, and the reason
    * the two are apart is that a draw has more than one reader for the same
-   * holes. Asking here once and measuring there per space is what keeps a
-   * resize from running every `querySelector` in the step three times over.
+   * holes. Asking here once and measuring there once is what keeps a resize
+   * from running every `querySelector` in the step three times over.
    *
    * `null` where the step points at something and its first region resolved to
    * nothing: that region is the one the step is about, and a step with nothing
@@ -267,19 +284,21 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Those holes as cutouts, in whatever space `measure` reports in.
+   * Those holes as cutouts, on screen — the one time a draw reads a box.
    *
-   * The scrim wants them in its own content coordinates; the message wants the
-   * same shapes in viewport coordinates, to work out which side of them has room
-   * on screen. Same geometry, two readers, so the space is the parameter — and
-   * the holes are a parameter for the same reason, so the second reader measures
-   * what the first one resolved instead of asking the page again.
+   * The viewport, always. The scrim wants the same shapes in its own content
+   * coordinates, and the message wants them here, to work out which side of
+   * them has room on screen; but the two spaces differ by a translation and
+   * nothing else, so the second is {@link withinSurface} on this rather than a
+   * second question for the page. What used to be the parameter — the space —
+   * is now the arithmetic, and the box is read once however many readers there
+   * are.
+   *
+   * The holes are the parameter for the reason they were before: the second
+   * reader measures what the first one resolved instead of asking the page
+   * where the step's regions are all over again.
    */
-  private cutouts(
-    step: LekoStep,
-    holes: readonly Hole[],
-    measure: (el: Element) => Rect,
-  ): Cutout[] {
+  private cutouts(step: LekoStep, holes: readonly Hole[]): Cutout[] {
     const padding = this.setting(step, 'padding')
     const radius = this.setting(step, 'radius')
     // One box per hole. A hole is unioned because the space between its
@@ -289,7 +308,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // so that what `union` is handed is the non-empty tuple a hole is, and it
     // answers with a box rather than with a `null` no hole could produce.
     return holes.map(({ elements: [head, ...rest], interactive }) => ({
-      ...grow(union([measure(head), ...rest.map(measure)]), padding),
+      ...grow(union([screenBox(head), ...rest.map(screenBox)]), padding),
       radius,
       // Open only where the region asked, which the type allows of the first
       // alone. A later region is there to be looked at, and no flag opens one.
@@ -430,6 +449,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * resolves them once and hands the same list here and to whatever places the
    * chrome. `null` is a step that points at something not on the page, which is
    * nothing to measure the same way a missing surface is.
+   *
+   * **The boxes go back in both spaces, read in one.** Everything a draw does
+   * after this wants a hole either where it is cut or where it is on screen,
+   * and this is the one place either is asked for.
    */
   private measure(
     step: LekoStep,
@@ -439,10 +462,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const chain = surfaceChain(anchor ?? document.body)
     const inner = this.restack(chain)
     if (!inner || !holes) return undefined
-    const resolved = this.cutouts(step, holes, (el) => rectWithin(el, inner.surface))
+    // One read per element, and one of the surface for all of them. Everything
+    // below this draw that wants a box wants one of these two lists.
+    const onScreen = this.cutouts(step, holes)
+    const resolved = withinSurface(inner.surface, onScreen)
     // These holes move only when layout does, never when something scrolls.
     this.cutOuterLayers(chain)
-    return { inner, holes, resolved }
+    return { inner, holes, resolved, onScreen }
   }
 
   /**
@@ -453,9 +479,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * can reach beats one a resize took off screen. That is what `null` here is,
    * and it is the caller's answer rather than this one's, because the caller
    * asked the page.
+   *
+   * `onScreen` is what a caller that has just measured these holes hands over,
+   * the way {@link say} takes a whole measurement. Which callers have one is a
+   * fact about the call graph rather than about the mode, so it is a default
+   * rather than a branch: nothing here chooses between measuring afresh and
+   * reusing.
    */
-  private place(step: LekoStep, holes: Hole[] | null): void {
-    this.showClose(holes ? this.cutouts(step, holes, (el) => el.getBoundingClientRect()) : [])
+  private place(step: LekoStep, holes: Hole[] | null, onScreen?: readonly Cutout[]): void {
+    this.showClose(onScreen ?? (holes ? this.cutouts(step, holes) : []))
     this.showRing(holes)
   }
 
@@ -492,7 +524,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // ring too: the message is away for the whole of it and the target is
     // already reachable, so the ring is already two stops short of what `say`
     // will make it.
-    this.place(step, holes)
+    //
+    // Placed from the boxes measured a moment ago in this same task. Converging
+    // wrote a mask and moved nothing on the page, so where the holes are on
+    // screen is a question already answered.
+    this.place(step, holes, measured.onScreen)
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
@@ -544,17 +580,19 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Said from what was just measured. Nothing between here and there moves
     // the page, so asking it again would be asking a question already answered.
     if (saying) return this.say(step, drawn.error, measured)
-    this.place(step, holes)
+    this.place(step, holes, measured.onScreen)
   }
 
   /**
    * Put the message beside the step's cutouts.
    *
-   * The same holes in two spaces. The side is chosen from viewport coordinates,
-   * because what decides it is how much room is on screen right now. The anchor
-   * point is written in the scrim's coordinates, because that is the space the
-   * scroller carries — and once it is written, the browser holds the message
-   * beside it through every scroll that follows, with no script involved.
+   * The same holes in two spaces, and one reading of them. The side is chosen
+   * from viewport coordinates, because what decides it is how much room is on
+   * screen right now. The anchor point is written in the scrim's coordinates,
+   * because that is the space the scroller carries — and once it is written,
+   * the browser holds the message beside it through every scroll that follows,
+   * with no script involved. The second of those is the first shifted by the
+   * surface's origin, so the words cost one box per element and no more.
    *
    * `measured` is what a caller that has just measured these holes hands over:
    * {@link replace} measures and says in one task, with nothing in between that
@@ -565,7 +603,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private say(step: LekoStep, error: string | undefined, measured?: Measured): void {
     const content = this.content(step, error)
     const holes = measured?.holes ?? this.holes(step, null)
-    const onScreen = holes ? this.cutouts(step, holes, (el) => el.getBoundingClientRect()) : []
+    const onScreen = measured?.onScreen ?? (holes ? this.cutouts(step, holes) : [])
     this.showClose(onScreen)
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
@@ -575,11 +613,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.message ??= new Message(() => this.host.next())
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
+    // The scrim's space, from the boxes just read on screen rather than from a
+    // second reading of the same elements. Absent where there is no scrim, and
+    // where there are no holes to put in one.
     const within =
-      measured?.resolved ??
-      (inner && holes
-        ? this.cutouts(step, holes, (el) => rectWithin(el, inner.surface))
-        : undefined)
+      measured?.resolved ?? (inner && holes ? withinSurface(inner.surface, onScreen) : undefined)
     const box = within && union(within)
     this.message.show(
       content,

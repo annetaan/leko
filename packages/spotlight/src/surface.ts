@@ -11,7 +11,7 @@
  * DESIGN.md argues it under **Scrolling**.
  */
 
-import type { Rect } from './geometry.js'
+import { type Point, type Rect, shift } from './geometry.js'
 
 /**
  * What carries a layer of the scrim when the page moves.
@@ -100,26 +100,81 @@ function carriedBy(node: Element | null): Surface[] {
   return [...own, ...rest]
 }
 
-/** An element's box in the coordinate space of the layer on `surface`. */
-export function rectWithin(el: Element, surface: Surface): Rect {
-  const r = el.getBoundingClientRect()
-  if (surface.kind === 'viewport') return { x: r.left, y: r.top, width: r.width, height: r.height }
-  if (surface.kind === 'document') {
-    return {
-      x: r.left + window.scrollX,
-      y: r.top + window.scrollY,
-      width: r.width,
-      height: r.height,
-    }
-  }
+/**
+ * Where this surface's coordinate space begins, seen from the viewport's.
+ *
+ * The two spaces differ by a translation and nothing else, and this is the
+ * translation: the point on screen that the layer calls its own zero. A
+ * document scrolled down 200px has its origin 200px above the top of the
+ * screen, so this answers `{0, -200}`; a scroller's is inside its border,
+ * moved by however far its content has been scrolled. Add it to a rect in this
+ * space and the rect is on screen; take it away from one on screen and the
+ * rect is in this space. {@link rectWithin} is the second of those, written
+ * out.
+ *
+ * **Read once a draw, not once an element.** A scroller is the only kind that
+ * costs anything — one `getBoundingClientRect` on the container — and a step
+ * whose region unions four elements inside one used to pay for that four
+ * times, because the container was measured again beside every element. The
+ * surface is the same for all of them, so the answer is too.
+ *
+ * `Scrim.seen()` says the same thing about the same surfaces with no read at
+ * all, because a layer already sits in the space it is asking about. This is
+ * for callers that are outside it and holding boxes read on screen.
+ */
+export function originOf(surface: Surface): Point {
+  if (surface.kind === 'viewport') return { x: 0, y: 0 }
+  if (surface.kind === 'document') return { x: -window.scrollX, y: -window.scrollY }
   const container = surface.element
   const c = container.getBoundingClientRect()
   return {
-    x: r.left - c.left - container.clientLeft + container.scrollLeft,
-    y: r.top - c.top - container.clientTop + container.scrollTop,
-    width: r.width,
-    height: r.height,
+    x: c.left + container.clientLeft - container.scrollLeft,
+    y: c.top + container.clientTop - container.scrollTop,
   }
+}
+
+/**
+ * How far a box read on screen moves to land in the space `surface` carries:
+ * {@link originOf} the other way round.
+ *
+ * **The one place that sign is written.** Everything that comes back off the
+ * screen into a layer's own coordinates goes through here, so there is one
+ * spelling of what a surface's space is and one of how to get into it. A
+ * second of either is a second place for the document's scroll and a
+ * scroller's border to be got wrong.
+ */
+const into = (surface: Surface): Point => {
+  const origin = originOf(surface)
+  return { x: -origin.x, y: -origin.y }
+}
+
+/**
+ * Boxes already read on screen, in the coordinate space of the layer on
+ * `surface`.
+ *
+ * A list, because the surface is asked once for all of them: one draw's holes
+ * are all in the same space, and a scroller measured again beside each of them
+ * is the cost this exists to refuse. What comes back is what went in — a
+ * `Cutout` keeps its radius and whether the step opened it — because
+ * {@link shift} carries the rest of the shape along.
+ *
+ * For a caller holding boxes rather than elements. {@link rectWithin} is the
+ * same move for a caller holding one element, and goes the same way in.
+ */
+export function withinSurface<T extends Rect>(surface: Surface, rects: readonly T[]): T[] {
+  const by = into(surface)
+  return rects.map((rect) => shift(rect, by))
+}
+
+/**
+ * An element's box in the coordinate space of the layer on `surface`.
+ *
+ * The box on screen, moved in by {@link into}. Written that way round so that
+ * what a surface's space *is* is said in {@link originOf} alone.
+ */
+export function rectWithin(el: Element, surface: Surface): Rect {
+  const r = el.getBoundingClientRect()
+  return shift({ x: r.left, y: r.top, width: r.width, height: r.height }, into(surface))
 }
 
 /**
