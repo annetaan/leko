@@ -21,7 +21,7 @@ import {
   union,
 } from './geometry.js'
 import { animates } from './motion.js'
-import { type Surface, surfaceChain } from './scrim.js'
+import { type Surface, surfaceChain } from './surface.js'
 
 /**
  * A glide in flight: when the page has stopped, and how to stop it.

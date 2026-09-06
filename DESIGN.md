@@ -1055,9 +1055,9 @@ the manifest does not depend on.**
   so it is tested by stating properties — *no blocking rectangle ever overlaps
   a hole*, *every path has the same segment list* — rather than by driving a
   browser. Reading layout and owning elements cannot be pure, so that stays in
-  `scrim.ts`, `glide.ts`, `message.ts` and `presenter.ts` and stays small.
-  Logic that gets hard to follow inside a class usually wanted to be a function
-  in `geometry.ts` with a test of its own.
+  `scrim.ts`, `surface.ts`, `glide.ts`, `message.ts` and `presenter.ts` and
+  stays small. Logic that gets hard to follow inside a class usually wanted to
+  be a function in `geometry.ts` with a test of its own.
 - **Where a class has to wait on more than one thing, its mode is one union
   and a pure function says what an event does to it.** The machine is
   `plan.ts` and `machine.ts`; the presenter is `plan.ts` and `presenter.ts` in

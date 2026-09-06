@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from 'vitest'
 
-import { Scrim, type Surface } from './scrim.js'
+import { Scrim } from './scrim.js'
+import type { Surface } from './surface.js'
 
 // The scrim's own promises, tested through the styles it writes. What the
 // mask looks like is geometry.test.ts's business; what is pinned here is that

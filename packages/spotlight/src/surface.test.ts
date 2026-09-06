@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest'
 
-import { type Surface, surfaceChain } from './scrim.js'
+import { type Surface, surfaceChain } from './surface.js'
 
 // Which surfaces carry a target, read the way the presenter reads them. In
 // three engines, because what an ancestor does to a fixed element is a claim

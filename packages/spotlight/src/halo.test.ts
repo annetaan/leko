@@ -1,7 +1,8 @@
 import { afterEach, expect, test } from 'vitest'
 
 import type { Cutout } from './geometry.js'
-import { type HaloMode, rectWithin, Scrim } from './scrim.js'
+import { type HaloMode, Scrim } from './scrim.js'
+import { rectWithin } from './surface.js'
 
 // The halo is paint for the host to style, and these pin down the two things
 // it promises while staying invisible itself: it frames the right holes with
