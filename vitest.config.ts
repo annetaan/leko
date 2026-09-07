@@ -25,15 +25,18 @@ import { defineConfig } from 'vitest/config'
 // out is the same coverage for a third of the browser time; what decides which
 // file a test belongs in is whether the browser could get it wrong.
 //
-// `leko-plan`, `machine` and `codegen` run in Node. None has a DOM to be wrong
+// `leko-plan`, `machine`, `codegen` and `scripts` run in Node. None has a DOM to be wrong
 // about. `leko-plan` is the presenter's mode and what an event does to it,
 // which is pure and reads no page: `plan.test.ts` one `(mode, event)` pair at a
 // time, and `replay.test.ts` over the traces the Quint search harvested, with a
 // fake interpreter where the shell would be. `machine` decides which step a tour is on,
 // against a presenter the test writes, and its package takes no `lib.dom` at
 // all. `codegen` reads TypeScript source and writes a file, and wants the
-// compiler API and the filesystem instead. Running any of them three times in
-// three browsers would prove nothing and cost three times as much.
+// compiler API and the filesystem instead. `scripts` is the text half of the
+// checks that run in CI — which comments a file has, and which citation names
+// a heading — split out from the git and the disk so a test can drive it.
+// Running any of them three times in three browsers would prove nothing and
+// cost three times as much.
 //
 // A function rather than one shared object, because Vitest names the per-browser
 // projects it derives by mutating what it is handed. Two projects sharing one
@@ -109,6 +112,13 @@ export default defineConfig({
           // Nothing about the program explains it. It grew from 10 files to 17
           // when the core split, and that costs 9ms on this machine.
           testTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: 'scripts',
+          include: ['scripts/**/*.test.mjs'],
+          environment: 'node',
         },
       },
     ],

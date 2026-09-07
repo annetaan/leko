@@ -142,6 +142,16 @@ runs in Node as its own Vitest project. Behaviour of the public types wants a
 program under `packages/leko/type-tests/`, one per vocabulary state, because an
 augmentation applies to a whole compilation.
 
+**A comment is the last place a fact goes.** What a browser does, what was tried
+and broke, why a number is that number, and an invariant the types cannot spell
+— those stay. A fact the code already carries is deleted; a fact DESIGN.md,
+CONTRIBUTING.md, ONBOARDING.md or a sandbox case already carries is collapsed to
+a citation of the heading or the case, never re-argued. Decide which by grepping
+for it, never from memory: one rule reaches three places easily, and every copy
+is written by somebody sure it had not been. DESIGN.md argues it under
+**Comments are the last place a fact goes**, and `.claude/skills/trim-comments/`
+is the procedure.
+
 ## Working in this repository
 
 - Commits use the GitHub noreply address, set locally. Do not change

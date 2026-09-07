@@ -50,15 +50,16 @@ sentence what it proves.
 ## Commands
 
 ```bash
-pnpm dev            # the sandbox, resolving the core from source
-pnpm typecheck      # tsc --noEmit across workspace packages, and the type tests
-pnpm lint           # oxlint
-pnpm format         # oxfmt --write
-pnpm format:check   # oxfmt --check, which is what CI runs
-pnpm check:pack     # what a published package would import, and whether it could
-pnpm test           # vitest: six projects, three of them in browsers
-pnpm model          # search the Quint models of the machine and the plan for a broken invariant
-pnpm model:traces   # regenerate the traces those searches replay against
+pnpm dev             # the sandbox, resolving the core from source
+pnpm typecheck       # tsc --noEmit across workspace packages, and the type tests
+pnpm lint            # oxlint
+pnpm format          # oxfmt --write
+pnpm format:check    # oxfmt --check, which is what CI runs
+pnpm check:pack      # what a published package would import, and whether it could
+pnpm check:citations # whether every citation of a heading names one that is there
+pnpm test            # vitest: seven projects, three of them in browsers
+pnpm model           # search the Quint models of the machine and the plan for a broken invariant
+pnpm model:traces    # regenerate the traces those searches replay against
 ```
 
 `pnpm model` walks two Quint models, looking for a state that breaks one of
@@ -84,8 +85,8 @@ portable across Quint versions, which is why regenerating is a command somebody
 runs rather than something CI checks.
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
-`leko-wiring` in Chromium alone, and `leko-plan`, `machine` and `codegen` in
-Node. `leko-plan` is the presenter's plan twice over: `plan.test.ts` one
+`leko-wiring` in Chromium alone, and `leko-plan`, `machine`, `codegen` and
+`scripts` in Node. `leko-plan` is the presenter's plan twice over: `plan.test.ts` one
 `(mode, event)` pair at a time, and `replay.test.ts` over the corpus the search
 harvested.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in

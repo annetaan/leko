@@ -30,6 +30,12 @@ jobs:
       # consumer is, which is how `@annetaan/leko` came to ship imports of two
       # packages that are not on the registry, with every other check green.
       - run: pnpm check:pack
+      # A comment that cites a heading instead of re-arguing it is the trade
+      # DESIGN.md asks for under **Comments are the last place a fact goes**,
+      # and it only holds while the pointer lands. Renaming a heading is the one
+      # edit that breaks every citation of it at once, silently, in files
+      # nobody opened.
+      - run: pnpm check:citations
       # A search over the two Quint models — `packages/machine/model/machine.qnt`
       # and `packages/leko/model/plan.qnt` — for a state that breaks one of
       # their invariants. The seeds are fresh every run, so a failure here is

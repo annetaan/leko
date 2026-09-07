@@ -393,7 +393,7 @@ a listener, written against a particular step and with no job outside the tour.
 
 ## Which Vitest project a new test belongs in
 
-Six projects, defined in `vitest.config.ts`. The question that sorts them is
+Seven projects, defined in `vitest.config.ts`. The question that sorts them is
 whether a browser could get the answer wrong.
 
 | Project | Runs in | Take a test here when |
@@ -401,6 +401,7 @@ whether a browser could get the answer wrong.
 | `leko-plan` | Node | The claim is about which mode the presenter is in and what it owes for an event, with no page |
 | `machine` | Node | The claim never touches layout. Which step, when, what was reported |
 | `codegen` | Node | The claim is about reading TypeScript source or writing a file |
+| `scripts` | Node | The claim is about the text a repository check reads — a file's comments, a citation of a heading |
 | `spotlight` | Chromium, Firefox, WebKit | The claim is about geometry or what an engine does with `clip-path` |
 | `leko` | Chromium, Firefox, WebKit | An engine could answer differently. `elementFromPoint`, where a scrim mounted, a resize |
 | `leko-wiring` | Chromium only | It goes through the real `DomPresenter`, and no engine has an opinion about the answer |

@@ -1095,6 +1095,41 @@ the manifest does not depend on.**
   **`spike/` pages are dependency-free and use no Leko.** Add one whenever a
   decision would otherwise rest on trust.
 
+## Comments are the last place a fact goes
+
+**Where things are written down** says where a fact lives, and a comment is
+none of those places. It is read only by somebody already in the file, only
+while they are in it, and nothing checks it — so a fact kept there has no
+reader looking for it and no test holding it true. It also cannot be found, and
+a rule nobody knows to grep for is a rule that gets written a second time.
+
+**A comment earns its lines only where the fact is in none of the other
+places.** Four kinds usually are not:
+
+- **What a browser does, and the page that shows it.**
+  `getBoundingClientRect` answers all zeros both for an element with no box and
+  for a rendered one of zero size, which is why `hasBox` asks `getClientRects`
+  instead. Nothing in the code says that.
+- **What was tried and broke.** Code keeps no trace of the version before it,
+  so the reason not to go back is nowhere else at all.
+- **A number's reason.** `RETRY` is about six frames because `onEnter` returns
+  synchronously and a framework paints at least a frame after that. Without it
+  the constant is a hundred with no argument behind it.
+- **An invariant the types cannot spell**, and only where they cannot.
+
+Everything else goes one of two ways. A fact the code, the types or the names
+already carry is deleted. A fact this file, CONTRIBUTING.md, ONBOARDING.md or a
+sandbox case already carries is collapsed to a citation of the heading or the
+case — never re-argued, and never by line number, for the reason
+CONTRIBUTING.md gives.
+
+**Decide that by grepping, never from memory.** One rule reaches three places
+easily — here, a sandbox case a viewer reads it in, and a comment over the
+function — and each copy is written by somebody sure it was not written down
+yet. Where copies exist the comment is the one that goes: a sandbox message is
+read by a viewer, this file by whoever is deciding, and a comment by whoever is
+already convinced.
+
 ## Browser support
 
 The cutout needs CSS masking with several layers and `mask-composite`, and an
@@ -1115,6 +1150,7 @@ carry anything on its own.
 |                                                                |                                                              |
 | -------------------------------------------------------------- | ------------------------------------------------------------ |
 | A rule, and why it holds                                       | this file                                                    |
+| A fact none of the places below can hold                       | a comment, under the rule above                              |
 | Evidence that a browser does not do what the spec suggests     | [`spike/`](spike/)                                           |
 | A situation a tour meets                                       | [`examples/sandbox/src/cases/`](examples/sandbox/src/cases/) |
 | The machine's states, in a form a search can walk              | [`packages/machine/model/`](packages/machine/model/)         |
