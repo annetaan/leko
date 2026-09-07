@@ -136,10 +136,10 @@ built.
 ## Before opening a pull request
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm model && pnpm test
+pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm model && pnpm test
 ```
 
-CI runs the same six, with `format:check` in place of `format`.
+CI runs the same seven, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

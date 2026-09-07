@@ -75,4 +75,85 @@ describe('anchors', () => {
   it('leaves bold in the middle of a bullet alone', () => {
     expect(anchors('- The words of **the step being left** go first.')).toEqual(new Set())
   })
+
+  it('takes the bold a bullet opens with when the bullet wrapped over lines', () => {
+    // DESIGN.md as it stands. Most of its named rules are bullets and most of
+    // those wrap, so a name a citation may land on is more often written over
+    // two lines than on one.
+    const page = `- **That layer is sized past the layout viewport on purpose, gutter
+  included.** The layout viewport is the box a fixed element is laid out
+  against.
+`
+    expect(anchors(page)).toEqual(
+      new Set(['That layer is sized past the layout viewport on purpose, gutter included']),
+    )
+  })
+
+  it('takes a name whose bullet wrapped and whose text holds a full stop', () => {
+    const page = `- **Every layer paints and catches nothing. Plain rectangles in the gaps
+  between the open cutouts do the blocking.** A mask has no effect on
+  hit-testing at all.
+`
+    expect(anchors(page)).toEqual(
+      new Set([
+        'Every layer paints and catches nothing. Plain rectangles in the gaps between the open cutouts do the blocking',
+      ]),
+    )
+  })
+
+  it('takes nothing from the next bullet where a bold opener never closes', () => {
+    // The dense list, no blank line between the items: what a pattern reaching
+    // over the newline would read as one name spanning both.
+    const page = '- **An opener that never closes\n- **Has `awaits`:** No Next control is shown.\n'
+    expect(anchors(page)).toEqual(new Set(['Has `awaits`']))
+  })
+
+  it('takes nothing from the paragraph after a bullet whose bold never closes', () => {
+    const page = '- **An opener that never closes\n\nA paragraph with **its own bold** in it.\n'
+    expect(anchors(page)).toEqual(new Set())
+  })
+
+  it('leaves a nested bullet out of the item above it', () => {
+    const page = '- **The rule**, which holds because\n  - **The nested reason**\n'
+    expect(anchors(page)).toEqual(new Set(['The rule', 'The nested reason']))
+  })
+
+  it('takes the plain run before the next bold where the opener never closes', () => {
+    // The one shape the folding adds, and the one place this and a renderer
+    // part company. CommonMark binds a closer to its nearest opener, so the
+    // second `**` opens rather than closes and `nothing` is what a reader sees
+    // emphasised (micromark 4.0.2). What comes out is a name nobody can see,
+    // which is the permissive way round.
+    const page = `- **A name that never closes here, and
+  the continuation says **nothing** of note.
+`
+    expect(anchors(page)).toEqual(
+      new Set(['A name that never closes here, and the continuation says']),
+    )
+  })
+
+  it('takes no heading and no bullet from a fenced block', () => {
+    const page = '```md\n# Not a heading\n- **Not a name**\n```\n'
+    expect(anchors(page)).toEqual(new Set())
+  })
+
+  it('is not closed by a fenced line that carries an info string', () => {
+    // A document showing markdown inside markdown. A closing fence takes no
+    // info string, so this whole block is content.
+    const page = '```md\n# Not a heading\n```js\n- **Not a name**\n```\n'
+    expect(anchors(page)).toEqual(new Set())
+  })
+
+  it('is not closed by a fence of the other mark, or a shorter run of its own', () => {
+    const page = '~~~md\n# Not a heading\n```\n- **Not a name**\n~~~\n'
+    expect(anchors(page)).toEqual(new Set())
+    const longer = '````md\n# Not a heading\n```\n- **Not a name**\n````\n'
+    expect(anchors(longer)).toEqual(new Set())
+  })
+
+  it('drops the colon a bullet’s bold ends in', () => {
+    expect(anchors('- **No `awaits`:** A Next control is shown.\n')).toEqual(
+      new Set(['No `awaits`']),
+    )
+  })
 })

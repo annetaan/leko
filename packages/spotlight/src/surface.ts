@@ -6,9 +6,8 @@
  * space each one is written in. Everything here reads the page and owns
  * nothing: no element is created, and none is changed. The chain starts at the
  * element and ends at the document, or at the viewport where something on the
- * way is fixed.
- *
- * DESIGN.md argues it under **Scrolling**.
+ * way is fixed — DESIGN.md, **A `position: fixed` target is carried by the
+ * viewport, so its layer is too**.
  */
 
 import { type Point, type Rect, shift } from './geometry.js'
@@ -55,9 +54,9 @@ export function surfaceChain(el: Element): Surface[] {
  * Several properties on an ancestor make it the containing block of every
  * fixed descendant, and the element then rides that ancestor rather than the
  * viewport, its scroll included. So what carries the ancestor is what carries
- * the element. **The engine is asked rather than a list kept**, and DESIGN.md
- * argues that, with the properties and the page that watched them, under
- * **Scrolling**.
+ * the element. DESIGN.md argues that under **Whether the viewport still holds
+ * a fixed element is the engine's to say, not a list's**, with the properties
+ * and the page that watched them.
  *
  * An `<svg>` root can be fixed too and has no `offsetParent`, so it is drawn
  * as the viewport's. A fixed SVG root under a transformed ancestor is a corner

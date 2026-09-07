@@ -142,8 +142,8 @@ export interface Host<W extends World> {
    * The anchor of `step` was not on the page when the step arrived, and never
    * turned up. Named, because the tour may have moved on.
    *
-   * The give-up, and the only part of a retry this hears — DESIGN.md, **Nothing
-   * is drawn for a retry**.
+   * The give-up — DESIGN.md, **Every retry belongs to an arrival, so
+   * `Host.lost` is only ever about a step that was arriving**.
    */
   lost(step: W['step']): void
   /**

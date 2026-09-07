@@ -25,8 +25,8 @@ import { type Surface, surfaceChain } from './surface.js'
  * A glide in flight: when the page has stopped, and how to stop it.
  *
  * `abandon` cancels the next frame and leaves the page where the last one put
- * it; `settled` then never resolves — the rule DESIGN.md states for a glide
- * the tour has moved past, under **Bringing a target into view**.
+ * it; `settled` then never resolves — the rule DESIGN.md states under **A glide
+ * the tour has moved past is cancelled, and the page stops where it is**.
  */
 export interface Glide {
   settled: Promise<void>

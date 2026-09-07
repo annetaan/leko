@@ -226,8 +226,8 @@ export class Scrim {
    * That is `innerWidth` and `innerHeight`, the scrollbar's gutter included,
    * and deliberately not the layout viewport a fixed box is laid out against,
    * which is the tighter and more obviously correct number. DESIGN.md argues
-   * the choice, and what `spike/the-scrollbar-gutter/` measured for it, under
-   * **Scrolling**.
+   * that under **That layer is sized past the layout viewport on purpose,
+   * gutter included**, with what `spike/the-scrollbar-gutter/` measured for it.
    */
   resize(): void {
     this.measureSurface()
@@ -343,8 +343,9 @@ export class Scrim {
    * Draw the state a story opens from, given the holes its first step is
    * heading for: **every one of them over everything the viewer can see**, so
    * the morph that follows converges each inward from the edges of the screen.
-   * DESIGN.md argues the opening, and what the `clip-path` this replaced did to
-   * it, under **The morph**.
+   * DESIGN.md argues it under **A story opens by converging, from every hole
+   * stretched over the whole surface**, along with what the `clip-path` this
+   * replaced did to the opening.
    *
    * **What is seen, and not the surface.** The scrim is as tall as the
    * scrollable area, which on a long page is many screens; a hole starting that

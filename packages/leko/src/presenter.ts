@@ -406,9 +406,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
     if (!measured) return this.dispatch({ kind: 'unmeasured', step, animate })
     const { inner, resolved } = measured
 
-    // Open from every hole stretched over the surface — DESIGN.md, **The
-    // morph**. The morph below re-blocks in the same task, so no frame carries
-    // the opening's blocking.
+    // The opening — DESIGN.md, **A story opens by converging, from every hole
+    // stretched over the whole surface**. The morph below re-blocks in the same
+    // task, so no frame carries the opening's blocking.
     if (!animate) inner.converge(resolved)
 
     // Before the morph, not after it: the scrim blocks the page from the moment

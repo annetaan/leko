@@ -172,7 +172,8 @@ export function outset(rect: Rect, room: Insets): Rect {
  *
  * A box more than half the port tall leads with its top edge instead, and a box
  * wider than the port keeps its near edge. Neither has a twin on the other
- * axis, and DESIGN.md argues why under **Bringing a target into view**.
+ * axis, and DESIGN.md argues why under **A target more than half the port tall
+ * leads with its top edge, put at the middle**.
  */
 export function scrollDelta(box: Rect, port: Rect): { x: number; y: number } {
   const [left, right] = [box.x, box.x + box.width]

@@ -68,6 +68,11 @@ anything else tracked. A hit is not a verdict — this repository has a vocabula
 and it repeats — but every hit long enough to be a sentence is a paragraph
 written twice, and the comment is the copy that goes.
 
+The one hit to read past is a citation of a long name. A heading here can be a
+whole sentence, and a citation of one quotes it verbatim, so the citation is
+itself an eight-word run shared with the document it points into. That hit is
+the pointer landing, not a copy of the argument.
+
 `check:citations` is the CI gate: a citation has to name a heading that is
 there. It runs on every push, so a collapsed comment cannot quietly rot.
 
