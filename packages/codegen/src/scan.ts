@@ -89,9 +89,9 @@ const isLekoReached = (
 /**
  * The names an argument can be, or `null` when the compiler cannot say.
  *
- * The type is asked rather than the syntax, so a name kept in a constant counts
- * the same as one written at the call site. `reached(ORDER_SAVED)` where
- * `ORDER_SAVED` is a `const` resolves to the literal type `'order-saved'`, and
+ * The type is asked rather than the syntax — `packages/codegen/README.md` says
+ * what that buys. `reached(ORDER_SAVED)` where `ORDER_SAVED` is a `const`
+ * resolves to the literal type `'order-saved'`, and
  * so does a value narrowed to a union of literals, which contributes all of its
  * arms. A `let`, a function parameter or a template with a hole in it widens to
  * `string`, and that is the case there is no honest answer for.

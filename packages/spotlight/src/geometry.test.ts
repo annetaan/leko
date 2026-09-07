@@ -105,8 +105,8 @@ test('an element with no box is not found', () => {
 test('an element inside something hidden is not found either', () => {
   const el = within(planted('display: none'), 'width: 40px; height: 20px')
 
-  // The element says nothing about itself: a closed tab, a collapsed panel and
-  // a hidden ancestor of any other kind all come to this.
+  // DESIGN.md, **An element with no box is not found**. Any hidden ancestor at
+  // all comes to this.
   expect(hasBox(el)).toBe(false)
   expect(resolveTarget('#inner')).toBeNull()
 })
@@ -137,10 +137,7 @@ test('an element hidden without losing its box is found', () => {
   const invisible = planted('width: 40px; height: 20px; visibility: hidden')
 
   // `visibility: hidden` and `opacity: 0` keep the box, so the tour points at
-  // it. A hole over nothing a viewer can see is a story pointing somewhere it
-  // should not, and that is the story's mistake rather than a target Leko
-  // failed to find. Which of several matches a selector means is the question
-  // that decides these, and it is asked elsewhere.
+  // it — DESIGN.md, **An element with no box is not found**.
   expect(hasBox(invisible)).toBe(true)
   expect(resolveTarget('#planted')).toBe(invisible)
 })
@@ -184,10 +181,9 @@ test('outset takes a side each, where grow takes one for all four', () => {
 
 // --- moving a box between two spaces
 //
-// Two coordinate spaces that differ by a translation and nothing else, which is
-// what a scrim's surface and the viewport are. `originOf` says how far apart
-// they are; this is what does the moving, and it is what lets a draw read each
-// box once and have it in both.
+// `geometry.ts` says what the two spaces are and why a translation is all that
+// separates them. `originOf` says how far apart they are; this is what does the
+// moving, and it is what lets a draw read each box once and have it in both.
 
 test('shift moves a rect and leaves its size alone', () => {
   expect(shift(rect(10, 20, 40, 30), { x: 5, y: -7 })).toEqual(rect(15, 13, 40, 30))
@@ -257,10 +253,9 @@ test('a tall box the port already holds is left alone all the same', () => {
 })
 
 test('leading with the near edge is vertical only', () => {
-  // 120 wide in a 200 port is more than half of it, and there is no message to
-  // leave room for beside it — the message is placed above or below first. So
-  // this one is centred, and only a box wider than the whole port keeps its
-  // near edge.
+  // 120 wide in a 200 port is more than half of it, and is centred all the same —
+  // DESIGN.md, **A target more than half the port tall leads with its top edge,
+  // put at the middle**, is vertical only.
   expect(scrollDelta(rect(300, 20, 120, 40), rect(0, 0, 200, 200))).toEqual({ x: 260, y: 0 })
   expect(scrollDelta(rect(300, 20, 400, 40), rect(0, 0, 200, 200))).toEqual({ x: 300, y: 0 })
 })
@@ -305,9 +300,9 @@ test('a radius never exceeds half the shorter side', () => {
 })
 
 test('a hole is drawn at its own size and laid where it belongs', () => {
-  // Not an image the size of the surface with the hole painted into it. What an
-  // engine rasterises is then the size of a target rather than the size of a
-  // document, which is what makes a scrim thousands of pixels tall affordable.
+  // Not an image the size of the surface with the hole painted into it —
+  // DESIGN.md, **Drawing**, for what that would cost an engine on a scrim
+  // thousands of pixels tall.
   const { image, position } = maskLayers(2000, 12000, [cutout(300, 9000, 120, 60)])
   const [surface, hole] = layersOf(image)
   expect(surface).toBe('linear-gradient(black, black)')
@@ -316,16 +311,16 @@ test('a hole is drawn at its own size and laid where it belongs', () => {
 })
 
 test('the holes union rather than alternate', () => {
-  // The whole reason the scrim is masked and not clipped. Under even-odd a
-  // point inside two cutouts is inside an even number of subpaths and paints
-  // dark; `add` between the hole layers makes two overlapping holes one hole.
+  // The whole reason the scrim is masked and not clipped — DESIGN.md,
+  // **Drawing**. `add` between the hole layers makes two overlapping holes one
+  // hole.
   const { composite } = maskLayers(800, 600, [cutout(0, 0, 100, 100), cutout(50, 50, 100, 100)])
   expect(composite).toBe('subtract, add, add')
 })
 
 test('a cutout with no area contributes no layer', () => {
-  // A morph's collapsed leftover is not a hole, and an image with no size is
-  // not something every engine has to agree about.
+  // `geometry.ts` says why a morph's collapsed leftover is dropped rather than
+  // drawn at no size.
   const { image, position, composite } = maskLayers(800, 600, [
     cutout(10, 10, 100, 40),
     { ...rect(200, 200, 0, 0), radius: 0, interactive: false },
@@ -604,8 +599,7 @@ test('a corner is only taken when the box clears the hole, not the corner point'
 })
 
 test('every corner covered gives the least covered one, and gives it every time', () => {
-  // A full-width header and a full-width footer leave no corner clear, and
-  // something still has to be pressable.
+  // No corner is left clear here, and something still has to be pressable.
   const holes = [
     { x: 0, y: 0, width: 1000, height: 60 },
     { x: 0, y: 700, width: 1000, height: 100 },

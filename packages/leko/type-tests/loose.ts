@@ -1,8 +1,8 @@
 /**
- * A vocabulary, and no promise that it is complete.
- *
- * This is what `leko-signals --loose` writes, and what a hand-maintained list
- * gets. Both sides offer the names and neither rejects anything.
+ * A vocabulary nobody promised was complete, which is what
+ * `leko-signals --loose` writes and what a hand-maintained list gets.
+ * DESIGN.md, **Strict on `awaits`, never on `reached()` — the asymmetry is the
+ * design**.
  *
  * The block below is the one a consumer writes, against the package name and
  * not a path inside it, which is the part worth testing: `LekoSignals` is
@@ -19,9 +19,8 @@ declare module '@annetaan/leko' {
   }
 }
 
-// Both names, from one interface the compiler merged into. That this is not
-// `string` is the assertion: an editor offers the arms of a union and has
-// nothing to offer for `string`.
+// An editor offers the arms of a union and has nothing to offer for `string`,
+// which is what these two are for.
 assertType<Equal<LekoKnownSignal, 'order-saved' | 'report-exported' | (string & {})>>()
 assertType<Equal<LekoSignal, 'order-saved' | 'report-exported' | (string & {})>>()
 
@@ -31,9 +30,8 @@ export const declared: LekoStep = {
   awaits: 'order-saved',
 }
 
-// A name outside the vocabulary still compiles here. Without `LekoStrict` the
-// vocabulary is a suggestion, and a list nobody promised was complete has no
-// business failing a build.
+// A name outside the vocabulary still compiles here: without `LekoStrict` the
+// vocabulary is a suggestion.
 export const undeclared: LekoStep = {
   id: 'export',
   target: 'button[data-export]',

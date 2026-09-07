@@ -65,11 +65,8 @@ test('a story that opens onto no holes still converges rather than snapping dark
 })
 
 test('the viewport layer covers the scrollbar gutter rather than the layout viewport', () => {
-  // The layout viewport is where a fixed box is laid out, and it is the wrong
-  // number to size this layer by: it moves when the scrollbar comes and goes,
-  // and nothing tells the layer when that happens. Sized past it, the layer
-  // covers the gutter at every scrollbar state it might be measured in, and
-  // `spike/the-scrollbar-gutter/` is why that is safe to do.
+  // DESIGN.md, **That layer is sized past the layout viewport on purpose, gutter
+  // included**, and `spike/the-scrollbar-gutter/` is why that is safe to do.
   withGutter(15)
   const scrim = mountScrim({ kind: 'viewport' })
   expect(document.documentElement.clientWidth).toBe(window.innerWidth - 15)
@@ -79,10 +76,8 @@ test('the viewport layer covers the scrollbar gutter rather than the layout view
 
 test('the gutter going mid-step leaves the viewport layer covering everything', () => {
   // The application shortens the page under the tour — a filter empties a list,
-  // a panel collapses — so the document scrollbar goes and the layout viewport
-  // grows by its width. No `resize` event fires for that, so the layer is never
-  // told; it is only right because the number it was measured with did not
-  // depend on the scrollbar in the first place.
+  // a panel collapses — and the layer is never told. It is only right because the
+  // number it was measured with did not depend on the scrollbar at all.
   withGutter(15)
   const scrim = mountScrim({ kind: 'viewport' })
   const drawn = scrim.element.style.width

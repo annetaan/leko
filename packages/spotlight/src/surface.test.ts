@@ -183,11 +183,10 @@ test("a scroller's space begins inside its border, where its scroll left it", ()
   panel.scrollLeft = 60
   panel.scrollTop = 90
 
-  // The padding box, because that is where an absolutely positioned child of
-  // the scroller begins — and moved by the scroll, because such a child rides
-  // the content. Border and padding are odd numbers so that a version reading
-  // one for the other could not pass, and the offsets are fractions so that one
-  // rounding them could not either.
+  // The padding box, and moved by the scroll, for the reason {@link atOrigin}
+  // gives. Border and padding are odd numbers so that a version reading one for
+  // the other could not pass, and the offsets are fractions so that one rounding
+  // them could not either.
   beginsAt({ kind: 'scroller', element: panel }, marker)
   placedAt(deep, { kind: 'scroller', element: panel }, marker)
 })

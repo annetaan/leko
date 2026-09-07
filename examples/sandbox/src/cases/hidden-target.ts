@@ -13,9 +13,8 @@ export const hiddenTarget: Case = {
     'measured at the draw and is the application’s afterwards.',
 
   mount(root) {
-    // The controls that have to work during a tour are inside the notice,
-    // because the notice is the cutout. The one that puts everything back is
-    // outside the panel and is reachable once no tour is running.
+    // The controls that have to work during a tour are inside the notice —
+    // `target-not-there-yet.ts` shows the same arrangement.
     const panel = html(`
       <div class="panel" data-panel>
         <h2>Export</h2>
@@ -120,10 +119,10 @@ export const hiddenTarget: Case = {
       steps: [
         {
           id: 'the-other-row',
-          // A selector, so the question is asked again — on every batch the
-          // hunt hears while it runs, and once more as the deadline does. It
-          // is the second that would find this row: showing it is a style, and
-          // no node moves for the hunt to hear.
+          // A selector, so the question is asked afresh — DESIGN.md, **And
+          // once more as the grace period runs out**, is the ask that would
+          // find this row: showing it is a style, and no node moves for the
+          // hunt to hear.
           target: { elements: '[data-extra]', interactive: true },
           message: 'The second row, which had to be rendered before this step could point at it.',
         },

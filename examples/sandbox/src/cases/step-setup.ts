@@ -32,8 +32,7 @@ export const stepSetup: Case = {
     root.append(panel)
 
     // The application's own function, written where the application would write
-    // it. It reports what happened when it happened, and knows nothing about
-    // which step is showing.
+    // it — DESIGN.md, **Signals and steps**.
     loadAddress = async () => {
       await new Promise((resolve) => setTimeout(resolve, 700))
       at('input[name="postcode"]').setAttribute('value', '150-0001')
@@ -55,16 +54,14 @@ export const stepSetup: Case = {
             'closed. Press Next and watch who opens it.',
         },
         {
-          // A step with nothing to point at. The page goes under with no hole
-          // in it, this message is what it says, and `awaits` is what ends it.
+          // A step with nothing to point at — DESIGN.md, **A step that waits**.
           // Leko waits for no handler, so the wait is written here instead.
           id: 'reading',
           message: 'Reading the address off the account…',
           awaits: 'address-loaded',
 
-          // The wait starts the work it waits for. Started anywhere earlier and
-          // the report could land before the tour got here, and a signal is
-          // never saved for a step that has not arrived.
+          // DESIGN.md, **The wait starts the work it waits for, and that
+          // placement is the rule**.
           onEnter: () => {
             at('[data-details]').hidden = false
             void loadAddress()
@@ -93,5 +90,4 @@ export const stepSetup: Case = {
   ],
 }
 
-/** Set by {@link stepSetup.mount}, which is where the instance to report to is. */
 let loadAddress: () => Promise<void> = async () => {}

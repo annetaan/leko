@@ -19,14 +19,9 @@ import {
   stopped,
 } from './harness.js'
 
-// Claims about layout the browser actually performed: where a hole ended up,
-// what hit-testing returns at a point, which element a scrim was mounted in.
-// Engines disagree about masking and about anchor positioning — Safari cuts no
-// hole at all from a mask written one of the ways Chrome accepts — so every one
-// of these runs in all three.
-//
-// Claims about which step the tour is on live in `wiring.test.ts` and run in
-// one browser, because no engine has an opinion about those.
+// Claims a browser could answer differently, so every one runs in all three —
+// ONBOARDING.md, **Which Vitest project a new test belongs in**. Which step the
+// tour is on is `wiring.test.ts`.
 
 test('the target is reachable through the cutout, and the rest of the page is not', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
@@ -55,7 +50,6 @@ test('one region of several targets is one cutout, and what sits between it open
   const right = box('right', { left: '260px', top: '100px', width: '100px', height: '40px' })
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
-  // One region naming two elements, so the two are unioned into one hole.
   start([{ id: 'columns', target: { elements: [() => left, () => right], interactive: true } }])
 
   expect(centre(left)).toBe(left)
@@ -73,20 +67,17 @@ test('two regions get a cutout each rather than being unioned', () => {
   // `elements` would be the test above, and would open everything between them.
   start([{ id: 'linked', target: [{ elements: () => target, interactive: true }, () => summary] }])
 
-  // Two holes, not one big one — otherwise everything in between would be lit.
   expect(holes()).toBe(2)
   expect(centre(target)).toBe(target)
-  // Shown and not reachable. Only the first region can declare `interactive`
-  // — the type refuses it later — because a later one is there to explain
-  // rather than to be used.
+  // Shown and not reachable — DESIGN.md, **A hole, and whether it is open**.
   expect(absorbed(summary)).toBe(true)
   expect(absorbed(between)).toBe(true)
 })
 
 test('an element with no box is dropped from its region rather than unioned at the corner', () => {
   const rendered = box('rendered', { left: '300px', top: '300px', width: '120px', height: '40px' })
-  // The second element of the region, and not rendered. Its rect is all zeros,
-  // which reads as a box at the origin of the viewport rather than as no box.
+  // The second element of the region, and not rendered — DESIGN.md, **An
+  // element with no box is not found**.
   const hidden = box('hidden', {
     left: '320px',
     top: '360px',
@@ -100,9 +91,7 @@ test('an element with no box is dropped from its region rather than unioned at t
 
   expect(holes()).toBe(1)
   expect(centre(rendered)).toBe(rendered)
-  // The union that mattered: one zero box at the origin reaches from the corner
-  // of the page to the far edge of whatever else the region names, and whatever
-  // the host keeps up there is then open. Constraint 1.
+  // The corner is still blocked, so no hole reached it.
   expect(absorbed(corner)).toBe(true)
 })
 
@@ -138,11 +127,9 @@ test('a step whose target has no box draws nothing at all', () => {
 
   start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
 
-  // The other face of the same box. Drawn, it was a hole of no area at the
-  // corner with the message docked beside it and no retry running, because a
-  // hidden target was a found one. Now it is a step whose target is not on the
-  // page: nothing is drawn, nothing is blocked, and the page is exactly as it
-  // was for as long as the retry runs.
+  // The other face of the same box — DESIGN.md, **An element with no box is not
+  // found when the target is resolved**. Nothing is drawn, nothing is blocked,
+  // and the page is as it was for as long as the retry runs.
   expect(scrim()).toBeNull()
   expect(centre(corner)).toBe(corner)
 })
@@ -152,12 +139,9 @@ test('a step that says nothing shows its target and does not hand it over', () =
 
   start([{ id: 'look', target: () => target }])
 
-  // The hole is cut, so the scrim paints nothing over the target and the user
-  // can read it.
   expect(holes()).toBe(1)
-  // And the pointer stops at the tour. Most steps of most tours explain what is
-  // already on screen, and a click on one of those can navigate away from the
-  // target the next step points at.
+  // And the pointer stops at the tour, for the reason README.md gives beside
+  // `interactive`.
   expect(absorbed(target)).toBe(true)
 })
 
@@ -195,10 +179,8 @@ test('what blocks a shown hole sits beside the scrim, never inside it', () => {
 
   start([{ id: 'look', target: () => target }])
 
-  // The scrim paints and catches nothing, so what caught this is a blocking
-  // rectangle beside it rather than the scrim itself. The rectangles were moved
-  // out of the scrim when it was clipped rather than masked — a clip took them
-  // out of hit-testing with it — and `spike/blocking-a-hole/` is that page.
+  // DESIGN.md, **The rectangles live beside the scrim, never inside it**, and
+  // `spike/blocking-a-hole/` is the page that settled it.
   const caught = centre(target) as HTMLElement
   expect(caught.closest('.leko-scrim')).toBeNull()
   expect(caught.closest('.leko-blocking')).not.toBeNull()
@@ -218,9 +200,8 @@ test('a step overrides the padding the instance was given', () => {
   begin(leko, 'roomy')
 
   // 20px above the target: outside the instance's padding, well inside the
-  // step's, so the step is what decided the size of the hole. There are two
-  // tiers and no third — a story that wants this for all of its steps writes it
-  // on all of its steps, which is a `.map()` rather than a tier.
+  // step's, so the step is what decided the size of the hole. DESIGN.md, **A
+  // story carries no settings**, for why there is no third tier.
   expect(centre(near)).toBe(near)
 })
 
@@ -251,8 +232,8 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
-  // Inside the scroller, so scrolling moves scrim and target together and no
-  // position math has to run per frame.
+  // Inside the scroller, so scrolling moves scrim and target together —
+  // DESIGN.md, **Scrolling**.
   expect(scrim()?.parentElement).toBe(scroller)
 
   scroller.scrollTop = 880
@@ -324,11 +305,10 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
 
-  // The reason this is checked by geometry rather than by hit-testing: an
-  // engine can leave a layer out of `elementFromPoint` and still use it to
-  // decide what a wheel scrolls. The panel then stops scrolling under the
-  // pointer, and no assertion about hit-testing can see it. Nothing outside the
-  // scroller may have any geometry over it that asks to be hit.
+  // Geometry rather than hit-testing — DESIGN.md, **Do not go back to blocking
+  // with the scrim itself**, for why no assertion about hit-testing can see
+  // this. Nothing outside the scroller may have any geometry over the hole that
+  // asks to be hit.
   const hole = scroller.getBoundingClientRect()
   for (const el of document.querySelectorAll<HTMLElement>('.leko-scrim, .leko-block')) {
     if (scroller.contains(el)) continue
@@ -387,8 +367,8 @@ test("a hole in a scroller is cut where the scroller's own coordinates put it", 
 
   // Where the hole belongs, worked out here from the page rather than from
   // anything Leko wrote: the target's box on screen, brought inside the panel's
-  // border and forward by however far its content has been scrolled, and grown
-  // by the step's padding.
+  // border, forward by the content's scroll offset, and grown by the step's
+  // padding.
   const r = target.getBoundingClientRect()
   const c = panel.getBoundingClientRect()
   const x = r.left - c.left - panel.clientLeft + panel.scrollLeft - PADDING
@@ -419,7 +399,8 @@ test('a fixed target keeps its hole while the page scrolls under it', () => {
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
 
-  // The layer is fixed too, so neither moves. Nothing here runs on scroll.
+  // DESIGN.md, **A `position: fixed` target is carried by the viewport, so its
+  // layer is too**.
   expect(getComputedStyle(scrim()!).position).toBe('fixed')
   window.scrollTo(0, 400)
   expect(centre(target)).toBe(target)
@@ -427,9 +408,9 @@ test('a fixed target keeps its hole while the page scrolls under it', () => {
 })
 
 test('a fixed element an ancestor has taken back into the flow rides the page', () => {
-  // A transform on the card makes it the containing block, and the "fixed"
-  // badge inside is then an absolutely positioned child of it and scrolls with
-  // the page. The engine says which, and the hole has to ride with it.
+  // A transform on the card makes it the containing block, so the "fixed" badge
+  // inside scrolls with the page. DESIGN.md, **Whether the viewport still holds
+  // a fixed element is the engine's to say, not a list's**.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
   document.body.append(spacer)
@@ -514,16 +495,13 @@ test('a step told to scroll brings its target into view before drawing it', () =
   // On screen and reachable, which together are the whole point: without the
   // scroll the hole is cut in a scrim nobody can see.
   expect(centre(target)).toBe(target)
-  // The middle of the screen, not the edge it was past: a step exists to draw
-  // attention, and the cutout — the element plus the step's padding — is what
-  // gets centred.
+  // DESIGN.md, **The middle of the port, not the nearest edge**.
   expect(offCentre(target)).toBeCloseTo(0, 0)
   window.scrollTo(0, 0)
 })
 
 test('a step that says nothing about scrolling leaves the page where it was', () => {
-  // The default, and it is off. Where the page is scrolled to is the
-  // application's own state, so a tour is not handed it.
+  // The default, and it is off — DESIGN.md, **Bringing a target into view**.
   const target = belowTheFold(2000)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true } }])
@@ -533,9 +511,8 @@ test('a step that says nothing about scrolling leaves the page where it was', ()
 })
 
 test('a target at the end of the content lands as near the middle as it can', () => {
-  // The case that has to be accepted rather than solved: centring this would
-  // need a scroll past the end of the page. Nothing in the geometry clamps —
-  // the scrollport does — so the target ends up low on the screen and whole.
+  // Centring this would need a scroll past the end of the page — DESIGN.md,
+  // **Nothing in the geometry clamps; whoever scrolls does**.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '2100px'
   document.body.append(spacer)
@@ -563,10 +540,8 @@ test('a target at the end of the content lands as near the middle as it can', ()
 })
 
 test('a target taller than half the screen leads with its top edge, at the middle', () => {
-  // Centring a hole this tall is what leaves the message nowhere to go. Its top
-  // edge at the middle always leaves half a screen above the hole, which is a
-  // place a message fits, and gives up only the bottom of a target nobody
-  // could take in at a glance anyway.
+  // DESIGN.md, **A target more than half the port tall leads with its top edge,
+  // put at the middle**.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '4000px'
   document.body.append(spacer)
@@ -631,8 +606,7 @@ test('the instance can ask for it, and a step can say no', () => {
     scroll: true,
   })
 
-  // Step, then instance: the nearer tier that says anything wins, the same way
-  // `padding` and `radius` are read.
+  // DESIGN.md, **Settings, and where they are read from**.
   expect(window.scrollY).toBe(0)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true } }], { scroll: true })
@@ -648,23 +622,20 @@ test('a target already in view is left exactly where it is', () => {
 
   start([{ id: 'near', target: { elements: () => target, interactive: true }, scroll: true }])
 
-  // A step arriving does not nudge a page somebody has already put where they
-  // wanted it.
+  // DESIGN.md, **A port that already holds the cutout is not touched**.
   expect(window.scrollY).toBe(settled)
   window.scrollTo(0, 0)
 })
 
 test('scroll-margin on the target is honoured over the step padding', () => {
   const target = belowTheFold(2000)
-  // What an application says about its own sticky chrome. Leko cannot guess it,
-  // so where it is written it wins.
+  // DESIGN.md, **`scroll-margin` on the target wins over the step's `padding`**.
   target.style.scrollMarginBottom = '120px'
 
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }])
 
-  // The box that gets centred is the one the margin asked for, so a margin on
-  // one side alone leans the target away from that side — off centre by half of
-  // what it asked for, and clear of whatever it was asked for on account of.
+  // Off centre by half of what the margin asked for, and clear of whatever it
+  // was asked for on account of.
   expect(offCentre(target, [8, 120])).toBeCloseTo(0, 0)
   expect(target.getBoundingClientRect().bottom + 120).toBeLessThanOrEqual(port().height)
   window.scrollTo(0, 0)
@@ -703,10 +674,9 @@ test('a region of several elements is brought in by its hole, not its first elem
     },
   ])
 
-  // One hole around both, so it is the hole that lands at the middle: the
-  // upper element above it and the lower below it by the same amount. Centred
-  // on the first element alone, the hole would sit half the gap low, and a gap
-  // wide enough would leave the lower element past the fold.
+  // DESIGN.md, **What is brought in is the first region's hole, not its first
+  // element**. Centred on the first element alone, the hole would sit half the
+  // gap low, and a gap wide enough would leave the lower element past the fold.
   const hole = {
     top: upper.getBoundingClientRect().top,
     bottom: lower.getBoundingClientRect().bottom,
@@ -732,8 +702,7 @@ test('a region whose hole is taller than half the screen leads with its top edge
 })
 
 test('a later region is not brought in', () => {
-  // The first region is the one the step is about. A later one is shown to be
-  // looked at, and a step that wants it on screen puts it in the first.
+  // `types.ts` says why the first region is the one a step is about.
   const [upper, lower] = twoApart(port().height * 2)
 
   start([
@@ -799,8 +768,7 @@ test('a fixed target is not scrolled to, having nowhere to be scrolled', () => {
 
   start([{ id: 'one', target: { elements: () => pinned, interactive: true }, scroll: true }])
 
-  // Its chain is the viewport alone, and the viewport does not scroll. Moving
-  // the page under it would move everything except the target.
+  // DESIGN.md, **A `position: fixed` target is not scrolled**.
   expect(window.scrollY).toBe(settled)
   expect(centre(pinned)).toBe(pinned)
   window.scrollTo(0, 0)
@@ -865,12 +833,11 @@ test('a glide draws nothing until the page has stopped', async () => {
 
   const drawn = flight.findIndex((f) => f.mask !== held)
   expect(drawn).toBeGreaterThanOrEqual(0)
-  // **Scroll first, draw second**, in the one form that holds however many
-  // frames a machine gives the glide: by the tick the step was drawn the page
-  // had already moved, and it did not move again afterwards. A step drawn
-  // before the page set off fails the first half; a morph running alongside a
-  // glide fails the second, because the page goes on moving under a hole
-  // already placed.
+  // DESIGN.md, **Two stages, never one: the page glides, and the step is drawn
+  // when it stops**, in the one form that holds however many frames a machine
+  // gives the glide: by the tick the step was drawn the page had already moved,
+  // and it did not move again afterwards. A step drawn before the page set off
+  // fails the first half; a morph running alongside a glide fails the second.
   expect(flight[drawn]!.scrollY).toBeGreaterThan(0)
   const after = flight.slice(drawn).map((f) => f.scrollY)
   expect(after).toEqual(after.map(() => after[0]))
@@ -888,11 +855,9 @@ test('a glide draws nothing until the page has stopped', async () => {
 })
 
 test('a scroll the port cannot make is not glided at all', () => {
-  // A target hanging off the left edge of a page already against that edge. The
-  // delta asks for a scroll left, and the range the page can reach starts where
-  // the page is, so the destination clamps to where the page already is. There
-  // is nothing to glide, so nothing is waited for: the step is drawn in the
-  // same task the arrival came in on, and the page is left alone.
+  // A target hanging off the left edge of a page already against that edge, so
+  // the destination clamps to where the page already is — DESIGN.md, **A port
+  // that needs no scroll is never waited on**.
   const target = keep(document.createElement('button'))
   target.textContent = 'edge'
   Object.assign(target.style, {
@@ -917,9 +882,8 @@ test('a scroll the port cannot make is not glided at all', () => {
 })
 
 test('a visitor who asked for reduced motion has the page set outright, as the morph is', () => {
-  // One predicate, read by the morph and by the scroll before it, so the two
-  // cannot disagree about whether the tour is moving things or setting them.
-  // Mocked at `matchMedia`, which is the one place the preference is read.
+  // `motion.ts` is the one predicate the morph and the scroll before it both
+  // read. Mocked at `matchMedia`, which is the one place it looks.
   const target = belowTheFold(2000)
   const matchMedia = window.matchMedia.bind(window)
   vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
@@ -940,9 +904,7 @@ test('a visitor who asked for reduced motion has the page set outright, as the m
 })
 
 test('a nested panel is set rather than glided, so the page delta is exact', async () => {
-  // A panel is off screen while the page has yet to reach it, so the movement
-  // a viewer follows is the page's, and a panel set first makes the page's own
-  // delta exact rather than measured against a scroller still in flight.
+  // DESIGN.md, **The page glides; a nested panel is set**.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
   document.body.append(spacer)
@@ -1020,9 +982,8 @@ test('a step arriving during a glide draws its own step, not the one gliding', a
 })
 
 test('a glide the tour has moved past stops where it is', async () => {
-  // The glide is Leko's own loop, so an arrival that replaces it cancels the
-  // next frame and the page stays where the last one put it — rather than
-  // sliding on to a step the tour has left, under the step that overtook it.
+  // DESIGN.md, **A glide the tour has moved past is cancelled, and the page
+  // stops where it is**.
   const [near, far] = nearAndFar()
   const leko = start(
     [
@@ -1055,12 +1016,9 @@ test('a glide the tour has moved past stops where it is', async () => {
 })
 
 test('a viewer who scrolls during a glide stops it, and the step is drawn where they left the page', async () => {
-  // Each frame reads the offset before it writes one, and a page that is not
-  // where the last frame left it was moved by somebody else. Their scroll is
-  // not Leko's to undo, so the glide stops and the step is drawn against the
-  // page as they put it. Somewhere the glide would never have written to, past
-  // its own destination, so a frame that happened to land nearby cannot be
-  // mistaken for the viewer.
+  // DESIGN.md, **The viewer taking over**. Scrolled somewhere the glide would
+  // never have written to, past its own destination, so a frame that happened to
+  // land nearby cannot be mistaken for the viewer.
   const [near, far] = nearAndFar()
   far.parentElement!.style.height = '6000px'
   const leko = start(
@@ -1149,7 +1107,8 @@ test('a resize redraws the step without scrolling it again', () => {
 
   window.dispatchEvent(new Event('resize'))
 
-  // A redraw puts the step back where the page is now. Only an arrival scrolls.
+  // A redraw puts the step back where the page is now — DESIGN.md, **Only an
+  // arrival scrolls**.
   expect(window.scrollY).toBeCloseTo(300, 0)
   window.scrollTo(0, 0)
 })
@@ -1186,11 +1145,12 @@ test('a resize that pins the target puts the layers back under it', () => {
 
 test('a resize whose task took the target away leaves the standing hole alone', () => {
   // The step is drawn, its target goes, and the page resizes in the same task.
-  // No retry begins — nothing watches a drawn step — so the redraw finds the
-  // step still on screen and its target not on the page. There is nothing to
-  // restack against: rebuilding the layers from the document would take the
-  // hole and the blocking rectangles with them and cut nothing in their place,
-  // so the page would be dimmed with nothing held back at all.
+  // No retry begins — DESIGN.md, **Whether the target is still there stops being
+  // watched once the step is drawn** — so the redraw finds the step still on
+  // screen and its target not on the page. Rebuilding the layers from the
+  // document would take the hole and the blocking rectangles with them and cut
+  // nothing in their place, so the page would be dimmed with nothing held back
+  // at all.
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   target.id = 'anchor'
   const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })
@@ -1236,10 +1196,8 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
   expect(centre(target)).toBe(target)
 })
 
-// The ring focus cannot leave. The blocking rectangles stop a click on a hole
-// the step did not open, and they do nothing at all about Tab, so without this
-// the same element is one key away. Engines disagree about focus, so these run
-// in all three rather than in `wiring.test.ts`.
+// DESIGN.md, **The ring focus cannot leave**. Engines disagree about focus, so
+// these run in all three rather than in `wiring.test.ts`.
 
 /** Where focus is, named the way a reader would name it. */
 const focused = (): string => {

@@ -15,9 +15,10 @@ import {
   stepOf,
 } from './plan.js'
 
-// The state, how it is read, and what every event does to it, with no world at
-// all. `machine.test.ts` drives a real presenter and asks what happened. This
-// asks what was owed.
+// No world at all: `machine.test.ts` drives a real presenter and asks what
+// happened, and this asks what was owed. DESIGN.md, **Where a class has to
+// wait on more than one thing, its mode is one union and a pure function says
+// what an event does to it**.
 
 type C = Core<Fixture>
 type E = Effect<Fixture>
@@ -28,7 +29,6 @@ const story: Story = { id: 'tour', steps: [first, second] }
 const other: Story = { id: 'other', steps: [{ id: 'c', target: 'third' }] }
 const empty: Story = { id: 'empty', steps: [] }
 
-/** Nothing running. */
 const nothing = (): C => idle<Fixture>()
 
 const at = (index: number): Position<Fixture> => ({ story, index })
@@ -42,7 +42,6 @@ const running = (index = 0, over: Partial<C> = {}): C => ({
 
 const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, event)
 
-/** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
 
 const PHASES: Phase[] = ['story', 'step', 'ending', 'ready']
@@ -70,9 +69,7 @@ describe('reading the state', () => {
       PHASES.map((phase) => [phase, stateOf(running(0, { phase }))]),
     )
 
-    // The phase says which window the machine is in, and a host is told none of
-    // that. A teardown reads `idle` here only because it empties the position
-    // before it calls anything, which is the test below.
+    // DESIGN.md, **`state` is derived**.
     expect(answers).toEqual({
       ready: 'running',
       story: 'running',
@@ -94,8 +91,7 @@ describe('an ending', () => {
 
     const outcome = put(before, { kind: 'stop' })
 
-    // The state is the first thing in the outcome and the handlers are in the
-    // second. Nothing can read `position` from an `onLeave` and find a tour.
+    // DESIGN.md, **A teardown says `idle` while it is still refusing calls**.
     expect(outcome.core.position).toBeUndefined()
     expect(outcome.core.phase).toBe('ending')
     expect(owed(outcome)).toEqual(['teardown', 'callStepLeave', 'callStoryLeave'])
@@ -128,8 +124,7 @@ describe('an ending', () => {
     const torn = put(running(), { kind: 'stop' })
     const outcome = put(torn.core, torn.next!)
 
-    // `next` is the only way one story leads to another, so nothing may begin
-    // from inside this report either.
+    // DESIGN.md, **Saying where the tour got to**.
     expect(outcome.core.phase).toBe('ending')
     expect(owed(outcome)).toEqual(['report'])
     expect(outcome.next).toEqual({ kind: 'reported' })
@@ -140,14 +135,12 @@ describe('an ending', () => {
   })
 
   test('stays closed through its report where a story is on its way', () => {
-    // Only a chain gets here. `start` no longer ends anything, so a story on
-    // its way is one the story that just ran out named in `next`.
+    // Only a chain gets here: a story on its way is one the story that just
+    // ran out named in `next`.
     const core = running()
     const torn = put(core, { kind: 'chained', at: core.position!, into: other })
     const outcome = put(torn.core, torn.next!)
 
-    // A story begun from that report would be overwritten by the one already
-    // coming, which is what makes `next` on `onLeave` worth having.
     expect(outcome.core.phase).toBe('ending')
     expect(owed(outcome)).toEqual(['report'])
     expect(outcome.next).toEqual({ kind: 'startInto', story: other })
@@ -186,8 +179,7 @@ describe('arriving at a step', () => {
 
     const outcome = put(arriving, { kind: 'stepEntered', at: arriving.position!, animate: true })
 
-    // A missing anchor can end the run from inside the draw, and the `onStep`
-    // that reports that ending has to find a machine a host may call into.
+    // `packages/machine/model/phases.md` says why the phase opens first.
     expect(outcome.core.phase).toBe('ready')
     expect(owed(outcome)).toEqual(['draw'])
     expect(outcome.next).toEqual({ kind: 'drawn', at: arriving.position })
@@ -202,9 +194,7 @@ describe('arriving at a step', () => {
       animate: true,
     }).effects as [E & { kind: 'draw' }]
 
-    // The step and whether to animate, and that is the whole of it. What the
-    // box says is read off the step by whatever draws it, and whether that step
-    // gets a control is read off `awaits` in the same place.
+    // DESIGN.md, **No words cross the seam**.
     expect(drawn).toEqual({ kind: 'draw', step: first, animate: true })
   })
 
@@ -213,8 +203,7 @@ describe('arriving at a step', () => {
 
     const outcome = put(arriving, { kind: 'drawn', at: arriving.position! })
 
-    // The report is the whole of what this event does. Nothing is written down,
-    // which is why `Core` has no field for where the tour came from.
+    // DESIGN.md, **Everything the machine keeps is two fields**.
     expect(outcome.core).toBe(arriving)
     expect(outcome.effects).toEqual([{ kind: 'report', story, step: second }])
   })
@@ -227,6 +216,7 @@ describe('arriving at a step', () => {
 })
 
 describe('a failed attempt', () => {
+  // DESIGN.md, **A failed attempt**.
   const guarded: Story = { id: 'tour', steps: [{ ...first, validate: () => false }, second] }
   const attempt: Position<Fixture> = { story: guarded, index: 0 }
   const core: C = { ...nothing(), position: attempt }
@@ -241,8 +231,6 @@ describe('a failed attempt', () => {
   test('says no out loud, and says why where the step gave words for it', () => {
     const outcome = put(core, { kind: 'refused', at: attempt, reason: 'not yet' })
 
-    // Nothing is written down. A refusal is two calls out and no state: what is
-    // on screen belongs to whatever draws it, and the tour has not moved.
     expect(outcome.core).toBe(core)
     // The refusal comes first: it is the answer to the press, and the words are
     // what the answer is about.
@@ -257,13 +245,12 @@ describe('a failed attempt', () => {
   test('still says no where the step gave no words', () => {
     const outcome = put(core, { kind: 'refused', at: attempt, reason: undefined })
 
-    // A guard with nothing to say must not leave the control doing nothing.
     expect(outcome.effects).toEqual([{ kind: 'reject' }])
     expect(outcome.core).toBe(core)
   })
 
   test('says nothing at all where the tour has moved since', () => {
-    // `validate` is the application's own code and can have called `stop()`.
+    // `packages/machine/model/phases.md` says why `refused` asks all the same.
     const moved: C = { ...core, position: { story: guarded, index: 1 } }
 
     const outcome = put(moved, { kind: 'refused', at: attempt, reason: 'not yet' })
@@ -274,13 +261,13 @@ describe('a failed attempt', () => {
 })
 
 describe('starting', () => {
+  // DESIGN.md, **Starting a story**.
+
   test('is turned down while a tour is running, and says which one it left alone', () => {
     const before = running()
 
     const outcome = put(before, { kind: 'start', story: other })
 
-    // `stop()` is the way out and it is the only one. A `start` either puts a
-    // story up or does nothing at all.
     expect(outcome.core).toBe(before)
     expect(outcome.effects).toEqual([
       { kind: 'diagnose', problem: { kind: 'tour-running', story: other, running: story } },
@@ -298,9 +285,6 @@ describe('starting', () => {
     const outcome = put(nothing(), { kind: 'start', story })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
-    // Nothing owed. The story's own `onEnter` answers in the turn, so the first
-    // step is on screen before any frame is painted and there is no window here
-    // worth covering.
     expect(outcome.effects).toEqual([])
 
     const opened = put(outcome.core, outcome.next!)
@@ -313,9 +297,6 @@ describe('starting', () => {
 
     const started = put(running(), { kind: 'start', story: fresh })
 
-    // The `id` is not read, so a component that rebuilds its story on every
-    // render and starts it on every render is turned down rather than restarted.
-    // Either way the steps never move under the position somebody stands on.
     expect(started.core).toEqual(running())
     expect(started.next).toBeUndefined()
     expect(owed(started)).toEqual(['diagnose'])
@@ -324,8 +305,6 @@ describe('starting', () => {
 
 describe('a position is the occurrence, not the place', () => {
   test('two arrivals at the same step are two objects', () => {
-    // The identity is what every late callback in the machine compares against,
-    // so the same story at the same index twice has to be two of them.
     const once = put(nothing(), { kind: 'start', story }).core.position
     const twice = put(nothing(), { kind: 'start', story }).core.position
 

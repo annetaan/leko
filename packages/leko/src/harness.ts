@@ -35,14 +35,6 @@ export function instance(options: LekoOptions = {}) {
   return leko
 }
 
-/**
- * The stories a test has to hand, by name.
- *
- * Leko keeps no registry — `start` is handed the story itself — so the map from
- * a name to a story belongs to whatever holds the stories, and in these files
- * that is the test. None of them is about that map, which is why it lives here
- * rather than in each of them.
- */
 const staged = new WeakMap<Leko, Map<string, LekoStory>>()
 
 /**
@@ -60,10 +52,8 @@ export function holding(story: LekoStory, options: LekoOptions = {}) {
   return leko
 }
 
-/** Put up the story `leko` is holding under `id`. */
 export const begin = (leko: Leko, id: string): void => leko.start(staged.get(leko)!.get(id)!)
 
-/** One story, started, which is what most of these want. */
 export function start(steps: LekoStep[], options: LekoOptions = {}) {
   const leko = holding({ id: 'story', steps }, options)
   begin(leko, 'story')
@@ -79,7 +69,6 @@ export function box(text: string, style: Partial<CSSStyleDeclaration>): HTMLElem
   return el
 }
 
-/** Anything a test builds by hand still has to be taken away afterwards. */
 export function keep<T extends Element>(el: T): T {
   mounted.push(el)
   return el
@@ -102,10 +91,10 @@ export const scrim = () => document.querySelector<HTMLElement>('.leko-scrim')
 /**
  * How many holes the innermost scrim has cut, read off its mask.
  *
- * A hole and a hole somebody can reach are two different things, and this is
- * the first of them. {@link absorbed} is the second. The mask is one layer for
- * the surface and one image per hole, and the surface layer is a gradient, so
- * counting the images counts the cutouts.
+ * A hole and a hole somebody can reach are two different things — DESIGN.md,
+ * **A hole, and whether it is open** — and this is the first of them;
+ * {@link absorbed} is the second. Counting the mask's images counts the
+ * cutouts, because the only other layer it carries is the surface gradient.
  */
 export const holes = (): number => (scrim()?.style.maskImage ?? '').split('url(').length - 1
 
@@ -113,15 +102,11 @@ export const holes = (): number => (scrim()?.style.maskImage ?? '').split('url('
 export const closer = () => document.querySelector<HTMLElement>('.leko-close')
 
 /**
- * The next control on the message, or `null` where the step showing has none.
- *
- * A step that declares `awaits` never gets one, which is the whole of what
- * keeps a press off a step waiting for a signal now that pressing this is the
- * only way to advance one without naming a signal.
+ * The next control on the message, or `null` where the step showing has none —
+ * DESIGN.md, **The next control**.
  */
 export const control = () => document.querySelector<HTMLButtonElement>('.leko-message-next')
 
-/** Press the next control. Nothing happens where the step showing has none. */
 export const press = (): void => control()?.click()
 
 /**
@@ -232,7 +217,6 @@ export async function stopped(cap = 8000): Promise<void> {
     const waited = performance.now() - began
     if ((waited > 150 && still >= 6) || waited > cap) break
   }
-  // And the morph, which starts once the page has stopped.
   await pause(400)
 }
 
@@ -240,10 +224,10 @@ export async function stopped(cap = 8000): Promise<void> {
  * Let a `MutationObserver` deliver what a test just did to the page.
  *
  * Its callback is a microtask, so one turn of the queue is enough. {@link frame}
- * is two frames, which is far more time than a retry gets: a step arriving at a
- * target the page does not have yet is given 100ms, and a loaded machine can
- * spend longer than that on two frames and end the tour while a test thinks it
- * is watching one wait.
+ * is two frames, which is far more time than a retry gets — DESIGN.md, **A
+ * target that is not on the page when its step arrives gets a 100ms grace
+ * period** — and a loaded machine can spend longer than that on two frames and
+ * end the tour while a test thinks it is watching one wait.
  */
 export const observed = (): Promise<void> => Promise.resolve()
 
@@ -251,9 +235,9 @@ export const observed = (): Promise<void> => Promise.resolve()
  * Whether the tour absorbed a hit at the centre of `el`, rather than the page
  * underneath receiving it.
  *
- * The scrim paints and catches nothing, so the blocking rectangles beside it
- * are the only thing of Leko's that ever catches a hit on the page. That is
- * what this asks about: `.leko-blocking`, the layer they are in.
+ * DESIGN.md, **Every layer paints and catches nothing. Plain rectangles in the
+ * gaps between the open cutouts do the blocking**, so `.leko-blocking` is the
+ * layer this asks about.
  *
  * It is true both of the page outside every hole and of a hole the step showed
  * without opening. Those are the same fact: the tour took the hit.
@@ -261,14 +245,12 @@ export const observed = (): Promise<void> => Promise.resolve()
 export const absorbed = (el: Element): boolean =>
   (centre(el) as Element | null)?.closest('.leko-blocking') != null
 
-/** Every call, as the id it named, so a whole run reads as one array. */
 export function watched(story: LekoStory, options: Omit<LekoOptions, 'onStep'> = {}) {
   const seen: (string | undefined)[] = []
   const leko = holding(story, { ...options, onStep: (step) => seen.push(step?.id) })
   return { leko, seen }
 }
 
-/** A promise the test settles by hand, so the gap can be looked at. */
 export function held(): { promise: Promise<void>; settle: () => void } {
   let settle!: () => void
   const promise = new Promise<void>((resolve) => {

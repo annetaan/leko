@@ -9,9 +9,8 @@ import { createLeko, type LekoKnownSignal, type LekoSignal, type LekoStep } from
 
 import { assertType, type Equal } from './assert.js'
 
-// Not "assignable from string" — `string` itself, on both sides, so that no
-// editor offers a completion here and nothing an existing story says is
-// narrowed under it.
+// So that no editor offers a completion here, and nothing an existing story
+// says is narrowed under it.
 assertType<Equal<LekoKnownSignal, string>>()
 assertType<Equal<LekoSignal, string>>()
 

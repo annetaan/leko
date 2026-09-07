@@ -48,7 +48,7 @@ export const formValidation: Case = {
           message: 'Pick a password of at least eight characters.',
           validate: (el) => (el as HTMLInputElement).value.length >= 8,
           // Worked out from what was typed, which is what the function form is
-          // for. Asked once, for the attempt that just failed.
+          // for. `types.ts` says when it is asked.
           error: (el) =>
             `Eight characters at least, and that is ${(el as HTMLInputElement).value.length}.`,
         },

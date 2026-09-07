@@ -1,19 +1,17 @@
 import { type Case, html } from '../case.js'
 
 // Chrome an application pins to the viewport: a bar that stays while the page
-// scrolls under it. A hole cut in the document's scrim would be carried off by
-// the first scroll while the bar stayed put, so a fixed target gets a layer
-// that is fixed too. The badge is the trap the other way round: a
+// scrolls under it — DESIGN.md, **A `position: fixed` target is carried by the
+// viewport, so its layer is too**. The badge is the trap the other way round: a
 // stylesheet says `position: fixed` and a transform on an ancestor has quietly
 // taken that back, so the badge scrolls with the page after all. Which of the
 // two an element is, the engine is asked — never the stylesheet.
 //
 // The last step is about the layer's edge rather than its holes. Locking the
 // page's scroll is what an application does when it opens a modal, and on a
-// platform with classic scrollbars it takes the document scrollbar away: the
-// layout viewport widens by the gutter, and no `resize` event fires to say so.
-// A layer sized to the layout viewport would be that much too narrow from then
-// on, and the strip at the right edge is there to be clicked at — it is
+// platform with classic scrollbars it takes the document scrollbar away —
+// DESIGN.md, **That layer is sized past the layout viewport on purpose, gutter
+// included**. The strip at the right edge is there to be clicked at: it is
 // application chrome the step did not open, so a click must never reach it,
 // before the lock or after it.
 export const fixedChrome: Case = {

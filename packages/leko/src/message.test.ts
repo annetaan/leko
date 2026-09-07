@@ -4,8 +4,7 @@ import { begin, box, control, frame, keep, press, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
-// all three. `start` puts the tour up with a duration of 0: these are about
-// where the message lands, not about how long the cutout took to get there.
+// all three.
 
 const message = () => document.querySelector<HTMLElement>('.leko-message')
 const words = () => document.querySelector<HTMLElement>('.leko-message-text')?.textContent
@@ -46,9 +45,9 @@ const gap = (a: DOMRect, b: DOMRect): number =>
 const appears = () => vi.waitUntil(visible)
 
 /**
- * Anchor positioning is allowed to be missing — the message docks to the foot of
- * the viewport instead of being beside the cutout. The tests that are about
- * *being beside it* say so rather than failing on a browser that degraded.
+ * Anchor positioning is allowed to be missing — DESIGN.md, **Browser support**.
+ * The tests that are about *being beside it* say so rather than failing on a
+ * browser that degraded.
  */
 const anchors = CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
 
@@ -70,10 +69,8 @@ test('the box carries no border until a host asks for one', () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([{ id: 'one', target: { elements: 'button', interactive: true }, message: 'Press it.' }])
 
-  // The box is a popover, and the UA stylesheet gives every popover
-  // `border: solid` in `currentColor`. Left standing, that is a rim in the
-  // message's own text colour — invisible on the default palette and a white
-  // frame the moment a host makes the text light on dark.
+  // `message.ts` says why the border the UA stylesheet gives every popover has
+  // to be taken off.
   expect(getComputedStyle(message()!).borderTopWidth).toBe('0px')
 })
 
@@ -123,10 +120,8 @@ test.runIf(anchors)('the message clears every cutout, not just the one it is anc
 })
 
 test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {
-  // No selector reaches in here, and neither does an `anchor-name`: the name is
-  // scoped to the tree its element is in, so pointing at this from the document
-  // used to be impossible and the box docked instead. What it anchors to now is
-  // Leko's own marker, which is in the document because Leko put it there.
+  // No selector reaches in here, and neither does an `anchor-name` — DESIGN.md,
+  // **The message anchors to a marker, never to the target**, and
   // `spike/anchor-across-shadow/` is the page that settled the boundary.
   const host = document.createElement('div')
   Object.assign(host.style, { position: 'fixed', left: '120px', top: '160px' })
@@ -288,8 +283,7 @@ test('a step waiting for a signal has no control to get past it with', async () 
   // transparent while it fades, control included.
   await appears()
 
-  // The step exists to make someone do the thing the application will report.
-  // A button beside the instruction is a way past it without doing that.
+  // DESIGN.md, **The next control**.
   expect(on(control())).toBe(false)
 })
 
@@ -340,9 +334,7 @@ test('one press advances one step, however many events it arrives as', () => {
   button.click()
   button.click()
 
-  // Two events a frame apart are one press — a touch emulating a click after
-  // its own, an ancestor handler firing too. Taking both would walk the user
-  // past a step they never saw.
+  // `message.ts` says why two events a frame apart are one press.
   expect(leko.step?.id).toBe('two')
 })
 
@@ -416,8 +408,9 @@ test('an error is about the attempt, so leaving the step takes it away', async (
   press()
   expect(error()?.textContent).toBe('Not yet.')
 
-  // Running the story again is the only way back to a step, and the complaint
-  // belonged to one attempt at the step that is now behind.
+  // A story runs from the top — DESIGN.md, **A story is atomic, and stories are
+  // short**. The complaint belonged to one attempt at the step that is now
+  // behind, which DESIGN.md argues under **A failed attempt**.
   leko.stop()
   begin(leko, 'story')
   expect(on(error())).toBe(false)
@@ -461,14 +454,13 @@ test('a refusal during the opening morph does not take the message with it', asy
     { duration: 200 },
   )
 
-  // The box waits for the cutout to land, because which side of the hole it
-  // goes on is a fact about where the hole ends up.
+  // The box waits for the cutout to land, for the reason `presenter.ts` gives.
   expect(visible()).toBe(false)
   press()
 
-  // A shake used to halt the morph, and a morph that ends unfinished is how the
-  // presenter knows an arrival was interrupted — so the message was never said,
-  // and the step was left with a shaken hole and nothing to read beside it.
+  // A shake used to halt the morph, and `scrim.ts` says what an unfinished morph
+  // means to the presenter — so the message was never said, and the step was left
+  // with a shaken hole and nothing to read beside it.
   await appears()
   expect(words()).toBe('Press it.')
 })
@@ -501,9 +493,9 @@ test('the message does not move when the target leaves the page', async () => {
   target.remove()
   await frame()
 
-  // A drawn step arms nothing, so the tour is left standing exactly as it was.
-  // The box hangs off a marker inside the scrim rather than off the target, so
-  // the element leaving the page moves nothing either way.
+  // DESIGN.md, **Whether the target is still there stops being watched once the
+  // step is drawn**, and the box hangs off a marker inside the scrim rather than
+  // off the target, so the element leaving moves nothing either way.
   expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('one')
   expect(visible()).toBe(true)

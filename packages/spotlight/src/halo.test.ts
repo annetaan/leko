@@ -4,10 +4,11 @@ import type { Cutout } from './geometry.js'
 import { type HaloMode, Scrim } from './scrim.js'
 import { rectWithin } from './surface.js'
 
-// The halo is paint for the host to style, and these pin down the two things
-// it promises while staying invisible itself: it frames the right holes with
-// the right one marked open, and it never gets between the user and an open
-// hole. What the paint looks like is the host's business and no test's.
+// The halo is paint for the host to style — DESIGN.md, **The halo**. These pin
+// down the two things it promises while staying invisible itself: it frames the
+// right holes with the right one marked open, and it never gets between the
+// user and an open hole, which DESIGN.md argues under **Paint only, and outside
+// the hole by construction**.
 
 const scrims: Scrim[] = []
 const cleanup: HTMLElement[] = []
@@ -85,8 +86,10 @@ test('returning halos leave for the length of a morph and fade back with the hol
   drawn.set([cutout(100, 100, true), cutout(100, 300)])
 
   const arriving = drawn.morph([cutout(500, 100, true)], 60)
-  // `undefined` is `prefers-reduced-motion` applying the change outright, and
-  // the halo goes with it: placed already, nothing to wait for.
+  // DESIGN.md, **What a morph does to the halo is the host's choice, `halo` on
+  // the options**, for what each mode paints. `undefined` is
+  // `prefers-reduced-motion` applying the change outright, and the halo goes with
+  // it: placed already, nothing to wait for.
   if (arriving) {
     // Gone by fading rather than by a cut: transparent, with the transition
     // that carries every appearance and disappearance still on the element.

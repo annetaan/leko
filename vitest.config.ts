@@ -1,42 +1,15 @@
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
-// One project per package, because two kinds of claim are being tested and they
-// need different ground to stand on. One per package rather than one shared
-// glob, so that a project can move to another environment without dragging the
-// rest with it.
+// Seven projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
+// project a new test belongs in**. The three browser projects are never jsdom
+// for the reason DESIGN.md gives under **How to write here, and where tests
+// go**, and `leko-plan` is what DESIGN.md argues under **Where a class has to
+// wait on more than one thing, its mode is one union and a pure function says
+// what an event does to it**.
 //
-// `spotlight`, `leko` and `leko-wiring` run in real browsers, never jsdom.
-// Every claim those three make is about a page that a browser laid out, and
-// jsdom has no layout to confirm any of it with.
-//
-// `spotlight` and `leko` run in all three engines, because the two features the
-// library is built on are ones engines disagree about: what `clip-path: path()`
-// interpolates, and how much of anchor positioning exists. Note that
-// Playwright's WebKit is a WebKit build rather than Safari: its user agent
-// carries a `Version/` token all the same, and that token is not a Safari
-// release anyone can install, so passing here is not evidence about any
-// particular Safari.
-//
-// `leko-wiring` runs in one. It drives the public API through the real
-// `DomPresenter` to pin down which step the tour is on and when it says so, and
-// no engine has an opinion about that. Those tests lived in `leko` and were run
-// three times to prove things like `meta` being carried unread. Splitting them
-// out is the same coverage for a third of the browser time; what decides which
-// file a test belongs in is whether the browser could get it wrong.
-//
-// `leko-plan`, `machine`, `codegen` and `scripts` run in Node. None has a DOM to be wrong
-// about. `leko-plan` is the presenter's mode and what an event does to it,
-// which is pure and reads no page: `plan.test.ts` one `(mode, event)` pair at a
-// time, and `replay.test.ts` over the traces the Quint search harvested, with a
-// fake interpreter where the shell would be. `machine` decides which step a tour is on,
-// against a presenter the test writes, and its package takes no `lib.dom` at
-// all. `codegen` reads TypeScript source and writes a file, and wants the
-// compiler API and the filesystem instead. `scripts` is the text half of the
-// checks that run in CI — which comments a file has, and which citation names
-// a heading — split out from the git and the disk so a test can drive it.
-// Running any of them three times in three browsers would prove nothing and
-// cost three times as much.
+// One project per package rather than one shared glob, so a project can move to
+// another environment without dragging the rest with it.
 //
 // A function rather than one shared object, because Vitest names the per-browser
 // projects it derives by mutating what it is handed. Two projects sharing one
@@ -49,9 +22,8 @@ const browsers = () => ({
 })
 
 export default defineConfig({
-  // Resolve workspace packages through their `development` export condition,
-  // which points at src. A test that passes against a stale dist/ proves
-  // nothing about the source it was meant to be about.
+  // The `development` export condition, so a test never passes against a stale
+  // dist/.
   resolve: { conditions: ['development'] },
   test: {
     projects: [
@@ -70,11 +42,10 @@ export default defineConfig({
           // Vitest's default of 5s is not enough for the tests about a step that
           // scrolls, on CI. Those wait for animations the browser owns — a
           // morph, and a smooth scroll whose length is the engine's — and this
-          // suite puts three browsers on a two-core runner, where a single
-          // animation frame has been watched taking more than three seconds.
-          // What that costs a healthy machine is nothing: every one of those
-          // tests waits on the thing it is about and returns as soon as it
-          // happens.
+          // suite puts three browsers on a two-core runner, where `harness.ts`
+          // records what one animation frame has been seen to cost there. What
+          // that costs a healthy machine is nothing: every one of those tests
+          // waits on the thing it is about and returns as soon as it happens.
           testTimeout: 20_000,
         },
       },

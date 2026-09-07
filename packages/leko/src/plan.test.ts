@@ -15,14 +15,15 @@ import {
 } from './plan.js'
 import type { LekoStep } from './types.js'
 
-// The mode, and what every event does to it, with no page at all. The browser
-// suites in `leko.test.ts` and `wiring.test.ts` drive the real `DomPresenter`
-// and ask what ended up on screen. This asks what was owed, one `(mode, event)`
-// pair at a time — which is where every recent bug in the presenter has been.
+// No page at all: `leko.test.ts` and `wiring.test.ts` drive the real
+// `DomPresenter` and ask what ended up on screen. This one takes the modes and
+// the events a pair at a time. DESIGN.md, **Where a class has to wait on more
+// than one thing, its mode is one union and a pure function says what an event
+// does to it**.
 
 const step: LekoStep = { id: 'a', target: { elements: '#a', interactive: true } }
 const other: LekoStep = { id: 'b', target: '#b' }
-/** A step that points at nothing: a wait. */
+/** A step that points at nothing — DESIGN.md, **A step that waits**. */
 const waiting: LekoStep = { id: 'w', message: 'Hold on.' }
 
 /**
@@ -36,8 +37,8 @@ const replacement = { id: 'replacement' } as unknown as Element
 const glide = (): Glide => ({ settled: new Promise(() => {}), abandon: () => {} })
 
 /**
- * Effects that come back into the plan from inside the shell. `Outcome` says
- * each has to be the last of its list, and every outcome below is checked.
+ * The re-entrant effects, checked on every outcome below — `reentrantIsLast`
+ * in `packages/leko/model/README.md`.
  */
 const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'lost'])
 
@@ -49,10 +50,8 @@ const put = (mode: Mode, event: Event): Outcome => {
   return outcome
 }
 
-/** Every effect an outcome owes, by kind, in order. */
 const owed = (outcome: Outcome): string[] => outcome.effects.map((e) => e.kind)
 
-/** The one effect of `kind` an outcome owes. Fails where it owes none or two. */
 function the<K extends Effect['kind']>(outcome: Outcome, kind: K): Effect & { kind: K } {
   const found = outcome.effects.filter((e): e is Effect & { kind: K } => e.kind === kind)
   expect(found).toHaveLength(1)
@@ -75,17 +74,14 @@ type Gliding = Mode & { kind: 'gliding' }
 /** The step on screen while a wait runs, unless a test says otherwise. */
 const left: Drawn = { step: other, error: undefined }
 
-/** A step on screen, settled. */
 const drawn = (error: string | undefined = undefined): Mode => ({ kind: 'drawn', step, error })
 
-/** A target given a moment to turn up, with `standing` still on screen. */
 const retrying = (
   pending: Pending = { step, animate: true },
   standing: Drawn | undefined = left,
   unmeasured = false,
 ): Retrying => ({ kind: 'retrying', pending, unmeasured, error: undefined, standing })
 
-/** The page on its way to `step`, having left `standing`. */
 const gliding = (flight: Glide = glide(), standing: Drawn | undefined = left): Gliding => ({
   kind: 'gliding',
   glide: flight,
@@ -128,9 +124,10 @@ describe('an arrival', () => {
     const outcome = put(idle, arrival())
 
     expect(outcome.mode).toEqual({ kind: 'drawn', step, error: undefined })
-    // A step on screen is watched for nothing at all, whether or not its target
-    // resolved. Disarmed before it is drawn, so a draw that finds nothing to
-    // measure arms its hunt after this rather than having it taken off again.
+    // DESIGN.md, **Whether the target is still there stops being watched once
+    // the step is drawn**. Disarmed before the draw, so a draw that finds
+    // nothing to measure arms its hunt after this rather than having it taken
+    // off again.
     expect(owed(outcome)).toEqual(['disarm', 'reveal'])
     expect(the(outcome, 'reveal')).toEqual({
       kind: 'reveal',
@@ -158,7 +155,6 @@ describe('an arrival', () => {
       pending: { step, animate: true },
       unmeasured: false,
       error: undefined,
-      // What was on screen stays on screen, reason and all.
       standing: { step, error: 'was told' },
     })
     expect(owed(outcome)).toEqual(['hunt', 'deadline'])
@@ -177,12 +173,9 @@ describe('an arrival', () => {
       glide: flight,
       pending: { step, animate: true },
       error: undefined,
-      // What the retry was standing over, so a resize mid-glide can put it back.
       standing: left,
     })
-    // Entered from a retry, because that is the one mode with anything armed:
-    // the clock stops, the words go, and the hunt for the step the tour has
-    // just moved past goes with them.
+    // Entered from a retry, because that is the one mode with anything armed.
     expect(owed(outcome)).toEqual(['cancel', 'hide', 'disarm'])
   })
 
@@ -286,11 +279,11 @@ describe('a glide landing', () => {
 
 describe('the page changing under a step', () => {
   test('a batch that lands on a drawn step is ignored, because a drawn step arms nothing', () => {
-    // A step on screen watches for nothing, so a batch about one came from an
-    // observer already disconnected. A node swapped in under the step is not
-    // drawn again either: a replacement almost always lands where the old one
-    // was, so the standing hole is still right, and where it does not the hole
-    // is stale in the way a moved target's is.
+    // DESIGN.md, **Whether the target is still there stops being watched once
+    // the step is drawn**. A node swapped in under the step is not drawn again
+    // either: a replacement almost always lands where the old one was, so the
+    // standing hole is still right, and where it does not the hole is stale in
+    // the way a moved target's is.
     const before = drawn('not yet')
 
     const outcome = put(before, { kind: 'mutated', step, found: replacement })
@@ -345,12 +338,8 @@ describe('a draw that found nothing to measure', () => {
     expect(outcome.mode).toEqual({
       kind: 'retrying',
       pending: { step, animate: false },
-      // A draw that found nothing to measure is the one wait resolving
-      // cannot end, and the mode is where that is written.
       unmeasured: true,
       error: 'not yet',
-      // Nothing was drawn, and the stack may have been rebuilt on the way to
-      // finding nothing, so nothing is known to be standing.
       standing: undefined,
     })
     expect(owed(outcome)).toEqual(['hunt', 'deadline'])
@@ -370,25 +359,18 @@ describe('a deadline running out', () => {
 
     const outcome = put(before, { kind: 'expired', pending: before.pending, found: null })
 
-    // `lost` ends the run, and the teardown that arrives from inside the call
-    // finds nothing pending.
     expect(outcome.mode).toBe(idle)
     expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'lost', step }])
   })
 
   test('arrives at a target that turned up rather than giving it up', () => {
-    // The hunt hears a batch of nodes coming and going and nothing else, and a
-    // target can turn up without one: a style that gives it back the box it
-    // needs to be found at all, a render inside a shadow root the observer
-    // does not enter. So the bound asks once more before it ends the tour.
-    // Told something while it hunted, so that what the wait was told is seen
-    // to travel with the arrival.
+    // DESIGN.md, **And once more as the grace period runs out**. Told
+    // something while it hunted, so that what the wait was told is seen to
+    // travel with the arrival.
     const before: Retrying = { ...retrying(), error: 'not yet' }
 
     const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
 
-    // A fresh arrival, through `show` for the reason a hunt's own find goes
-    // through it, carrying what the wait had been told.
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([
       { kind: 'arrive', pending: before.pending, anchor, error: 'not yet' },
@@ -396,11 +378,6 @@ describe('a deadline running out', () => {
   })
 
   test('gives up a wait a draw began, whatever the last question answers', () => {
-    // `unmeasured` is the one wait resolving cannot end: the anchor resolved in
-    // the same task that could not measure it, so the last question can only
-    // ever answer "found". A deadline answered with an arrival here would fail
-    // to measure again and arm another deadline, every 100ms for ever with
-    // nothing drawn and nothing reported. This is what keeps the bound a bound.
     const before = retrying({ step, animate: true }, undefined, true)
 
     const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
@@ -441,9 +418,6 @@ describe('a resize', () => {
     const outcome = put(before, { kind: 'resized' })
 
     expect(outcome.mode).toBe(before)
-    // One effect rather than two, because the shell can find nothing to put
-    // back — the target went in the same task — and the words follow only
-    // where the holes did.
     expect(outcome.effects).toEqual([
       { kind: 'replace', drawn: { step, error: 'not yet' }, saying: true },
     ])
@@ -455,13 +429,14 @@ describe('a resize', () => {
     for (const before of [gliding(glide(), standing), retrying(undefined, standing)]) {
       const outcome = put(before, { kind: 'resized' })
       expect(outcome.mode).toBe(before)
-      // The step being left, not the one pending: nothing is drawn for the gap.
+      // The step being left, not the one pending, and nothing said —
+      // DESIGN.md, **Nothing is armed for it either, and a reason waits with
+      // the step**.
       expect(outcome.effects).toEqual([{ kind: 'replace', drawn: standing, saying: false }])
     }
   })
 
   test('does nothing while a step is on its way from nothing on screen', () => {
-    // Nothing was on screen when the wait began, so there is nothing to put back.
     const glidingFromNothing: Mode = { ...gliding(), standing: undefined }
     const retryingFromNothing: Mode = { ...retrying(), standing: undefined }
 

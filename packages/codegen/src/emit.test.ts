@@ -53,8 +53,8 @@ describe('emit', () => {
   })
 
   it('carries no call sites, so edits that move a line change nothing', () => {
-    // The file is a pure function of the vocabulary. With sites in it, --check
-    // failed whenever somebody edited above a reached() call.
+    // `emit.ts` says why the names go in alone. With sites in it, --check failed
+    // whenever somebody edited above a reached() call.
     const moved: ScanResult = {
       signals: [{ name: 'order-saved', sites: [{ file: '/app/src/other.ts', line: 99 }] }],
       dynamic: [],

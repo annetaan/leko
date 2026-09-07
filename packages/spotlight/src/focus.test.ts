@@ -26,9 +26,8 @@ test('a ring of one sends focus back where it was', () => {
 })
 
 test('from nowhere, each direction lands on the end it was heading for', () => {
-  // A tour just drawn, or a host that moved focus itself. There is no segment
-  // to be the neighbour of, so the ring is entered at the end that direction
-  // would have reached.
+  // `focus.ts` says when `from` is `-1`. There is no segment to be the neighbour
+  // of, so the ring is entered at the end that direction would have reached.
   expect(neighbour(3, -1, false)).toBe(0)
   expect(neighbour(3, -1, true)).toBe(2)
 })

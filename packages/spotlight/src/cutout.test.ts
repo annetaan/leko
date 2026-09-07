@@ -34,10 +34,9 @@ function holeImage(w: number, h: number, r: number): string {
 }
 
 test('the browser composites mask layers', () => {
-  // The one feature the scrim cannot be drawn without. A `clip-path` would do
-  // everything else asked of it and cannot draw a union: under even-odd a point
-  // inside two cutouts is inside an even number of subpaths and paints dark, so
-  // two holes could never overlap and a story could not open by converging.
+  // The one feature the scrim cannot be drawn without — DESIGN.md, **Drawing**,
+  // for what a `clip-path` cannot draw and why a story could not open by
+  // converging without this.
   expect(CSS.supports('mask-composite: subtract')).toBe(true)
   expect(CSS.supports('mask-image', `linear-gradient(black, black), ${holeImage(10, 10, 2)}`)).toBe(
     true,
@@ -45,11 +44,12 @@ test('the browser composites mask layers', () => {
 })
 
 test('a mask does not remove its holes from hit-testing', () => {
-  // **This is why the blocking is done with rectangles beside the scrim.** A
-  // `clip-path` took the element out of hit-testing where it had no geometry,
-  // which read as a hole a click fell through — but not a wheel, which is the
-  // trap `spike/wheel-through-a-hole/` caught. A mask paints and nothing else,
-  // so what the scrim catches is decided in one place: `pointer-events`.
+  // DESIGN.md, **Every layer paints and catches nothing. Plain rectangles in the
+  // gaps between the open cutouts do the blocking**. A `clip-path` took the
+  // element out of hit-testing where it had no geometry, which read as a hole a
+  // click fell through — but not a wheel, which is the trap
+  // `spike/wheel-through-a-hole/` caught. A mask paints and nothing else, so what
+  // the scrim catches is decided in one place: `pointer-events`.
   const target = mount(document.createElement('button'), {
     position: 'fixed',
     left: '100px',

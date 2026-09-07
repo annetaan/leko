@@ -2,9 +2,8 @@ import { at, type Case, html } from '../case.js'
 import type { LekoStory } from '@annetaan/leko'
 
 // Four short stories rather than one long one with a jump in it. An intro, two
-// branches out of it, and a summary both branches hand the tour to. A story is
-// atomic — it runs from its first step or it does not run — so the thing the
-// paths meet at is a story of its own rather than a step somebody points at.
+// branches out of it, and a summary both branches hand the tour to — DESIGN.md,
+// **A story is atomic, and stories are short**.
 //
 // Every join here is a `next` on the story that ends. Nothing in this file
 // starts a story: the buttons report what the user did and the stories say what
@@ -51,10 +50,9 @@ const intro = {
 } satisfies LekoStory
 
 const summary = {
-  // Where the paths meet. This used to be the last step of `intro`, and
-  // both branches jumped to it by name. A story cannot be entered part
-  // way through, so what two branches share is a story rather than a
-  // step, and it says what it needs in its own `onEnter`.
+  // Where the paths meet — DESIGN.md, **What two paths share is a story,
+  // not a step they both point at**. It says what it needs in its own
+  // `onEnter`.
   //
   // No `next`. The tour ends here, and running out of steps with nothing after
   // it is how a tour ends.

@@ -51,9 +51,8 @@ const here = (path: string): string => relative(process.cwd(), path) || path
 /**
  * What a run found, in one line, plus the calls it could not read.
  *
- * The dynamic ones are said out loud every time. A vocabulary gathered from a
- * project that builds names at runtime is missing whatever those calls report,
- * and a strict `awaits` on top of it rejects steps that are right.
+ * The dynamic ones are said out loud every time — `scan.ts` says why they are
+ * the reason `--loose` exists.
  */
 const describe = (report: Report, wrote: boolean): void => {
   const { signals, dynamic } = report.result

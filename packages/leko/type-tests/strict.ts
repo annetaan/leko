@@ -1,10 +1,8 @@
 /**
- * A generated vocabulary, and the promise that it is complete.
- *
- * This is what `leko-signals` writes by default. The vocabulary came from the
- * `reached()` calls in the project, so a name in `awaits` that is missing from
- * it is a step waiting for a report nothing makes. That one fails to compile.
- * `reached()` is untouched.
+ * A generated vocabulary and the promise that it is complete, which is what
+ * `leko-signals` writes by default. DESIGN.md, **Strict on `awaits`, never on
+ * `reached()` — the asymmetry is the design**, and
+ * `packages/codegen/README.md` says what a name missing from it costs.
  */
 import {
   createLeko,
@@ -26,12 +24,10 @@ declare module '@annetaan/leko' {
   }
 }
 
-// The vocabulary and nothing else. No `(string & {})` arm, which is what makes
-// the typo below an error.
+// The typo below is an error because of this.
 assertType<Equal<LekoKnownSignal, 'order-saved' | 'report-exported'>>()
 
-// And `reached()` keeps its loose arm, in the same program. This pair is the
-// whole design.
+// And `reached()` keeps its loose arm, in the same program.
 assertType<Equal<LekoSignal, 'order-saved' | 'report-exported' | (string & {})>>()
 
 export const declared: LekoStep = {
@@ -43,8 +39,8 @@ export const declared: LekoStep = {
 export const typo: LekoStep = {
   id: 'export',
   target: 'button[data-export]',
-  // @ts-expect-error nothing in the project reports this name. The build fails
-  // here if `LekoStrict` ever stops tightening `awaits`, which is the assertion.
+  // @ts-expect-error nothing in the project reports this name, so `LekoStrict`
+  // refuses it.
   awaits: 'report-exproted',
 }
 

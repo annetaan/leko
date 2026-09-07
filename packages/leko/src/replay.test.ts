@@ -7,31 +7,14 @@ import { afterAll, describe, expect, test } from 'vitest'
 import { type Effect, type Event, idle, type Mode, type Pending, pointsAt, reduce } from './plan.js'
 import type { LekoStep } from './types.js'
 
-// Every trace under `../model/traces/` driven into the real `reduce`, event by
-// event, with the model's own state as the oracle at each one.
-//
-// The machine's replay is a real `Machine` over a fake presenter. This is that
-// arrangement inverted: a real plan over fake effects, because the plan is the
-// half that decides and the shell is the half that touches the page. No browser
-// is involved and nothing here is asynchronous — `reduce` answers in the turn,
-// and the three effects that come back into it do so on the same stack.
-//
-// `../model/plan.qnt` carries six invariants, and five of them are things a
-// state predicate can see. What is left for here is the claims about what a
-// *transition* did — "a stale `settled` draws nothing", "an abandoned glide
-// never moves the page again" — which a predicate over one state cannot see at
-// all. Writing them into the model as a flag an action sets would make them
-// true by construction. They live here, where the thing being asked is the real
-// `reduce`.
-//
-// `packages/leko/model/README.md` says how a trace gets here and what to do
-// when one of these fails.
+// The corpus, driven event by event into the real `reduce`.
+// `machine/src/replay.test.ts` shows the method. What is different here — no
+// browser, nothing asynchronous, a real plan over fake effects — is in
+// `packages/leko/model/README.md`, and so is every claim asserted below.
 
 // ------------------------------------------------------------------ ITF values
 //
-// The Informal Trace Format wraps the things JSON has no spelling for. Sum types
-// are `{ tag, value }`, sets are `{ "#set": [...] }`, integers are
-// `{ "#bigint": "0" }`, and a nullary constructor's payload is the empty tuple.
+// `machine/src/replay.test.ts` shows what the format wraps.
 
 type Itf = unknown
 
@@ -121,12 +104,7 @@ function told(value: Itf): Told {
 
 /**
  * One effect, in a shape both sides can be written to.
- *
- * The plan's `Effect` carries nodes and objects; the model's carries names and
- * numbers. This is the two of them reduced to what they have in common, which
- * is everything either side decides: an anchor becomes whether there was one,
- * a `Glide` becomes the token the model numbers it by, and a step becomes its
- * id. Nothing an assertion could want is dropped.
+ * `packages/leko/model/README.md` says what that shape keeps and what it drops.
  */
 interface Owed {
   kind: string
@@ -210,7 +188,7 @@ interface Knobs {
 
 const knobs = (value: Itf): Knobs => value as Knobs
 
-/** One state of the model, in the terms the plan and its shell use. */
+/** One trace state, in the terms the plan and its shell use. */
 interface Snapshot {
   action: string
   picks: Record<string, Itf | undefined>
@@ -262,8 +240,7 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
     page: set(m['page']).map(str).toSorted(),
     marks: (m['marks'] as Itf[]).map(str),
     outcomes: (m['outcomes'] as Itf[][]).map((effects) => effects.map(toldEffect)),
-    // Ascending is mint order: the model takes every token off one counter that
-    // only ever goes up. {@link Shell.learn} leans on that.
+    // Ascending is mint order. See {@link Shell.learn}.
     glides: set(m['glides'])
       .map(int)
       .toSorted((a, b) => a - b),
@@ -277,17 +254,10 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
 
 // ------------------------------------------------------------------- the world
 //
-// Built from the trace rather than written out again here. `world` is a model
-// variable so that it lands in every ITF state, which is what lets the fixture
-// have one definition instead of two that can drift apart.
+// Out of the trace, not written again here —
+// `packages/leko/model/README.md` says why it is a model variable at all.
 
-/**
- * The steps the model's world holds, by the name the model calls them.
- *
- * It sits in the trace's header rather than in each state: `world` is a model
- * variable so that it reaches the trace at all, and it is written once in
- * `init`, so `scripts/model-traces.mjs` writes it once too.
- */
+/** The steps the model's world holds, by the name the model calls them. */
 function build(raw: Itf): Map<string, LekoStep> {
   const steps = new Map<string, LekoStep>()
   for (const [name, spec] of map(raw)) {
@@ -305,11 +275,7 @@ function build(raw: Itf): Map<string, LekoStep> {
 const targetOf = (step: LekoStep): string | undefined =>
   typeof step.target === 'string' ? step.target : undefined
 
-/**
- * An anchor is opaque to the plan. It hands one to the shell and never reads
- * it, so anything with an identity will do — the same bargain `plan.test.ts`
- * strikes, and the reason this suite needs no DOM.
- */
+/** Opaque to the plan — `plan.test.ts` strikes the same bargain. */
 const ANCHOR = { id: 'anchor' } as unknown as Element
 
 /** What a guard says when it refuses. Which words is not the question here. */
@@ -317,10 +283,8 @@ const REASON = 'no'
 
 // -------------------------------------------------------------- the fake shell
 //
-// `perform` in `presenter.ts`, as what each effect does to the state the model
-// says the shell keeps. It is `perform` in `plan.qnt` written in TypeScript,
-// and holding the two against each other after every event is what says the
-// real `reduce` owed what the model's `reduce` owed.
+// `perform` in `plan.qnt`, written in TypeScript —
+// `packages/leko/model/README.md` says what it stands in for.
 
 /**
  * A `Glide` that never lands on its own, and remembers how it ended.
@@ -355,11 +319,7 @@ class Shell {
   knobs: Knobs = { somewhere: false, measured: true, outright: true }
   /**
    * The identities the model names by token, as the objects the plan made.
-   *
-   * Filled by {@link learn} off the two lists below rather than off whatever
-   * mode the action happened to end in. Both sides mint from one counter that
-   * only ever goes up, so the nth thing this made is the nth token the model
-   * added, whatever depth of re-entry either was reached at.
+   * Filled by {@link learn} off the two lists below.
    */
   readonly glides = new Map<number, Flight>()
   readonly waits = new Map<number, Pending>()
@@ -399,8 +359,8 @@ class Shell {
   }
 
   /**
-   * `dispatch` in `presenter.ts`: the mode is written before any effect runs,
-   * and the effects run in order against whatever the ones before them left.
+   * `dispatch` in `presenter.ts`, which says why the mode is written first. The
+   * effects run in order against whatever the ones before them left.
    */
   dispatch(event: Event): void {
     const outcome = reduce(this.mode, event)
@@ -438,9 +398,8 @@ class Shell {
         this.deadline = undefined
         return
       case 'reveal': {
-        // The words of the step being left go, and `measure` restacks the
-        // layers whatever it finds, so something of the tour is on the page
-        // from here on either way.
+        // `measure` restacks the layers whatever it finds, so something of the
+        // tour is on the page from here on either way.
         this.messageUp = false
         this.onPage = true
         if (!this.knobs.measured) {
@@ -459,9 +418,9 @@ class Shell {
         return
       }
       case 'replace': {
-        // Where the step's target is not on the page this instant, `replace`
-        // places the way out and nothing else: no holes, and no words even
-        // where `saying` asked.
+        // A step whose target has gone gets the way out and nothing else — no
+        // holes, and no words even where `saying` asked. `replace` in
+        // `presenter.ts` says why.
         const target = targetOf(effect.drawn.step)
         if (target !== undefined && !this.page.has(target)) return
         // `set`, which halts a morph in flight: it settles unfinished and the
@@ -566,17 +525,13 @@ class Shell {
   }
 
   /**
-   * Tie the model's tokens to the objects the plan and this made.
+   * Tie the model's tokens to the objects the plan and this made, by order —
+   * `packages/leko/model/README.md` says why order rather than the mode an
+   * action ended in, and what a length that disagrees means.
    *
-   * By order rather than by reading the terminal mode. The model takes every
-   * token off one counter that only goes up, so its `glides` and `waits` sorted
-   * ascending are in mint order, and the lists above are in the same order.
-   * Reading the mode the action ended in would be right only while no branch
-   * that mints an identity also owes a re-entrant effect — true today, unstated,
-   * and silent if it stopped being true.
-   *
-   * A length that disagrees says the harness has stopped following the plan,
-   * which is a different thing from a corpus that is wrong, so it says so.
+   * Reading that mode would be right only while no branch that mints an
+   * identity also owes a re-entrant effect: true today, unstated, and silent
+   * if it stopped being true.
    */
   learn(now: Snapshot, where: string): void {
     const tie = <T>(tokens: number[], made: T[], what: string, into: Map<number, T>): void => {
@@ -680,12 +635,8 @@ interface Observed {
   morphing: string | undefined
   /**
    * Which glide the mode holds, and which are still carrying the page, by the
-   * token the model numbers them with.
-   *
-   * Identities rather than a count. A `show` over a glide abandons one and
-   * mints another, and a mode left holding the abandoned one owes the same
-   * effects and runs the same number of glides — so a count agrees, and the
-   * page never draws the step it has just scrolled to.
+   * token the model numbers them with. Identities rather than a count, for the
+   * reason `packages/leko/model/README.md` gives.
    */
   glide: number | undefined
   moving: number[]
@@ -741,7 +692,7 @@ const expected = (now: Snapshot): Observed => ({
   page: now.page,
 })
 
-/** Effects that come back into the plan. `Outcome` says each is the last of its list. */
+/** The re-entrant effects, which `Outcome` says each list ends with. */
 const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'lost'])
 
 // -------------------------------------------------------------------- the runs
@@ -749,20 +700,18 @@ const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'los
 interface Trace {
   target: string
   seed: string
-  /** The model's `world`, written once. See {@link build}. */
+  /** The model's `world`. See {@link build}. */
   world: Itf
   states: Record<string, Itf>[]
 }
 
-// Read off disk rather than imported one by one, so that a trace added by
-// `pnpm model:traces` is replayed without anybody having to remember to say so
-// here. What keeps that from quietly meaning nothing is the first test below.
+// Read off disk — `machine/src/replay.test.ts` says why, and the first test
+// below is what keeps it from quietly meaning nothing.
 const corpus = fileURLToPath(new URL('../model/traces/', import.meta.url))
 
 /**
- * What the corpus as a whole got to. Each of these is a claim below whose
- * machinery would stand idle if no trace reached it, leaving the assertion
- * green about nothing.
+ * Which claims the corpus actually reached, one counter each —
+ * `machine/src/replay.test.ts` says why the alarm is here.
  */
 const exercised = {
   staleSettled: 0,
@@ -774,8 +723,6 @@ const exercised = {
   glideOverGlide: 0,
 }
 
-// And the alarm itself. Counting without reading the count is the same silence
-// with an extra step in it.
 afterAll(() => {
   expect(exercised.staleSettled, 'no trace landed a stale glide').toBeGreaterThan(0)
   expect(
@@ -813,8 +760,6 @@ const named = readdirSync(corpus)
   )
 
 describe('every trace the model found', () => {
-  // A corpus that quietly emptied would leave this file green and testing
-  // nothing, which is the one way a harness like this fails silently.
   test('is there', () => {
     expect(named.length).toBeGreaterThan(0)
   })
@@ -882,22 +827,15 @@ describe('every trace the model found', () => {
 
         shell.learn(now, where)
 
-        // The oracle, in two halves. What each `reduce` owed, and the state
-        // performing it left behind. The effects first, because two of them can
-        // leave the same footprint and only this tells those apart: a `say`
-        // where a `retell` was owed re-places the message box instead of
-        // swapping its words, and both end with the message showing.
+        // The oracle, in two halves — `packages/leko/model/README.md` says why
+        // both of them, and why the effects first.
         expect(
           shell.owed.map((effects) => effects.map((effect) => shell.render(effect))),
           `${where}: the effects owed`,
         ).toEqual(now.outcomes)
         expect(observe(shell), where).toEqual(expected(now))
 
-        // An effect that comes back into the plan goes last, on the real
-        // outcomes rather than the model's. `plan.test.ts` asks this of the
-        // pairs somebody wrote an example for; the model's `reentrantIsLast`
-        // asks it of its own `reduce`; this asks it of the real one, over every
-        // outcome any trace reaches.
+        // Claim 5 of `packages/leko/model/README.md`.
         for (const effects of shell.owed) {
           const kinds = effects.map((effect) => effect.kind)
           const back = kinds.findIndex((kind) => REENTRANT.has(kind))
@@ -908,19 +846,15 @@ describe('every trace the model found', () => {
 
         const flat = shell.owed.flat()
 
-        // 1. A stale `settled` draws nothing. The glide is what is compared,
-        //    not the record: a reason told mid-glide replaced the record and
-        //    left the same wait running.
+        // Claim 1 of `packages/leko/model/README.md`.
         if (now.marks.includes('settled-stale')) {
           exercised.staleSettled += 1
           expect(flat, `${where}: a stale landing was acted on`).toEqual([])
           expect(observe(shell), `${where}: a stale landing moved the page`).toEqual(before)
         }
 
-        // 2. An abandoned glide never moves the page again. `abandon` is a call
-        //    on the real object, so this asks the object rather than the model's
-        //    set: a glide the plan gave up on was told to stop, and anything it
-        //    reports afterwards is answered with nothing.
+        // Claim 2 of `packages/leko/model/README.md`. `abandon` is a call on
+        // the real object, so this asks the object rather than the model's set.
         if (now.action === 'doSettled') {
           const flight = shell.glides.get(int(picks['glidePick']!))!
           if (flight.abandoned) {
@@ -928,21 +862,17 @@ describe('every trace the model found', () => {
             expect(flat, `${where}: an abandoned glide drew something`).toEqual([])
           }
         }
-        // A `show` that glides, made while the page was already gliding, is the
-        // one state where two glides are alive at once and the loop below is
-        // asking something. `glideOverGlide` in `plan.qnt` spelled in
-        // TypeScript, and no wider: anything else arriving mid-glide leaves
-        // `moving` holding exactly the glide the mode holds, where the loop is
-        // trivially true. Counted, because until `glide-over-glide` was
-        // harvested no trace reached it and the loop was true of nothing.
+        // `glideOverGlide` in `plan.qnt` spelled in TypeScript, and no wider:
+        // anything else arriving mid-glide leaves `moving` holding exactly the
+        // glide the mode holds, where the loop is trivially true. Counted
+        // because until `glide-over-glide` was harvested no trace reached it,
+        // and `packages/leko/model/README.md` says how that went unnoticed.
         if (now.from === 'gliding' && now.marks[0] === 'show-glide') {
           exercised.glideOverGlide += 1
         }
 
-        // And nothing else is still carrying the page. A glide the plan walked
-        // away from without owing an `abandon` would go on scrolling towards a
-        // step the tour has left, and it is the one still running rather than
-        // the one already stopped that says so.
+        // And nothing else is still carrying the page, which is the rest of
+        // claim 2.
         for (const flight of shell.moving) {
           expect(
             shell.mode.kind === 'gliding' && shell.mode.glide === flight,
@@ -950,18 +880,14 @@ describe('every trace the model found', () => {
           ).toBe(true)
         }
 
-        // 3. An `expired` for a wait that ended is answered with nothing,
-        //    however long ago it was set.
+        // Claim 3 of `packages/leko/model/README.md`.
         if (now.marks.includes('expired-stale')) {
           exercised.staleExpired += 1
           expect(flat, `${where}: a deadline for a wait that had ended was acted on`).toEqual([])
           expect(observe(shell), `${where}: and it moved the page`).toEqual(before)
         }
 
-        // 3b. A deadline that runs out onto a target that has turned up is an
-        //     arrival rather than an ending. The hunt hears a batch of nodes
-        //     coming and going and nothing else, so the bound asks once more
-        //     before it ends the tour.
+        // Claim 3b of `packages/leko/model/README.md`.
         if (now.marks.includes('expired-arrive')) {
           exercised.expiredArrival += 1
           expect(
@@ -974,11 +900,9 @@ describe('every trace the model found', () => {
           ).toBe(true)
         }
 
-        // 3c. And the one wait a resolve cannot end is given up whatever the
-        //     last question answers. Otherwise the deadline stops being a
-        //     bound on anything: the anchor resolved in the same task that
-        //     could not measure it, so an arrival here fails the same way and
-        //     arms another deadline, every 100ms for ever.
+        // 3c, which the README has no row for. `Mode.retrying.unmeasured` in
+        // `plan.ts` says which wait this is and why the bound stops being a
+        // bound otherwise.
         if (now.marks.includes('expired-unmeasured')) {
           exercised.expiredUnmeasured += 1
           expect(
@@ -991,9 +915,9 @@ describe('every trace the model found', () => {
           ).toBe(true)
         }
 
-        // 4. A `resized` mid-glide puts the standing holes back and says
-        //    nothing. The words would go beside a hole the page is carrying
-        //    off, in words the landing is about to replace.
+        // Claim 4 of `packages/leko/model/README.md`. The words would go beside
+        // a hole the page is carrying off, in words the landing is about to
+        // replace.
         if (now.action === 'doResized' && now.from === 'gliding') {
           exercised.resizedMidGlide += 1
           expect(

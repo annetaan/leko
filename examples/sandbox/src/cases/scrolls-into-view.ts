@@ -1,40 +1,30 @@
 import { type Case, html } from '../case.js'
 
-// A target the viewer would have to go and find. A step draws its target where
-// the target is, so without being asked it cuts a hole in a scrim nobody can
-// see and leaves the viewer to work out that scrolling is what the step wants
-// — which `message-sides.ts` turns into a lesson, honestly, and a tour is not
-// the place to teach scrolling.
+// A target the viewer would have to go and find — DESIGN.md, **Bringing a
+// target into view**, is why a step does not go and get it unless asked. So the
+// instance here says `scroll: true`, and every step below rides that one
+// setting. What the steps prove is what happens around the destination: nothing
+// at all where the cutout is already showing, and the two places a target is
+// not centred — more than half a scrollport tall, which DESIGN.md argues under
+// **A target more than half the port tall leads with its top edge, put at the
+// middle**, and against the end of a scrollport where the content runs out
+// first.
 //
-// So the instance here says `scroll: true`, and every step below rides that
-// one setting. **The destination is the middle of the screen**, because a step
-// exists to draw attention to one thing and a hole against the bottom edge is
-// the least attention one can be given. What the steps prove is what happens
-// around that: nothing at all where the cutout is already showing, and the two
-// places a target is not centred: more than half a scrollport tall, where it
-// leads with its top edge so the message has the half above it, and against the
-// end of a scrollport, where the content runs out first.
+// It is also the case to watch the staging on, which DESIGN.md argues under
+// **Two stages, never one: the page glides, and the step is drawn when it
+// stops**; `spike/a-smooth-scroll-settling/` has how far off a morph alongside
+// a glide lands. This is the case the glide's pace was set by eye on. Scroll
+// during it and it stops where you put the page. The panel in the fifth step is
+// set rather than glided — DESIGN.md, **The page glides; a nested panel is
+// set**.
 //
-// It is also the case to watch the staging on. The page glides and the hole
-// stays where it was until the page stops, because a hole is placed from where
-// its target is on screen and a morph running alongside a glide would land it
-// against a screen the page has already left —
-// `spike/a-smooth-scroll-settling/` has how far off that is. The glide is
-// Leko's own frame loop, growing with the distance rather than timed by the morph
-// — what passes while the page moves is part of what a newcomer is there to
-// see — and this is the case its pace was set by eye on. Scroll during it and
-// it stops where you put the page. The panel in the fifth step is the other
-// half: it is set rather than glided, so the movement a viewer follows is the
-// page's alone.
-//
-// **The other half of this — a step that does not scroll — is
-// `message-sides.ts` and not here.** Off is the default, and the pathology it
-// leaves is the one that opened this issue: the hole is cut below the screen
-// and the message rides it there, next control and all, so a step like that in
-// this case would be indistinguishable from a tour that had stopped working.
-// That the message goes off screen instead of docking, whenever no side of the
-// hole has room on screen, is a gap of Leko's own rather than something a case
-// should be built around — issue #140.
+// A step that does not scroll is `message-sides.ts` and not here. Off is the
+// default, and the pathology it leaves is the one that opened this issue: the
+// hole is cut below the screen and the message rides it there, next control and
+// all, so a step like that in this case would be indistinguishable from a tour
+// that had stopped working. That the message goes off screen instead of docking,
+// whenever no side of the hole has room on screen, is a gap of Leko's own rather
+// than something a case should be built around — issue #140.
 export const scrollsIntoView: Case = {
   id: 'scrolls-into-view',
   title: 'A step that goes and gets its target',

@@ -1,11 +1,9 @@
 /**
- * The shape of `target`, held by the compiler.
- *
- * One rule lives in the type rather than in any runtime check: only the first
- * region — the one the step is about — may declare `interactive`. Every entry
- * after it is a {@link LekoShownRegion}, whose `interactive` is `never`, so
- * the flag fails to compile there even when it arrives on an object built
- * somewhere else. This file is that claim, stated as a program.
+ * The shape of `target`, held by the compiler. Only the first region may
+ * declare `interactive` — DESIGN.md, **A hole, and whether it is open** — and
+ * every entry after it is a shown region whose `interactive` is `never`, so the
+ * flag fails to compile there even when it arrives on an object built somewhere
+ * else.
  */
 import type { LekoRegion, LekoStep } from '@annetaan/leko'
 

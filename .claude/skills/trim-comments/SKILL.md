@@ -37,7 +37,7 @@ Ask in this order and stop at the first yes:
    invariant the types cannot spell. Keep it.
 4. Otherwise delete it.
 
-Two rules ride on top:
+Three rules ride on top:
 
 - **An effect performed is not an effect explained.** A presenter method that
   performs an effect must not restate what the effect means: that is on the
@@ -47,6 +47,14 @@ Two rules ride on top:
   reader is a consumer hovering in an editor, with no DESIGN.md to hand. What a
   type is and how to use it stays. Why it was designed that way still collapses
   to a citation.
+- **A test asserted is not a rule argued.** A `describe` name is the axis and a
+  `test` name is the claim, so a comment beside one carries what the staging and
+  the assertion added and nothing else — a browser's behaviour, a number's
+  reason, or the reading of an assertion whose shape does not say what it is
+  about. Restating the rule the test exercises belongs to the plan, the types or
+  DESIGN.md. The reading is the one to keep: an assertion in a bound form —
+  greater than zero, does not contain, has length nothing — says nothing on its
+  own, and what it is asserting has to be written beside it.
 
 ## The three checks
 
@@ -62,6 +70,17 @@ pnpm check:citations && pnpm typecheck && pnpm format:check && pnpm lint
 `code-identity.mjs` strips both HEAD and the working tree and compares. It has
 to say *code identical*; a trim that moved a line of code is a failed trim, and
 a green typecheck does not catch one because a comment cannot break a build.
+
+**It is blind to a compiler directive.** `@ts-expect-error` is a comment the
+compiler runs, and `strip()` drops it like any other, so deleting one leaves
+this saying *code identical* and `pnpm test` green — the type tests are not a
+Vitest project — with `pnpm typecheck` the only thing that reddens. Under
+`packages/leko/type-tests/` that check is the one that matters. Keep the
+directive's token and trim only the prose behind it.
+
+**A comment that holds a literal open is code.** Delete the trailing comments
+inside a multi-line array or object and the formatter collapses it onto one
+line, which either fails `format:check` or moves a line of code. Leave them.
 
 `overlap.mjs` reports every run of eight words this file's comments share with
 anything else tracked. A hit is not a verdict — this repository has a vocabulary
@@ -81,9 +100,15 @@ there. It runs on every push, so a collapsed comment cannot quietly rot.
 Trim the files somebody is about to read, in the order they will read them.
 Trimming a file nobody has opened returns nothing today.
 
-`types.ts`, then the two `plan.ts`, then `presenter.ts` and `scrim.ts`, then
-`geometry.ts`. `examples/sandbox` and `packages/codegen` are already near a
-fifth of their code and are not worth a pass.
+Where two files share a paragraph, trim the one that owns the fact first, so
+the pointer the second one grows has somewhere to land. The repository usually
+says which owns it: `packages/leko/model/README.md` opens by saying the
+machine's README carries the shared method, and the same asymmetry sorts the
+two `replay.test.ts`.
+
+`examples/sandbox` and `packages/codegen` are near a fifth of their code, so
+run `overlap.mjs` before opening either — a file with no hits is a file to
+leave alone.
 
 ## Never
 

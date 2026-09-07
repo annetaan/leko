@@ -24,16 +24,9 @@ import { DomPresenter } from './presenter.js'
 import type { Leko } from './leko.js'
 import type { LekoProblem, LekoStep } from './types.js'
 
-// The public API driven through the real `DomPresenter`, rather than through
-// the presenter a test writes. What each of these pins down is which step the
-// tour is on and when it says so — the same kind of claim `@annetaan/leko-machine`
-// makes against a fake presenter, made again through the wiring that connects
-// the two halves.
-//
-// One browser, not three. These assertions touch the page only enough to show
-// the wiring reached it; none of them is about layout an engine could perform
-// differently, and `leko.test.ts` is where those live. Running them three times
-// bought nothing and cost two thirds of the project's time.
+// The public API driven through the real `DomPresenter`, in one browser —
+// ONBOARDING.md, **Which Vitest project a new test belongs in**. Layout an
+// engine could perform differently lives in `leko.test.ts`.
 
 test('a selector matching several elements takes the first', () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
@@ -83,8 +76,7 @@ test('a step does not advance until the application says it succeeded', async ()
   expect(error.mock.calls[0]?.[0]).toBe(first)
 
   ready = true
-  // A frame first: everything reaching the control inside one is the same
-  // press, and a second real attempt is further away than that.
+  // A frame first — `harness.ts` says why that is what separates two presses.
   await frame()
   press()
   expect(leko.step?.id).toBe('second')
@@ -141,11 +133,8 @@ test('a target that never turns up stops the tour instead of pointing at nothing
 
   begin(leko, 'story')
 
-  // Given a moment to turn up first, because a step whose target renders just
-  // after its `onEnter` returned is the same situation. Nothing is drawn for
-  // it: what was on screen a moment ago stays there, and here that is nothing.
-  // The story is running all the same, and the step it is on is the one being
-  // waited for.
+  // DESIGN.md, **Nothing is drawn for a retry**. What was on screen a moment
+  // ago stays there, and here that is nothing.
   expect(scrim()).toBeNull()
   expect(leko.state).toBe('running')
   expect(leko.step?.id).toBe('ghost')
@@ -172,8 +161,7 @@ test('stopping and starting puts away whatever was running', () => {
   })
 
   begin(leko, 'onboarding')
-  // Two calls, because `start` never ends a tour. What is on the page after
-  // them is what one call used to leave.
+  // Two calls, because `start` never ends a tour.
   leko.stop()
   leko.start({
     id: 'returning',
@@ -307,8 +295,7 @@ test('a target that turns up inside the retry is drawn again', async () => {
   seen.length = 0
 
   // The step arrived with nothing to resolve, so it waits. What is standing is
-  // the step before it, exactly as it was: nothing new is drawn while a retry
-  // runs, and the machine is not told a thing.
+  // the step before it, exactly as it was, and the machine is not told a thing.
   expect(holes()).toBe(1)
   expect(centre(first)).toBe(first)
   expect(leko.state).toBe('running')
@@ -367,8 +354,7 @@ test('onEnter builds the state the step assumes, before the target is looked for
 
   begin(leko, 'story')
 
-  // The element did not exist when `start()` was called. Resolving the target
-  // first would have lost the step before the application could build it.
+  // DESIGN.md, **The target is resolved after `onEnter` returns**.
   const target = document.querySelector<HTMLElement>('.late')!
   expect(leko.state).toBe('running')
   expect(centre(target)).toBe(target)
@@ -379,9 +365,8 @@ test('a step that waits is drawn at once, and the signal it names moves the tour
   const { leko, seen } = watched({
     id: 'story',
     steps: [
-      // No target, so the whole page goes under. This is where work that has to
-      // finish before anything is measured is waited for, and the wait is a
-      // step rather than a promise the machine holds.
+      // No target, so the whole page goes under — DESIGN.md, **A step that
+      // waits**.
       { id: 'loading', message: 'Loading…', awaits: 'loaded', onEnter: () => void 0 },
       { id: 'a', target: { elements: () => first, interactive: true } },
     ],
@@ -460,8 +445,7 @@ test('a story started from inside onLeave is refused, and the step that was arri
   begin(leko, 'story')
   press()
 
-  // Leaving is a call into the application, and a story started from inside one
-  // would be drawn over by the step this move was already on its way to.
+  // DESIGN.md, **One gate, and what it refuses**.
   expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
   expect(leko.step?.id).toBe('b')
   expect(centre(second)).toBe(second)
@@ -486,8 +470,8 @@ test('a story builds what it assumes before its first step is looked for', () =>
 
   begin(leko, 'story')
 
-  // Outermost first, and all of it inside the call that started the story. The
-  // element did not exist when `start()` was called.
+  // DESIGN.md, **Entry runs outermost first, and the ending mirrors it,
+  // innermost first**.
   const target = document.querySelector<HTMLElement>('.late')!
   expect(entered).toEqual(['step'])
   expect(leko.state).toBe('running')
@@ -554,9 +538,8 @@ test("a fresh object under the running story's name is turned down", () => {
 
   begin(leko, 'story')
 
-  // What a component re-rendering hands back. The `id` is not read and the call
-  // does not end anything, so the hole stays where somebody is standing rather
-  // than jumping to the steps of the newest render.
+  // What a component re-rendering hands back — DESIGN.md, **Starting a
+  // story**.
   leko.start({
     id: 'story',
     steps: [{ id: 'one', target: { elements: () => other, interactive: true } }],
@@ -594,9 +577,8 @@ test('a diagnostic reaches the host, with the step the signal was for', () => {
   expect(leko.step?.id).toBe('b')
 })
 
-// The way out of the tour. The scrim blocks the page with rectangles, so a host
-// that never thought about an escape hatch has built a trap, and these are
-// about the trap not being what you get by default.
+// DESIGN.md, **The way out**. These are about the trap not being what you get
+// by default.
 
 test('a tour draws a way out of itself, and using it ends the tour', () => {
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
@@ -631,8 +613,8 @@ test('the way out is there on a step with nothing to point at', () => {
   begin(leko, 'story')
   press()
 
-  // The page is covered with no hole in it, so nothing on it can be pressed.
-  // This is the moment somebody most wants out.
+  // Nothing on the page can be pressed, which is the moment somebody most
+  // wants out.
   expect(leko.state).toBe('running')
   expect(holes()).toBe(0)
   expect(closer()).not.toBeNull()
@@ -653,19 +635,16 @@ test('the way out gives up the corner a cutout wants', () => {
 
   begin(leko, 'story')
 
-  // A target in the top right is an account menu, which is exactly what sits
-  // there on a real page. Leaving the control on top of it would take back the
-  // interaction the cutout exists to allow.
+  // DESIGN.md, **Is positioned automatically**. What sits in a page's top right
+  // corner is usually the thing a viewer reaches for next.
   expect(centre(corner)).toBe(corner)
   const at = closer()!.getBoundingClientRect()
   expect(at.left).toBeLessThan(window.innerWidth / 2)
 })
 
 test('renderClose fills a root Leko positions, and its teardown runs at the end', () => {
-  // The only thing a host may change about the way out other than its words.
-  // There is no option that draws none: a corner Leko chose and a host filled
-  // is the arrangement where neither half can leave a blocked page with no way
-  // off it.
+  // The only thing a host may change about the way out other than its words —
+  // DESIGN.md, **Cannot be disabled**.
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const undone: string[] = []
   const leko = holding(
@@ -696,10 +675,9 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
 })
 
 // The retry, and it has one entrance: a step arriving at a target the page does
-// not have yet, because the application is still rendering it. It is given a
-// moment, and **nothing new is drawn while the moment passes** — whatever was
-// drawn last stays exactly as it was. A target that goes after its step was
-// drawn is not a retry and not anything: a drawn step arms nothing.
+// not have yet, because the application is still rendering it. DESIGN.md,
+// **Nothing is drawn for a retry**. A target that goes after its step was drawn
+// is not a retry and not anything, because a drawn step arms nothing.
 
 test('a step arriving at a target that has gone leaves the step before it standing, then ends', async () => {
   const [first, second] = pair()
@@ -726,9 +704,9 @@ test('a step arriving at a target that has gone leaves the step before it standi
   second.remove()
   press()
 
-  // The hole of the step before stands where it was for as long as the retry
-  // runs. Everything else is where it was too: the page outside the hole is
-  // still blocked, and the way out is still reachable.
+  // The hole of the step before stands where it was until the retry runs out.
+  // Everything else is where it was too: the page outside the hole is still
+  // blocked, and the way out is still reachable.
   expect(holes()).toBe(1)
   expect(centre(first)).toBe(first)
   expect(absorbed(bystander)).toBe(true)
@@ -741,12 +719,10 @@ test('a step arriving at a target that has gone leaves the step before it standi
 })
 
 test('a target hidden or removed after its step was drawn leaves the tour alone', async () => {
-  // Hidden where it stands and taken out of the document altogether. They are
-  // the same kind of fact about the page and a drawn step arms nothing for
-  // either: past the draw the page belongs to the application, and what a step
-  // assumes is `onEnter`'s to build and to keep. DESIGN.md draws the line under
-  // **What Leko does not do**, and this is here so that watching a drawn step
-  // cannot come back by accident on either half.
+  // Hidden where it stands and taken out of the document altogether: the same
+  // kind of fact about the page, and a drawn step arms nothing for either.
+  // DESIGN.md draws the line under **What Leko does not do**, and this is here so
+  // that watching a drawn step cannot come back by accident on either half.
   for (const take of ['hide', 'remove'] as const) {
     const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
     target.id = 'anchor'
@@ -797,9 +773,8 @@ test('a target given its box back inside the retry is drawn, though no node move
   expect(leko.state).toBe('running')
 
   // Given its box back by a style, which is what a framework does a tick after
-  // `onEnter` returned. No node moved, so no batch of nodes coming and going
-  // reports it and the hunt's observer hears nothing at all: what finds it is
-  // the deadline asking once more before it gives the step up.
+  // `onEnter` returned. No node moved, so the hunt's observer hears nothing at
+  // all — DESIGN.md, **And once more as the grace period runs out**.
   await pause(20)
   target.style.display = ''
 
@@ -896,8 +871,8 @@ test('a resize while the target is hidden or removed takes the standing layers w
     window.dispatchEvent(new Event('resize'))
 
     // There is nothing to restack against and nothing new to cut, but the
-    // surface still moved. A layer left at the height it had would leave
-    // everything past it neither dimmed nor blocked for the rest of the step.
+    // surface still moved — `presenter.ts` says what a layer left at its old
+    // height would leave uncovered.
     expect(leko.state, take).toBe('running')
     expect(layer.getBoundingClientRect().height, take).toBeGreaterThan(3000)
     expect(holes(), take).toBe(1)
@@ -960,9 +935,9 @@ test('a target that is not there yet leaves the page alone until it is', async (
   expect(scrim()).toBeNull()
   begin(leko, 'story')
 
-  // Nothing is drawn and nothing is blocked. The window is a few frames long
-  // and the page is exactly as it was a moment before, which is the trade for
-  // never showing a covered page over a fault the viewer never saw.
+  // Nothing is drawn and nothing is blocked. The window is a few frames long,
+  // which is the trade for never showing a covered page over a fault the viewer
+  // never saw.
   expect(scrim()).toBeNull()
 
   const target = box('late', { left: '100px', top: '100px', width: '120px', height: '40px' })
@@ -974,13 +949,11 @@ test('a target that is not there yet leaves the page alone until it is', async (
   await vi.waitUntil(() => leko.state === 'running', { timeout: 1000 })
 })
 
-// A resize that lands while a retry runs is not acted on then — nothing new is
-// drawn for a retry — and the layers are measured against the surface again
-// when the step is drawn. Without that, the step goes into layers sized for the
-// page as it was, and the part the page grew by is neither dimmed nor blocked
-// until the next resize. The retry has one entrance, so there is one test of
-// it; the step that stays drawn over a target that went is covered by the
-// standing layers above.
+// A resize that lands while a retry runs is not acted on then — DESIGN.md,
+// **Nothing is drawn for a retry** — and the layers are remade against the
+// surface the step is finally drawn onto. Without that, the part the page grew
+// by is left uncovered until the next resize. The retry has one entrance, so
+// there is one test of it.
 
 /** A box in the document rather than against the viewport, so the document layer is the one measured. */
 const inFlow = (top: string): Partial<CSSStyleDeclaration> => ({
@@ -1028,7 +1001,7 @@ test('a resize whose task took the target away leaves the words where they were'
 
   // The words stay beside the hole standing over the gap rather than jumping
   // to the foot of the screen with no hole to sit beside. The way out is placed
-  // all the same.
+  // regardless.
   expect(getComputedStyle(words).visibility).toBe('visible')
   expect(words.style.bottom).not.toContain('leko-message-dock')
   expect(closer()).not.toBeNull()
@@ -1098,8 +1071,8 @@ test("a resize asks each of the step's targets once, and reads each box once", (
   // Once each, and no more. Two spaces still want these boxes — the scrim's own
   // coordinates, which is where the holes are cut, and the viewport, which is
   // what decides the side the message has room on — but the two differ by a
-  // translation, so the second is arithmetic on the first rather than a second
-  // question for the page. These boxes are `position: fixed`, so that
+  // translation, so the second is arithmetic on the first rather than another
+  // question put to the page. These boxes are `position: fixed`, so that
   // translation is nothing at all and no container is measured beside them; the
   // test below is the same count where there is one.
   for (const rect of rects) expect(rect).toHaveBeenCalledTimes(1)
@@ -1185,16 +1158,14 @@ test('the words after a morph are placed from the holes read then, not the ones 
 
 // --- what a glide leaves standing
 //
-// A step told to `scroll` is drawn only once the page has stopped, so for the
-// length of the glide the tour is on one step and the screen is showing
-// another. Two things redraw without the tour moving — a reason the guard gave
-// and a resize — and each of them reads a record here. A batch of mutations is
-// not a third: a glide arms nothing, so nothing is listening for one.
+// A step told to `scroll` is drawn only once the page has stopped — DESIGN.md,
+// **Two stages, never one: the page glides, and the step is drawn when it
+// stops**. Two things redraw without the tour moving, a reason the guard gave
+// and a resize, and each of them reads a record here. A batch of mutations is
+// not a third: a glide arms nothing.
 //
-// Here rather than in `leko.test.ts` because none of it is about layout: what
-// is being pinned down is which step's record each of them reads, and no engine
-// has an opinion about that. The glide is `duration` long, so "mid-glide" is a
-// look taken on a timer somewhere inside that.
+// The glide is `duration` long, so "mid-glide" is a look taken on a timer
+// somewhere inside that.
 
 /**
  * Two targets far apart on a tall page, so a step that scrolls to the second
@@ -1250,7 +1221,7 @@ test('a replacement that lands while the page glides draws nothing', async () =>
   const standing = scrim()!.style.maskPosition
 
   // A framework rendering over the step the tour has just left, while the page
-  // is still on its way to the next one. Watched, the hole would morph back to
+  // is still travelling to the next one. Watched, the hole would morph back to
   // a step the tour has left, mid-glide, with its message coming after it if
   // the morph got there first.
   await pause(40)
@@ -1268,8 +1239,9 @@ test('a replacement that lands while the page glides draws nothing', async () =>
   await observed()
   await frame()
 
-  // Nothing moved and nothing was said. The standing hole travels with the
-  // content it is cut out of, which is the whole of what happens for the gap.
+  // Nothing moved — DESIGN.md, **Nothing is drawn for the gap** — and nothing
+  // was said, which DESIGN.md argues under **Nothing is armed for it either, and
+  // a reason waits with the step**.
   expect(scrim()!.style.maskPosition).toBe(standing)
   expect(saying()).toBe(false)
 
@@ -1293,8 +1265,7 @@ test('a reason told while the page glides is drawn when it lands', async () => {
   // The control goes with the message for the length of the glide, so a press
   // here is one only a script can make. What it asks for is real all the same:
   // the guard refuses, and the words it gave have to reach the step they are
-  // about. Written onto the step being left they would be said beside a hole
-  // the page is still carrying, and gone by the time it lands.
+  // about rather than the step being left.
   await frame()
   press()
   await pause(40)
@@ -1321,8 +1292,8 @@ test('a resize while the page glides puts the holes back and says nothing', asyn
 
   // The layers are remade against the surface as it is now and the standing
   // hole is put back in them. The message is not: it belongs to the step being
-  // left, and the landing has its own to draw. The way out is placed all the
-  // same — a resize can take away the corner it was standing in.
+  // left, and the landing has its own to draw. The way out is placed regardless,
+  // for the reason `plan.ts` gives.
   expect(holes()).toBe(1)
   expect(saying()).toBe(false)
   const out = closer()!.querySelector('button')!
@@ -1380,10 +1351,10 @@ test('a target lost after the step was drawn is not a wait at all', async () => 
   target.remove()
   await observed()
 
-  // No wait begins and nothing is ever given up. `Host.lost` is a retry's
-  // give-up, every retry belongs to an arrival, and this step arrived at a
-  // target that was there. Three hundred milliseconds is three times the moment
-  // an arrival would have got.
+  // DESIGN.md, **Every retry belongs to an arrival, so `Host.lost` is only ever
+  // about a step that was arriving**, and this step arrived at a target that was
+  // there. Three hundred milliseconds is three times the moment an arrival would
+  // have got.
   await pause(300)
   expect(lost).toEqual([])
 

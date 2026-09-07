@@ -24,7 +24,6 @@ export interface Step extends StepBase<Fixture> {
 
 export type Story = StoryBase<Fixture>
 
-/** The three types, as the one parameter everything in the machine takes. */
 export interface Fixture extends World {
   anchor: Anchor
   step: Step
@@ -33,28 +32,16 @@ export interface Fixture extends World {
 
 export type Options = MachineOptions<Fixture>
 
-/** The names on the page. A step pointing anywhere else resolves to nothing. */
 export const PAGE = ['first', 'second', 'third', 'target']
 
 /**
- * Stands in for whatever draws the tour, and keeps a note of what it was asked
- * for.
- *
  * Nothing here is asynchronous, and nothing needs to be. The machine hands a
  * step over and is done with it, so how long a real presenter takes to finish
  * drawing is not something a test of the machine can observe.
  */
 export class Fake implements Presenter<Fixture> {
   readonly page = new Set(PAGE)
-  /** Every step it was asked to draw, in order. */
   readonly shown: string[] = []
-  /**
-   * Every retell, so a test can ask which step was told what, and how often.
-   *
-   * The only thing the machine ever says about what is on screen. What becomes
-   * of the words is a presenter's business and `message.test.ts` asks about
-   * that; here the calls are the whole of it.
-   */
   readonly retold: { step: string; reason: string }[] = []
   rejected = 0
   torn = 0
@@ -66,9 +53,8 @@ export class Fake implements Presenter<Fixture> {
   }
 
   show(step: Step, anchor: Anchor | null): void {
-    // No retrying here. A presenter that gives a missing target time to appear
-    // is answering a drawing question, and the machine is not asked about it
-    // until the answer is in.
+    // No retrying here — DESIGN.md, **Every retry belongs to an arrival, so
+    // `Host.lost` is only ever about a step that was arriving**.
     if (anchor === null) return this.host.lost(step)
     this.shown.push(step.id)
   }
@@ -85,24 +71,16 @@ export class Fake implements Presenter<Fixture> {
     this.torn += 1
   }
 
-  /**
-   * The step's target left the page and did not come back. What the real
-   * presenter says once its retry has run out, which is the only part of a
-   * missing target the machine hears about.
-   */
+  /** What the real presenter says once its retry has run out. */
   lose(step: Step): void {
     this.page.delete(step.target)
     this.host.lost(step)
   }
 
   /**
-   * The next control this drew was pressed.
-   *
-   * The only way anything advances a step without naming a signal, which is why
-   * a test has to come through the presenter to do it. The machine has no
-   * method for this and deliberately does not: a step that declares `awaits`
-   * gets no control, and that rule is worth nothing if a caller can press one
-   * that was never drawn.
+   * The next control this drew was pressed. A test has to come through the
+   * presenter to advance a step that names no signal, because the machine has
+   * no method for it — DESIGN.md, **The next control**.
    */
   press(): void {
     this.host.next()

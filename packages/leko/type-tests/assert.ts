@@ -1,9 +1,6 @@
 /**
- * Assertions for the two programs beside this file.
- *
- * `LekoSignals` is augmented once per compilation, so "before augmentation" and
- * "after it" cannot be two files in one program. They are two programs, each
- * with its own `tsconfig`, and this is what they share.
+ * Assertions for the programs beside this file — ONBOARDING.md, **The codegen
+ * loop**, is why there is more than one of them.
  */
 
 /**

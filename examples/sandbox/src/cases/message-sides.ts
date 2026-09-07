@@ -78,8 +78,8 @@ export const messageSides: Case = {
       </div>
     `)
 
-    // The application's own export, written where the application would write
-    // it: it reports that the render finished, and knows nothing about steps.
+    // The application's own export, in the place an application would put it —
+    // DESIGN.md, **Signals and steps**.
     renderExport = async () => {
       await new Promise((resolve) => setTimeout(resolve, 2800))
       at('[data-status]').textContent = 'PDF ready.'
@@ -133,8 +133,8 @@ export const messageSides: Case = {
         {
           // A step that points at nothing cuts nothing, so there is no hole
           // for the box to sit beside and no anchor to hang it on. Docking at
-          // the foot of the viewport is that case — and the same place the box
-          // goes in a browser that cannot track an anchor at all.
+          // the foot of the viewport is that case — and DESIGN.md, **Browser
+          // support**, is where the same place is reached the other way.
           id: 'docked',
           message:
             'Rendering the PDF… Nothing is pointed at, so nothing is cut, ' +
@@ -159,5 +159,4 @@ export const messageSides: Case = {
   ],
 }
 
-/** Set by {@link messageSides.mount}, which is where the instance to report to is. */
 let renderExport: () => Promise<void> = async () => {}

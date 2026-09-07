@@ -15,11 +15,8 @@ const CHAPTERS: Record<string, string> = {
 // What a story assumes throughout, arranged once. The table is empty until the
 // tour loads a draft order into it, and every step of this story is written
 // against that draft. The load has a matching clear-up, and that is the half
-// that decides where it goes: a story's `onLeave` runs when the run ends, and
-// the first step's runs the moment the tour reaches the second, with the rows
-// still in use.
-//
-// Set by `mount`, which is where the instance to report to is.
+// that decides where it goes — DESIGN.md, **The story's `onLeave` runs when the
+// run ends, after the last step's**.
 const EMPTY = '<tr><td colspan="2" class="hint">No draft loaded.</td></tr>'
 const DRAFT = `
   <tr><td>Enclosure, 2U</td><td>4</td></tr>
@@ -56,8 +53,7 @@ export const storySetup: Case = {
     `)
     root.append(panel)
 
-    // The application's own function. It reports what happened when it
-    // happened, and knows nothing about which step is showing.
+    // The application's own function — DESIGN.md, **Signals and steps**.
     loadDraft = async () => {
       await new Promise((resolve) => setTimeout(resolve, 600))
       at('[data-rows]').innerHTML = DRAFT
@@ -71,18 +67,16 @@ export const storySetup: Case = {
     {
       id: 'story-setup',
 
-      // Runs before the first step is entered, and hands nothing back. Leko
-      // waits for no handler, so a load that has to finish before anything is
-      // measured is started by the step that waits for it rather than here.
+      // Runs before the first step is entered, and hands nothing back —
+      // DESIGN.md, **Whatever a handler hands back is dropped**. A load the
+      // first step needs is started by the step that waits for it.
       onEnter: () => {
         at('[data-chapter]').textContent = '—'
       },
 
       // The matching half, and the reason it is worth having one place for
       // this: the draft outlives every step, so no step could own taking it
-      // away. `next` is the story about to start, and undefined when the
-      // tour is simply over — teardown a following story needs is teardown
-      // a handler can skip on.
+      // away. `types.ts` says what `next` is here.
       onLeave: (_story, next) => {
         at('[data-chapter]').textContent = '—'
         if (!next) at('[data-rows]').innerHTML = EMPTY
@@ -90,14 +84,13 @@ export const storySetup: Case = {
 
       steps: [
         {
-          // No target, so the page goes under with no hole in it. The tour is
-          // drawn and still here rather than between things, which is why a
-          // `reached()` landing now is acted on instead of dropped.
+          // No target, so the page goes under with no hole in it — DESIGN.md,
+          // **A step that waits**.
           id: 'loading',
           message: 'Loading the draft order…',
           awaits: 'draft-loaded',
-          // The wait starts the work it waits for, so the report cannot arrive
-          // before the step that names it.
+          // DESIGN.md, **The wait starts the work it waits for, and that
+          // placement is the rule**.
           onEnter: () => void loadDraft(),
         },
         {

@@ -11,15 +11,8 @@ import type { Problem } from './types.js'
 // Every trace under `../model/traces/` driven into the real machine, call by
 // call, with the model's own state as the oracle at each one.
 //
-// `../model/machine.qnt` carries two invariants, because those two are the only
-// ones on the list in issue #52 that a state predicate can see. The rest are
-// claims about what a *transition* did — "nothing moved", "exactly one
-// `onLeave`" — and a predicate over one state cannot see a transition at all. Writing them into the
-// model as a flag an action sets would make them true by construction. They live
-// here instead, where the thing being asked is the real class.
-//
-// `packages/machine/model/README.md` says how a trace gets here and what to do
-// when one of these fails.
+// `packages/machine/model/README.md` says which claims live here rather than
+// in the model, how a trace gets here, and what to do when one of these fails.
 
 // ------------------------------------------------------------------ ITF values
 //
@@ -67,11 +60,8 @@ interface Snapshot {
   drawn: Pos | undefined
   presenterUp: boolean
   /**
-   * Every teardown the model has begun and not finished, by token.
-   *
-   * `machine.ts` runs a whole teardown inside the call that began it, so these
-   * never outlive one `dispatch`. What they mark out is the run of trace states
-   * that happened *during* that call, which is the whole of why they are here.
+   * Every teardown the model has begun and not finished, by token. What they
+   * mark out is the run of trace states that happened during one `dispatch`.
    */
   leaving: Set<number>
   /** Which way the action went. See `mark` in the model. */
@@ -108,11 +98,10 @@ const stateOf = (s: Snapshot): string => (s.position === undefined ? 'idle' : 'r
 
 // ------------------------------------------------------------------- the world
 //
-// Built from the trace rather than written out again here. `world` is a model
-// variable so that it lands in every ITF state, which is what lets the fixture
-// have one definition instead of two that can drift apart.
+// Built from the trace rather than written out again here.
+// `packages/machine/model/README.md` says why the model carries the world at
+// all, and what a fixture written twice would cost.
 
-/** What one run of one trace needs to hold on to while it drives the machine. */
 /**
  * Every way the model says a call came to nothing because of the gate.
  *
@@ -123,8 +112,8 @@ const stateOf = (s: Snapshot): string => (s.position === undefined ? 'idle' : 'r
  *
  * `signal-dropped` is not here. The window the gate closes is a teardown, and by
  * then the position is empty, so a signal arriving in one is unmatched rather
- * than refused. Reaching that diagnostic takes a `reached()` made from inside an
- * `onEnter`, which `machine.test.ts` has and the model does not describe.
+ * than refused. `packages/machine/model/phases.md` says where it is reached
+ * instead.
  */
 const REFUSALS = ['refused-start', 'empty-story', 'start-running']
 
@@ -149,13 +138,10 @@ interface Run {
   handlers: { kind: 'enter' | 'leave'; who: string }[]
   problems: Problem<Fixture>[]
   /**
-   * Calls waiting for a handler to make them.
-   *
-   * `end` runs two `onLeave` calls and a report inside whatever call began it,
-   * and never goes back to the event loop in between. So a call the model makes
-   * during a teardown has no moment out in the driver where it could be made.
-   * These are queued before the call that opens the teardown and made from
-   * inside it. See {@link drain}.
+   * Calls waiting for a handler to make them. Queued before the call that opens
+   * the teardown and made from inside it, because
+   * `packages/machine/model/README.md` says there is no moment out in the
+   * driver to make them from. See {@link drain}.
    */
   window: Windowed[]
 }
@@ -166,8 +152,8 @@ interface Run {
  * `drawn` and `presenterUp` are things `machine.ts` keeps implicitly — the
  * presenter holds them — so the model has to state them and something here has
  * to answer for them. Overriding the two methods that move them is the only
- * place that answer can come from without `Fake` growing a field the other 76
- * tests have no use for.
+ * place that answer can come from without `Fake` growing a field no other test
+ * has a use for.
  */
 class Recorder extends Fake {
   drawn: Step | undefined
@@ -175,8 +161,6 @@ class Recorder extends Fake {
 
   override show(step: Step, anchor: Anchor | null): void {
     this.presenterUp = true
-    // A missing anchor is `Host.lost` and nothing drawn, which is what the model
-    // says too.
     if (anchor !== null) this.drawn = step
     super.show(step, anchor)
   }
@@ -188,13 +172,7 @@ class Recorder extends Fake {
   }
 }
 
-/**
- * Turn the `world` the trace carries into the objects the machine takes.
- *
- * It sits in the trace's header rather than in each state: `world` is a model
- * variable so that it reaches the trace at all, and it is written once in
- * `init`, so `scripts/model-traces.mjs` writes it once too.
- */
+/** Turn the `world` the trace carries into the objects the machine takes. */
 function build(raw: Itf, run: () => Run): Map<string, Story> {
   const world = map(raw)
   const stories = new Map<string, Story>()
@@ -229,8 +207,8 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
           },
         }
         if (shape.hasGuard) step.validate = () => run().guardOk
-        // Asked in the turn the guard says no, so there is nothing to hold on
-        // to and nothing for the trace to spend later.
+        // Asked in the turn the guard says no, so there is nothing for the
+        // trace to spend later.
         if (shape.hasWords) step.error = REASON
         return step
       }),
@@ -249,9 +227,8 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
 // ----------------------------------------------------------------- the driving
 
 /**
- * Empty the microtask queue. Three, for the same reason `machine.test.ts` uses
- * three: a settling morph takes one to reach the `then` in `draw`, the write in
- * there takes another, and the third is slack.
+ * Empty the microtask queue. Nothing in the machine is asynchronous, so one
+ * turn would do; three is slack.
  */
 const turn = async (): Promise<void> => {
   for (let index = 0; index < 3; index += 1) await Promise.resolve()
@@ -315,9 +292,8 @@ function makeCall(run: Run, now: Snapshot): void {
       run.fake.lose(stepOf(run, pos(picks['losePick']!)))
       break
     case 'doLeave':
-      // Not a call at all. `end` runs its handlers and its report inside
-      // whichever call began it, so by the time the driver reads this state the
-      // machine has long since been through it.
+      // Not a call at all: by the time the driver reads this state the machine
+      // has long since been through it.
       break
     default:
       throw new Error(`no call for ${now.action}`)
@@ -330,21 +306,16 @@ function makeCall(run: Run, now: Snapshot): void {
  *
  * `onLeave` and the ending `onStep` are the only moments there are, and this
  * runs from all of them. The first one to find the queue full empties it, which
- * is faithful enough: every state in the window is the same state, with the
- * position empty and the phase closed.
+ * is faithful enough: every state in the window is the same state.
  */
 function drain(run: Run): void {
-  // Only from inside a teardown. `end` empties the position before it calls
-  // anything, so a handler asking where the tour is gets `idle`. The `onLeave`
-  // of a step the tour is merely walking away from gets `running`, because a
-  // story is still on, and it is not this.
+  // Only from inside a teardown, and `tour.state` is how it knows.
+  // `packages/machine/model/README.md` says why that answer tells the two apart.
   if (run.window.length === 0 || run.tour.state !== 'idle') return
   for (const { now, where } of run.window.splice(0)) {
     const seen = observe(run)
     const problems = run.problems.length
     makeCall(run, now)
-    // Every one of them is refused, finds nothing to act on, or is a knob on
-    // the world. What has to be true is that not one of them moved anything.
     expect(observe(run), `${where}: a call moved the machine during a teardown`).toEqual(seen)
     if (REFUSALS.includes(now.mark)) {
       expect(run.problems.length, `${where}: refused in silence`).toBe(problems + 1)
@@ -364,7 +335,7 @@ function agrees(run: Run, now: Snapshot, where: string): void {
   expect(seen.presenterUp, `${where}: anything on screen at all`).toBe(now.presenterUp)
 }
 
-/** 3. Every `onEnter` is followed by exactly one `onLeave`, for steps and stories. */
+/** Claim 3 of `packages/machine/model/README.md`. */
 function balanced(run: Run, where: string): void {
   const open: string[] = []
   for (const { kind, who } of run.handlers) {
@@ -373,7 +344,8 @@ function balanced(run: Run, where: string): void {
       open.push(who)
       continue
     }
-    // A story's own `onLeave` runs after its step's, so the two nest.
+    // DESIGN.md, **The story's `onLeave` runs when the run ends, after the last
+    // step's**.
     expect(open.at(-1), `${where}: ${who} left without being entered`).toBe(who)
     open.pop()
   }
@@ -426,17 +398,15 @@ const named = readdirSync(corpus)
   )
 
 describe('every trace the model found', () => {
-  // A corpus that quietly emptied would leave this file green and testing
-  // nothing, which is the one way a harness like this fails silently.
   test('is there', () => {
     expect(named.length).toBeGreaterThan(0)
   })
 
   for (const [name, trace] of named) {
     test(`${name}, which is how the model reaches ${trace.target}`, async () => {
-      // `failed` rethrows through `queueMicrotask` so an application's exception
-      // lands uncaught rather than as an unhandled rejection. Uncaught is what
-      // this file is not allowed to have, so they are collected instead.
+      // `globals.d.ts` says why `failed` rethrows through `queueMicrotask`.
+      // Uncaught is what this file is not allowed to have, so they are
+      // collected instead.
       const escaped: (() => void)[] = []
       vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((fn) => void escaped.push(fn))
 
@@ -520,8 +490,7 @@ describe('every trace the model found', () => {
         const rejectedBefore = run.fake.rejected
         const wasAt = before.position
 
-        // A teardown runs its handlers and its report inside the call that
-        // began it, so every trace state from here to the end of it happened
+        // Every trace state from here to the end of the teardown happened
         // during the one call about to be made. The calls among them go to the
         // handlers; `doLeave` is the machine carrying on and is not a call.
         let last = index
@@ -549,34 +518,24 @@ describe('every trace the model found', () => {
         const where = nameOf(last)
         agrees(run, now, where)
 
-        // 6. While the phase is closed, no call from the application changes
-        //    anything, and `stop()` is the one exception. The model says which
-        //    calls the gate turned down; what has to be checked here is that the
-        //    real one did nothing about them.
+        // Claim 6 of `packages/machine/model/README.md`.
         if (REFUSALS.includes(now.mark)) {
           expect(observe(run), `${where}: the gate was open`).toEqual(seenBefore)
-          // And said so. A refusal has no other symptom: the tour simply does
-          // not move, and without this nothing anywhere says why.
+          // And said so — DESIGN.md, **Saying that a call did nothing**.
           expect(run.problems.length, `${where}: refused in silence`).toBe(problemsBefore + 1)
         }
-        // 5. A morph settling for a position the tour has already left changes
-        //    nothing, and neither does a report about a step it has walked away
-        //    from. `position` is replaced on every move and on nothing else, so
-        //    holding the object is holding the step occurrence.
+        // Claim 5 of `packages/machine/model/README.md`.
         if (now.mark === 'lose-stale') {
           expect(observe(run), `${where}: something the tour had left moved it`).toEqual(seenBefore)
         }
-        // An unmatched `reached()` is free and silent, permanently, because
-        // instrumentation has to be able to stay in a build where no tour runs.
+        // DESIGN.md, **Safe to call anytime**.
         if (now.mark === 'unmatched') {
           expect(observe(run), `${where}: a signal nobody awaited did something`).toEqual(
             seenBefore,
           )
           expect(run.problems.length, `${where}: and said something about it`).toBe(problemsBefore)
         }
-        // 7. A refusal is never silent, and it says why only where the step
-        //    gave words for it. Both halves are read off the step, so neither
-        //    is a choice anything makes at the moment of the refusal.
+        // Claim 7 of `packages/machine/model/README.md`.
         if (['refuse-said', 'refuse-mute'].includes(now.mark)) {
           expect(run.fake.rejected, `${where}: the presenter was never told to reject`).toBe(
             rejectedBefore + 1,
@@ -596,7 +555,7 @@ describe('every trace the model found', () => {
             `${where}: a step with nothing to say said something`,
           ).toBe(retoldBefore)
         }
-        // 4. No signal advances a step the presenter has not been given.
+        // Claim 4 of `packages/machine/model/README.md`.
         if (['doReached', 'doPress'].includes(now.action) && !same(wasAt, now.position)) {
           expect(seenBefore.drawn, `${where}: advanced a step nothing had drawn`).toBe(
             wasAt && stepOf(run, wasAt).id,
