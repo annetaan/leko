@@ -36,12 +36,9 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 /**
  * Every surface between `el` and the viewport, innermost first.
  *
- * This matters more than it looks. A layer has to live inside the thing that
- * moves its target, so that a scroll moves the two together and no position
- * math runs per frame. A layer mounted outside the scroller it points into
- * drifts off the target the moment the user scrolls — and so does a document
- * layer under a fixed target, the other way round: the layer scrolls and the
- * target stays.
+ * A layer mounted outside the scroller it points into drifts off the target
+ * the moment the user scrolls — and so does a document layer under a fixed
+ * target, the other way round: the layer scrolls and the target stays.
  *
  * Fixed is asked first, because a fixed element is carried by none of its
  * ancestors — not the scroller it is written inside, not the document. It is
@@ -55,21 +52,12 @@ export function surfaceChain(el: Element): Surface[] {
 /**
  * The surfaces of a fixed element: the viewport, unless an ancestor holds it.
  *
- * An ancestor with a transform, a perspective, a filter, a `will-change` for
- * one of those, `contain: layout` or `paint`, or `content-visibility` becomes
- * the containing block of every fixed descendant, and the element then behaves
- * as an absolutely positioned child of that ancestor: it rides the page with
- * it, and rides its scroll if it scrolls. So what carries the ancestor is what
- * carries the element, the ancestor's own scroll included.
- *
- * **The engine is asked rather than a list kept.** `offsetParent` on a fixed
- * element is `null` while the viewport holds it and names the ancestor
- * otherwise, in every engine — `spike/fixed-under-an-ancestor/` walks the
- * properties that do it and watches all three and Safari agree. That is what the engines
- * do rather than what the specification says, which is `null` for any fixed
- * element; the page is what says it can be relied on. A list would have to be
- * kept up with every property that grows this effect, and `content-visibility`
- * was the last one to.
+ * Several properties on an ancestor make it the containing block of every
+ * fixed descendant, and the element then rides that ancestor rather than the
+ * viewport, its scroll included. So what carries the ancestor is what carries
+ * the element. **The engine is asked rather than a list kept**, and DESIGN.md
+ * argues that, with the properties and the page that watched them, under
+ * **Scrolling**.
  *
  * An `<svg>` root can be fixed too and has no `offsetParent`, so it is drawn
  * as the viewport's. A fixed SVG root under a transformed ancestor is a corner

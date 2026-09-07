@@ -75,16 +75,9 @@ function chooseSide(box: Rect, width: number, height: number, gap: number): Side
 /**
  * The step's message, placed beside its cutout.
  *
- * It lives in the top layer, not inside the scrim's container. Both parts of
- * that matter:
- *
- * - **Not inside the scroller.** The scrim has to be, so that scrolling moves it
- *   with the target and no position math runs per frame. A message put there
- *   too would be clipped by the scroller the moment the cutout came near an
- *   edge — and the edge is exactly where a message needs the room.
- * - **The top layer, rather than a large `z-index`.** The scrim blocks the page
- *   on purpose, so the tour's own chrome has to be above it, and a number can
- *   always be outbid by the host page's stacking contexts.
+ * It lives in the top layer rather than inside the scrim's container, and
+ * rather than on a large `z-index`. DESIGN.md argues both halves under **The
+ * message**.
  *
  * Scrolling is still nobody's job here: an anchor-positioned element is offset
  * by the scroll of everything between it and its anchor, by the browser, with no
@@ -92,10 +85,9 @@ function chooseSide(box: Rect, width: number, height: number, gap: number): Side
  * it already has — and the browser keeps it there.
  *
  * **What it anchors to is a marker of Leko's own, never the target.** The scrim
- * owns it and puts it on the edge of the cutout; see `Scrim.anchorAt`. An
- * `anchor-name` cannot be read across a shadow boundary, and writing one onto
- * the target would be a mutation of the host page that has to be undone later.
- * DESIGN.md argues both under **A target is a question**.
+ * owns it and puts it on the edge of the cutout; see `Scrim.anchorAt`.
+ * DESIGN.md argues it under **The message anchors to a marker, never to the
+ * target**.
  */
 export class Message {
   readonly element: HTMLElement
@@ -332,10 +324,9 @@ export class Message {
     style.setProperty('position-visibility', 'always')
 
     // An enhancement, not the mechanism: `@position-try` and this property need
-    // Safari 26, and the side picked above is already the one with room. Where
-    // it exists it covers what the measurement could not — a target scrolled
-    // towards the edge after the step began. A flip swaps the margins with the
-    // area, so the clearance written above survives it.
+    // Safari 26, and the side picked above is already the one with room.
+    // DESIGN.md, **The message**. A flip swaps the margins with the area, so
+    // the clearance written above survives it.
     if (CSS.supports('position-try-fallbacks: flip-block')) {
       style.setProperty('position-try-fallbacks', 'flip-block, flip-inline')
     }

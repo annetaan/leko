@@ -4,13 +4,9 @@
  * `@annetaan/leko` names the same union `LekoTarget` for its users.
  *
  * **Both members are a question, never an answer.** A selector is one this file
- * runs; a function is one the host runs. Neither is an element, because an
- * element is an answer somebody worked out earlier, and the page has moved on
- * since. DESIGN.md argues it under **A target is a question**.
- *
- * `Element` rather than `HTMLElement`, because everything asked of a target is
- * asked of `getBoundingClientRect`, and an element inside an `<svg>` answers it
- * the same way.
+ * runs; a function is one the host runs, and neither is an element — DESIGN.md
+ * argues it under **A target is a question**, and why the element type is
+ * `Element` under **Resolution & custom functions**.
  */
 export type Target = string | (() => Element | null)
 
@@ -25,12 +21,9 @@ export interface Rect {
  * A place on the page, or a distance across it — the same two numbers either
  * way.
  *
- * It has a name because the two things that deal in one here are two halves of
- * the same move: `originOf` answers where a surface's coordinate space begins,
- * and {@link shift} is handed how far to move a rect. Handing the first
- * straight to the second is the whole of what turns a box read on screen into
- * the same box in a scrim's own coordinates, so the type is what says they are
- * the same pair rather than two that happen to be shaped alike.
+ * It has a name so that `originOf` in `surface.ts` and {@link shift} deal in
+ * one type rather than two that happen to be shaped alike: `originOf` says what
+ * the pair means.
  */
 export interface Point {
   x: number
@@ -66,13 +59,10 @@ export interface Cutout extends Rect {
  * answers with at least one however small it is.
  *
  * `visibility: hidden` and `opacity: 0` have boxes, so an element hidden either
- * way is one the tour still points at. It has a place on the page, which is the
- * whole of what is asked here. Which of several matches a selector means is a
- * different question and is not this one.
- *
- * A layout read, so it is asked where layout is read already — resolving a
- * target, which happens on an arrival, on a retry tick and on a landing — and
- * never while something scrolls.
+ * way is one the tour still points at. DESIGN.md argues the rule this answers
+ * under **An element with no box is not found**, and when it is asked — a
+ * layout read, so only where layout is read already — under **An element with
+ * no box is not found when the target is resolved**.
  */
 export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
 
@@ -81,22 +71,14 @@ export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
  * never read as "all matches", because widening that later would silently
  * change what existing tours highlight.
  *
- * **Asked again every time anything needs the box**, so a host that answers
- * from a live reference is answering about the page as it is rather than as it
- * was. A function that hands back a node the document has let go of is treated
- * as no answer at all, which is the same `null` a selector matching nothing
- * gives and the same entrance to the search for a lost target.
- *
- * **An element with no box is not found either**, and for the same reason: what
- * a target is asked for is a place to cut a hole, and an element that is not
- * rendered has none. Answering with it instead would put the whole of a
- * region's hole in the corner of the viewport, because its all-zero rect is
- * unioned at the origin, and would draw a step whose region is that element
- * alone around nothing, with no retry to save it. So a step arriving at a
- * hidden target takes the same route out as one whose target was never there.
- * What this does not decide is anything after the draw: a target hidden once
- * its hole is cut keeps the hole, because nothing resolves it again. DESIGN.md
- * argues both under **A target is a question** and **What Leko does not do**.
+ * **Asked again every time anything needs the box** — DESIGN.md, **A target is
+ * a question**. A function that hands back a node the document has let go of is
+ * treated as no answer at all, which is the same `null` a selector matching
+ * nothing gives and the same entrance to the search for a lost target. So is an
+ * element with no box, and DESIGN.md argues what that costs either way under
+ * **An element with no box is not found**. Nothing after the draw is decided
+ * here — DESIGN.md, **The page is measured when a step is drawn, and not
+ * again**.
  *
  * `isConnected` is asked first because it is free, and a node a framework has
  * replaced is the commonest no of the two.
@@ -139,11 +121,9 @@ export function grow(rect: Rect, by: number): Rect {
 /**
  * `rect` moved by `by`, the size it was.
  *
- * What it is for: two coordinate spaces that differ by a translation and
- * nothing else. A hole is read off the page once, against the viewport, and is
- * the same hole in the space a scrim carries once it is moved by that
- * surface's origin — so the second space costs arithmetic rather than a second
- * `getBoundingClientRect`.
+ * For two coordinate spaces that differ by a translation and nothing else;
+ * `originOf` in `surface.ts` is where that translation comes from and what it
+ * saves.
  *
  * Generic, so a {@link Cutout} moved is still a cutout: its radius and whether
  * the step opened it ride along rather than being dropped and put back, which
@@ -184,40 +164,15 @@ export function outset(rect: Rect, room: Insets): Rect {
  *
  * Positive is forward — what `scrollBy` is handed.
  *
- * **The middle, not the nearest edge.** A step exists to draw attention to one
- * thing, and a hole flush against the bottom of the screen is the least
- * attention a hole can be given: there is no room under it for the message, and
- * whatever chrome an application keeps down there is over it. So the least
- * movement is not what is wanted here — the movement that puts the thing where
- * a person looks is.
+ * Three rules, and DESIGN.md argues each of them: **The middle of the port, not
+ * the nearest edge**, then DESIGN.md's **A port that already holds the cutout
+ * is not touched** for the zero, and DESIGN.md's **Nothing in the geometry
+ * clamps; whoever scrolls does** for the delta that asks for a scroll past the
+ * end.
  *
- * **A box more than half the port tall leads with its top edge instead**, put
- * at the middle of the port. Centring one of those is what leaves the message
- * nowhere to go: the taller the hole, the less room there is on either side of
- * it, and a hole taller than the port leaves none at all. Leading with the top
- * edge always leaves exactly half a port above the hole, which is a place a
- * message fits, and gives up only the bottom of a target nobody could take in
- * at a glance anyway. **Vertically only** — the message is placed above or
- * below before it is placed beside, so it is height that has to be paid for,
- * and a box wider than half the port led the same way would hang off the side
- * for nothing.
- *
- * **Zero on an axis that already holds the box** is the refusal a step arriving
- * owes the viewer: a page somebody has settled is not re-centred because a step
- * happens to point at something already on screen. It is the whole box that
- * has to be inside, overhang and asked-for room included, so a hole hanging
- * half off the bottom is not "already there".
- *
- * **Nothing here clamps.** A box near the end of the content cannot be put
- * where it belongs, and the delta this hands back for one asks for a scroll
- * past the end. Whoever scrolls clamps that — the port, for a scroll set
- * outright, and the glide before its first frame — which lands the box as near
- * as the content allows and leaves it against the far edge in the limit: the
- * honest answer, and knowing the scroll range is a read of the page, which
- * does not belong here.
- *
- * A box wider than the port keeps the near edge: it can be neither held nor
- * centred, and the near edge is where reading starts.
+ * A box more than half the port tall leads with its top edge instead, and a box
+ * wider than the port keeps its near edge. Neither has a twin on the other
+ * axis, and DESIGN.md argues why under **Bringing a target into view**.
  */
 export function scrollDelta(box: Rect, port: Rect): { x: number; y: number } {
   const [left, right] = [box.x, box.x + box.width]
@@ -249,17 +204,10 @@ const centred = (near: number, far: number, portNear: number, portFar: number): 
 /**
  * How long a glide takes per cube root of a pixel of the way, in ms.
  *
- * A tour is for somebody new to the application, and what passes under the
- * pointer while the page glides is part of what they are there to see — a
- * glide fast enough to be over before it is noticed hides the page it crosses.
- * So a longer way takes longer, rather than every glide taking the morph's
- * 320ms and a long one being a blur. **The cube root**, because a glide paced
- * at so many pixels a second was right for one screen and far too slow for
- * six: the eye does not read a long scroll the way it reads a short one, it
- * takes in that the page went a long way, so what grows with the distance is
- * the sense of it and not the time. Set by eye in the sandbox's
- * `scrolls-into-view` case: a card one screen down, about 750px, takes about
- * 1.3 seconds, four morphs; the row six screens down about 2.5.
+ * 140, set by eye in `scrolls-into-view.ts`. DESIGN.md has the timings that
+ * settled it, and why a glide is paced by the cube root of the distance at
+ * all, under **A glide grows with the distance, and is much slower than the
+ * morph**.
  */
 export const GLIDE_PACE = 140
 
@@ -267,10 +215,9 @@ export const GLIDE_PACE = 140
  * How long a glide over `distance` px runs, given `duration`, the morph's.
  *
  * The distance term is the point — see {@link GLIDE_PACE} — and `duration` is
- * only the floor under it, so a short move still glides for as long as the
- * morph that follows it rather than snapping across. One option, not two: a
- * host has said how long it wants things to take, and the distance term is
- * what turns that into a scroll rather than a second setting for the scroll.
+ * only the floor under it. One option and not two, for the reason DESIGN.md
+ * gives under **A glide grows with the distance, and is much slower than the
+ * morph**.
  */
 export const glideDuration = (distance: number, duration: number): number =>
   Math.max(duration, Math.cbrt(distance) * GLIDE_PACE)
@@ -358,16 +305,11 @@ export function freeCorner(
  * An SVG in a `data:` URL, opaque inside its rounded rectangle and transparent
  * outside, which makes it an ordinary mask *image* and not a reference to
  * anything in the document. That distinction is the whole reason this is built
- * the way it is: a CSS mask that points at an SVG `<mask>` element with
- * `url(#…)` is honoured by Chrome and Firefox and **silently does nothing in
- * Safari**, under every spelling there is. `spike/overlapping-holes/` is the
- * page, and `CSS.supports` answers `true` there all the same.
+ * the way it is, and CLAUDE.md states it under **Reaching an SVG `<mask>`
+ * element from CSS with `url(#…)`**.
  *
  * The image is the hole's own size rather than the surface's, and
- * {@link maskLayers} lays it where it belongs. What an engine has to rasterise
- * is then the size of a target instead of the size of a document, which on a
- * long page is the difference between a mask surface worth worrying about and
- * one that is not.
+ * {@link maskLayers} lays it where it belongs — DESIGN.md, **Drawing**.
  *
  * `clip` is the viewport: the on-surface part of the cutout, which is all the
  * image ever needs to be. The rectangle keeps the cutout's own size and radius
@@ -422,11 +364,10 @@ export interface MaskLayers {
  * The cutouts as a stack of CSS mask layers.
  *
  * **The holes are a union here, not a parity.** One opaque layer for the whole
- * surface, one image per hole underneath it, `add` between the holes so
- * overlapping ones read as one hole, and `subtract` on the surface layer, which
- * keeps it where it falls outside everything below. Two holes may therefore
- * overlap, and DESIGN.md argues under **The morph** why that is load-bearing
- * rather than incidental.
+ * surface, one image per hole underneath it, `add` between the holes and
+ * `subtract` on the surface layer. Two holes may therefore overlap, and
+ * DESIGN.md argues under **The morph** why that is load-bearing rather than
+ * incidental.
  *
  * The layer order is what makes it work: CSS lists mask layers top first and
  * composites them bottom up, so the surface is written first and the holes
@@ -457,13 +398,8 @@ export function maskLayers(width: number, height: number, cutouts: readonly Cuto
  * blended with. Surplus cutouts on either side collapse to zero area at their
  * own centre, which reads as shrinking away rather than blinking out.
  *
- * **This is an animation nicety and no longer a correctness rule.** While the
- * scrim was one `clip-path`, two paths interpolated only when their subpaths
- * matched in count, so a step with fewer holes than the last one had to keep
- * carrying the surplus or the morph would switch over discretely
- * (`spike/cutout-techniques/` T8). Mask layers are a list that can be any
- * length from one frame to the next, so nothing breaks without this — a hole
- * would simply vanish instead of shrinking away, and shrinking away is nicer.
+ * **An animation nicety and no longer a correctness rule**, which is what it
+ * was while the scrim was one `clip-path`. DESIGN.md, **The morph**.
  */
 export function padCutouts(from: Cutout[], to: Cutout[]): [Cutout[], Cutout[]] {
   const length = Math.max(from.length, to.length)
@@ -510,11 +446,8 @@ export function lerpCutouts(from: Cutout[], to: Cutout[], t: number): Cutout[] {
  * What is left of a `width` by `height` surface once the holes are taken out of
  * it, as rectangles.
  *
- * This is what a scrim blocks with. It cannot block with the clipped element
- * itself: a `clip-path` takes an element out of hit-testing but **not** out of
- * the search for what a wheel should scroll, so a scrollable element under a
- * hole would stop scrolling under the pointer. Rectangles have no such
- * ambiguity — there is simply nothing there.
+ * This is what a scrim blocks with, and it cannot be the scrim itself:
+ * DESIGN.md, **Do not go back to blocking with the scrim itself**.
  *
  * Cut the surface into horizontal bands at every hole edge, and each band is
  * then split by whichever holes span it, which by construction span it wholly.
@@ -575,9 +508,10 @@ export function complementRects(width: number, height: number, holes: readonly R
  * Which pair in a series a progress value falls between, and how far along that
  * pair it sits.
  *
- * Clamps, because the caller's progress is derived from a clock. `requestAnimationFrame`
- * reports the frame's start time, which can predate the moment the loop was
- * scheduled, so the first frame's elapsed time is sometimes negative.
+ * Clamps, because the caller's progress is derived from a clock, and
+ * `requestAnimationFrame` reports the frame's start time, which can predate the
+ * moment the loop was scheduled — so the first frame's elapsed time is
+ * sometimes negative. Every frame loop here clamps for that reason.
  */
 export function segmentAt(count: number, progress: number): { index: number; local: number } {
   const spans = Math.max(1, count - 1)

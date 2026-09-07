@@ -2,13 +2,10 @@ import type { Glide } from '@annetaan/leko-spotlight'
 import type { LekoStep, LekoTarget } from './types.js'
 
 // Which mode the presenter is in between calls, and what an event does to it.
-// Nothing here touches the page, reads a clock or starts anything, which is
-// what lets `plan.test.ts` drive it in Node one `(mode, event)` pair at a time.
-// `presenter.ts` resolves targets, measures, builds the chrome and makes the
-// calls owed here, and decides nothing: the split `packages/machine` makes
-// between its own `plan.ts` and `machine.ts`, made again for the half that
-// draws. `../model/plan.qnt` is this file written down as a state machine a
-// search can walk, and `pnpm model` walks it.
+// Pure, so `plan.test.ts` drives it in Node one `(mode, event)` pair at a time,
+// and `presenter.ts` is the switch over the effects — CLAUDE.md draws that line
+// under **Writing code here**. `../model/plan.qnt` is this file written down as
+// a state machine a search can walk, and `pnpm model` walks it.
 
 // ---------------------------------------------------------------- reading a step
 
@@ -19,14 +16,12 @@ export interface Region {
 }
 
 /**
- * The step's regions, as a list of that one shape. One cutout each, in the
- * order they were written, so a bare target reads as the region of one that it
- * is.
+ * The step's regions, as a list of that one shape. Empty where the step named
+ * nothing, which is the step that waits.
  *
- * Empty where the step named nothing, which is the step that waits. The type
- * already refuses `interactive` anywhere but the first entry; the index is
- * checked all the same, because this is the last line of defence a story
- * written in plain JavaScript ever meets.
+ * The type already refuses `interactive` anywhere but the first entry; the
+ * index is checked all the same, because this is the last line of defence a
+ * story written in plain JavaScript ever meets.
  */
 export const regionsOf = (target: LekoStep['target']): Region[] => {
   if (target === undefined) return []
@@ -44,9 +39,9 @@ export const regionsOf = (target: LekoStep['target']): Region[] => {
 /**
  * The one element the step is about: the first element of its first region.
  *
- * `undefined` where the step named no region at all. That step is not a step
- * with a target Leko cannot find. It is a step that points at nothing on
- * purpose, and the page is covered for it.
+ * `undefined` where the step named no region at all — which is not a step whose
+ * target Leko cannot find, but one that points at nothing on purpose.
+ * DESIGN.md, **A step that waits**.
  */
 export const actionTarget = (target: LekoStep['target']): LekoTarget | undefined =>
   regionsOf(target)[0]?.elements[0]
@@ -60,9 +55,9 @@ export const pointsAt = (step: LekoStep): boolean => actionTarget(step.target) !
  * What a viewer is looking at: the step whatever draws was last given, and
  * whatever the last attempt at it was told.
  *
- * Held in the mode and nowhere else. The machine keeps no copy of either half,
- * so everything that redraws without the tour moving reads this to know what to
- * put back.
+ * Held in the mode and nowhere else, so everything that redraws without the
+ * tour moving reads this to know what to put back. DESIGN.md, **Nothing here is
+ * about what is on screen**.
  */
 export interface Drawn {
   readonly step: LekoStep
@@ -73,14 +68,13 @@ export interface Drawn {
  * A step on its way, and how it is to be drawn when it gets there.
  *
  * One object per wait, made where the wait begins and by nothing else until it
- * ends. Its identity is the wait: the deadline set for it names it, and one
+ * ends. **Its identity is the wait**: the deadline set for it names it, and one
  * that fires late is told from the wait running by comparing the two, the way
- * `Position` tells a late callback apart in the machine. The handle the timer
- * hands back is the shell's, armed by `deadline` and cleared by `cancel`,
- * because a pure plan cannot make one; the comparison here is the plan's own
- * defence, and what makes a late deadline harmless rather than merely
- * unlikely. A glide is the other way about: the shell mints it before the
- * event and the mode carries it, so the plan can say what to stop.
+ * `Position` tells a late callback apart in the machine. That comparison is
+ * what makes a late deadline harmless rather than merely unlikely.
+ *
+ * The timer handle itself is the shell's and the glide is the mode's, which is
+ * the rule CLAUDE.md states under **Writing code here**.
  */
 export interface Pending {
   readonly step: LekoStep
@@ -106,9 +100,8 @@ export interface Pending {
  *
  * `standing` is on both modes that have a step on its way, and it is the step
  * the screen still shows, reason and all: a resize puts its holes back, and a
- * glide begun from a retry inherits it — a glide is long enough for a resize
- * to matter where the retry's 100ms is not. It is `undefined` where nothing
- * was on screen when the wait began.
+ * glide begun from a retry inherits it. It is `undefined` where nothing was on
+ * screen when the wait began.
  *
  * The rules the presenter used to state in prose — a glide is the whole of what
  * says a step is pending, nothing but a hunt is ever armed, only one retry ever
@@ -131,14 +124,13 @@ export type Mode =
        * Whether a draw that had this target is what began the wait, rather
        * than the target not being on the page.
        *
-       * Read by the deadline, and the reason it is still a bound. A wait for a
-       * target that is not there ends the moment it resolves, so the deadline
-       * asks once more before giving up. A wait a draw began is not that one:
-       * resolution is not what failed — the anchor resolved in the same task
-       * that could not measure it — so the last question can only ever answer
-       * "found", and a deadline answered with an arrival that fails to measure
-       * again arms another deadline. Every 100ms, for ever, with nothing drawn
-       * and nothing reported.
+       * Read by the deadline, and what keeps the bound a bound. Resolution is
+       * not what failed for this wait — the anchor resolved in the same task
+       * that could not measure it — so the last question DESIGN.md asks under
+       * **And once more as the grace period runs out** can only ever answer
+       * "found", and an arrival that fails to measure again arms another
+       * deadline. Every 100ms, for ever, with nothing drawn and nothing
+       * reported.
        *
        * Here rather than on {@link Pending}, which `gliding` carries too and
        * where this would mean nothing.
@@ -162,20 +154,19 @@ export const idle: Mode = { kind: 'idle' }
 
 /**
  * Everything that happens to the presenter, as data. The first three are the
- * calls the machine makes. The rest are the page answering something the shell
- * asked or armed, carried here as facts about the page — what resolved, which
- * glide landed — rather than acted on where they landed. The shell reads the
- * page to build one of these and never to decide what it means.
+ * calls the machine makes; the rest are the page answering something the shell
+ * asked or armed, carried here rather than acted on where they landed —
+ * CLAUDE.md, **Writing code here**.
  */
 export type Event =
   // --- what the machine calls
   /**
    * An arrival. `glide` is what `bringIntoView` answered, started by the shell
-   * before this was dispatched because the scroll has to begin from where the
-   * target is and only the shell can ask; it is set only beside an anchor, on a
-   * step that scrolls, where a port had somewhere to go. `error` is what the
-   * attempt has already been told: nothing from the machine, and the reason a
-   * guard gave while a retry was hunting where the retry found its target.
+   * before this was dispatched because only the shell can ask; it is set only
+   * beside an anchor, on a step that scrolls, where a port had somewhere to go.
+   * `error` is what the attempt has already been told: nothing from the
+   * machine, and the reason a guard gave while a retry was hunting where the
+   * retry found its target.
    */
   | {
       kind: 'show'
@@ -246,7 +237,7 @@ export type Effect =
   | { kind: 'retell'; step: LekoStep; reason: string }
   /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
   | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
-  /** `Host.lost`. The give-up, and the only part of a retry the machine hears. */
+  /** `Host.lost`, whose own doc says what it is the only part of. */
   | { kind: 'lost'; step: LekoStep }
   /** Everything on the page goes. */
   | { kind: 'destroy' }
@@ -298,24 +289,14 @@ const standingIn = (mode: Mode): Drawn | undefined => {
  * `retry`. A target that is not on the page when its step arrives is given a
  * moment to turn up.
  *
- * **Nothing *new* is drawn while this runs.** Whatever was drawn a moment ago
- * stands exactly as it was, so a target that turns up costs a morph and
- * nothing else. A morph already asked for is not cut short either — `leaving`
- * stops a glide and a deadline, and a morph is on neither mode — so it paints
- * to its end, and the `morphed` it reports is ignored because the mode is no
- * longer `drawn`. The hole stands over the gap while that happens, and
- * DESIGN.md argues that trade under **Nothing is drawn for a retry**.
+ * Whatever was drawn a moment ago stands exactly as it was, and DESIGN.md
+ * argues that trade under **Nothing is drawn for a retry**. A morph already
+ * asked for paints to its end, and the `morphed` it reports is ignored because
+ * the mode is no longer `drawn`.
  *
- * The hunt is armed here, and it hears mutations rather than polling, so the
- * wait stays off the frame budget; the deadline is a bound rather than a wait
- * anybody sits through. Found in time, the target is a fresh arrival and
- * nothing about the tour has changed. Not found, `Host.lost` means what it has
- * always meant. Nothing is handed back and nobody is waiting: as far as the
- * machine is concerned the step is on screen, and it is — what is on screen is
- * whatever this was showing a moment ago.
- *
- * Only one of these can be running, and that is the type: a `retrying` mode
- * holds one `pending`, and an arrival replaces the whole mode.
+ * The hunt hears mutations rather than polling, so the wait stays off the frame
+ * budget. Only one of these can be running, and that is the type: a `retrying`
+ * mode holds one `pending`, and an arrival replaces the whole mode.
  */
 const retrying = (
   pending: Pending,
@@ -338,8 +319,8 @@ const retrying = (
  *
  * **A step on screen arms nothing.** A hunt left over from the step before
  * goes here, because one still running would report against this step; past
- * that the page is the application's, and whether the target is still on it is
- * nobody's question until the next arrival resolves it afresh.
+ * that, DESIGN.md, **The page is measured when a step is drawn, and not
+ * again**.
  *
  * Disarmed before `reveal` rather than after. A draw that finds nothing to
  * measure — the last line of defence, and it reports `unmeasured` from inside
@@ -372,17 +353,14 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // that turns up late for a retry finds nobody hunting.
       const before = leaving(mode)
       const pending: Pending = { step, animate }
-      // Named a target and it is not on the page yet, which a step whose target
-      // renders a moment after its `onEnter` returned is as much as one whose
-      // target has gone. A step that named nothing is not looked for.
+      // Named a target and it is not on the page yet. A step that named nothing
+      // is not looked for. DESIGN.md, **A target that is not on the page when
+      // its step arrives gets a 100ms grace period**.
       if (!anchor && pointsAt(step)) return retrying(pending, error, standingIn(mode), before)
-      // The page is moving. The words of the step being left go before it
-      // does, rather than riding a glide to somewhere they are not about, and
-      // nothing else changes: the dimming stays and the standing hole travels
-      // with the content it is cut out of. Nothing is armed for the length of
-      // the glide either: a glide entered over a retry leaves that retry's hunt
-      // running for a step the tour has moved past, and `disarm` is what takes
-      // it off.
+      // The page is moving, so the words go and nothing is armed: DESIGN.md,
+      // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed
+      // for it either, and a reason waits with the step**, which is the hunt a
+      // glide entered over a retry would otherwise leave running.
       if (glide) {
         return {
           mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
@@ -398,14 +376,12 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // the reason off the page while leaving the step it belongs to standing.
       if (mode.kind === 'idle') return nothing(mode)
       const told: Mode = { ...mode, error: event.reason }
-      // A step on its way is told, and nothing is said. The message is away
-      // for the length of a glide and the step on screen is the one being
-      // left, so saying anything now would place a box beside a hole the page
-      // is still carrying — the decision the two stages exist to avoid. The
-      // same for a retry, where nothing is drawn at all. The reason arrives
-      // with the step. A retry never hears one from the machine as it stands —
-      // a press on a step whose target is not on the page is `lost`, not a
-      // refusal — so this is the rule for a retell that has nowhere to be said.
+      // A step on its way is told, and nothing is said: the reason arrives with
+      // the step, which is DESIGN.md's **Nothing is armed for it either, and a
+      // reason waits with the step**. A retry never hears one from the machine
+      // as it stands — a press on a step whose target is not on the page is
+      // `lost`, not a refusal — so this is the rule for a retell that has
+      // nowhere to be said.
       if (mode.kind !== 'drawn') return nothing(told)
       return { mode: told, effects: [{ kind: 'retell', step: event.step, reason: event.reason }] }
     }
@@ -425,10 +401,10 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // replaced the record and left this same wait running.
       if (mode.kind !== 'gliding' || mode.glide !== event.glide) return nothing(mode)
       const { pending, error } = mode
-      // Asked again rather than trusted: a glide is long enough for a framework
-      // to have rendered over the target, and the node resolved before it may
-      // be off the page by now. A glide only ever starts from a target that was
-      // there, so a step that landed without one is a retry and never a wait.
+      // Asked again rather than trusted, for the reason DESIGN.md gives under
+      // **A step with no `target` scrolls nothing**. A glide only ever starts
+      // from a target that was there, so a step that landed without one is a
+      // retry and never a wait.
       if (!event.anchor) return retrying(pending, error, mode.standing, [])
       // The reason the mode holds rather than the one the arrival came with: a
       // guard that refused while the page was moving wrote its words here, and
@@ -475,15 +451,11 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // The one it was set for, and no other: a deadline left over from a wait
       // that ended is answered with nothing, however long ago it was set.
       if (mode.kind !== 'retrying' || mode.pending !== event.pending) return nothing(mode)
-      // **Asked once more before giving up.** The deadline is a bound on the
-      // wait rather than the last word on it, because a target can turn up
-      // without the hunt's observer hearing anything: a style that gives it
-      // back the box it needs to be found at all, a render inside a shadow root
-      // the observer does not enter, a stylesheet arriving in the head. Found,
-      // it is the fresh arrival a hunt's own find is, through `show` for the
-      // reason that one goes through it. Except for the one wait resolving
-      // cannot end, which is given up however it answers: `unmeasured` on the
-      // mode says why, and it is what keeps the bound a bound.
+      // **Asked once more before giving up** — DESIGN.md, **And once more as
+      // the grace period runs out**. Found, it is the fresh arrival a hunt's
+      // own find is, through `show` for the reason that one goes through it.
+      // Except for the one wait resolving cannot end, which is given up however
+      // it answers: `unmeasured` on the mode says why.
       if (event.found && !mode.unmeasured) {
         return {
           mode,
@@ -509,13 +481,13 @@ export function reduce(mode: Mode, event: Event): Outcome {
         const drawn: Drawn = { step: mode.step, error: mode.error }
         return { mode, effects: [{ kind: 'replace', drawn, saying: true }] }
       }
-      // A step is on its way, so the words stay away: they would go back beside
-      // a hole the page is carrying off, in words the landing is about to
-      // replace. The standing holes go back and the way out is placed all the
-      // same, because a resize can take away the corner it is standing in and
-      // a page blocked with no way out of it is what that control exists to
-      // prevent, glide or no glide. Nothing is drawn for a retry, and putting
-      // back what was drawn is not drawing.
+      // A step is on its way, so the words stay away, and the standing holes go
+      // back with the way out all the same — a resize can take away the corner
+      // that control is standing in, and a page blocked with no way out of it
+      // is what it exists to prevent. Putting back what was drawn is not
+      // drawing. Both waits reach here: DESIGN.md, **Nothing is armed for it
+      // either, and a reason waits with the step** for a glide, and DESIGN.md's
+      // **Nothing is drawn for a retry** for a retry.
       if (mode.kind === 'idle' || !mode.standing) return nothing(mode)
       return { mode, effects: [{ kind: 'replace', drawn: mode.standing, saying: false }] }
     }

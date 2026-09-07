@@ -1,11 +1,8 @@
 /**
  * What the machine needs of the world, and what it may ask of whatever draws
- * the tour. DESIGN.md argues the seam under **Three packages, and the seam
- * between them**.
- *
- * `@annetaan/leko` declares the shapes its own users need again rather than
- * importing them, so the published `.d.ts` stands on its own while this package
- * is unpublished.
+ * the tour. DESIGN.md argues the seam, and why `@annetaan/leko` declares the
+ * published shapes again rather than importing them, under **Three packages,
+ * and the seam between them**.
  */
 
 // ---------------------------------------------------------- what a host brings
@@ -42,9 +39,7 @@ export interface StepBase<W extends World> {
   /** The guard on advancing. **Ignored on a step that declares `awaits`.** */
   validate?(anchor: W['anchor']): boolean
   /**
-   * What to say under the instruction when `validate` says no. Asked once, for
-   * the attempt that failed, and the words it gives back are held until that
-   * attempt stops being the last one.
+   * What to say under the instruction when `validate` says no.
    *
    * The function form takes `never` for the same reason the handlers above are
    * methods: a host's own narrower step has to stay assignable to this one, and
@@ -60,11 +55,8 @@ export interface StoryBase<W extends World> {
   steps: W['step'][]
   /**
    * What the tour goes on to once this story runs out of steps. Asked when the
-   * last step advances and never stored, so nothing has to be cleared between
-   * runs of the same story.
-   *
-   * **Only a story that ran to the end is followed.** A `stop()`, a lost target
-   * and a handler that threw all end the tour where it stands.
+   * last step advances, never stored, and only for a story that ran to the end
+   * — DESIGN.md, **Starting a story**.
    *
    * The function form takes nothing. Everything it could be handed is already in
    * the closure that wrote it, and a parameterless function has no argument
@@ -79,15 +71,15 @@ export interface StoryBase<W extends World> {
 export type MachineState = 'idle' | 'running'
 
 /**
- * Something a call meant to do and did not, with no other symptom. A `reached()`
- * naming something no step waits for is deliberately not here. DESIGN.md argues
- * the line under **Saying that a call did nothing**.
+ * Something a call meant to do and did not, with no other symptom. DESIGN.md
+ * draws the line, and says what is deliberately not here, under **Saying that a
+ * call did nothing**.
  */
 export type Problem<W extends World> =
   | { kind: 'story-empty'; story: W['story'] }
   | { kind: 'signal-dropped'; name: string; step: W['step'] }
   | { kind: 'call-refused' }
-  /** A `start` made while a tour was running. `running` is the one it left alone. */
+  /** `running` is the story this `start` left alone. */
   | { kind: 'tour-running'; story: W['story']; running: W['story'] }
   | { kind: 'target-lost'; step: W['step']; story: W['story'] }
 
@@ -101,14 +93,9 @@ export interface MachineOptions<W extends World> {
 /**
  * What the machine is allowed to ask of whatever draws the tour.
  *
- * **Nothing here moves the tour.** A presenter that notices something on the
- * page redraws what it already has, or says so through {@link Host} and waits.
- * Which step the tour is on is not a question it may answer.
- *
- * **What a step says is on the step**, which is on every call here, so no
- * instruction and no label crosses this seam. One string does: why the last
- * attempt was turned down. A presenter cannot read that off a step, because
- * which attempt was the last one is the machine's to know.
+ * DESIGN.md, **The presenter never moves the tour**, and DESIGN.md's **No words
+ * cross the seam** for the one string that does cross: why the last attempt was
+ * turned down, which a presenter cannot read off a step.
  */
 export interface Presenter<W extends World> {
   /**
@@ -120,8 +107,7 @@ export interface Presenter<W extends World> {
   /**
    * Draw the step. **Nothing is handed back and nothing waits for this.** The
    * step is on screen as far as the machine is concerned the moment this
-   * returns, and how long the drawing takes to settle is the presenter's own
-   * business.
+   * returns — DESIGN.md, **One gate, and what it refuses**.
    *
    * A `null` anchor is handed over all the same. What a missing target means is
    * a drawing question, so a presenter may give it time and report
@@ -156,16 +142,14 @@ export interface Host<W extends World> {
    * The anchor of `step` was not on the page when the step arrived, and never
    * turned up. Named, because the tour may have moved on.
    *
-   * A target that is missing is retried for a moment first, and nothing here is
-   * told about that. Nothing new is drawn while a retry runs, so there is
-   * nothing a host could act on and nothing the machine could decide. This is
-   * the give-up.
+   * The give-up, and the only part of a retry this hears — DESIGN.md, **Nothing
+   * is drawn for a retry**.
    */
   lost(step: W['step']): void
   /**
-   * The next control was used. The only way anything advances without a
-   * signal, and refused on a step that declares `awaits`: no control is
-   * derived there, so a press can only be the derivation edited wrongly.
+   * The next control was used. The only way anything advances without a signal,
+   * and refused on a step that declares `awaits` — DESIGN.md, **The next
+   * control**.
    */
   next(): void
   /** The control that ends the tour was used. Means what `stop` means. */

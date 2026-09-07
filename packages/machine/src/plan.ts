@@ -1,9 +1,9 @@
 import type { MachineState, Problem, World } from './types.js'
 
-// The whole of what the machine knows and what an event does to it. Nothing
-// here calls anything, reads a clock or asks the page, which is what lets
-// `packages/machine/model/machine.qnt` stand for it and a test drive it with no
-// world at all. `machine.ts` makes the calls and decides nothing.
+// The whole of what the machine knows and what an event does to it. Pure, which
+// is what lets `packages/machine/model/machine.qnt` stand for it and a test
+// drive it with no world at all; `machine.ts` makes the calls. CLAUDE.md draws
+// the line under **Writing code here**.
 
 // -------------------------------------------------------------------- the state
 
@@ -14,15 +14,16 @@ import type { MachineState, Problem, World } from './types.js'
  * synchronous call into the application and no longer, because no handler hands
  * anything back to wait for, and `ready` is every other moment there is.
  *
- * **Nothing here is about what the screen is doing.** DESIGN.md argues the gate
- * this feeds under **One gate, and what it refuses**.
+ * DESIGN.md argues the gate this feeds under **One gate, and what it refuses**,
+ * and that none of it is about the screen under **Nothing here is about what is
+ * on screen**.
  */
 export type Phase = 'story' | 'step' | 'ending' | 'ready'
 
 /**
  * Which story a tour is on and where in it. Replaced on every move and never on
- * anything else, so its identity is the step occurrence every late callback in
- * the machine compares itself against.
+ * anything else, so its identity is what every late callback in the machine
+ * compares itself against — `packages/machine/model/phases.md` counts the asks.
  */
 export interface Position<W extends World> {
   readonly story: W['story']
@@ -164,7 +165,6 @@ const ending = <W extends World>(
   after: readonly Effect<W>[],
 ): Outcome<W> => {
   const here = core.position
-  // A no-op while idle, so it reports once however many times it is called.
   if (!here) return { core, effects: after }
   // The step's `onLeave` is owed unless the story's own setup never got as far
   // as entering one. Innermost first, the mirror of how they were entered.
@@ -223,9 +223,8 @@ const advance = <W extends World>(core: Core<W>, step: W['step']): Outcome<W> =>
 }
 
 /**
- * `enterStory`. The story goes up, and nothing is drawn for it: the story's own
- * `onEnter` answers in the turn, so the first step is on screen before any
- * frame is painted.
+ * `enterStory`. The story goes up and nothing is drawn for it — DESIGN.md,
+ * **Entry runs outermost first, and the ending mirrors it, innermost first**.
  */
 const opening = <W extends World>(core: Core<W>, story: W['story']): Outcome<W> => {
   const at: Position<W> = { story, index: 0 }
@@ -246,10 +245,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     case 'start': {
       if (!accepting(core)) return diagnosing(core, { kind: 'call-refused' })
       const story = event.story
-      // **`start` never ends a tour.** `stop()` is the way out, and it is the
-      // only one, which is what lets a host read this call as one that either
-      // puts a story up or does nothing at all. DESIGN.md argues it under
-      // **Starting a story**.
+      // **`start` never ends a tour** — DESIGN.md argues it under **Starting a
+      // story**.
       const here = core.position
       if (here) return diagnosing(core, { kind: 'tour-running', story, running: here.story })
       // Asked after the one above, because whether this call can be acted on at
@@ -263,8 +260,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
 
     case 'reached': {
       const step = stepOf(core)
-      // Free and silent, permanently: instrumentation stays in builds where no
-      // tour ever runs.
+      // Free and silent, permanently. DESIGN.md, **Saying that a call did
+      // nothing**.
       if (step?.awaits !== event.name) return nothing(core)
       // Matched and dropped anyway. The step now waits for ever, and this is the
       // only place anything knows that happened.
@@ -280,11 +277,9 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     case 'pressed': {
       const step = stepOf(core)
       if (!step || !accepting(core)) return nothing(core)
-      // A step that declares `awaits` has no next control, and the machine
-      // holds that rule as well as the presenter that derives it: a press on
-      // such a step moves nothing, silently, because only a broken Leko can
-      // make one. `reached` still goes through `advance` with such a step —
-      // moving it on is exactly its job.
+      // Both sides of the seam hold this, doing two different jobs, and
+      // DESIGN.md argues that under **The next control**. `reached` still goes
+      // through `advance` with such a step — moving it on is exactly its job.
       if (step.awaits !== undefined) return nothing(core)
       return advance(core, step)
     }
@@ -307,10 +302,9 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     // --- the machine carrying on
 
     case 'left':
-      // Every ending stays closed through its own report. `next` is the only
-      // way one story leads to another, so a `start()` made from inside the
-      // report is refused like any other call made while Leko is inside the
-      // application.
+      // Every ending stays closed through its own report, so a `start()` made
+      // from inside one is refused like any other call made while Leko is
+      // inside the application. DESIGN.md, **Saying where the tour got to**.
       return {
         core,
         effects: [{ kind: 'report', story: event.story, step: undefined }, ...event.after],
@@ -343,9 +337,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     case 'stepEntered': {
       const step = stepOf(core)
       if (!stillAt(core, event.at) || !step) return nothing(core)
-      // Opened before the draw, because a missing anchor can end the run from
-      // inside it and the `onStep` reporting that has to find a machine a host
-      // may call into.
+      // `ready` before the draw and not after; there is no way to write it the
+      // other way round, and `packages/machine/model/phases.md` says why.
       const ready: Core<W> = { ...core, phase: 'ready' }
       return {
         ...owing(ready, { kind: 'draw', step, animate: event.animate }),
@@ -386,9 +379,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       // from inside itself, so where the tour got to is asked once more here.
       const step = stepOf(core)
       if (!stillAt(core, event.at) || !step) return nothing(core)
-      // Saying no is not optional. Saying why is. A step with a guard and no
-      // words still refuses out loud, because a control that sometimes did
-      // nothing would be worse than no control.
+      // Saying no is not optional. Saying why is. DESIGN.md, **A failed
+      // attempt**.
       if (event.reason === undefined) return owing(core, { kind: 'reject' })
       return owing(core, { kind: 'reject' }, { kind: 'retell', step, reason: event.reason })
     }

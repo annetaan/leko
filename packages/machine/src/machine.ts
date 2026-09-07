@@ -14,12 +14,9 @@ import type { Host, MachineOptions, MachineState, Presenter, World } from './typ
 /**
  * Which step a tour is on, and how it gets to the next one.
  *
- * **Nothing here decides anything.** `plan.ts` answers an event with the next
- * state and the calls owed, and this commits the one and makes the others. A
- * decision that lands in this file is in the wrong file.
- *
- * Nothing here knows what an element is either. The tsconfig for this package
- * leaves `lib.dom` out, so a stray `document` is a compile error.
+ * **Nothing here decides anything**, and nothing here knows what an element is:
+ * CLAUDE.md states both under **Writing code here**, and DESIGN.md draws the
+ * seam under **Three packages, and the seam between them**.
  */
 export class Machine<W extends World> {
   #core: Core<W> = idle()
@@ -48,20 +45,15 @@ export class Machine<W extends World> {
     return stateOf(this.#core)
   }
 
-  /** The object the application registered, not a copy, so `steps.length` is readable. */
   get story(): W['story'] | undefined {
     return this.#core.position?.story
   }
 
-  /** The step being shown, or `undefined` while idle. */
   get step(): W['step'] | undefined {
     return stepOf(this.#core)
   }
 
-  /**
-   * Read this rather than searching `story.steps` for {@link step}. A story may
-   * hold the same plain object twice, so `indexOf` walks backwards.
-   */
+  /** Read this rather than searching `story.steps`; `Leko.index` says why. */
   get index(): number | undefined {
     return this.#core.position?.index
   }
@@ -69,37 +61,27 @@ export class Machine<W extends World> {
   // ----------------------------------------------------------- what a host calls
 
   /**
-   * Show `story` from its first step. There is no way to begin anywhere else
-   * and no way back: DESIGN.md argues that under **A story is atomic, and
-   * stories are short**.
+   * Show `story` from its first step, and there is nowhere else to begin:
+   * DESIGN.md argues that under **A story is atomic, and stories are short**. A
+   * story that has run before goes up again; one the tour is still on is turned
+   * down, and DESIGN.md argues that under **Starting a story**.
    *
-   * A story that has run before goes up again from its first step, because
-   * there is one meaning here and it is "put this up". A story the tour is
-   * still on is a different thing and is turned down: `start` never ends a
-   * tour, and DESIGN.md argues that under **Starting a story**.
-   *
-   * Every way this comes to nothing has a `Problem` of its own: an empty story,
-   * a tour already running, and a call the gate turned down. A story whose
-   * `onEnter` threw is the one that does not, and the reason is thrown again
-   * rather than reported. DESIGN.md, **Saying that a call did nothing**.
+   * Every way this comes to nothing has a `Problem` of its own, except a story
+   * whose `onEnter` threw, where the reason is thrown again rather than
+   * reported. DESIGN.md, **Saying that a call did nothing**.
    */
   start(story: W['story']): void {
     this.dispatch({ kind: 'start', story })
   }
 
-  /**
-   * Report that something happened. Advances the step waiting for this name,
-   * after `validate`, and does nothing whatsoever otherwise: instrumentation
-   * stays in builds where no tour ever runs, so it has to be free and silent.
-   */
   reached(name: string): void {
     this.dispatch({ kind: 'reached', name })
   }
 
   /**
    * End the run, reporting it through `onStep` with `step` as `undefined` before
-   * returning. A no-op while idle. The one call the gate does not stand in the
-   * way of: a step still arriving is thrown away rather than waited for.
+   * returning. A no-op while idle, and the one call the gate does not stand in
+   * the way of — DESIGN.md, **One gate, and what it refuses**.
    */
   stop(): void {
     this.dispatch({ kind: 'stop' })
@@ -130,8 +112,6 @@ export class Machine<W extends World> {
         return this.presenter.teardown()
 
       case 'draw': {
-        // A target that is not there is handed over all the same. What that
-        // means is a drawing question, answered through `lost`.
         const anchor = this.presenter.resolve(effect.step)
         return this.presenter.show(effect.step, anchor, effect.animate)
       }
@@ -207,9 +187,7 @@ export class Machine<W extends World> {
    * Run one `onEnter` and say which way it went.
    *
    * It answers in this turn or it throws, so the arrival is over by the time
-   * this returns. Whatever the handler gives back is dropped: a step that has
-   * to wait for something waits for a signal, on a machine that is accepting
-   * calls the whole time.
+   * this returns. DESIGN.md, **Whatever a handler hands back is dropped**.
    */
   private enter(call: () => void, at: Position<W>, done: Event<W>): void {
     try {

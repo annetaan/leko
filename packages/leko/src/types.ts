@@ -2,7 +2,10 @@ type Selector = string
 type TargetFunction = () => Element | null
 
 /**
- * Anything a step can point at. **Both forms are a question, never an answer.**
+ * Anything a step can point at. **Both forms are a question, never an answer**
+ * — asked again every time anything needs the box, and never held on to, which
+ * is also why there is no element form. DESIGN.md argues it under **A target
+ * is a question**.
  *
  * A CSS selector is a question Leko runs, taking the **first** match — a
  * selector is never read as "every element that matches". A function is the
@@ -11,39 +14,26 @@ type TargetFunction = () => Element | null
  * a node inside a shadow root, which `document.querySelector` does not enter; a
  * framework ref; a row your own code picks out of a list.
  *
- * **Whichever form, it is asked again every time anything needs the box** — at
- * the step boundary, on a viewport change, and on every mutation while a step
- * that has arrived is waiting for its target to turn up. So a function must be
- * cheap and must not have side effects, and the element it hands back is the
- * answer for that moment only. A function that closes over a live reference
- * recovers from a node being replaced; one that hands back a variable captured
- * once does not, and that is the host's answer to give.
+ * **A function must be cheap and must not have side effects**, and the element
+ * it hands back is the answer for that moment only. One that closes over a live
+ * reference recovers from a node being replaced; one that hands back a variable
+ * captured once does not, and that is the host's answer to give.
  *
- * There is no element form. An element is an answer somebody worked out when
- * the story was written, and by the time the step runs the page has moved on.
- *
- * **An element that is not rendered is not found**, and a step gets the answer
- * it gets for a target that is not there at all: a moment for it to turn up,
- * and the tour stops rather than point at nothing. `display: none` on it or on
+ * **An element that is not rendered is not found.** `display: none` on it or on
  * anything it is inside, so a closed tab, a collapsed panel and a row a
- * framework is about to render all come to the same thing. Open the panel in
- * the step's `onEnter`, which runs before the target is looked for and is where
- * a step builds what it assumes. `visibility: hidden` and `opacity: 0` are not
- * this: those keep a box, and a hole is cut at it.
+ * framework is about to render all come to the same thing — and a selector
+ * whose first match is hidden matches nothing rather than taking the next one
+ * along. Open the panel in the step's `onEnter`, which runs before the target
+ * is looked for. `visibility: hidden` and `opacity: 0` are not this: those keep
+ * a box, and a hole is cut at it. DESIGN.md argues all of it under **An element
+ * with no box is not found**, and `hidden-target.ts` shows it.
  *
- * A selector that would have matched a hidden element therefore matches
- * nothing, rather than taking the next one along. Which of several matches a
- * selector means is a question a step does not get to answer yet.
+ * **This is asked up to the moment the step is drawn, and not after it** — a
+ * scroll excepted. DESIGN.md, **The page is measured when a step is drawn, and
+ * not again**.
  *
- * **This is asked up to the moment the step is drawn, and not after it.** A
- * target hidden, moved or taken away once its hole is cut keeps the hole where
- * it was: the page is measured at the draw and the tour does not watch it
- * again, a scroll excepted. What a step assumes is `onEnter`'s to build and to
- * keep — for the length of the step, not only up to its first frame.
- *
- * An element inside an `<svg>` is a target like any other: everything asked of
- * a target is asked of `getBoundingClientRect`, and an SVG shape answers it the
- * same way, `viewBox` scaling and transforms included.
+ * An element inside an `<svg>` is a target like any other, `viewBox` scaling
+ * and transforms included — DESIGN.md's **Resolution & custom functions**.
  *
  * ```ts
  * target: '#order-form'
@@ -60,10 +50,9 @@ export type LekoTarget = Selector | TargetFunction
  *
  * `elements` is a single target, or several to be unioned into one hole. The
  * union is the bounding box of everything named, and whatever happens to sit
- * between the elements is inside the hole along with them. Name elements that
- * are next to each other: a label and its input, two neighbouring columns, the
- * first and last row of a table. Two elements at opposite ends of the page
- * make a hole the size of the page.
+ * between the elements is inside the hole along with them — so name elements
+ * that are next to each other: a label and its input, two neighbouring columns,
+ * the first and last row of a table.
  *
  * A bare {@link LekoTarget} anywhere {@link LekoStep.target} wants a region is
  * shorthand for `{ elements: target }`: one element, one hole, not opened.
@@ -83,23 +72,17 @@ export interface LekoRegion {
    * whether the page underneath also takes the pointer, or whether a blocking
    * rectangle sits over the hole.
    *
-   * Most steps of most tours explain something that is already on screen. A
-   * user who clicks one of those can navigate away from the target the next
-   * step points at, and the tour ends looking for something that is not coming
-   * back. So a region says when it wants the page live, rather than saying
-   * when it does not.
-   *
    * **Only the step's own region — the first — can declare it.** Every region
    * after that is a {@link LekoShownRegion}, where this flag does not compile.
-   * One step asks the user for at most one thing, and which hole that is
-   * should be readable off the step, so the type carries the rule rather than
-   * a runtime check.
+   * DESIGN.md argues the default and the rule under **A hole, and whether it is
+   * open**.
    *
    * **Tab is held to the same answer.** Focus walks a ring of what this step
    * opened and the controls Leko drew, so a hole that is only shown cannot be
    * reached with the keyboard either. A positive `tabindex` in the page, or an
    * `iframe` inside the region, can still put focus somewhere unplanned, and
-   * what happens then is that the next key brings it back.
+   * what happens then is that the next key brings it back — DESIGN.md, **The
+   * ring focus cannot leave**.
    */
   interactive?: boolean
 }
@@ -108,13 +91,10 @@ export interface LekoRegion {
  * A region after the first: shown, and never opened.
  *
  * These are there to be looked at rather than acted on — a summary figure
- * beside the row it was computed from, the columns a total was worked out
- * over. The hole shows them, the blocking rectangle over it keeps them from
- * taking a click, and no flag opens one.
- *
- * `interactive` is declared `never` rather than left off, so that handing over
- * an object which happens to carry the flag fails to compile too — leaving the
- * property out would let structural assignment smuggle one past the rule.
+ * beside the row it was computed from, the columns a total was worked out over.
+ * The hole shows them, the blocking rectangle over it keeps them from taking a
+ * click, and no flag opens one. DESIGN.md argues the `never` under **A hole,
+ * and whether it is open**.
  */
 export interface LekoShownRegion {
   elements: LekoTarget | LekoTarget[]
@@ -140,10 +120,10 @@ export interface LekoShownRegion {
  * ```
  *
  * Declarations merge, so a generated file and a hand-written one both apply.
- * **The file doing it has to be a module** — one with an `import` or an `export`
- * of its own. In a file with neither, `declare module` declares an ambient
- * module instead of augmenting this one, no completion appears, and nothing
- * anywhere reports a problem.
+ * **The file doing it has to be a module** — one with an `import` or an
+ * `export` of its own, and inside the tsconfig's `include`. DESIGN.md says what
+ * goes wrong otherwise, silently, under **The augmenting file has to be a
+ * module**.
  *
  * The value side is unused; `true` is the shortest thing to write.
  *
@@ -164,12 +144,10 @@ export interface LekoSignals {}
  * ```
  *
  * `@annetaan/leko-codegen` writes this alongside {@link LekoSignals} unless it
- * is run with `--loose`. The two belong together: a vocabulary gathered from the
- * call sites is the set of names something actually reports, so a name in
- * `awaits` that is missing from it is a step waiting for a report that never
- * comes. A vocabulary maintained by hand is only as complete as somebody
- * remembered to make it, and turning this on with one of those is a promise
- * about a list rather than about the code.
+ * is run with `--loose`. The two belong together, and turning this on over a
+ * vocabulary somebody maintains by hand is a promise about a list rather than
+ * about the code — DESIGN.md argues it under **Strict on `awaits`, never on
+ * `reached()` — the asymmetry is the design**.
  *
  * `reached()` is never tightened by this. See {@link LekoSignal}.
  */
@@ -201,13 +179,10 @@ export type LekoKnownSignal = [Known] extends [never]
  * A name `reached()` may report. Every string, always, plus completion on the
  * ones {@link LekoSignals} knows.
  *
- * {@link LekoStrict} deliberately does not reach this far. A `reached()` call is
- * instrumentation meant to stay in the source permanently, including in builds
- * where no tour ever runs, and a type error on it would talk people into
- * deleting the call rather than keeping it. The generated vocabulary is built
- * out of these calls in the first place, which leaves nothing for an error here
- * to catch beyond the moment between typing a new name and the generator
- * running.
+ * {@link LekoStrict} deliberately does not reach this far: a `reached()` call is
+ * instrumentation that has to stay compilable in builds where no tour ever
+ * runs. DESIGN.md argues the asymmetry under **Strict on `awaits`, never on
+ * `reached()` — the asymmetry is the design**.
  */
 export type LekoSignal = [Known] extends [never] ? string : Known | (string & {})
 
@@ -219,9 +194,9 @@ export interface LekoStep {
    * It is the name a step goes by outside Leko: in the {@link LekoProblem} a
    * diagnostic hands over, in whatever counts things from
    * {@link LekoOptions.onStep}, and as the key for anything an application
-   * wants to hang on a step. Grouping steps into chapters is that last one — a
-   * table from id to chapter, written where the chapters are drawn. Leko grows
-   * no concept for it, which is why there is nowhere here to put one.
+   * wants to hang on a step. Grouping steps into chapters is that last one, and
+   * DESIGN.md argues why there is nowhere here to put one under **There are no
+   * chapters**; `story-setup.ts` does it with a table from id to chapter.
    */
   id: string
 
@@ -241,13 +216,13 @@ export interface LekoStep {
    * target: [{ elements: '#terms', interactive: true }, '#summary'] // the first is open
    * ```
    *
-   * **The first region is the one the step is about, and the type says so:**
-   * it is the only position that may declare `interactive`, every later entry
-   * being a {@link LekoShownRegion}. Its first element is what
+   * **The first region is the one the step is about**, and it is the only
+   * position that may declare `interactive`. Its first element is what
    * {@link validate} is handed, what the message anchors beside, and the one
    * Leko looks for: a step whose first region is not on the page is not drawn,
    * and Leko waits a moment for it. A later region that resolves to nothing is a
-   * hole this step does not cut, and nothing else happens.
+   * hole this step does not cut, and nothing else happens. DESIGN.md argues the
+   * shape of the list under **A target is a question**.
    *
    * A target that scrolls is fine in a region that was opened: the wheel,
    * clicks, focus and keys all reach it through the cutout. See
@@ -286,53 +261,26 @@ export interface LekoStep {
    * Overrides {@link LekoOptions.scroll}, and is off unless one of the two
    * asks.
    *
-   * A step draws its target where the target is; it does not go and get it. So
-   * a target below the fold is cut out of a scrim nobody can see, and the
-   * viewer is left to work out that scrolling is what the step wants of them.
-   * Say `true` and every scrollport carrying the target brings the cutout to
-   * the middle of itself, before anything is measured — the middle, because a
-   * step exists to draw attention and a hole against the bottom of the screen
-   * is the least attention one can be given. A cutout more than half the
-   * scrollport tall leads with its top edge instead, put at the middle, which
-   * leaves the message the half above it. A target already in view is left
-   * exactly where it is, and one near the end of the content lands as near as
-   * the content allows.
+   * Say `true` and every scrollport carrying the target centres the step's
+   * first cutout in itself — the hole around every element that region names,
+   * not its first element — before anything is measured. A cutout more than
+   * half the port tall leads with its top edge instead. One already inside is
+   * left alone, and one near the end of the content lands as near as the
+   * content allows. Later regions stay where they are.
    *
-   * **What is brought in is the first region's cutout** — one hole around every
-   * element the region names — and not its first element alone, so a region of
-   * two lands with the hole at the middle rather than the first element, and a
-   * hole taller than half the scrollport leads with its top edge whatever the
-   * height of the elements in it. Later regions stay where they are: a hole the
-   * step shows without opening is there to be looked at, and a step that wants
-   * one on screen puts it in the first region.
+   * The page is glided rather than jumped, and the step is drawn once it has
+   * stopped; a nested panel is set outright. The glide grows with the distance
+   * by its cube root and runs for at least {@link LekoOptions.duration}, and a
+   * viewer who scrolls takes it over. `duration: 0` and reduced motion set the
+   * page outright instead. `scroll-margin` on the target is honoured, and how
+   * far is DESIGN.md's **`scroll-margin` on the target wins over the step's
+   * `padding`**.
    *
-   * **The page glides, and the step is drawn when it stops.** The scroll and
-   * the morph are two stages rather than one: a hole is placed from where the
-   * target is on screen, so a morph running alongside a glide is a hole placed
-   * against a page that has since moved. The glide is Leko's own animation,
-   * eased the way the morph is, rather than the browser's smooth scroll. **It
-   * grows with the distance**, by its cube root, and takes at least
-   * {@link LekoOptions.duration}: what passes while the page moves is part of
-   * what a viewer new to the application is there to see, so a long way takes
-   * longer rather than becoming a blur — though eight times the way is only
-   * twice the wait. A viewer who scrolls during
-   * it stops it, and the step is drawn where they left the page. Nested panels are set
-   * outright rather than glided. Where `duration` is `0`, or the visitor has
-   * asked for reduced motion, the page is set outright too — the scroll
-   * animates exactly when the morph does.
+   * Nothing happens on a step with no `target`, nor for a `position: fixed`
+   * one, and a redraw never scrolls again.
    *
-   * It is off by default because where a page is scrolled to is the
-   * application's own state, and a tour that moves it is a tour reaching into
-   * the application. `scroll-margin` on the target is honoured over the step's
-   * `padding` wherever it asks for more room: it is how an application says how
-   * much of its own sticky chrome is in the way, and what it buys is a target
-   * leaning away from that side, so a step's message lands clear of the chrome
-   * rather than under it.
-   *
-   * Nothing happens on a step with no `target`, and nothing happens for a
-   * `position: fixed` target, which has nowhere to be scrolled to. A redraw
-   * never scrolls again: only a step arriving does, because by the time
-   * anything is redrawn the viewer may have moved the page on purpose.
+   * DESIGN.md argues all of it under **Bringing a target into view**;
+   * `scrolls-into-view.ts` is the case.
    */
   scroll?: boolean
 
@@ -340,13 +288,15 @@ export interface LekoStep {
    * The name of the thing this step is waiting for the application to report.
    *
    * `reached(name)` advances the step only if the step declares that same name,
-   * and does nothing at all otherwise. So a call site names what happened in the
-   * application and never which step should move — insert or reorder steps and
-   * the call still fires at the moment it always meant.
+   * and does nothing at all otherwise. So a call site names what happened in
+   * the application and never which step should move — insert or reorder steps
+   * and the call still fires at the moment it always meant. DESIGN.md argues it
+   * under **Signals and steps**.
    *
    * A step that declares nothing here is never advanced by a signal, and gets
    * the next control on its message instead — see {@link LekoOptions.nextLabel}.
-   * That is the only thing deciding whether the control appears.
+   * That is the only thing deciding whether the control appears, and DESIGN.md's
+   * **The next control** says why it is not configurable.
    *
    * Any string, until the project has a vocabulary. See
    * {@link LekoKnownSignal}.
@@ -364,31 +314,18 @@ export interface LekoStep {
    * It is not where the step is decorated. Nothing has been drawn yet, and the
    * scrim still holds the shape of the step being left while this runs.
    *
-   * **Whatever it hands back is dropped.** This answers in the turn it was
-   * called in and the step is drawn the moment it returns, so an `async`
-   * handler runs its first line here and the rest of it after the step is on
-   * screen. Leko waits for no call into the application, and DESIGN.md argues
-   * that under **A step that waits**.
-   *
-   * So work that has to finish before the user sees anything goes on a step of
-   * its own. That step names no {@link target}, starts the work here, and
-   * declares {@link awaits}. The tour stands on it with the page covered, and
-   * every call a host makes meanwhile is acted on rather than dropped.
-   *
-   * **Something that never reports leaves the tour standing there.** Nothing
-   * bounds a wait, so an application whose work can fail has to say so: catch
-   * it, and call `stop()`. The control that ends the tour is on screen the
-   * whole time either way.
+   * **Whatever it hands back is dropped.** An `async` handler runs its first
+   * line here and the rest of it once the step is up. Work that has to finish
+   * first goes on a step of its own: no {@link target}, the work started here,
+   * and {@link awaits} declared. DESIGN.md argues both under **A step that
+   * waits**, and what an application owes a wait that can fail under
+   * DESIGN.md's **Nothing bounds the wait**.
    *
    * **A throw stops the tour**, and the reason is thrown again rather than
-   * swallowed. The state the step assumes was never built, so drawing it would
-   * point the user at something that is not ready — the same judgement Leko
-   * makes about a target that never turns up, reported as `target-lost`.
-   * {@link onLeave} still runs, because a handler that failed halfway may
-   * already have registered something.
-   *
-   * There is nowhere to register a handler for that failure, and the place to
-   * deal with it is inside this one.
+   * swallowed — DESIGN.md, **A throw stops the tour, and the reason is thrown
+   * again**. {@link onLeave} still runs, because a handler that failed halfway
+   * may already have registered something. There is nowhere to register a
+   * handler for that failure, and the place to deal with it is inside this one.
    *
    * This is not an analytics hook. Something that reports "a step started" for
    * a caller's own metrics is {@link LekoOptions.onStep}.
@@ -397,13 +334,9 @@ export interface LekoStep {
 
   /**
    * Undo what {@link onEnter} set up. Called once for every arrival at this
-   * step, at the moment it stops being the current one.
-   *
-   * Setup that adds a listener has to remove it, and this is the matching half.
-   * Without one, every `onEnter` that registers something leaks it. It runs
-   * even where `onEnter` threw halfway, because the cleanup is owed either way.
-   * A step with no `onEnter` at all is left the same way, for cleanup the
-   * application set up somewhere else.
+   * step, at the moment it stops being the current one — also where `onEnter`
+   * threw halfway, and on a step that has no `onEnter` at all. DESIGN.md,
+   * **Every `onEnter` gets its `onLeave`**.
    *
    * `next` is where the tour is going, and is `undefined` when it is ending:
    * past the last step, after `stop()`, and when another story is started,
@@ -411,9 +344,8 @@ export interface LekoStep {
    * nothing about. Cleanup often depends on the destination — a panel that two
    * steps use in turn is worth leaving open — which is why it is given one.
    *
-   * A promise is not waited for here. The step is over, and a tour holding
-   * still while the state behind it is dismantled shows the user nothing for a
-   * reason that is none of their business.
+   * A promise is not waited for here; the step is over. DESIGN.md, **Whatever a
+   * handler hands back is dropped**.
    */
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 
@@ -421,25 +353,21 @@ export interface LekoStep {
    * Called before advancing on the next control. Returning `false` blocks the
    * transition, shakes the cutout, and shows {@link error} where there is one.
    *
-   * The control claims the moment has come, and claims nothing about the state
-   * behind it, so a step that has one can want a guard. This is that guard.
-   *
    * **Ignored on a step that declares {@link awaits}.** Such a step has no
    * control, and it advances because the application said the thing happened.
-   * Reading the page to check would be a second source of truth for the same
-   * question, and the second kind is what the second constraint keeps out.
    *
    * Receives the first element of the first region of {@link LekoStep.target},
    * which is the one element the step is about. No later region reaches this.
+   *
+   * DESIGN.md argues what the guard is for under **A failed attempt**, and
+   * `next-control.ts` shows it.
    */
   validate?: (targetEl: Element) => boolean
 
   /**
    * What to say under the instruction when {@link validate} says no. Nothing
-   * here replaces {@link message}: a step that says what to do and a line
-   * saying why the last try did not work are two different things, and a user
-   * who has just been told they were wrong needs to still be able to read what
-   * they were asked for.
+   * here replaces {@link message}: a user who has just been told they were
+   * wrong needs to still be able to read what they were asked for.
    *
    * **Leave it out and the step still refuses out loud.** The cutout shakes
    * whether or not there are words for it, so a guard cannot turn the next
@@ -449,8 +377,8 @@ export interface LekoStep {
    * attempt that just failed, and the words it gives back are held from there.
    * A function form must be cheap and must not have side effects; it is given
    * the same element {@link validate} was. There is nothing to call to take the
-   * words away again. They go when the next attempt succeeds or the step
-   * changes, because those are the two moments they stopped being true.
+   * words away again: they go when the next attempt succeeds or the step
+   * changes. DESIGN.md argues the lifecycle under **A failed attempt**.
    *
    * ```ts
    * error: 'That does not look like an email address yet.'
@@ -464,10 +392,9 @@ export interface LekoStep {
  * One route through the application, start to finish.
  *
  * Register as many as the application has; **only ever one of them runs**. That
- * is not a simplification: the scrim blocks with plain rectangles built from the
- * complement of its own cutouts, so a second story's rectangles would sit over
- * the first story's target. Two visible stories break the first constraint by
- * construction.
+ * is not a simplification but a consequence of how the page is blocked, and
+ * DESIGN.md argues it under **Do not go back to blocking with the scrim
+ * itself**.
  */
 export interface LekoStory {
   /**
@@ -489,18 +416,15 @@ export interface LekoStory {
    * after a chapter, without the application having to notice that the first
    * one ended.
    *
-   * **Only a story that ran to the end is followed.** `stop()`, a target that
-   * never came back, and a handler that threw all end the tour where it stands.
-   * So somebody who left the tour is not carried into the next chapter.
+   * **Only a story that ran to the end is followed.**
    *
    * **Nothing is stored.** The function form is asked when the last step
    * advances, and answering `undefined` ends the tour. Running the same story
-   * again asks again, so there is no slot to clear between runs and no way for
-   * one tour's answer to be inherited by the next.
+   * again asks again. DESIGN.md argues both under **Starting a story**.
    *
    * A function must be cheap and must not have side effects. Where it is a
    * branch, the thing it reads is the application's own state, the same state
-   * a {@link Leko.reached} call is a report about.
+   * a {@link Leko.reached} call is a report about — `branching.ts` shows it.
    *
    * ```ts
    * next: summary
@@ -515,17 +439,12 @@ export interface LekoStory {
   /**
    * Build the state this whole story assumes, before its first step is entered.
    *
-   * {@link LekoStep.onEnter} is the same job one step down, and the reason for
-   * both is the same: a tour usually takes something for granted. What belongs
-   * here is what the story takes for granted throughout — a screen to be on, a
+   * {@link LekoStep.onEnter} is the same job one step down. What belongs here
+   * is what the story takes for granted throughout — a screen to be on, a
    * record to run against, fixtures to stand in for data the user has not got
-   * yet.
-   *
-   * The half that cannot be written anywhere else is {@link onLeave}. It runs
-   * when the run ends, and the first step's runs the moment the tour reaches
-   * the second, with the rest of the story still to go. This is that hook's
-   * partner, so a drawer opened here is closed there rather than in two places
-   * a level apart.
+   * yet — and what makes it worth having is {@link onLeave}, which runs when
+   * the run ends rather than the moment the tour reaches step two. DESIGN.md,
+   * **The story's `onLeave` runs when the run ends, after the last step's**.
    *
    * **Whatever it hands back is dropped**, the same bargain
    * {@link LekoStep.onEnter} strikes. Entry runs outermost first and all of it
@@ -534,8 +453,7 @@ export interface LekoStory {
    * here and puts a step that waits at the top of `steps`.
    *
    * **A throw stops the tour** and the reason is thrown again, exactly as a
-   * step's does. {@link onLeave} still runs, because a handler that failed
-   * halfway may already have set something up.
+   * step's does. {@link onLeave} still runs. `story-setup.ts` shows the pair.
    */
   onEnter?: (story: LekoStory) => void
 
@@ -546,15 +464,15 @@ export interface LekoStory {
    *
    * It runs after the current step's {@link LekoStep.onLeave} — cleanup goes
    * innermost first, the mirror of entry — and before the ending is reported
-   * through {@link LekoOptions.onStep}.
+   * through {@link LekoOptions.onStep}. DESIGN.md, **Entry runs outermost
+   * first, and the ending mirrors it, innermost first**.
    *
    * `next` is the story about to start, and `undefined` when the tour is simply
    * over. A shared story that branches and is started again afterwards is the
    * case: teardown worth skipping when the destination needs the same state is
    * teardown this argument can skip.
    *
-   * A promise is not waited for. The story is over, and a tour holding still
-   * while the state behind it is dismantled shows the user nothing.
+   * A promise is not waited for. The story is over.
    */
   onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
 }
@@ -563,9 +481,9 @@ export interface LekoStory {
  * The three types the machine takes as its one parameter: what an anchor is
  * here, what a step is, and what a story is.
  *
- * Written out rather than imported, for the reason {@link LekoTarget} is. The
- * machine constrains this structurally, so nothing published has to name
- * anything the machine declares.
+ * Written out rather than imported, so that nothing published has to name
+ * anything the machine declares. DESIGN.md argues it under **Three packages,
+ * and the seam between them**.
  */
 export interface LekoWorld {
   anchor: Element
@@ -577,12 +495,8 @@ export interface LekoWorld {
  * Defaults for every story on the instance. A step may override `padding` and
  * `radius`: the nearer of the two wins.
  *
- * **A story carries no settings.** It used to sit between these two, and the
- * only thing it bought was writing a value once instead of once per step —
- * which a host does for itself, with a `.map()` over `steps`, in code Leko does
- * not have to grow a tier for. What it cost was `story` travelling into the
- * half that draws, which now takes steps and never asks what they belong to.
- * DESIGN.md argues it under **Settings, and where they are read from**.
+ * **A story carries no settings** — DESIGN.md argues it under **Settings, and
+ * where they are read from**.
  */
 export interface LekoOptions {
   /** Space between a target's border box and the cutout edge. Defaults to `8`. */
@@ -595,11 +509,11 @@ export interface LekoOptions {
    * Whether every step brings its target into view before drawing it.
    * Defaults to `false`, and a step may say either way.
    *
-   * The whole of what it does is described on {@link LekoStep.scroll}. What
-   * belongs here is why it is a setting at all: scroll position is application
-   * state, so a tour is not given it. A host that would rather its viewers
-   * never hunted for a highlight below the fold turns it on once, here, and a
-   * step that lands somewhere a jump would be wrong says `scroll: false`.
+   * The whole of what it does is described on {@link LekoStep.scroll}. A host
+   * that would rather its viewers never hunted for a highlight below the fold
+   * turns it on once, here, and a step that lands somewhere a jump would be
+   * wrong says `scroll: false`. Why it is off at all is DESIGN.md's **Bringing
+   * a target into view**.
    */
   scroll?: boolean
 
@@ -617,17 +531,13 @@ export interface LekoOptions {
    * What the halo does while a morph carries its hole somewhere else.
    * Defaults to `'return'`.
    *
-   * The frames ride the morph either way, written each animation frame from
-   * the same blended numbers as the hole's path; the mode decides the paint.
-   * `'return'` is the message's answer: they fade out in flight
-   * (`--leko-halo-fade`) and fade back in with the holes they frame.
-   * `'follow'` keeps them on the whole way, for a host that styles every hole
-   * alike and wants the glow to travel. A host that lights the open hole
-   * apart from the shown ones can still follow — `data-open` flips when the
-   * flight starts, because that is the hole the frame is already becoming.
+   * `'return'` fades the frames out in flight (`--leko-halo-fade`) and back in
+   * with the holes they frame. `'follow'` keeps them on for the whole trip, and
+   * `data-open` flips as it starts.
    *
-   * Paint is all this moves. Whatever it says, the halo catches nothing and
-   * the blocking underneath it is untouched.
+   * Paint is all this moves. Whatever it says, the halo catches nothing and the
+   * blocking underneath it is untouched. DESIGN.md argues the modes under **The
+   * halo**.
    */
   halo?: 'return' | 'follow'
 
@@ -635,15 +545,10 @@ export interface LekoOptions {
    * The words on the next control. Defaults to `Next`.
    *
    * The control appears on the message of every step that declares no
-   * {@link LekoStep.awaits}, and on no other step. A step waiting for a signal
-   * is waiting for the user to do something, and a button beside the
-   * instruction is a way past it without doing that — the second constraint,
-   * defeated by a button. So which steps have one is derived rather than
-   * configured, and this option only says what it reads.
-   *
-   * The control is also the only route {@link LekoStep.validate} guards. A
-   * step that declares a signal has no control and no guard, for one reason:
-   * the application has already said the thing happened.
+   * {@link LekoStep.awaits}, and on no other step. It is also the only route
+   * {@link LekoStep.validate} guards. Which steps have one is derived rather
+   * than configured, and this option only says what it reads — DESIGN.md argues
+   * that under **The next control**.
    */
   nextLabel?: string
 
@@ -653,36 +558,22 @@ export interface LekoOptions {
    *
    * `step` is where the tour is now, and is `undefined` once there is nowhere
    * to be: past the last step, or after `stop()`. `story` is the one that
-   * moved.
-   *
-   * A story used to carry a hook of its own as well, and both fired. It could
-   * say nothing this cannot: it was never told which story it was, so anything
-   * spanning two of them had to be written here anyway, and a readout that
-   * lived on the story stopped reporting the moment somebody added a story and
-   * forgot to register it again. One hook told which story is the same job with
-   * no way to half-do it. A handler that only cares about one story asks
-   * `story.id`.
+   * moved. A handler that only cares about one story asks `story.id`.
    *
    * Anything that draws its own progress needs this. Reading {@link Leko.step}
    * tells a caller where the tour is only if it thinks to look again, and a
    * story advances when the page reports a signal from somewhere else entirely.
    *
-   * The return value is never read. Something that could block or redirect a
-   * transition would be {@link LekoStep.validate} again, in a place where the
-   * application has claimed nothing.
+   * The return value is never read, and there is no hook of this kind on a
+   * story — DESIGN.md argues both under **Saying where the tour got to**.
    *
    * A host that wants the pair keeps the last `step` it was handed. That is a
    * line of its own state, and it is right by construction: this hook only ever
    * names a step that was drawn, so a step whose `onEnter` threw on the way in
    * cannot end up in it.
    *
-   * {@link Leko.stop} from in here is never turned down. {@link Leko.start}
-   * from in here never runs: a report naming a step is a tour that is running
-   * (`tour-running`), and every report of an ending happens with the gate
-   * still closed (`call-refused`) — {@link LekoStory.next} is the only way one
-   * story leads to another. A host that wants a story after `stop()` writes
-   * the two calls in a row; `stop()` finishes the whole ending, report
-   * included, before it returns.
+   * {@link Leko.stop} from in here is never turned down; {@link Leko.start}
+   * from in here never runs. DESIGN.md, **One gate, and what it refuses**.
    */
   onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 
@@ -690,12 +581,10 @@ export interface LekoOptions {
    * Called when a call meant to do something and did not. See
    * {@link LekoProblem}.
    *
-   * Off by default, like everything else Leko has not been asked for. Nothing
-   * is logged: the core has no build-time environment to strip a development
-   * branch with, so anything it wrote to the console would be written in
-   * production too, and `console.error` is collected by error trackers and
-   * fails test suites that treat it as a failure. Which of those a project
-   * wants is the project's to choose.
+   * Off by default, like everything else Leko has not been asked for. **Nothing
+   * is logged**, and which of the ways to report a problem a project wants is
+   * the project's to choose — DESIGN.md argues it under **Saying that a call
+   * did nothing**.
    *
    * ```ts
    * createLeko({
@@ -710,23 +599,12 @@ export interface LekoOptions {
   /**
    * The words on the control that ends the tour.
    *
-   * **There is always such a control, and there is no way to turn it off.** The
-   * scrim blocks the page with rectangles, so a host's own way out is under one
-   * unless that host put it above the scrim and off every cutout — and a host
-   * cannot do the second part, because the cutouts are Leko's to know. An
-   * option to take the control away would be an option to build a page somebody
-   * cannot leave, so what a host may change is what it says and what it looks
-   * like, never whether it is there.
-   *
-   * **It is the only control Leko draws outside the message, and it will stay
-   * that way.** There is no back control, and a next control belongs to a step
-   * and is derived from {@link LekoStep.awaits}. Ending is the one call that is
-   * never refused, so it is the one thing worth putting on the page
-   * unconditionally.
-   *
-   * Ending the tour is not a way past the work a step exists to make somebody
-   * do, so `awaits` says nothing about this. That rule is about the next
-   * control and about nothing else.
+   * **There is always such a control, and there is no way to turn it off**, so
+   * what a host may change is what it says and what it looks like, never
+   * whether it is there. It is also the only control Leko draws outside the
+   * message, and ending the tour is not a way past the work a step exists to
+   * make somebody do, so {@link LekoStep.awaits} says nothing about this.
+   * DESIGN.md argues both under **The way out**.
    *
    * A word rather than a symbol by default, because an icon with no accessible
    * name is worse than a wide button. Restyle it with the `--leko-close-*`
@@ -743,9 +621,9 @@ export interface LekoOptions {
    * that, and what the control looks like is yours. Hand back a function to
    * undo whatever you did, and it runs when the tour ends.
    *
-   * This is what a host with its own idea of the control uses. There is no
-   * option that draws nothing: a corner Leko has chosen and a host has filled
-   * is the arrangement where neither half can produce a page with no way out.
+   * There is no option that draws nothing: a corner Leko has chosen and a host
+   * has filled is the arrangement where neither half can produce a page with no
+   * way out — DESIGN.md, **The way out**.
    *
    * ```tsx
    * createLeko({
@@ -757,8 +635,7 @@ export interface LekoOptions {
    * })
    * ```
    *
-   * `stop` rather than the instance, for the reason the presenter is handed
-   * closures rather than the machine: the only thing this control may do is end
+   * `stop` rather than the instance: the only thing this control may do is end
    * the tour. Anything here that advanced a step would be a second next
    * control, off to the side of the step that decides whether there is one.
    */
@@ -769,13 +646,9 @@ export interface LekoOptions {
  * Something a call meant to do and did not.
  *
  * Every member is a call a working application would not have made, or one it
- * made at a moment nothing could act on. Neither has any other symptom. The
- * tour does not move, and nothing anywhere says why.
- *
- * One thing stays silent on purpose and is not here: a {@link Leko.reached}
- * naming something no step waits for. Instrumentation is meant to stay in the
- * source permanently, and something free to leave in cannot complain about
- * being left in. A caller doing everything right ends up there.
+ * made at a moment nothing could act on. One thing stays silent on purpose and
+ * is not here: a {@link Leko.reached} naming something no step waits for.
+ * DESIGN.md draws the line under **Saying that a call did nothing**.
  */
 export type LekoProblem =
   /** {@link Leko.start} was given a story with no steps in it, so there is nothing to show. */
@@ -785,40 +658,33 @@ export type LekoProblem =
    * still being built. It is dropped rather than saved for later, so the step
    * goes on waiting for something the application has already been through.
    *
-   * **The window is one synchronous call wide.** Leko waits for nothing a host
-   * hands back, so the only way to land here is to call `reached()` from inside
-   * an `onEnter` or an `onLeave`, on the very step that awaits the name. The
-   * fix is to make the call after the handler returns.
+   * **The window is one synchronous call wide**, so the only way to land here
+   * is to call `reached()` from inside an `onEnter` or an `onLeave`, on the very
+   * step that awaits the name. The fix is to make the call after the handler
+   * returns. DESIGN.md, **One gate, and what it refuses**.
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
    * A {@link Leko.start} that arrived while Leko was inside the application,
    * which is a call made from inside an `onEnter`, an `onLeave`, or the
    * {@link LekoOptions.onStep} report of an ending. Nothing of the step being
-   * built has been built, so there is nothing there to act on.
+   * built has been built, so there is nothing there to act on. DESIGN.md,
+   * **One gate, and what it refuses**.
    *
    * `start` is the only call that lands here, which is why there is nothing
-   * else on this member to read.
-   *
-   * `stop()` is never here. It is the one call that asks nothing.
-   *
-   * Neither is the next control. Leko takes it off the screen for the whole of
-   * an arrival, and a press is not a call a host made, so there is nobody to
-   * tell and nothing for them to do about it.
+   * else on this member to read. `stop()` is never here, and neither is the
+   * next control: a press is not a call a host made, so there is nobody to
+   * tell.
    */
   | { kind: 'call-refused' }
   /**
    * A {@link Leko.start} made while a tour was running. `running` is the story
    * that was showing, and it is still showing: nothing was torn down and no
-   * step moved.
+   * step moved. The fix is `stop()` and then `start` again — DESIGN.md,
+   * **Starting a story**.
    *
-   * **`start` never ends a tour.** `stop()` is the way out and it is the only
-   * one, which is what lets this call be read as one that either puts a story
-   * up or does nothing at all. The fix is `stop()` and then `start` again.
-   *
-   * Told apart from {@link LekoProblem} `call-refused` because that one is the
-   * gate, and a call the gate turned down is worth making again a moment later.
-   * This one will be turned down every time until the tour ends.
+   * Told apart from {@link LekoProblem} `call-refused` for the reason DESIGN.md
+   * gives under **Saying that a call did nothing**.
    *
    * A component that rebuilds its story on every render and starts it on every
    * render lands here, which is the shape this member is most likely to be
@@ -828,20 +694,10 @@ export type LekoProblem =
   /**
    * A step's target was not on the page when it was wanted, so the run stopped.
    *
-   * Two roads reach here. A step arriving at a target that is not on the page
-   * is given 100ms first, because the application is still rendering: `onEnter`
-   * has just returned and a framework paints a frame after that, so the step
-   * that pointed at something a moment too early should not end the tour. The
-   * target is asked again throughout that window, so whether the step recovers
-   * is whether the answer changes: a selector finds the node when it lands, and
-   * so does a function reading a live reference. A function handing back one
-   * variable captured when the story was written cannot.
-   *
-   * The other is a press on a step that declares {@link LekoStep.validate}.
-   * That resolves the target afresh to hand the guard its element, and where
-   * there is none the tour ends here instead of advancing. It gets no window:
-   * a press is not a mid-render instant, and a target that has gone by then is
-   * a step pointing at something the application took away.
+   * Two roads reach here, and DESIGN.md has both under **Target loss &
+   * recovery**: an arrival whose grace period ran out, and a press on a step
+   * that declares {@link LekoStep.validate}, which resolves the target afresh
+   * to hand the guard its element and gets no grace at all.
    */
   | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
 
@@ -850,9 +706,8 @@ export type LekoProblem =
  *
  * `idle` — none is. `reached()` is a no-op, and so is `stop()`.
  * `running` — one is, from the moment `start()` accepts it until the ending is
- * reported. It says nothing about what the screen is doing: a step still
- * animating in, a target being looked for again, and a step waiting for its
- * signal are all `running`, because in every one of them a story is on.
+ * reported. It says nothing about what the screen is doing — DESIGN.md, **It
+ * says nothing about what the screen is doing**.
  *
  * {@link LekoOptions.onStep} reports the same fact, with the step that changed.
  * `onStep: (step) => setTourRunning(step !== undefined)` is the whole of what a

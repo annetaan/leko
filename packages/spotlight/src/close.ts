@@ -10,14 +10,9 @@ const LABEL = 'End tour'
  * The one control Leko puts on the page outside the message, and the only one
  * that is there for as long as the tour is drawn.
  *
- * It ends the tour. It is not a back button and it never will be: going back is
- * refused while a step is arriving, so a control for it would be one Leko put
- * there that sometimes does nothing. Ending asks nothing of the arrival, so
- * this always works.
- *
- * The scrim blocks the page with rectangles, so a host's own way out of a tour
- * is under one unless that host thought about it. A project that did not think
- * about it has built a trap, and this is what stops the trap being the default.
+ * It ends the tour, it is not a back button, and there is no way to turn it
+ * off. DESIGN.md argues all three under **The way out**; what this file adds is
+ * that ending asks nothing of an arrival, so the control always works.
  */
 export class Close {
   readonly element: HTMLElement

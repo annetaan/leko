@@ -20,15 +20,9 @@ import type { Surface } from './surface.js'
 export const MESSAGE_ANCHOR = '--leko-message-anchor'
 
 /**
- * What the halo does while a hole is on its way somewhere else.
- *
- * The frames ride the morph either way, written along the same numbers the
- * path is built from; the mode decides the paint. `'return'` is the message's
- * answer: they fade out in flight and fade back in with the holes they frame.
- * `'follow'` keeps them on the whole way — for a host that styles every hole
- * alike and wants the glow to travel. A host that lights the open hole apart
- * from the shown ones can still follow; `data-open` flips when the flight
- * starts, because that is the hole the frame is already becoming.
+ * What the halo does while a hole is on its way somewhere else. The frames ride
+ * the morph either way and the mode decides the paint — DESIGN.md argues both
+ * modes under **The halo**.
  */
 export type HaloMode = 'return' | 'follow'
 
@@ -47,17 +41,13 @@ export class Scrim {
   /**
    * The point a message anchors itself to, in this scrim's coordinate space.
    *
-   * A zero-area element of Leko's own rather than the target itself, and it is
+   * A zero-area element of Leko's own rather than the target itself, which is
    * what lets a message sit beside anything the scrim can cut a hole around.
-   * An `anchor-name` is scoped to the tree its element is in, so a target inside
-   * a shadow root cannot be named from the document and the browser reports
-   * nothing when it fails — `spike/anchor-across-shadow/` is the page. Naming
-   * the target also meant writing into the host page's inline style and putting
-   * back whatever was there, and this owes nobody that.
+   * DESIGN.md argues why it is not the target under **The message anchors to a
+   * marker, never to the target**.
    *
-   * It sits beside the scrim rather than inside it, so the clip and the
-   * blocking rectangles know nothing about it. It follows a scroll for exactly
-   * the reason the scrim does: the container moves both, and no script runs.
+   * It sits beside the scrim rather than inside it, so the mask and the
+   * blocking rectangles know nothing about it.
    */
   private marker: HTMLElement | undefined
   /** What carries this layer; see {@link Surface}. */
@@ -81,16 +71,13 @@ export class Scrim {
    */
   private converging = false
   /**
-   * Where the blocking rectangles live. **Beside the scrim, never inside it.**
+   * Where the blocking rectangles live. **Beside the scrim, never inside it** —
+   * DESIGN.md, **The rectangles live beside the scrim, never inside it**.
    *
-   * They were moved out because a `clip-path` clips its descendants out of
-   * hit-testing along with itself, so a rectangle inside the scrim and over one
-   * of its holes caught nothing — `spike/blocking-a-hole/` is the page, and it
-   * mattered the moment a step showed a hole it did not open. A mask does no
-   * such thing, so that reason is gone and they stay out here for a plainer
-   * one: **the scrim paints and catches nothing, this catches and paints
-   * nothing**, and keeping them apart makes each one's `pointer-events` a fact
-   * about an element rather than something to work out.
+   * What keeps them out here now is the plainest of the reasons given there:
+   * the scrim paints and catches nothing, this catches and paints nothing, so
+   * each one's `pointer-events` is a fact about an element rather than
+   * something to work out.
    */
   private readonly blocking: HTMLElement
   /** The rectangles themselves; see {@link block}. */
@@ -98,20 +85,11 @@ export class Scrim {
   /**
    * Where the halos live, or `undefined` on a scrim that draws none.
    *
-   * A halo is a paint-only frame around a cutout, for the host to style — Leko
-   * ships every token as `none`, so until a host sets `--leko-halo-*` this
-   * layer paints nothing at all. It exists because the hole itself has no
-   * element to decorate: the cutout is an absence of geometry, and there is
-   * nothing there for a host's CSS to select.
-   *
-   * The one thing a halo must never do is what constraint 1 forbids: get
-   * between the user and an open hole. So it is built the way the scrim is —
-   * `pointer-events: none` on everything, catching nothing — and it paints
-   * outside the hole by construction: the element sits exactly on the cutout,
-   * transparent, and `outline` and an outer `box-shadow` are both painted
-   * strictly outside the border box (`spike/halo-outside-the-hole/` watches a
-   * browser do it). A host that sets a negative `--leko-halo-offset` or an
-   * inset shadow is painting over its own target, and may.
+   * A paint-only frame around a cutout, for the host to style. Leko ships every
+   * token as `none`, so until a host sets `--leko-halo-*` this layer paints
+   * nothing at all. DESIGN.md argues why the hole needs one under **The halo**,
+   * and that it cannot get between the user and an open hole under **Paint
+   * only, and outside the hole by construction**.
    */
   private readonly haloLayer: HTMLElement | undefined
   /** What the halos do during a morph; `undefined` on a scrim that draws none. */
@@ -129,10 +107,8 @@ export class Scrim {
 
   /**
    * `halo` says whether this scrim frames its cutouts for the host to style,
-   * and what the frames do during a morph — see {@link HaloMode}. Only the
-   * layer carrying the step's cutouts should be given one: an outer layer's
-   * one hole is the scroller the next layer lives in, which is plumbing rather
-   * than anything the step is pointing at.
+   * and what the frames do during a morph — see {@link HaloMode}. DESIGN.md,
+   * **Only the innermost scrim is haloed**.
    */
   constructor(surface: Surface, halo?: HaloMode) {
     this.surface = surface
@@ -248,34 +224,20 @@ export class Scrim {
    * viewport's layer, the viewport itself, which is all there is to cover.
    *
    * That is `innerWidth` and `innerHeight`, the scrollbar's gutter included,
-   * and not the layout viewport a fixed box is laid out against. The layout
-   * viewport is the tighter, more obviously correct number and it is only
-   * correct at the instant it is read: a page that shortens under a tour loses
-   * its scrollbar, `clientWidth` grows by the gutter's width, and a layer
-   * measured before that is left too narrow — a strip of the application the
-   * step did not open, neither painted nor blocked, for the rest of the step. A
-   * `resize` event does not fire for it, so nothing here would hear about it.
-   * The inner pair does not move when the scrollbar does, so it cannot be
-   * caught out that way, and `spike/the-scrollbar-gutter/` measures what it
-   * costs: a fixed box past the layout viewport adds no scrollable overflow in
-   * any engine, so a scrim covering the gutter cannot grow a scrollbar out of
-   * the page it is dimming, and the scrollbar goes on painting over a box that
-   * covers its gutter, so covering it shows nothing. Going the other way is
-   * harmless: a page that
-   * grows a scrollbar mid-step leaves the layer a gutter too wide, and a fixed
-   * box is clipped to the viewport, so nothing shows.
+   * and deliberately not the layout viewport a fixed box is laid out against,
+   * which is the tighter and more obviously correct number. DESIGN.md argues
+   * the choice, and what `spike/the-scrollbar-gutter/` measured for it, under
+   * **Scrolling**.
    */
   resize(): void {
     this.measureSurface()
-    // And what was drawn *from* the size: the blocking rectangles are the
-    // complement of the holes within it, so a layer that only grew its box
-    // would leave the part the page grew by neither dimmed nor blocked. The
-    // holes are trimmed to it too. Not through `draw`, which halts whatever is
-    // running: a morph cut short here settles unfinished, and unfinished is how
-    // the presenter knows an arrival was interrupted — the step would keep its
-    // hole and never be given its words. A morph's own frames are written from
-    // cutouts in a space a resize does not move, so it can go on running, and
-    // the next one of them paints against the size measured above.
+    // And what was drawn *from* the size, because the rectangles are the
+    // complement of the holes within it. Not through `draw`, which halts
+    // whatever is running: a morph cut short here settles unfinished, and
+    // unfinished is how the presenter knows an arrival was interrupted — the
+    // step would keep its hole and never be given its words. A morph's own
+    // frames are written from cutouts in a space a resize does not move, so it
+    // can go on running, and the next of them paints against the new size.
     if (this.frame === undefined) this.paint(this.cutouts)
     // Either way, because a morph blocks where its holes are heading rather
     // than following them, so this is that same destination against the new
@@ -311,12 +273,9 @@ export class Scrim {
   /**
    * Show exactly these holes.
    *
-   * A stack of CSS mask layers rather than a `clip-path`, and the reason is
-   * that **even-odd cannot draw a union**: a point inside two cutouts is inside
-   * an even number of subpaths and paints dark, so under a clip path two holes
-   * may never overlap. Holes converging inward from off the surface overlap for
-   * most of their flight. `spike/overlapping-holes/` has the two pictures, and
-   * DESIGN.md argues it under **The morph**.
+   * A stack of CSS mask layers rather than a `clip-path`, because **even-odd
+   * cannot draw a union** and holes converging inward from off the surface
+   * overlap for most of their flight. DESIGN.md argues it under **The morph**.
    *
    * Writes only, and no layout is read: three strings built from numbers the
    * caller already has, on a surface whose size {@link resize} measured once.
@@ -338,28 +297,15 @@ export class Scrim {
   /**
    * Put the blocking rectangles where the cutouts are not.
    *
-   * The scrim paints and catches nothing; these do the catching. It cannot be
-   * done with the scrim itself, however tempting the single-element version is.
-   * A mask has no effect on hit-testing at all, so a masked scrim asking to be
-   * hit is a solid sheet over the page — and the clipped version that came
-   * before did not work either: **a `clip-path` takes an element out of
-   * hit-testing but not out of the search for what a wheel should scroll.** An
-   * engine answered a wheel over the hole with the scrim and scrolled whatever
-   * the scrim sat in, so a scrollable target stopped scrolling under the
-   * pointer, while `elementFromPoint` reported the hole open throughout — which
-   * is why it went unnoticed. Firefox routes such a wheel to the target,
-   * Chromium does so only while the scrim's own container has nothing left to
-   * scroll, WebKit never does.
+   * The scrim paints and catches nothing; these do the catching, and it cannot
+   * be done with the scrim itself however tempting the single-element version
+   * is. DESIGN.md, **Do not go back to blocking with the scrim itself**, and
+   * ONBOARDING.md walks the arrangement under **The three constraints, and the
+   * line that keeps each**.
    *
-   * Rectangles leave nothing to interpret. They also make constraint 1 true by
-   * construction rather than by trusting a mask: they are built from the
-   * complement of the cutouts the step **opened**, so no element of Leko's can
-   * be over a target the step made reachable, even in principle.
-   *
-   * A cutout that is not interactive is left out of that complement, so the
-   * sweep runs straight through it and a rectangle covers it. It is still a
-   * hole in the clip and still shows what is under it. That is the whole of
-   * what a shown-and-not-reachable hole is.
+   * A cutout that is not interactive is left out of the complement, so the
+   * sweep runs straight through it and a rectangle covers it. That is the whole
+   * of what a shown-and-not-reachable hole is.
    */
   private block(cutouts: Cutout[]): void {
     const rects = complementRects(
@@ -397,14 +343,8 @@ export class Scrim {
    * Draw the state a story opens from, given the holes its first step is
    * heading for: **every one of them over everything the viewer can see**, so
    * the morph that follows converges each inward from the edges of the screen.
-   * Nothing is dimmed at the first frame, and the dark closes in from all four
-   * sides at once.
-   *
-   * Every hole covers every other one at that first frame, and for much of the
-   * flight after it. That is only drawable because the mask unions its layers —
-   * see {@link paint}. Under the `clip-path` this replaced, the same opening
-   * showed each target *darker than the scrim around it*, inverting as the
-   * holes passed through one another.
+   * DESIGN.md argues the opening, and what the `clip-path` this replaced did to
+   * it, under **The morph**.
    *
    * **What is seen, and not the surface.** The scrim is as tall as the
    * scrollable area, which on a long page is many screens; a hole starting that
@@ -568,17 +508,12 @@ export class Scrim {
   /**
    * Walk through a series of cutout lists, drawing one blend per frame.
    *
-   * Deliberately on the main thread. Handing the mask to the Web Animations API
-   * would put it on the compositor, and a composited clip path is rasterised by
-   * Chrome at the wrong scale on a 2x display — for the length of the animation
-   * the scrim covers a quarter of what it should, then snaps right when it
-   * ends. Pausing such an animation fixes it, which is what gave the compositor
-   * away. Nothing says a mask is safer, and nothing needs it to be.
-   *
-   * A frame costs a blend of a few numbers and the strings built from them, and
-   * reads no layout, so no work is forced and nothing here can thrash. Scroll
-   * tracking is untouched and still runs no JS at all — the rule this bends is
-   * about position math during scrolling, and that rule is intact.
+   * Deliberately on the main thread — DESIGN.md, **The blend is written frame
+   * by frame from the main thread**, and pausing such an animation is what gave
+   * the compositor away. A frame costs a blend of a few numbers and the strings
+   * built from them and reads no layout, which is why DESIGN.md's **Any change
+   * that reintroduces per-frame JS position math is a regression** is not about
+   * this.
    *
    * The lists must all be the same length, which is what {@link padCutouts}
    * hands back, so each hole has something to be blended with.
@@ -593,9 +528,8 @@ export class Scrim {
     return new Promise((resolve) => {
       this.settle = resolve
       const tick = (now: number): void => {
-        // Clamped, and not only at the top: requestAnimationFrame reports the
-        // frame's start time, which can predate the moment this loop was
-        // scheduled, so the first frame's elapsed time is sometimes negative.
+        // Clamped at the bottom as well as the top, for the reason `segmentAt`
+        // in `geometry.ts` gives.
         const t = Math.min(1, Math.max(0, (now - began) / duration))
         const last = frames[frames.length - 1]
         if (t >= 1) {
@@ -644,17 +578,13 @@ export class Scrim {
     // every frame for a difference nobody can act on inside 320ms, and the
     // arriving hole is the one the user is about to reach for.
     this.block(padded)
-    // Either mode rides: the frames are laid on the departure — one per padded
-    // cutout, so a hole on its way out keeps its frame while it shrinks — and
-    // written each frame from the same blend the path is built from. What the
-    // mode decides is the paint. Following, the frames stay on and wear the
-    // destination's flag from the start: a flag has no halfway point, and the
-    // flight is toward it. Returning, they fade out in flight as the frames
-    // they were — the departure's flag, because a frame saying goodbye is the
-    // old hole's — and fade back in with the holes they frame, at
-    // `placeHalos(to)` below, only if the morph got there. A frame the flight
-    // would need that was not there before is made transparent and, returning,
-    // never revealed: a hole that had no frame does not grow one to lose it.
+    // Either mode rides, and DESIGN.md's **The halo** says what each does. The
+    // frames are laid on the departure — one per padded cutout, so a hole on
+    // its way out keeps its frame while it shrinks. Following, they wear the
+    // destination's flag from the start; returning, the departure's, because a
+    // frame saying goodbye is the old hole's. A frame the flight would need
+    // that was not there before is made transparent and, returning, never
+    // revealed: a hole that had no frame does not grow one to lose it.
     const follow = this.halo === 'follow'
     // Nothing to ride out of a converging scrim, and nothing that may: see
     // {@link converge}. The frames are made and faded in on arrival.

@@ -5,10 +5,9 @@ import type { LekoOptions, LekoSignal, LekoState, LekoStep, LekoStory, LekoWorld
 /**
  * A tour, and everything the application says to it.
  *
- * Two halves meet here and nowhere else. `@annetaan/leko-machine` decides which
- * step the tour is on and knows nothing about the page.
- * `@annetaan/leko-spotlight` draws the scrim and the hole and knows nothing
- * about steps. This class is the wiring, and the public vocabulary.
+ * The two halves meet here and nowhere else, and this class is the wiring and
+ * the public vocabulary — DESIGN.md, **Three packages, and the seam between
+ * them**.
  */
 export class Leko {
   private readonly machine: Machine<LekoWorld>
@@ -20,10 +19,9 @@ export class Leko {
   /**
    * Whether a story is running.
    *
-   * A snapshot, and there is nothing to subscribe to. Every crossing of this is
-   * a crossing {@link LekoOptions.onStep} already reports:
-   * `onStep: (step) => setTourRunning(step !== undefined)` is a `useSyncExternalStore`
-   * away from a React host, and it is told about every step as well.
+   * A snapshot, and there is nothing to subscribe to: every crossing of this is
+   * a crossing {@link LekoOptions.onStep} already reports. DESIGN.md argues it
+   * under **There is nothing to subscribe to**.
    */
   get state(): LekoState {
     return this.machine.state
@@ -61,35 +59,23 @@ export class Leko {
   /**
    * Show `story`, from its first step.
    *
-   * Whatever was running stops, and reports its own ending first. One story at
-   * a time is the whole design: two scrims would each block with rectangles
-   * built from their own cutouts, so each would cover the other's target.
+   * **There is no way to begin anywhere but the beginning**, and no way back. A
+   * tour somebody wants to redo part of is a shorter story — DESIGN.md argues
+   * all of it under **A story is atomic, and stories are short**.
    *
-   * **There is no way to begin anywhere but the beginning.** A story runs from
-   * the top forward or it does not run. A step that declares `awaits` cannot be
-   * arrived at twice, because the application reported that name once and will
-   * not report it again, so a tour standing there a second time waits for ever.
    * Moving a user from one story into another is still ordinary, and it is what
    * a branch does. It is written on the stories rather than here: a story names
-   * the one that follows it in {@link LekoStory.next}, so a shared story hands
-   * the tour to a branch and each branch hands it to the story they rejoin at.
-   * The switch cuts rather than morphs, because two unrelated stories
-   * interpolating into each other would be a strange thing to watch.
-   *
-   * A tour somebody wants to redo part of is a shorter story. See
-   * [DESIGN.md](https://github.com/annetaan/leko/blob/main/DESIGN.md).
+   * the one that follows it in {@link LekoStory.next}. The switch cuts rather
+   * than morphs, because two unrelated stories interpolating into each other
+   * would be a strange thing to watch.
    *
    * **This never ends a tour.** A call made while one is running is turned down
    * and reported as `tour-running`, naming this story and the one it left
-   * alone. {@link stop} is the way out and it is the only one, so this call
-   * either puts a story up or does nothing at all, and nothing is ever swapped
-   * underneath a position somebody is holding.
+   * alone, so this call either puts a story up or does nothing at all —
+   * DESIGN.md, **Starting a story**. `id` is not read, so a fresh object under
+   * the same name is a fresh story like any other.
    *
-   * A component that rebuilds its story on every render and starts it on every
-   * render lands there. `id` is not read, so a fresh object under the same name
-   * is a fresh story like any other.
-   *
-   * Moving between tours is two calls. {@link stop} runs the whole teardown
+   * Moving between tours is two calls: {@link stop} runs the whole teardown
    * inside the call that made it, so the `start` on the next line goes through.
    *
    * ```ts
@@ -97,20 +83,12 @@ export class Leko {
    * leko.start(other)
    * ```
    *
-   * **A call that came to nothing says so on {@link LekoOptions.onDiagnostic}.**
-   * A story with no steps in it is `story-empty`. One handed over while a tour
-   * runs is `tour-running`, naming both stories. One that arrived while Leko
-   * was inside the application is `call-refused`.
-   *
-   * This is not the silence {@link reached} keeps, and the difference is the
-   * point. A `reached()` call is instrumentation, written where a thing happens
-   * and left in builds where no tour ever runs, so a name nobody awaits has to
-   * cost nothing and say nothing. `start()` is the host giving an order, and an
-   * order that came to nothing is worth saying out loud.
-   *
-   * The story's own `onEnter` throwing is the one way out with no
-   * {@link LekoProblem}. The reason is thrown again instead, because the
-   * handler that threw is the place with the context.
+   * **Every way this comes to nothing says so on
+   * {@link LekoOptions.onDiagnostic}**, which {@link LekoProblem} lists — and
+   * that is the opposite of the silence {@link reached} keeps, for the reason
+   * DESIGN.md gives under **Saying that a call did nothing**. The story's own
+   * `onEnter` throwing is the one way out with no problem reported: the reason
+   * is thrown again instead.
    */
   start(story: LekoStory): void {
     this.machine.start(story)
@@ -121,13 +99,10 @@ export class Leko {
    *
    * Advances the step that is waiting for this name, after `validate`, and does
    * nothing whatsoever otherwise — no error, and no warning on every unrelated
-   * call. Instrumentation is meant to stay in the source permanently, including
-   * in builds where no tour ever runs, so an unmatched call has to be free and
-   * silent.
-   *
-   * `name` is any string, always. The project's vocabulary is offered as
-   * completion and never enforced here, which is the same reason this method
-   * stays silent about a name nothing awaits.
+   * call. `name` is any string, always: the project's vocabulary is offered as
+   * completion and never enforced here. DESIGN.md argues the silence under
+   * **Saying that a call did nothing** and the asymmetry under **Gathering the
+   * vocabulary from the call sites**.
    */
   reached(name: LekoSignal): void {
     this.machine.reached(name)

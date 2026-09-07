@@ -1,13 +1,10 @@
 /**
  * Whether the tour is moving things or setting them.
  *
- * One rule, read by the morph and by the scroll that precedes it, so the two
- * can never disagree about it. A host that asked for no morph did not ask for
- * a gliding page either.
- *
- * It lives apart from the scrim and the glide because it belongs to neither:
- * both read it, and so does the message. DESIGN.md states it under **Bringing
- * a target into view**.
+ * One rule, read by the morph, by the scroll that precedes it and by the
+ * message, so no two of them can disagree about it — which is why it lives
+ * apart from all three. DESIGN.md, **The scroll animates exactly when the morph
+ * does**.
  */
 
 export const prefersReducedMotion = (): boolean =>
