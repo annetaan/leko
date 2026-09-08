@@ -373,13 +373,16 @@ that should have been answered with nothing and was not. Those are claims 1 to
 
 ## When `pnpm model` fails
 
-The run prints `--seed=0x…`. Reproduce with it:
+The run prints `pnpm model --seed=0x…`. Reproduce with it:
 
 ```bash
-node_modules/.bin/quint run packages/presenter/model/plan.qnt \
-  --invariants screenIsTheModes armedIsTheModes glidingIsBare idleIsClean reentrantIsLast boundedReentry \
-  --max-steps=24 --max-samples=100000 --seed=0x... --verbosity=3
+pnpm model --seed=0x...
 ```
+
+That is the same script with the same invariants — every `val` under the
+`invariants` heading of `plan.qnt`, read the way CI reads them — replaying the
+one sample the seed names through each search, and printing the counterexample
+under the search that broke. The other searches pass and say so in one line.
 
 The seeds are fresh every run, so a CI failure here will not reproduce from the
 workflow file. That is a fuzzer working. Do not file it as flake.

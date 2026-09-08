@@ -71,7 +71,8 @@ is the presenter's `plan.ts` written down the same way, with what the shell keep
 implicitly said out loud so the invariants can read it. Together they take
 twenty to forty seconds depending on the machine, need no JVM, and run in CI. The seeds are fresh every run, so a
 failure there will not reproduce from the workflow file. The run prints the seed
-that found it. [`packages/machine/model/README.md`](packages/machine/model/README.md)
+that found it, and `pnpm model --seed=0x…` replays that one sample with its
+trace. [`packages/machine/model/README.md`](packages/machine/model/README.md)
 and [`packages/presenter/model/README.md`](packages/presenter/model/README.md) say what
 each model covers and what it does not.
 

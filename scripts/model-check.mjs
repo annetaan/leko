@@ -20,16 +20,25 @@
 // every witness is reached from `init`.
 //
 // The seeds are fresh every run. A failure here is therefore not reproducible
-// from this file — the run prints `--seed=0x…` and that is what reproduces it.
-// See the README beside each model; a failing seed is a finding, not flake.
+// from this file — the run prints `pnpm model --seed=0x…`, and the README
+// beside each model says under **When `pnpm model` fails** what that replays.
+// Quint's own `Use --seed=…` line invites a hand-written `quint run`, and a
+// list of invariants typed into one had drifted from the model's before this
+// flag existed. A failing seed is a finding, not flake.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const quint = join(root, 'node_modules/.bin/quint')
+
+/** `--seed=0x…` replays the one sample a failing run printed. Anything else is refused. */
+const {
+  values: { seed },
+} = parseArgs({ options: { seed: { type: 'string' } } })
 
 const MODELS = [
   {
@@ -96,12 +105,15 @@ for (const { name, model, searches } of MODELS) {
           join(root, model),
           '--invariants',
           ...invariants,
-          '--witnesses',
-          ...witnesses,
           '--max-steps=24',
-          '--max-samples=100000',
-          '--verbosity=1',
           ...search.args,
+          // A seed makes Quint's default one sample, and that sample is the
+          // one that failed, so the search is over as soon as it has been
+          // replayed with its trace. The witnesses stay off: a count over one
+          // sample says nothing, and a zero would read as the alarm below.
+          ...(seed
+            ? [`--seed=${seed}`, '--verbosity=3']
+            : ['--witnesses', ...witnesses, '--max-samples=100000', '--verbosity=1']),
         ],
         { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
       )
@@ -110,8 +122,17 @@ for (const { name, model, searches } of MODELS) {
       // binary that could not be run, with nothing on stdout at all, and the
       // message is the only thing that says which.
       console.log(failure.stdout || failure.message)
+      const found = /--seed=(0x[0-9a-f]+)/i.exec(failure.stdout ?? '')
+      if (found && !seed) console.log(`Reproduce with: pnpm model --seed=${found[1]}`)
       broken = true
       failed = true
+      continue
+    }
+    if (seed) {
+      // One sample passed, which is all a replay of another search's seed says.
+      // At `--verbosity=3` Quint prints an example trace for it too, and that
+      // would bury the counterexample under the search that failed.
+      console.log(output.split('\n').find((line) => line.startsWith('[ok]')) ?? output.trim())
       continue
     }
     console.log(output.trim())
@@ -126,7 +147,8 @@ for (const { name, model, searches } of MODELS) {
   // A search that failed counted nothing, and every witness of it would read as
   // unreached. That is a different diagnosis from the one printed above, and a
   // wrong one, so the counts are read only where every search ran to the end.
-  if (broken) continue
+  // A replay counted nothing either, by design.
+  if (broken || seed) continue
 
   // Counted together rather than per search, because a model's searches are
   // shaped to reach different things: the machine's wide one hardly ever gets

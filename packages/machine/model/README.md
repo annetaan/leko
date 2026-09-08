@@ -41,7 +41,9 @@ invariant. A bug deeper than the sample reached is still a bug it never saw.
 model to [Apalache](https://apalache.informal.systems/), which asks Z3 whether
 an invariant can be broken at all.
 
-I run it by hand after a change to the model. Last on 2026-08-29:
+I run it by hand after a change to the model. The invariants passed are the ones
+`pnpm model` reads, every `val` under the `invariants` heading of `machine.qnt`,
+so check the list against the model before copying it. Last on 2026-08-29:
 
 ```bash
 brew install openjdk@21
@@ -337,13 +339,17 @@ something CI checks. The version is pinned exactly in the root `package.json`.
 
 ## When `pnpm model` fails
 
-The run prints `--seed=0x…`. Reproduce with it:
+The run prints `pnpm model --seed=0x…`. Reproduce with it:
 
 ```bash
-node_modules/.bin/quint run packages/machine/model/machine.qnt \
-  --invariants runningIsDrawn idleIsClean \
-  --max-steps=24 --max-samples=100000 --seed=0x... --verbosity=3
+pnpm model --seed=0x...
 ```
+
+That is the same script with the same invariants — every `val` under the
+`invariants` heading of `machine.qnt`, read the way CI reads them — replaying
+the one sample the seed names through each search, and printing the
+counterexample under the search that broke. The other searches pass and say so
+in one line.
 
 The seeds are fresh every run, so a CI failure here will not reproduce from the
 workflow file. That is a fuzzer working. Do not file it as flake.
