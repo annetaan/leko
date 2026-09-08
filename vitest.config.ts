@@ -1,7 +1,7 @@
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
-// Seven projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
+// Eight projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
 // project a new test belongs in**. The three browser projects are never jsdom
 // for the reason DESIGN.md gives under **How to write here, and where tests
 // go**, and `leko-plan` is what DESIGN.md argues under **Where a class has to
@@ -31,6 +31,10 @@ export default defineConfig({
         test: {
           name: 'spotlight',
           include: ['packages/spotlight/src/**/*.test.ts'],
+          // A glob and one exclusion rather than a list, so a new test here
+          // goes to the browsers by default, which is where a test of this
+          // package belongs unless it asks for nothing from one.
+          exclude: ['packages/spotlight/src/geometry.test.ts'],
           browser: browsers(),
         },
       },
@@ -60,6 +64,13 @@ export default defineConfig({
         test: {
           name: 'leko-plan',
           include: ['packages/leko/src/plan.test.ts', 'packages/leko/src/replay.test.ts'],
+          environment: 'node',
+        },
+      },
+      {
+        test: {
+          name: 'spotlight-geometry',
+          include: ['packages/spotlight/src/geometry.test.ts'],
           environment: 'node',
         },
       },

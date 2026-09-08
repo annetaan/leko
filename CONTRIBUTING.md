@@ -57,7 +57,7 @@ pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether it could
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
-pnpm test            # vitest: seven projects, three of them in browsers
+pnpm test            # vitest: eight projects, three of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
 pnpm model:traces    # regenerate the traces those searches replay against
 ```

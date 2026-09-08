@@ -113,6 +113,7 @@ it.
 | `packages/machine/src/plan.ts` | The state, and what each event does to it. Pure |
 | `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
 | `packages/spotlight/src/geometry.ts` | Pure functions. Numbers in, numbers out |
+| `packages/spotlight/src/target.ts` | What a target resolves to, asked of the page |
 | `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
 | `packages/spotlight/src/surface.ts` | What a layer is carried by, and how a target is measured against it |
 | `packages/spotlight/src/glide.ts` | The scroll that brings a target into view |
@@ -395,7 +396,7 @@ a listener, written against a particular step and with no job outside the tour.
 
 ## Which Vitest project a new test belongs in
 
-Seven projects, defined in `vitest.config.ts`. The question that sorts them is
+Eight projects, defined in `vitest.config.ts`. The question that sorts them is
 whether a browser could get the answer wrong.
 
 | Project | Runs in | Take a test here when |
@@ -404,7 +405,8 @@ whether a browser could get the answer wrong.
 | `machine` | Node | The claim never touches layout. Which step, when, what was reported |
 | `codegen` | Node | The claim is about reading TypeScript source or writing a file |
 | `scripts` | Node | The claim is about the text a repository check reads — a file's comments, a citation of a heading |
-| `spotlight` | Chromium, Firefox, WebKit | The claim is about geometry or what an engine does with `clip-path` |
+| `spotlight-geometry` | Node | The claim is a property of the numbers `geometry.ts` returns |
+| `spotlight` | Chromium, Firefox, WebKit | The claim is about what an engine does — with `clip-path`, with a box, with a popover |
 | `leko` | Chromium, Firefox, WebKit | An engine could answer differently. `elementFromPoint`, where a scrim mounted, a resize |
 | `leko-wiring` | Chromium only | It goes through the real `DomPresenter`, and no engine has an opinion about the answer |
 

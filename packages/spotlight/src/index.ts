@@ -11,7 +11,8 @@
  * too. A name here that no consumer names is a promise this package is not
  * making.
  */
-export { type Cutout, grow, type Rect, resolveTarget, resolveTargets, union } from './geometry.js'
+export { type Cutout, grow, type Rect, union } from './geometry.js'
+export { resolveTarget, resolveTargets } from './target.js'
 export { Close } from './close.js'
 export { FocusRing } from './focus.js'
 export { Message, type MessageContent, type Side } from './message.js'
