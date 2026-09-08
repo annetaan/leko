@@ -69,17 +69,20 @@ module plan {
     | Hunt({ step: str })
     | Deadline(Pending)
     | Cancel
-    | Reveal({ drawn: Picture, anchor: bool, animate: bool })
     | Replace({ drawn: Picture, saying: bool })
     | Say(Picture)
     | Reword({ step: str, reason: str })
+    | Destroy
+
+  /// `Reentrant` in plan.ts.
+  type Reentrant =
+    | Reveal({ drawn: Picture, anchor: bool, animate: bool })
     | Arrive({ pending: Pending, error: Maybe[str] })
     | Lost({ step: str })
-    | Destroy
 
   /// `Outcome` in plan.ts, plus the mark: which way the event went, in enough
   /// detail for a witness to aim at.
-  type Outcome = { mode: Mode, effects: List[Effect], mark: str }
+  type Outcome = { mode: Mode, effects: List[Effect], last: Maybe[Reentrant], mark: str }
 
   /// What the shell is armed for. The one `MutationObserver` in `presenter.ts`
   /// is armed for a hunt and for nothing else — a step on screen watches for
@@ -89,7 +92,7 @@ module plan {
   /// The knobs on the page that an effect turns: whether `bringIntoView` had
   /// somewhere to go, whether a draw found anything to measure, and whether the
   /// morph was applied outright rather than animated. Picked by the action and
-  /// read by {@link perform}, because a pure function cannot pick.
+  /// read by {@link reenter}, because a pure function cannot pick.
   type Knobs = { somewhere: bool, measured: bool, outright: bool }
 
   /// Every field at once, so that the definitions below can be pure functions
@@ -145,9 +148,8 @@ module plan {
     // than one where an effect came back in: `["mutated-arrive", "show-glide"]`
     // is a hunt finding its target and the arrival gliding.
     marks: List[str],
-    // The effects each of those `reduce` calls owed, for the one invariant
-    // that is a predicate over an `Outcome` rather than over a state.
-    outcomes: List[List[Effect]],
+    // What each of those `reduce` calls owed, for the replay's oracle.
+    outcomes: List[{ effects: List[Effect], last: Maybe[Reentrant] }],
     // Set where an effect came back into the plan deeper than the interpreter
     // below unrolls. Never, as the plan stands; an invariant says so.
     deep: bool,
@@ -196,24 +198,14 @@ module plan {
       | Gliding(_) => "gliding"
     }
 
-  /// The effects that come back into the plan from inside the shell. `Outcome`
-  /// in plan.ts says each is the last of its list, and {@link reentrantIsLast}
-  /// is that sentence as a predicate.
-  pure def reentrant(e: Effect): bool =
-    match e {
-      | Reveal(_) => true
-      | Arrive(_) => true
-      | Lost(_) => true
-      | _ => false
-    }
-
   // ------------------------------------------------------------------ the plan
   //
   // `reduce` and the three moves it is written from, in the order plan.ts has
   // them. `fresh` is the identity plan.ts gets from `{}` for free: the token a
   // `Pending` minted in this call is to carry.
 
-  pure def nothing(mode: Mode, mark: str): Outcome = { mode: mode, effects: [], mark: mark }
+  pure def nothing(mode: Mode, mark: str): Outcome =
+    { mode: mode, effects: [], last: Nothing, mark: mark }
 
   /// `leaving` in plan.ts.
   pure def leaving(mode: Mode): List[Effect] =
@@ -239,6 +231,7 @@ module plan {
   ): Outcome = {
     mode: Retrying({ pending: pending, unmeasured: unmeasured, error: error, standing: standing }),
     effects: before.concat([Hunt({ step: pending.step }), Deadline(pending)]),
+    last: Nothing,
     mark: mark,
   }
 
@@ -247,10 +240,8 @@ module plan {
     drawn: Picture, anchor: bool, animate: bool, before: List[Effect], mark: str
   ): Outcome = {
     mode: Drawn(drawn),
-    effects: before.concat([
-      Disarm,
-      Reveal({ drawn: drawn, anchor: anchor, animate: animate }),
-    ]),
+    effects: before.concat([Disarm]),
+    last: Just(Reveal({ drawn: drawn, anchor: anchor, animate: animate })),
     mark: mark,
   }
 
@@ -270,6 +261,7 @@ module plan {
             | Just(g) => {
               mode: Gliding({ glide: g, pending: pending, error: e.error, standing: standingIn(mode) }),
               effects: before.concat([Hide, Disarm]),
+              last: Nothing,
               mark: "show-glide",
             }
             | Nothing => revealing({ step: e.step, error: e.error }, e.anchor, e.animate, before, "show-draw")
@@ -286,13 +278,15 @@ module plan {
           | Drawn(d) => {
             mode: Drawn(d.with("error", Just(e.reason))),
             effects: [Reword({ step: e.step, reason: e.reason })],
+            last: Nothing,
             mark: "retell-said",
           }
           | Retrying(r) => nothing(Retrying(r.with("error", Just(e.reason))), "retell-held")
           | Gliding(g) => nothing(Gliding(g.with("error", Just(e.reason))), "retell-held")
         }
 
-      | Teardown => { mode: Idle, effects: leaving(mode).concat([Disarm, Destroy]), mark: "teardown" }
+      | Teardown =>
+        { mode: Idle, effects: leaving(mode).concat([Disarm, Destroy]), last: Nothing, mark: "teardown" }
 
       // --- what the page answers
 
@@ -309,7 +303,7 @@ module plan {
         match mode {
           | Drawn(d) =>
             if (d.step != e.step) nothing(mode, "morphed-stale")
-            else { mode: mode, effects: [Say(d)], mark: "morphed-said" }
+            else { mode: mode, effects: [Say(d)], last: Nothing, mark: "morphed-said" }
           | _ => nothing(mode, "morphed-stale")
         }
 
@@ -322,7 +316,12 @@ module plan {
             // nothing are the two halves worth aiming at.
             if (r.pending.step != e.step) nothing(mode, "mutated-elsewhere")
             else if (not(e.found)) nothing(mode, "mutated-ignored")
-            else { mode: mode, effects: [Arrive({ pending: r.pending, error: r.error })], mark: "mutated-arrive" }
+            else {
+              mode: mode,
+              effects: [],
+              last: Just(Arrive({ pending: r.pending, error: r.error })),
+              mark: "mutated-arrive",
+            }
           // A hunt is armed in `retrying` and nowhere else, so this arm is
           // unreachable in the model: `doMutated` needs the observer on, and
           // the observer is only ever on here. It is the same last line of
@@ -348,38 +347,49 @@ module plan {
             // Asked once more before giving up: the deadline bounds the wait
             // rather than having the last word on it, because a target can
             // turn up without the hunt's observer hearing anything.
-            else if (e.found and not(r.unmeasured))
-              { mode: mode, effects: [Arrive({ pending: r.pending, error: r.error })], mark: "expired-arrive" }
+            else if (e.found and not(r.unmeasured)) {
+              mode: mode,
+              effects: [],
+              last: Just(Arrive({ pending: r.pending, error: r.error })),
+              mark: "expired-arrive",
+            }
             // The wait a draw began, which resolving cannot end: the anchor
             // resolved in the same task that could not measure it, so an
             // arrival here would fail the same way and arm another deadline.
-            else if (e.found)
-              { mode: Idle, effects: [Disarm, Lost({ step: r.pending.step })], mark: "expired-unmeasured" }
-            else { mode: Idle, effects: [Disarm, Lost({ step: r.pending.step })], mark: "expired-lost" }
+            else if (e.found) {
+              mode: Idle,
+              effects: [Disarm],
+              last: Just(Lost({ step: r.pending.step })),
+              mark: "expired-unmeasured",
+            }
+            else {
+              mode: Idle,
+              effects: [Disarm],
+              last: Just(Lost({ step: r.pending.step })),
+              mark: "expired-lost",
+            }
           | _ => nothing(mode, "expired-stale")
         }
 
       | Resized =>
         match mode {
-          | Drawn(d) => { mode: mode, effects: [Replace({ drawn: d, saying: true })], mark: "resized-said" }
+          | Drawn(d) =>
+            { mode: mode, effects: [Replace({ drawn: d, saying: true })], last: Nothing, mark: "resized-said" }
           // A step on its way, or nothing at all: what stands goes back
           // without its words, where anything stands.
           | _ =>
             match standingIn(mode) {
               | Nothing => nothing(mode, "resized-nothing")
-              | Just(d) => { mode: mode, effects: [Replace({ drawn: d, saying: false })], mark: "resized-holes" }
+              | Just(d) =>
+                { mode: mode, effects: [Replace({ drawn: d, saying: false })], last: Nothing, mark: "resized-holes" }
             }
         }
     }
 
   // ----------------------------------------------------------------- the shell
   //
-  // `perform` in presenter.ts, as what each effect does to the implicit state.
-  // Three of them come back in — `reveal` reports `unmeasured` or `morphed`
-  // from inside itself, `arrive` is a `show`, `lost` is a teardown from inside
-  // the machine's call — and `again` is how. Quint has no recursion, so
-  // {@link dispatch} unrolls it as deep as the plan nests, and the next level
-  // marks the state `deep` instead of running.
+  // `perform` in presenter.ts, as what each effect does to the implicit state:
+  // {@link perform} for an `Effect`, {@link reenter} for a `Reentrant`.
 
   pure def mint(s: M): M = s.with("nextToken", s.nextToken + 1)
 
@@ -403,7 +413,7 @@ module plan {
   /// would have `again` refuse the state-reading events everywhere else.
   pure def teardownIn(s: M): Event = if (s.deep) Teardown else Teardown
 
-  pure def perform(s: M, e: Effect, k: Knobs, again: (M, Event) => M): M =
+  pure def perform(s: M, e: Effect): M =
     match e {
       | Abandon(g) => s.with("moving", s.moving.exclude(Set(g)))
       | Hide => s.with("messageUp", false)
@@ -412,26 +422,6 @@ module plan {
       // `cancel()` then `setTimeout`, so there is never a second one.
       | Deadline(p) => s.with("deadline", Just(p))
       | Cancel => s.with("deadline", Nothing)
-      | Reveal(r) => {
-        // The words of the step being left go, and `measure` restacks the
-        // layers whatever it finds, so something of the tour is on the page
-        // from here on either way.
-        val up = s.with("messageUp", false).with("onPage", true)
-        if (not(k.measured))
-          // Nothing was drawn. The plan takes it that the stack may have been
-          // rebuilt on the way to finding nothing, and so does this: what
-          // stands is not known, and a rebuilt stack halts the morph.
-          again(up.with("screen", Nothing).with("morphing", Nothing),
-                Unmeasured({ step: r.drawn.step, animate: r.animate }))
-        else {
-          // `place`, then the morph. Applied outright, `morphed` comes back
-          // from inside the same call; animated, it is a promise the page
-          // holds, and {@link doMorphed} is it landing.
-          val placed = up.with("screen", Just(r.drawn.step))
-          if (k.outright) again(placed.with("morphing", Nothing), Morphed({ step: r.drawn.step }))
-          else placed.with("morphing", Just(r.drawn.step))
-        }
-      }
       | Replace(r) => {
         // A target that is not on the page this instant is one a mutation
         // batch is about to report, and `replace` places the way out and
@@ -454,6 +444,40 @@ module plan {
       | Say(_) => s.with("messageUp", true).with("onPage", true)
       // `retold`: a visible message changes its words, a hidden one is said.
       | Reword(_) => s.with("messageUp", true)
+      | Destroy =>
+        s.with("onPage", false)
+         .with("screen", Nothing)
+         .with("messageUp", false)
+         .with("morphing", Nothing)
+    }
+
+  /// The three that come back in — `reveal` reports `unmeasured` or `morphed`
+  /// from inside itself, `arrive` is a `show`, `lost` is a teardown from inside
+  /// the machine's call — and `again` is how. Quint has no recursion, so
+  /// {@link dispatch} unrolls it as deep as the plan nests, and the next level
+  /// marks the state `deep` instead of running.
+  pure def reenter(s: M, e: Reentrant, k: Knobs, again: (M, Event) => M): M =
+    match e {
+      | Reveal(r) => {
+        // The words of the step being left go, and `measure` restacks the
+        // layers whatever it finds, so something of the tour is on the page
+        // from here on either way.
+        val up = s.with("messageUp", false).with("onPage", true)
+        if (not(k.measured))
+          // Nothing was drawn. The plan takes it that the stack may have been
+          // rebuilt on the way to finding nothing, and so does this: what
+          // stands is not known, and a rebuilt stack halts the morph.
+          again(up.with("screen", Nothing).with("morphing", Nothing),
+                Unmeasured({ step: r.drawn.step, animate: r.animate }))
+        else {
+          // `place`, then the morph. Applied outright, `morphed` comes back
+          // from inside the same call; animated, it is a promise the page
+          // holds, and {@link doMorphed} is it landing.
+          val placed = up.with("screen", Just(r.drawn.step))
+          if (k.outright) again(placed.with("morphing", Nothing), Morphed({ step: r.drawn.step }))
+          else placed.with("morphing", Just(r.drawn.step))
+        }
+      }
       | Arrive(a) => {
         // `arrive` in presenter.ts: the one place a scroll happens. A glide is
         // minted where `bringIntoView` had somewhere to go, and the `show`
@@ -475,17 +499,11 @@ module plan {
       // `teardown` first — so it ends the run, and the teardown arrives from
       // inside the call.
       | Lost(_) => again(s, teardownIn(s))
-      | Destroy =>
-        s.with("onPage", false)
-         .with("screen", Nothing)
-         .with("messageUp", false)
-         .with("morphing", Nothing)
     }
 
   /// `dispatch` in presenter.ts: the mode is written before any effect runs,
-  /// and the effects run in order against whatever state the ones before them
-  /// left — including a mode a re-entrant one has replaced, which is exactly
-  /// the case {@link reentrantIsLast} exists to rule out.
+  /// the effects run in order against whatever state the ones before them
+  /// left, and `last` comes back in once they have.
   pure def dispatchWith(s: M, ev: Event, k: Knobs, again: (M, Event) => M): M = {
     val fresh = s.nextToken
     val o = reduce(s.mode, ev, fresh)
@@ -500,8 +518,12 @@ module plan {
       .with("mode", o.mode)
       .with("waits", s.waits.union(begun))
       .with("marks", s.marks.append(o.mark))
-      .with("outcomes", s.outcomes.append(o.effects))
-    o.effects.foldl(committed, (t, e) => perform(t, e, k, again))
+      .with("outcomes", s.outcomes.append({ effects: o.effects, last: o.last }))
+    val done = o.effects.foldl(committed, (t, e) => perform(t, e))
+    match o.last {
+      | Just(r) => reenter(done, r, k, again)
+      | Nothing => done
+    }
   }
 
   /// The third level, and the last: an effect of its outcome that came back in
@@ -679,7 +701,7 @@ module plan {
   //
   // The sentences that were prose on the old presenter are the `Mode` type
   // now, so what is left to hold is the mode against what the shell keeps
-  // implicitly. One more is over an `Outcome` rather than a state.
+  // implicitly.
 
   /// What is on the page is what the mode says is. `idle` has nothing there,
   /// `drawn` has its step, and both modes with a step on its way have
@@ -741,17 +763,6 @@ module plan {
   /// state, so anything that wrote `world` would leave the two disagreeing and
   /// every trace harvested afterwards would carry the disagreement.
   val worldIsFixed: bool = m.world == STEPS
-
-  /// **An effect that comes back into the plan goes last.** Each replaces the
-  /// mode while the shell is still working through the list, so anything after
-  /// one would run against a mode that is gone. `plan.test.ts` asserts this on
-  /// every outcome the suite sees; this asks it of every outcome any trace
-  /// reaches.
-  val reentrantIsLast: bool =
-    m.outcomes.indices().forall((j) => {
-      val effects = m.outcomes[j]
-      effects.indices().forall((i) => reentrant(effects[i]) implies i == effects.length() - 1)
-    })
 
   /// Nothing came back in deeper than {@link dispatch} unrolls. A plan that
   /// nests further wants another level, not a quieter model.

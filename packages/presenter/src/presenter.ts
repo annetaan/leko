@@ -29,6 +29,7 @@ import {
   pointsAt,
   reduce,
   regionsOf,
+  type Reentrant,
 } from './plan.js'
 import type { LekoOptions, LekoStep, LekoWorld } from '@annetaan/leko-types'
 
@@ -296,19 +297,18 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * **The mode is written before any effect runs.** `lost` calls into the
    * machine, which tears this down from inside the call, and what that teardown
-   * finds is the mode as the event left it. An effect that comes back in here —
-   * `reveal`, `arrive`, `lost` — is the last of its outcome, so nothing below
-   * runs against a mode a nested dispatch has replaced; `Outcome` says so, and
-   * `plan.test.ts` checks it.
+   * finds is the mode as the event left it. `last` goes last, so nothing here
+   * runs against a mode a nested dispatch has replaced — `Reentrant` says why.
    */
   private dispatch(event: Event): void {
     const outcome = reduce(this.#mode, event)
     this.#mode = outcome.mode
     for (const effect of outcome.effects) this.perform(effect)
+    if (outcome.last) this.perform(outcome.last)
   }
 
   /** Make one change to the page. What the page answers comes back as an event. */
-  private perform(effect: Effect): void {
+  private perform(effect: Effect | Reentrant): void {
     switch (effect.kind) {
       case 'abandon':
         return effect.glide.abandon()

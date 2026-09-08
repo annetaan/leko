@@ -4,7 +4,16 @@ import { fileURLToPath } from 'node:url'
 import type { Glide } from '@annetaan/leko-spotlight'
 import { afterAll, describe, expect, test } from 'vitest'
 
-import { type Effect, type Event, idle, type Mode, type Pending, pointsAt, reduce } from './plan.js'
+import {
+  type Effect,
+  type Event,
+  idle,
+  type Mode,
+  type Pending,
+  pointsAt,
+  reduce,
+  type Reentrant,
+} from './plan.js'
 import type { LekoStep } from '@annetaan/leko-types'
 
 // The corpus, driven event by event into the real `reduce`.
@@ -117,7 +126,7 @@ interface Owed {
   glide?: number
 }
 
-/** One of the model's `Effect`s, as {@link Owed}. `Reword` is the plan's `retell`. */
+/** One of the model's `Effect`s or `Reentrant`s, as {@link Owed}. `Reword` is the plan's `retell`. */
 function toldEffect(value: Itf): Owed {
   const kind = tag(value)
   const inner = payload(value) as Record<string, Itf>
@@ -239,7 +248,11 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
       .toSorted((a, b) => a - b),
     page: set(m['page']).map(str).toSorted(),
     marks: (m['marks'] as Itf[]).map(str),
-    outcomes: (m['outcomes'] as Itf[][]).map((effects) => effects.map(toldEffect)),
+    // Flattened the way the shell performs them: `effects`, then `last`.
+    outcomes: (m['outcomes'] as { effects: Itf[]; last: Itf }[]).map((o) => [
+      ...o.effects.map(toldEffect),
+      ...(tag(o.last) === 'Just' ? [toldEffect(payload(o.last))] : []),
+    ]),
     // Ascending is mint order. See {@link Shell.learn}.
     glides: set(m['glides'])
       .map(int)
@@ -327,8 +340,11 @@ class Shell {
   readonly flights: Flight[] = []
   /** Every `Pending` the plan committed to a mode, in the order it committed them. */
   readonly begun: Pending[] = []
-  /** What each `reduce` of the action running now owed, outermost first. */
-  owed: Effect[][] = []
+  /**
+   * What each `reduce` of the action running now owed, outermost first, each
+   * in the order the shell performs it: `effects`, then `last`.
+   */
+  owed: (Effect | Reentrant)[][] = []
 
   constructor(
     private readonly steps: Map<string, LekoStep>,
@@ -371,11 +387,12 @@ class Shell {
     if (outcome.mode.kind === 'retrying' || outcome.mode.kind === 'gliding') {
       if (!this.begun.includes(outcome.mode.pending)) this.begun.push(outcome.mode.pending)
     }
-    this.owed.push([...outcome.effects])
-    for (const effect of outcome.effects) this.perform(effect)
+    const performed = [...outcome.effects, ...(outcome.last ? [outcome.last] : [])]
+    this.owed.push(performed)
+    for (const effect of performed) this.perform(effect)
   }
 
-  private perform(effect: Effect): void {
+  private perform(effect: Effect | Reentrant): void {
     switch (effect.kind) {
       case 'abandon':
         effect.glide.abandon()
@@ -554,7 +571,7 @@ class Shell {
   }
 
   /** One of the plan's effects, as {@link Owed}. */
-  render(effect: Effect): Owed {
+  render(effect: Effect | Reentrant): Owed {
     switch (effect.kind) {
       case 'abandon':
         return { kind: 'abandon', glide: this.tokenOf(effect.glide) }
@@ -601,8 +618,8 @@ class Shell {
         // The four that carry nothing.
         return { kind: effect.kind }
       default: {
-        // Listed above rather than defaulted, so a new kind of `Effect` leaves
-        // nothing for this to be and fails to compile. What it does not catch
+        // Listed above rather than defaulted, so a new kind of `Effect` or
+        // `Reentrant` leaves nothing for this to be and fails to compile. What it does not catch
         // is a payload added to one of the four: this would go on rendering
         // `{ kind: 'hide' }` and so would `toldEffect`, and the two would
         // compare equal. That silence is symmetric rather than a hole, and it
@@ -691,9 +708,6 @@ const expected = (now: Snapshot): Observed => ({
   moving: now.moving,
   page: now.page,
 })
-
-/** The re-entrant effects, which `Outcome` says each list ends with. */
-const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'lost'])
 
 // -------------------------------------------------------------------- the runs
 
@@ -834,15 +848,6 @@ describe('every trace the model found', () => {
           `${where}: the effects owed`,
         ).toEqual(now.outcomes)
         expect(observe(shell), where).toEqual(expected(now))
-
-        // Claim 5 of `packages/presenter/model/README.md`.
-        for (const effects of shell.owed) {
-          const kinds = effects.map((effect) => effect.kind)
-          const back = kinds.findIndex((kind) => REENTRANT.has(kind))
-          if (back !== -1) {
-            expect(back, `${where}: a re-entrant effect was not last`).toBe(kinds.length - 1)
-          }
-        }
 
         const flat = shell.owed.flat()
 

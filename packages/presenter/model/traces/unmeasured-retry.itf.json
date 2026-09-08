@@ -220,7 +220,17 @@
           "#bigint": "1"
         },
         "onPage": false,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first", "second"]
         },
@@ -363,7 +373,17 @@
           "#bigint": "2"
         },
         "onPage": false,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first", "second"]
         },
@@ -509,20 +529,28 @@
         },
         "onPage": false,
         "outcomes": [
-          [
-            {
-              "tag": "Disarm",
-              "value": {
-                "#tup": []
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
               }
-            },
-            {
-              "tag": "Destroy",
+            ],
+            "last": {
+              "tag": "Nothing",
               "value": {
                 "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -668,7 +696,17 @@
           "#bigint": "4"
         },
         "onPage": false,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first", "second"]
         },
@@ -837,48 +875,61 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Disarm",
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Reveal",
+                "value": {
+                  "anchor": false,
+                  "animate": false,
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "effects": [
+              {
+                "tag": "Hunt",
+                "value": {
+                  "step": "wait"
+                }
+              },
+              {
+                "tag": "Deadline",
+                "value": {
+                  "animate": false,
+                  "step": "wait",
+                  "token": {
+                    "#bigint": "5"
+                  }
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
               "value": {
                 "#tup": []
               }
-            },
-            {
-              "tag": "Reveal",
-              "value": {
-                "anchor": false,
-                "animate": false,
-                "drawn": {
-                  "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
-                  },
-                  "step": "wait"
-                }
-              }
             }
-          ],
-          [
-            {
-              "tag": "Hunt",
-              "value": {
-                "step": "wait"
-              }
-            },
-            {
-              "tag": "Deadline",
-              "value": {
-                "animate": false,
-                "step": "wait",
-                "token": {
-                  "#bigint": "5"
-                }
-              }
-            }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]

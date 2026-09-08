@@ -221,20 +221,28 @@
         },
         "onPage": false,
         "outcomes": [
-          [
-            {
-              "tag": "Disarm",
-              "value": {
-                "#tup": []
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
               }
-            },
-            {
-              "tag": "Destroy",
+            ],
+            "last": {
+              "tag": "Nothing",
               "value": {
                 "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -381,20 +389,28 @@
         },
         "onPage": false,
         "outcomes": [
-          [
-            {
-              "tag": "Disarm",
-              "value": {
-                "#tup": []
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
               }
-            },
-            {
-              "tag": "Destroy",
+            ],
+            "last": {
+              "tag": "Nothing",
               "value": {
                 "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -545,30 +561,35 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Disarm",
-              "value": {
-                "#tup": []
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
               }
-            },
-            {
-              "tag": "Reveal",
+            ],
+            "last": {
+              "tag": "Just",
               "value": {
-                "anchor": false,
-                "animate": true,
-                "drawn": {
-                  "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
-                  },
-                  "step": "wait"
+                "tag": "Reveal",
+                "value": {
+                  "anchor": false,
+                  "animate": true,
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
+                  }
                 }
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -715,23 +736,31 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Replace",
-              "value": {
-                "drawn": {
-                  "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
+          {
+            "effects": [
+              {
+                "tag": "Replace",
+                "value": {
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
                   },
-                  "step": "wait"
-                },
-                "saying": true
+                  "saying": true
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -911,20 +940,28 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Hide",
-              "value": {
-                "#tup": []
+          {
+            "effects": [
+              {
+                "tag": "Hide",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
               }
-            },
-            {
-              "tag": "Disarm",
+            ],
+            "last": {
+              "tag": "Nothing",
               "value": {
                 "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first", "second"]
@@ -1106,30 +1143,38 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Abandon",
-              "value": {
-                "#bigint": "4"
-              }
-            },
-            {
-              "tag": "Hunt",
-              "value": {
-                "step": "two"
-              }
-            },
-            {
-              "tag": "Deadline",
-              "value": {
-                "animate": true,
-                "step": "two",
-                "token": {
-                  "#bigint": "6"
+          {
+            "effects": [
+              {
+                "tag": "Abandon",
+                "value": {
+                  "#bigint": "4"
+                }
+              },
+              {
+                "tag": "Hunt",
+                "value": {
+                  "step": "two"
+                }
+              },
+              {
+                "tag": "Deadline",
+                "value": {
+                  "animate": true,
+                  "step": "two",
+                  "token": {
+                    "#bigint": "6"
+                  }
                 }
               }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first"]
@@ -1315,7 +1360,17 @@
           "#bigint": "8"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first"]
         },
@@ -1502,7 +1557,17 @@
           "#bigint": "9"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first"]
         },
@@ -1689,7 +1754,17 @@
           "#bigint": "10"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first"]
         },
@@ -1874,7 +1949,17 @@
           "#bigint": "11"
         },
         "onPage": true,
-        "outcomes": [[]],
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
         "page": {
           "#set": ["first"]
         },
@@ -2066,23 +2151,31 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Replace",
-              "value": {
-                "drawn": {
-                  "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
+          {
+            "effects": [
+              {
+                "tag": "Replace",
+                "value": {
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
                   },
-                  "step": "wait"
-                },
-                "saying": false
+                  "saying": false
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
               }
             }
-          ]
+          }
         ],
         "page": {
           "#set": ["first"]
@@ -2246,52 +2339,61 @@
         },
         "onPage": true,
         "outcomes": [
-          [
-            {
-              "tag": "Arrive",
+          {
+            "effects": [],
+            "last": {
+              "tag": "Just",
               "value": {
-                "error": {
-                  "tag": "Just",
-                  "value": "no"
-                },
-                "pending": {
-                  "animate": true,
-                  "step": "two",
-                  "token": {
-                    "#bigint": "6"
-                  }
-                }
-              }
-            }
-          ],
-          [
-            {
-              "tag": "Cancel",
-              "value": {
-                "#tup": []
-              }
-            },
-            {
-              "tag": "Disarm",
-              "value": {
-                "#tup": []
-              }
-            },
-            {
-              "tag": "Reveal",
-              "value": {
-                "anchor": true,
-                "animate": true,
-                "drawn": {
+                "tag": "Arrive",
+                "value": {
                   "error": {
                     "tag": "Just",
                     "value": "no"
                   },
-                  "step": "two"
+                  "pending": {
+                    "animate": true,
+                    "step": "two",
+                    "token": {
+                      "#bigint": "6"
+                    }
+                  }
                 }
               }
             }
-          ]
+          },
+          {
+            "effects": [
+              {
+                "tag": "Cancel",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Reveal",
+                "value": {
+                  "anchor": true,
+                  "animate": true,
+                  "drawn": {
+                    "error": {
+                      "tag": "Just",
+                      "value": "no"
+                    },
+                    "step": "two"
+                  }
+                }
+              }
+            }
+          }
         ],
         "page": {
           "#set": ["first", "second"]

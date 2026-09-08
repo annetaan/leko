@@ -205,8 +205,9 @@ export type Event =
 // ------------------------------------------------------------------- the effects
 
 /**
- * What the presenter does to the page, as data. The shell is a `switch` over
- * these and nothing in it decides which to make.
+ * What the presenter does to the page and hears nothing back from in the same
+ * call, as data. The shell is a `switch` over these and {@link Reentrant} and
+ * nothing in it decides which to make.
  */
 export type Effect =
   /** Stop a glide where it is. */
@@ -221,8 +222,6 @@ export type Effect =
   | { kind: 'deadline'; pending: Pending }
   /** The clock stops. */
   | { kind: 'cancel' }
-  /** Draw `drawn` around `anchor`, morphing where `animate` says. */
-  | { kind: 'reveal'; drawn: Drawn; anchor: Element | null; animate: boolean }
   /**
    * Put the holes back where the surface moved under them and place the way
    * out again; `saying` puts the words back beside them too, which a step on
@@ -235,26 +234,33 @@ export type Effect =
   | { kind: 'say'; drawn: Drawn }
   /** Only the words change. */
   | { kind: 'retell'; step: LekoStep; reason: string }
-  /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
-  | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
-  /** `Host.lost`, whose own doc says what it is the only part of. */
-  | { kind: 'lost'; step: LekoStep }
   /** Everything on the page goes. */
   | { kind: 'destroy' }
 
 /**
- * The next mode and what is owed for it, in order.
- *
- * **An effect that comes back into the plan goes last.** `reveal` can report
- * `unmeasured` or `morphed` from inside itself, `arrive` is a `show`, and
- * `lost` is a teardown from inside the machine's call; each replaces the mode
- * while the shell is still working through this list, so anything after one of
- * them would run against a mode that is gone. `plan.test.ts` checks every
- * outcome it sees for it.
+ * The three that come back into the plan from inside the shell: `reveal`
+ * reports `unmeasured` or `morphed` from inside itself, `arrive` is a `show`,
+ * and `lost` is a teardown from inside the machine's call. Each replaces the
+ * mode while the shell is still working through the outcome, so anything
+ * performed after one would run against a mode that is gone. An outcome holds
+ * at most one, in {@link Outcome.last}, and `effects` cannot hold any.
+ */
+export type Reentrant =
+  /** Draw `drawn` around `anchor`, morphing where `animate` says. */
+  | { kind: 'reveal'; drawn: Drawn; anchor: Element | null; animate: boolean }
+  /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
+  | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
+  /** `Host.lost`, whose own doc says what it is the only part of. */
+  | { kind: 'lost'; step: LekoStep }
+
+/**
+ * The next mode, what is owed for it in order, and `last`, performed once
+ * `effects` have run.
  */
 export interface Outcome {
   readonly mode: Mode
   readonly effects: readonly Effect[]
+  readonly last?: Reentrant
 }
 
 // --------------------------------------------------------------------- the moves
@@ -322,11 +328,10 @@ const retrying = (
  * that, DESIGN.md, **The page is measured when a step is drawn, and not
  * again**.
  *
- * Disarmed before `reveal` rather than after. A draw that finds nothing to
- * measure — the last line of defence, and it reports `unmeasured` from inside
- * itself — arms a hunt, and a `disarm` behind it would take that hunt off the
- * moment it went on. The rule on {@link Outcome} that an effect coming back
- * into the plan goes last forces the same order.
+ * Disarmed before `reveal` rather than after, which is where {@link Outcome}
+ * puts it anyway. A draw that finds nothing to measure — the last line of
+ * defence, and it reports `unmeasured` from inside itself — arms a hunt, and a
+ * `disarm` behind it would take that hunt off the moment it went on.
  */
 const revealing = (
   drawn: Drawn,
@@ -335,7 +340,8 @@ const revealing = (
   before: Effect[],
 ): Outcome => ({
   mode: { kind: 'drawn', step: drawn.step, error: drawn.error },
-  effects: [...before, { kind: 'disarm' }, { kind: 'reveal', drawn, anchor, animate }],
+  effects: [...before, { kind: 'disarm' }],
+  last: { kind: 'reveal', drawn, anchor, animate },
 })
 
 // -------------------------------------------------------------------- the events
@@ -434,9 +440,8 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // start one. What the wait was told goes with it.
       return {
         mode,
-        effects: [
-          { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
-        ],
+        effects: [],
+        last: { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
       }
     }
 
@@ -459,16 +464,16 @@ export function reduce(mode: Mode, event: Event): Outcome {
       if (event.found && !mode.unmeasured) {
         return {
           mode,
-          effects: [
-            { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
-          ],
+          effects: [],
+          last: { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
         }
       }
       // Over before the call is made. `lost` ends the run, and the teardown it
       // brings arrives from inside the call and finds nothing pending.
       return {
         mode: idle,
-        effects: [{ kind: 'disarm' }, { kind: 'lost', step: mode.pending.step }],
+        effects: [{ kind: 'disarm' }],
+        last: { kind: 'lost', step: mode.pending.step },
       }
     }
 

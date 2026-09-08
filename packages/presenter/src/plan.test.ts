@@ -11,6 +11,7 @@ import {
   type Pending,
   pointsAt,
   reduce,
+  type Reentrant,
   regionsOf,
 } from './plan.js'
 import type { LekoStep } from '@annetaan/leko-types'
@@ -36,24 +37,18 @@ const replacement = { id: 'replacement' } as unknown as Element
 /** A glide that never lands, which is as much of one as the plan looks at. */
 const glide = (): Glide => ({ settled: new Promise(() => {}), abandon: () => {} })
 
-/**
- * The re-entrant effects, checked on every outcome below — `reentrantIsLast`
- * in `packages/presenter/model/README.md`.
- */
-const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'lost'])
+type Performed = Effect | Reentrant
 
-const put = (mode: Mode, event: Event): Outcome => {
-  const outcome = reduce(mode, event)
-  const kinds = outcome.effects.map((e) => e.kind)
-  const first = kinds.findIndex((kind) => REENTRANT.has(kind))
-  if (first !== -1) expect(first).toBe(kinds.length - 1)
-  return outcome
-}
+/** Everything an outcome owes, in the order the shell performs it: `effects`, then `last`. */
+const performed = (outcome: Outcome): Performed[] => [
+  ...outcome.effects,
+  ...(outcome.last ? [outcome.last] : []),
+]
 
-const owed = (outcome: Outcome): string[] => outcome.effects.map((e) => e.kind)
+const owed = (outcome: Outcome): string[] => performed(outcome).map((e) => e.kind)
 
-function the<K extends Effect['kind']>(outcome: Outcome, kind: K): Effect & { kind: K } {
-  const found = outcome.effects.filter((e): e is Effect & { kind: K } => e.kind === kind)
+function the<K extends Performed['kind']>(outcome: Outcome, kind: K): Performed & { kind: K } {
+  const found = performed(outcome).filter((e): e is Performed & { kind: K } => e.kind === kind)
   expect(found).toHaveLength(1)
   return found[0]!
 }
@@ -121,7 +116,7 @@ describe('reading a step', () => {
 
 describe('an arrival', () => {
   test('draws a step whose target is on the page, and arms nothing', () => {
-    const outcome = put(idle, arrival())
+    const outcome = reduce(idle, arrival())
 
     expect(outcome.mode).toEqual({ kind: 'drawn', step, error: undefined })
     // DESIGN.md, **Whether the target is still there stops being watched once
@@ -138,7 +133,7 @@ describe('an arrival', () => {
   })
 
   test('draws a step that points at nothing on the document, and arms nothing either', () => {
-    const outcome = put(drawn(), arrival({ step: waiting, anchor: null }))
+    const outcome = reduce(drawn(), arrival({ step: waiting, anchor: null }))
 
     expect(outcome.mode).toEqual({ kind: 'drawn', step: waiting, error: undefined })
     // The same nothing as the step above arms: what this test tells apart is
@@ -148,7 +143,7 @@ describe('an arrival', () => {
   })
 
   test('gives a target that is not on the page a moment to turn up, and draws nothing', () => {
-    const outcome = put(drawn('was told'), arrival({ anchor: null }))
+    const outcome = reduce(drawn('was told'), arrival({ anchor: null }))
 
     expect(outcome.mode).toEqual({
       kind: 'retrying',
@@ -166,7 +161,7 @@ describe('an arrival', () => {
   test('holds the pending step behind a glide, hides the words and takes a retry off', () => {
     const flight = glide()
 
-    const outcome = put(retrying(), arrival({ glide: flight }))
+    const outcome = reduce(retrying(), arrival({ glide: flight }))
 
     expect(outcome.mode).toEqual({
       kind: 'gliding',
@@ -182,14 +177,14 @@ describe('an arrival', () => {
   test('stops a glide the tour has moved past before anything else', () => {
     const flight = glide()
 
-    const outcome = put(gliding(flight), arrival({ step: other }))
+    const outcome = reduce(gliding(flight), arrival({ step: other }))
 
     expect(owed(outcome)).toEqual(['abandon', 'disarm', 'reveal'])
     expect(the(outcome, 'abandon').glide).toBe(flight)
   })
 
   test("stops a retry's clock before anything else", () => {
-    const outcome = put(retrying(), arrival())
+    const outcome = reduce(retrying(), arrival())
 
     expect(owed(outcome)).toEqual(['cancel', 'disarm', 'reveal'])
   })
@@ -198,27 +193,27 @@ describe('an arrival', () => {
     const standing: Drawn = { step: other, error: 'was told' }
 
     expect(
-      (put(gliding(glide(), standing), arrival({ glide: glide() })).mode as Gliding).standing,
+      (reduce(gliding(glide(), standing), arrival({ glide: glide() })).mode as Gliding).standing,
     ).toBe(standing)
     // A glide is long enough for a resize to matter, where the retry's 100ms
     // is not, so the glide has to know what the retry knew.
     expect(
-      (put(retrying(undefined, standing), arrival({ glide: glide() })).mode as Gliding).standing,
+      (reduce(retrying(undefined, standing), arrival({ glide: glide() })).mode as Gliding).standing,
     ).toBe(standing)
     expect(
-      (put(retrying(undefined, standing), arrival({ anchor: null })).mode as Retrying).standing,
+      (reduce(retrying(undefined, standing), arrival({ anchor: null })).mode as Retrying).standing,
     ).toBe(standing)
   })
 
   test('a wait begun from nothing on screen knows that', () => {
-    expect((put(idle, arrival({ anchor: null })).mode as Retrying).standing).toBeUndefined()
-    expect((put(idle, arrival({ glide: glide() })).mode as Gliding).standing).toBeUndefined()
+    expect((reduce(idle, arrival({ anchor: null })).mode as Retrying).standing).toBeUndefined()
+    expect((reduce(idle, arrival({ glide: glide() })).mode as Gliding).standing).toBeUndefined()
   })
 
   test('is a fresh attempt, unless it comes in with what a wait was already told', () => {
-    expect(put(drawn('not yet'), arrival()).mode).toEqual(drawn())
+    expect(reduce(drawn('not yet'), arrival()).mode).toEqual(drawn())
 
-    const carried = put(retrying(), arrival({ error: 'still not' }))
+    const carried = reduce(retrying(), arrival({ error: 'still not' }))
     expect(carried.mode).toEqual(drawn('still not'))
     expect(the(carried, 'reveal').drawn.error).toBe('still not')
   })
@@ -227,9 +222,9 @@ describe('an arrival', () => {
 describe('a glide landing', () => {
   test('draws the pending step where the page stopped, with the reason it was told meanwhile', () => {
     const flight = glide()
-    const told = put(gliding(flight), { kind: 'retell', step, reason: 'not yet' }).mode
+    const told = reduce(gliding(flight), { kind: 'retell', step, reason: 'not yet' }).mode
 
-    const outcome = put(told, { kind: 'settled', glide: flight, anchor })
+    const outcome = reduce(told, { kind: 'settled', glide: flight, anchor })
 
     expect(outcome.mode).toEqual(drawn('not yet'))
     expect(owed(outcome)).toEqual(['disarm', 'reveal'])
@@ -245,7 +240,7 @@ describe('a glide landing', () => {
     const flight = glide()
     const before = gliding(flight)
 
-    const outcome = put(before, { kind: 'settled', glide: flight, anchor: null })
+    const outcome = reduce(before, { kind: 'settled', glide: flight, anchor: null })
 
     expect(outcome.mode).toEqual({
       kind: 'retrying',
@@ -261,7 +256,7 @@ describe('a glide landing', () => {
   test('is ignored where it is not the glide the mode holds', () => {
     const before = gliding()
 
-    const outcome = put(before, { kind: 'settled', glide: glide(), anchor })
+    const outcome = reduce(before, { kind: 'settled', glide: glide(), anchor })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
@@ -270,7 +265,7 @@ describe('a glide landing', () => {
   test('is ignored in every mode that is not gliding', () => {
     for (const kind of ['idle', 'drawn', 'retrying'] as const) {
       const before = MODES[kind]()
-      const outcome = put(before, { kind: 'settled', glide: glide(), anchor })
+      const outcome = reduce(before, { kind: 'settled', glide: glide(), anchor })
       expect(outcome.mode).toBe(before)
       expect(outcome.effects).toEqual([])
     }
@@ -286,30 +281,34 @@ describe('the page changing under a step', () => {
     // the way a moved target's is.
     const before = drawn('not yet')
 
-    const outcome = put(before, { kind: 'mutated', step, found: replacement })
+    const outcome = reduce(before, { kind: 'mutated', step, found: replacement })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
   })
 
   test('a hunt that found its target is a fresh arrival, carrying what the wait was told', () => {
-    const before = put(retrying(), { kind: 'retell', step, reason: 'not yet' }).mode
+    const before = reduce(retrying(), { kind: 'retell', step, reason: 'not yet' }).mode
 
-    const outcome = put(before, { kind: 'mutated', step, found: anchor })
+    const outcome = reduce(before, { kind: 'mutated', step, found: anchor })
 
     // The mode is left alone: the arrival this owes decides what comes next,
     // and only the shell can start the scroll it may need.
     expect(outcome.mode).toBe(before)
-    expect(outcome.effects).toEqual([
-      { kind: 'arrive', pending: { step, animate: true }, anchor, error: 'not yet' },
-    ])
+    expect(outcome.effects).toEqual([])
+    expect(outcome.last).toEqual({
+      kind: 'arrive',
+      pending: { step, animate: true },
+      anchor,
+      error: 'not yet',
+    })
     expect(the(outcome, 'arrive').pending).toBe((before as Retrying).pending)
   })
 
   test('a hunt that found nothing goes on hunting', () => {
     const before = retrying()
 
-    const outcome = put(before, { kind: 'mutated', step, found: null })
+    const outcome = reduce(before, { kind: 'mutated', step, found: null })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
@@ -318,14 +317,14 @@ describe('the page changing under a step', () => {
   test('nothing is watched while the page glides, so a batch then means nothing', () => {
     const before = gliding()
 
-    const outcome = put(before, { kind: 'mutated', step: other, found: replacement })
+    const outcome = reduce(before, { kind: 'mutated', step: other, found: replacement })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
   })
 
   test('nothing is watched while idle either', () => {
-    expect(put(idle, { kind: 'mutated', step, found: anchor }).effects).toEqual([])
+    expect(reduce(idle, { kind: 'mutated', step, found: anchor }).effects).toEqual([])
   })
 })
 
@@ -333,7 +332,7 @@ describe('a draw that found nothing to measure', () => {
   test('becomes a retry that draws the step the way the draw was asked to', () => {
     // The story's first draw does not animate, and neither should the retry
     // that stands in for it.
-    const outcome = put(drawn('not yet'), { kind: 'unmeasured', step, animate: false })
+    const outcome = reduce(drawn('not yet'), { kind: 'unmeasured', step, animate: false })
 
     expect(outcome.mode).toEqual({
       kind: 'retrying',
@@ -346,9 +345,9 @@ describe('a draw that found nothing to measure', () => {
   })
 
   test('is ignored where it is not about the step on screen', () => {
-    expect(put(drawn(), { kind: 'unmeasured', step: other, animate: true }).effects).toEqual([])
+    expect(reduce(drawn(), { kind: 'unmeasured', step: other, animate: true }).effects).toEqual([])
     for (const kind of ['idle', 'retrying', 'gliding'] as const) {
-      expect(put(MODES[kind](), { kind: 'unmeasured', step, animate: true }).effects).toEqual([])
+      expect(reduce(MODES[kind](), { kind: 'unmeasured', step, animate: true }).effects).toEqual([])
     }
   })
 })
@@ -357,10 +356,11 @@ describe('a deadline running out', () => {
   test('gives the step up, and is over before the machine is told', () => {
     const before = retrying()
 
-    const outcome = put(before, { kind: 'expired', pending: before.pending, found: null })
+    const outcome = reduce(before, { kind: 'expired', pending: before.pending, found: null })
 
     expect(outcome.mode).toBe(idle)
-    expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'lost', step }])
+    expect(outcome.effects).toEqual([{ kind: 'disarm' }])
+    expect(outcome.last).toEqual({ kind: 'lost', step })
   })
 
   test('arrives at a target that turned up rather than giving it up', () => {
@@ -369,21 +369,26 @@ describe('a deadline running out', () => {
     // travel with the arrival.
     const before: Retrying = { ...retrying(), error: 'not yet' }
 
-    const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
+    const outcome = reduce(before, { kind: 'expired', pending: before.pending, found: anchor })
 
     expect(outcome.mode).toBe(before)
-    expect(outcome.effects).toEqual([
-      { kind: 'arrive', pending: before.pending, anchor, error: 'not yet' },
-    ])
+    expect(outcome.effects).toEqual([])
+    expect(outcome.last).toEqual({
+      kind: 'arrive',
+      pending: before.pending,
+      anchor,
+      error: 'not yet',
+    })
   })
 
   test('gives up a wait a draw began, whatever the last question answers', () => {
     const before = retrying({ step, animate: true }, undefined, true)
 
-    const outcome = put(before, { kind: 'expired', pending: before.pending, found: anchor })
+    const outcome = reduce(before, { kind: 'expired', pending: before.pending, found: anchor })
 
     expect(outcome.mode).toBe(idle)
-    expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'lost', step }])
+    expect(outcome.effects).toEqual([{ kind: 'disarm' }])
+    expect(outcome.last).toEqual({ kind: 'lost', step })
   })
 
   test('a deadline set for an earlier wait at the same step is ignored', () => {
@@ -391,7 +396,11 @@ describe('a deadline running out', () => {
     // while the second wait has most of its time left.
     const before = retrying({ step, animate: true })
 
-    const outcome = put(before, { kind: 'expired', pending: { step, animate: true }, found: null })
+    const outcome = reduce(before, {
+      kind: 'expired',
+      pending: { step, animate: true },
+      found: null,
+    })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([])
@@ -400,7 +409,7 @@ describe('a deadline running out', () => {
   test('is ignored in every mode that is not retrying', () => {
     for (const kind of ['idle', 'drawn', 'gliding'] as const) {
       const before = MODES[kind]()
-      const outcome = put(before, {
+      const outcome = reduce(before, {
         kind: 'expired',
         pending: { step, animate: true },
         found: null,
@@ -415,7 +424,7 @@ describe('a resize', () => {
   test('puts the step on screen back and says it again, reason and all, as one effect', () => {
     const before = drawn('not yet')
 
-    const outcome = put(before, { kind: 'resized' })
+    const outcome = reduce(before, { kind: 'resized' })
 
     expect(outcome.mode).toBe(before)
     expect(outcome.effects).toEqual([
@@ -427,7 +436,7 @@ describe('a resize', () => {
     const standing: Drawn = { step: other, error: 'was told' }
 
     for (const before of [gliding(glide(), standing), retrying(undefined, standing)]) {
-      const outcome = put(before, { kind: 'resized' })
+      const outcome = reduce(before, { kind: 'resized' })
       expect(outcome.mode).toBe(before)
       // The step being left, not the one pending, and nothing said —
       // DESIGN.md, **Nothing is armed for it either, and a reason waits with
@@ -440,18 +449,18 @@ describe('a resize', () => {
     const glidingFromNothing: Mode = { ...gliding(), standing: undefined }
     const retryingFromNothing: Mode = { ...retrying(), standing: undefined }
 
-    expect(put(glidingFromNothing, { kind: 'resized' }).effects).toEqual([])
-    expect(put(retryingFromNothing, { kind: 'resized' }).effects).toEqual([])
+    expect(reduce(glidingFromNothing, { kind: 'resized' }).effects).toEqual([])
+    expect(reduce(retryingFromNothing, { kind: 'resized' }).effects).toEqual([])
   })
 
   test('does nothing while idle', () => {
-    expect(put(idle, { kind: 'resized' }).effects).toEqual([])
+    expect(reduce(idle, { kind: 'resized' }).effects).toEqual([])
   })
 })
 
 describe('a reason the guard gave', () => {
   test('is written onto the step on screen and said', () => {
-    const outcome = put(drawn(), { kind: 'retell', step, reason: 'not yet' })
+    const outcome = reduce(drawn(), { kind: 'retell', step, reason: 'not yet' })
 
     expect(outcome.mode).toEqual(drawn('not yet'))
     expect(outcome.effects).toEqual([{ kind: 'retell', step, reason: 'not yet' }])
@@ -460,7 +469,7 @@ describe('a reason the guard gave', () => {
   test('waits with a step on its way, and nothing is said', () => {
     for (const kind of ['retrying', 'gliding'] as const) {
       const before = MODES[kind]()
-      const outcome = put(before, { kind: 'retell', step, reason: 'not yet' })
+      const outcome = reduce(before, { kind: 'retell', step, reason: 'not yet' })
       expect(outcome.mode).toEqual({ ...before, error: 'not yet' })
       expect(outcome.effects).toEqual([])
     }
@@ -469,14 +478,14 @@ describe('a reason the guard gave', () => {
   test('replaces the words, not the wait', () => {
     const before = retrying()
 
-    const told = put(before, { kind: 'retell', step, reason: 'not yet' }).mode
+    const told = reduce(before, { kind: 'retell', step, reason: 'not yet' }).mode
 
     // The deadline set for this wait still names it.
     expect((told as Retrying).pending).toBe(before.pending)
   })
 
   test('has nowhere to go while idle', () => {
-    const outcome = put(idle, { kind: 'retell', step, reason: 'not yet' })
+    const outcome = reduce(idle, { kind: 'retell', step, reason: 'not yet' })
 
     expect(outcome.mode).toBe(idle)
     expect(outcome.effects).toEqual([])
@@ -485,21 +494,21 @@ describe('a reason the guard gave', () => {
 
 describe('the morph ending', () => {
   test('brings the message back with what the step has been told by now', () => {
-    const told = put(drawn(), { kind: 'retell', step, reason: 'not yet' }).mode
+    const told = reduce(drawn(), { kind: 'retell', step, reason: 'not yet' }).mode
 
-    const outcome = put(told, { kind: 'morphed', step })
+    const outcome = reduce(told, { kind: 'morphed', step })
 
     expect(outcome.mode).toBe(told)
     expect(outcome.effects).toEqual([{ kind: 'say', drawn: { step, error: 'not yet' } }])
   })
 
   test('says nothing for a morph of a step that is no longer the one on screen', () => {
-    expect(put(drawn(), { kind: 'morphed', step: other }).effects).toEqual([])
+    expect(reduce(drawn(), { kind: 'morphed', step: other }).effects).toEqual([])
   })
 
   test('says nothing in any mode without a step on screen', () => {
     for (const kind of ['idle', 'retrying', 'gliding'] as const) {
-      expect(put(MODES[kind](), { kind: 'morphed', step }).effects).toEqual([])
+      expect(reduce(MODES[kind](), { kind: 'morphed', step }).effects).toEqual([])
     }
   })
 })
@@ -508,7 +517,7 @@ describe('a teardown', () => {
   test('stops the glide, disarms the watcher and takes everything down', () => {
     const flight = glide()
 
-    const outcome = put(gliding(flight), { kind: 'teardown' })
+    const outcome = reduce(gliding(flight), { kind: 'teardown' })
 
     expect(outcome.mode).toBe(idle)
     expect(outcome.effects).toEqual([
@@ -519,7 +528,7 @@ describe('a teardown', () => {
   })
 
   test("stops a retry's clock, so a tour that was stopped cannot give a step up later", () => {
-    const outcome = put(retrying(), { kind: 'teardown' })
+    const outcome = reduce(retrying(), { kind: 'teardown' })
 
     expect(outcome.mode).toBe(idle)
     expect(outcome.effects).toEqual([{ kind: 'cancel' }, { kind: 'disarm' }, { kind: 'destroy' }])
@@ -527,17 +536,34 @@ describe('a teardown', () => {
 
   test('has nothing to stop in any other mode, and takes the rest down all the same', () => {
     for (const kind of ['idle', 'drawn'] as const) {
-      const outcome = put(MODES[kind](), { kind: 'teardown' })
+      const outcome = reduce(MODES[kind](), { kind: 'teardown' })
       expect(outcome.mode).toBe(idle)
       expect(outcome.effects).toEqual([{ kind: 'disarm' }, { kind: 'destroy' }])
     }
   })
 })
 
+describe('an outcome', () => {
+  test('cannot spell a re-entrant effect anywhere but last', () => {
+    const reveal: Reentrant = {
+      kind: 'reveal',
+      drawn: { step, error: undefined },
+      anchor,
+      animate: true,
+    }
+    // @ts-expect-error — `effects` refuses the three that come back in; `last` is the only place.
+    const wrong: Outcome = { mode: idle, effects: [reveal] }
+    const right: Outcome = { mode: idle, effects: [], last: reveal }
+
+    expect(wrong.effects).toHaveLength(1)
+    expect(right.last).toBe(reveal)
+  })
+})
+
 describe('a pending step is the wait, not the step', () => {
   test('two waits at the same step are two objects', () => {
-    const once = put(idle, arrival({ anchor: null })).mode as Retrying
-    const twice = put(idle, arrival({ anchor: null })).mode as Retrying
+    const once = reduce(idle, arrival({ anchor: null })).mode as Retrying
+    const twice = reduce(idle, arrival({ anchor: null })).mode as Retrying
 
     expect(twice.pending).toEqual(once.pending)
     expect(twice.pending).not.toBe(once.pending)

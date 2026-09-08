@@ -14,8 +14,8 @@ still carried three findings to review, every one an event landing in a mode
 the author had not enumerated: a `replace` owed beside a `say` that assumed it
 had succeeded, a resize during a glide begun from a retry restoring nothing, a
 `retell` arriving in `retrying`. A review caught them once. A review does not
-scale the way a search does, and `plan.test.ts` checks one of the plan's rules
-only as far as the examples somebody wrote happen to reach.
+scale the way a search does, and `plan.test.ts` reaches only the `(mode, event)`
+pairs somebody wrote an example for.
 
 ## Running it
 
@@ -53,9 +53,9 @@ the move `machine.qnt` made with `drawn`, `presenterUp` and `inflight`:
 | `morphing` | the morph in flight, by the step it draws |
 | `moving` | the glides running: minted and neither abandoned nor landed |
 
-Those are what the invariants read. `perform` in the model is `perform` in
-`presenter.ts` as what each effect does to them, and it is the closest thing
-here to the fake effect interpreter stage 2 will replay against.
+Those are what the invariants read. `perform` and `reenter` in the model are
+`perform` in `presenter.ts` as what each effect does to them, and they are the
+closest thing here to the fake effect interpreter stage 2 will replay against.
 
 The knobs on the world are three, and each is a fact the shell reads off the
 page and carries into an event as data: whether a target resolved (the page as
@@ -97,7 +97,9 @@ offers them so that the comparison is exercised rather than assumed.
 
 Three effects come back into the plan from inside the shell: `reveal` reports
 `unmeasured` or `morphed` from inside itself, `arrive` is a `show`, and `lost`
-is a teardown from inside the machine's call. Quint has no recursion, so the
+is a teardown from inside the machine's call. An `Outcome` carries at most one
+of them, in `last`, and the shell performs it after every other effect, so the
+order is the type's and nothing checks it. Quint has no recursion, so the
 interpreter is unrolled — `dispatch`, `dispatch2`, `dispatch3` — as deep as the
 plan nests, and an effect of the third level's outcome that came back in marks
 the state `deep` instead of running. `boundedReentry` says that never happened.
@@ -122,17 +124,9 @@ for a state predicate to hold is the mode against the implicit state:
 | `boundedReentry` | nothing came back in deeper than the interpreter unrolls |
 | `worldIsFixed` | the step table never changes, which is what lets `pointsAt` read it off the `pure val` while everything with a state reads the variable |
 
-One more is a predicate over an `Outcome` rather than a state, and it is the
-gap the issue was most concerned with:
-
-| | |
-| --- | --- |
-| `reentrantIsLast` | in every effect list any `reduce` produced, `reveal`, `arrive` and `lost` come last |
-
-`plan.test.ts` asserts that on every outcome the suite sees, which is only the
-`(mode, event)` pairs somebody wrote an example for. The model keeps the
-effects each `reduce` of the last action owed and asks it of every outcome any
-trace reaches.
+What used to be `reentrantIsLast` is the shape of `Outcome` now — `effects`
+cannot hold `reveal`, `arrive` or `lost`, and `last` holds at most one — the
+way `replace` carrying `saying` retired the first review finding.
 
 The claims about what a *transition* did cannot be seen by a predicate over one
 state at all, and writing them into the model as a flag an action sets would
@@ -148,7 +142,6 @@ the real `reduce`:
 | 3b | an `expired` that runs out onto a target that has turned up arrives at it rather than giving it up |
 | 3c | an `expired` for a wait a draw began gives its target up rather than arriving at it, whatever the last question answers |
 | 4 | a `resized` mid-glide puts the standing holes back and says nothing |
-| 5 | a re-entrant effect is last, on the real outcomes rather than the model's |
 
 The model's job for those is to reach the state where the question can be
 asked, and the witnesses below are what aim the harvest.
@@ -221,7 +214,7 @@ searched for 20,000 traces.
 | a `settled` that lands on nothing forgets `standing` | `screenIsTheModes`, in 152ms |
 | a resize mid-glide puts the words back too | `glidingIsBare`, in 88ms |
 | a `show` over a glide leaves the glide running | `glidingIsBare`, in 58ms |
-| `reveal` owed before `watch` rather than after | `reentrantIsLast`, in 51ms |
+| `reveal` owed before `disarm` rather than after | **cannot be written**: `effects` is `List[Effect]` and `Reveal` is not one |
 | `expired` forgets to `disarm` before `lost` | **nothing** |
 
 The last row is the honest one. The `disarm` in the `expired` case is
