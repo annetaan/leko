@@ -6,17 +6,19 @@ import {
   begin,
   box,
   centre,
-  duringGlide,
+  clocked,
   holding,
   holes,
   keep,
   control,
   pause,
   press,
+  said,
   scrim,
   shown,
   start,
   stopped,
+  until,
 } from './harness.js'
 
 // Claims a browser could answer differently, so every one runs in all three —
@@ -806,8 +808,8 @@ function nearAndFar(): [HTMLElement, HTMLElement] {
  * than earlier.
  *
  * Only used where a test has to *do* something mid-flight. A test that
- * **looks** at something mid-flight watches every tick instead; see
- * `duringGlide`.
+ * **looks** at something mid-flight takes the clock and watches every frame
+ * instead; see `a glide draws nothing until the page has stopped`.
  */
 const MID_GLIDE = 100
 
@@ -815,6 +817,11 @@ test('a glide draws nothing until the page has stopped', async () => {
   // The staging, and the reason for it: a hole is placed from where the target
   // is on screen, and a page still moving under a morph is a different screen
   // by the time the morph ends — `spike/a-smooth-scroll-settling/`, question 1.
+  //
+  // On a clock the test owns, so every frame of the flight is sampled whatever
+  // the runner is doing. This is the first test in the file to wait on a frame,
+  // and it used to pay whatever WebKit's frame interval was at that moment.
+  clocked()
   const [near, far] = nearAndFar()
 
   const leko = start(
@@ -825,25 +832,40 @@ test('a glide draws nothing until the page has stopped', async () => {
     // A real morph, because the glide is armed by the same number.
     { duration: 320 },
   )
-  await shown()
+  // The opening morph: 320ms is twenty frames, and the words come back on the
+  // frame it ends.
+  await until(said, 30, 'the first step never said its words')
   const held = scrim()!.style.maskPosition
   expect(held).not.toBe('')
 
   press()
-  const flight = await duringGlide(held)
+  // Every frame until the far step has been drawn and its words are back. The
+  // glide is `glideDuration` of the distance — 772px here, so 140 · ∛772 ≈
+  // 1284ms, 81 frames — and the morph after it is twenty more; 200 is room.
+  const flight: { scrollY: number; mask: string }[] = []
+  await until(
+    () => {
+      flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
+      return said()
+    },
+    200,
+    'the far step never said its words',
+  )
 
   const drawn = flight.findIndex((f) => f.mask !== held)
-  expect(drawn).toBeGreaterThanOrEqual(0)
+  expect(drawn).toBeGreaterThan(0)
   // DESIGN.md, **Two stages, never one: the page glides, and the step is drawn
-  // when it stops**, in the one form that holds however many frames a machine
-  // gives the glide: by the tick the step was drawn the page had already moved,
-  // and it did not move again afterwards. A step drawn before the page set off
-  // fails the first half; a morph running alongside a glide fails the second.
+  // when it stops**: the page had moved by the frame the step was drawn on, had
+  // already stopped the frame before, and did not move again afterwards. A step
+  // drawn before the page set off fails the first; a morph running alongside a
+  // glide fails the last two.
   expect(flight[drawn]!.scrollY).toBeGreaterThan(0)
+  expect(flight[drawn - 1]!.scrollY).toBe(flight[drawn]!.scrollY)
   const after = flight.slice(drawn).map((f) => f.scrollY)
   expect(after).toEqual(after.map(() => after[0]))
-  await stopped()
-  // And once it stops, the step it was gliding towards, against where the page
+  // And it glided rather than jumped: more offsets than a start and an end.
+  expect(new Set(flight.map((f) => f.scrollY)).size).toBeGreaterThan(2)
+  // Once it stops, the step it was gliding towards, against where the page
   // ended up.
   expect(scrim()!.style.maskPosition).not.toBe(held)
   expect(centre(far)).toBe(far)

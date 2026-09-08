@@ -22,6 +22,9 @@ afterEach(() => {
   for (const leko of instances.splice(0)) leko.stop()
   for (const el of mounted.splice(0)) el.remove()
   vi.restoreAllMocks()
+  // A test that took the clock — {@link clocked} — hands it back even where it
+  // threw before it could, so the next test's timers are the page's own.
+  vi.useRealTimers()
 })
 
 /**
@@ -136,40 +139,58 @@ export const pause = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
- * Watch the page and the innermost scrim together, tick by tick, from the moment
- * a step that scrolls was asked for until the step has been drawn and the page
- * has stopped.
+ * Put the test in charge of the clock.
  *
- * Every tick rather than a sample at a chosen moment: the glide ends on its own
- * clock, but it runs on frames, and on a loaded machine a frame can be a long
- * time coming — so a test that looked once at a fixed time would be a test
- * that passed on one machine.
- *
- * `standing` is the mask the scrim carries now, so a sample carrying a
- * different one is the step having been drawn. The watch ends four still ticks
- * after that, or at `cap` — it has to outlast the page, because what a caller
- * asks of these samples is whether the page moved *after* the step was drawn.
+ * The morph and the glide are frame loops reading `requestAnimationFrame` and
+ * `performance.now()`, and Vitest's default set of fakes covers both, so a
+ * 320ms morph is twenty frames of {@link advance} whatever the runner is doing
+ * — where a real one has been watched taking eight seconds on the two-core CI
+ * runner, for the reason {@link TICK} records. The page itself is still real:
+ * `scrollTo`, `scrollY` and every layout read are synchronous, so what the
+ * frames write is what the page shows. The harness's `afterEach` hands the
+ * clock back.
  */
-export async function duringGlide(
-  standing: string,
-  cap = 8000,
-): Promise<{ scrollY: number; mask: string }[]> {
-  const seen: { scrollY: number; mask: string }[] = []
-  const began = performance.now()
-  let still = 0
-  let last = window.scrollY
-  let drawn = false
-  for (;;) {
-    await pause(TICK)
-    const scrollY = window.scrollY
-    const mask = scrim()?.style.maskPosition ?? ''
-    seen.push({ scrollY, mask })
-    if (mask !== standing) drawn = true
-    still = scrollY === last ? still + 1 : 0
-    last = scrollY
-    if ((drawn && still >= 4) || performance.now() - began > cap) break
+export const clocked = (): void => {
+  vi.useFakeTimers()
+}
+
+/**
+ * One frame of a clock a test took with {@link clocked}.
+ *
+ * The frame is run synchronously and one microtask turn is let go by after it:
+ * a frame that ends a morph or a glide settles a promise, and everything on the
+ * far side of it — the `settled` and `morphed` the presenter dispatches — runs
+ * in the first reaction and arms the next frame from there, so it has to have
+ * run before that frame is asked for. Not `advanceTimersByTimeAsync`, which
+ * yields to a real `setTimeout` after every timer it fires and costs a
+ * hundred-frame flight a second or two in every engine.
+ */
+export const advance = async (): Promise<void> => {
+  vi.advanceTimersByTime(16)
+  await Promise.resolve()
+}
+
+/**
+ * Whether the message is on screen, read off the style `show()` and `hide()`
+ * write. Not `checkVisibility`: the fade `show()` starts is a CSS transition
+ * on the browser's own clock, which a fake one does not drive, so it would
+ * answer from how much real time a frame happened to take. {@link control} is
+ * no use here either — a hidden message keeps its control in the DOM.
+ */
+export const said = (): boolean =>
+  document.querySelector<HTMLElement>('.leko-message')?.style.visibility === 'visible'
+
+/**
+ * Advance the clock a frame at a time until `is` holds, and **say so if it
+ * never does**. The cap is a count of frames rather than a time, so a runner
+ * short of frames cannot stretch it and the number keeps meaning what it says.
+ */
+export async function until(is: () => boolean, frames: number, what: string): Promise<void> {
+  for (let n = 0; n < frames; n++) {
+    if (is()) return
+    await advance()
   }
-  return seen
+  if (!is()) throw new Error(`${what} — not within ${frames} frames`)
 }
 
 /**
