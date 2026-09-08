@@ -13,4 +13,4 @@ export type {
   LekoStory,
   LekoStrict,
   LekoTarget,
-} from './types.js'
+} from '@annetaan/leko-types'

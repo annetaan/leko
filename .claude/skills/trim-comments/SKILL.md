@@ -43,7 +43,7 @@ Three rules ride on top:
   performs an effect must not restate what the effect means: that is on the
   `Effect` union in the plan the effect came from. The method's comment carries
   only what the DOM work adds.
-- **Public JSDoc is a different job.** In `packages/leko/src/types.ts` the
+- **Public JSDoc is a different job.** In `packages/types/src/types.ts` the
   reader is a consumer hovering in an editor, with no DESIGN.md to hand. What a
   type is and how to use it stays. Why it was designed that way still collapses
   to a citation.
@@ -102,7 +102,7 @@ Trimming a file nobody has opened returns nothing today.
 
 Where two files share a paragraph, trim the one that owns the fact first, so
 the pointer the second one grows has somewhere to land. The repository usually
-says which owns it: `packages/leko/model/README.md` opens by saying the
+says which owns it: `packages/presenter/model/README.md` opens by saying the
 machine's README carries the shared method, and the same asymmetry sorts the
 two `replay.test.ts`.
 

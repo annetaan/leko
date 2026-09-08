@@ -2,13 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    // The replay reads its corpus off disk, so this takes Node's types beside
-    // the DOM ones the rest of the package is written against. Only here:
-    // `tsconfig.json` is what the build reads, and nothing that ships touches
-    // the filesystem.
-    "types": ["vitest/globals", "node"],
-    // Resolve `@annetaan/leko-machine` and `@annetaan/leko-spotlight` through
-    // their `development` export condition, which points at src.
+    // Vitest's globals and nothing of Node's: no test left in this package
+    // touches the filesystem.
+    "types": ["vitest/globals"],
+    // Resolve the workspace packages through their `development` export
+    // condition, which points at src.
     //
     // Without it this read `dist/index.d.ts`, so the typecheck was answering a
     // question about the last build rather than about the source. Change the
@@ -18,9 +16,9 @@
     // beside this file. This was the odd one out.
     //
     // `tsconfig.json` deliberately does not say it. tsdown builds from there
-    // and bundles the two halves out of their own `dist`, so the build order
-    // `pnpm -r build` already guarantees stays the thing that decides what
-    // ships.
+    // and bundles the workspace packages out of their own `dist`, so the build
+    // order `pnpm -r build` already guarantees stays the thing that decides
+    // what ships.
     "customConditions": ["development"]
   },
   "include": ["src/**/*"],

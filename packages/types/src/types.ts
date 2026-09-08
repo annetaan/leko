@@ -481,8 +481,9 @@ export interface LekoStory {
  * The three types the machine takes as its one parameter: what an anchor is
  * here, what a step is, and what a story is.
  *
- * Written out rather than imported, so that nothing published has to name
- * anything the machine declares. DESIGN.md argues it under **Three packages,
+ * Written out here rather than imported from the machine: its `lib` is
+ * `ES2023` alone, so it cannot name `Element` and cannot import this, and the
+ * copy has to go this way round. DESIGN.md argues it under **The packages,
  * and the seam between them**.
  */
 export interface LekoWorld {

@@ -88,12 +88,15 @@ importers:
       '@annetaan/leko-machine':
         specifier: workspace:*
         version: link:../machine
+      '@annetaan/leko-presenter':
+        specifier: workspace:*
+        version: link:../presenter
       '@annetaan/leko-spotlight':
         specifier: workspace:*
         version: link:../spotlight
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
+      '@annetaan/leko-types':
+        specifier: workspace:*
+        version: link:../types
       tsdown:
         specifier: ^0.22.14
         version: 0.22.14(@volar/typescript@2.4.28)(typescript@5.9.3)
@@ -104,7 +107,25 @@ importers:
         specifier: ^24.13.3
         version: 24.13.3
 
+  packages/presenter:
+    dependencies:
+      '@annetaan/leko-machine':
+        specifier: workspace:*
+        version: link:../machine
+      '@annetaan/leko-spotlight':
+        specifier: workspace:*
+        version: link:../spotlight
+      '@annetaan/leko-types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+
   packages/spotlight: {}
+
+  packages/types: {}
 
 packages:
 

@@ -13,7 +13,7 @@ import {
   reduce,
   regionsOf,
 } from './plan.js'
-import type { LekoStep } from './types.js'
+import type { LekoStep } from '@annetaan/leko-types'
 
 // No page at all: `leko.test.ts` and `wiring.test.ts` drive the real
 // `DomPresenter` and ask what ended up on screen. This one takes the modes and
@@ -38,7 +38,7 @@ const glide = (): Glide => ({ settled: new Promise(() => {}), abandon: () => {} 
 
 /**
  * The re-entrant effects, checked on every outcome below — `reentrantIsLast`
- * in `packages/leko/model/README.md`.
+ * in `packages/presenter/model/README.md`.
  */
 const REENTRANT: ReadonlySet<Effect['kind']> = new Set(['reveal', 'arrive', 'lost'])
 

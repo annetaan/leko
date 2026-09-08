@@ -1,7 +1,7 @@
 import { afterEach, vi } from 'vitest'
 
 import { createLeko, type Leko } from './leko.js'
-import type { LekoOptions, LekoStep, LekoStory } from './types.js'
+import type { LekoOptions, LekoStep, LekoStory } from '@annetaan/leko-types'
 
 /*
  * What every browser test here needs to put a tour on a page and clean it up

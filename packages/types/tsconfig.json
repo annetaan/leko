@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // No ambient `@types` package: what is declared here is what a consumer's
+    // browser has, for the reason `packages/leko/tsconfig.json` gives.
+    "types": []
+  },
+  "include": ["src/**/*"]
+}

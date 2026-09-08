@@ -30,7 +30,7 @@ import {
   reduce,
   regionsOf,
 } from './plan.js'
-import type { LekoOptions, LekoStep, LekoWorld } from './types.js'
+import type { LekoOptions, LekoStep, LekoWorld } from '@annetaan/leko-types'
 
 const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
 

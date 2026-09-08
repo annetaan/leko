@@ -16,8 +16,8 @@ export default defineConfig({
   // tool.
   outExtensions: () => ({ js: '.js', dts: '.d.ts' }),
   deps: {
-    // Both halves are workspace `devDependencies`, so both are bundled rather
-    // than left as imports for npm to resolve. CLAUDE.md, **Adding a third-party
+    // The four workspace packages this one is made of are `devDependencies`,
+    // so all four are bundled rather than left as imports for npm to resolve. CLAUDE.md, **Adding a third-party
     // runtime dependency to `packages/leko`**, is why there is nothing else here
     // for this to reach.
     alwaysBundle: [/^@annetaan\//],

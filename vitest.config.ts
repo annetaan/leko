@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config'
 // Eight projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
 // project a new test belongs in**. The three browser projects are never jsdom
 // for the reason DESIGN.md gives under **How to write here, and where tests
-// go**, and `leko-plan` is what DESIGN.md argues under **Where a class has to
+// go**, and `presenter` is what DESIGN.md argues under **Where a class has to
 // wait on more than one thing, its mode is one union and a pure function says
 // what an event does to it**.
 //
@@ -62,8 +62,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'leko-plan',
-          include: ['packages/leko/src/plan.test.ts', 'packages/leko/src/replay.test.ts'],
+          name: 'presenter',
+          include: ['packages/presenter/src/**/*.test.ts'],
           environment: 'node',
         },
       },

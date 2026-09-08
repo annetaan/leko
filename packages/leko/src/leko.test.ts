@@ -702,7 +702,8 @@ test('a region whose hole is taller than half the screen leads with its top edge
 })
 
 test('a later region is not brought in', () => {
-  // `types.ts` says why the first region is the one a step is about.
+  // Later regions stay where they are — DESIGN.md, **Bringing a target into
+  // view**.
   const [upper, lower] = twoApart(port().height * 2)
 
   start([

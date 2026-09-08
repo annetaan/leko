@@ -1,12 +1,20 @@
 import { Machine } from '@annetaan/leko-machine'
-import { DomPresenter } from './presenter.js'
-import type { LekoOptions, LekoSignal, LekoState, LekoStep, LekoStory, LekoWorld } from './types.js'
+import { DomPresenter } from '@annetaan/leko-presenter'
+import type {
+  LekoOptions,
+  LekoSignal,
+  LekoState,
+  LekoStep,
+  LekoStory,
+  LekoWorld,
+} from '@annetaan/leko-types'
 
 /**
  * A tour, and everything the application says to it.
  *
- * The two halves meet here and nowhere else, and this class is the wiring and
- * the public vocabulary — DESIGN.md, **Three packages, and the seam between
+ * This class is the wiring: it builds a `Machine` and hands it the
+ * `DomPresenter` to draw with. Where the two halves meet is
+ * `@annetaan/leko-presenter` — DESIGN.md, **The packages, and the seam between
  * them**.
  */
 export class Leko {

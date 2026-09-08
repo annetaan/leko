@@ -1022,15 +1022,20 @@ scalar tween is all this needs, and a dependency here is a licensing and
 bundle-size liability for every consumer. `@annetaan/leko-spotlight` ships from
 this repository under the same licence, so the rule is not about it.
 
-## Three packages, and the seam between them
+## The packages, and the seam between them
 
+- `packages/types` is the public vocabulary — what a step, a story and a
+  target are — and nothing but types.
 - `packages/machine` decides which step the tour is on. **Its `lib` is `ES2023`
   alone, so a `document` there is a compile error.** Its tests run in Node
   against a fake.
+- `packages/presenter` is where the two halves meet: the mode the drawing is
+  in, what an event does to it, and the class that performs the effects.
 - `packages/spotlight` draws the scrim, the hole and the message. It does not
   know what a step is.
-- `packages/leko` wires the two together, owns the public types, and is the
-  only one that publishes.
+- `packages/leko` holds the class a consumer constructs, re-exports the
+  vocabulary `@annetaan/leko-types` declares, and is the only one that
+  publishes.
 
 What each half may ask of the other is `Presenter` and `Host` in
 `packages/machine/src/types.ts`:
@@ -1047,12 +1052,17 @@ What each half may ask of the other is `Presenter` and `Host` in
 - **The presenter is told, and never asks back.** No member of `Host` returns
   anything, and no member of `Presenter` takes a story.
 
-`Target` and the state literals are written out in both packages, deliberately:
-a published `.d.ts` referring to the private `@annetaan/leko-machine` would not
-resolve in anyone's project. `@annetaan/leko` bundles both halves in with
-`tsdown`, so a consumer installs one package with no runtime dependencies.
-**`pnpm check:pack` reads what `npm pack` would send and fails on a bare import
-the manifest does not depend on.**
+The state literals are written out on both sides of the seam, deliberately:
+`LekoState` in `packages/types` and `MachineState` in the machine. The
+vocabulary names `Element`, and the machine's `lib` is `ES2023` alone, so it
+cannot import the package; `World` narrows `LekoWorld` the same way, with
+`anchor: unknown` where the vocabulary says `Element`. `Target` is written
+twice as well, in `packages/types` and in `packages/spotlight`, and the JSDoc
+on `Target` in `spotlight/src/target.ts` says why. The four workspace packages
+are private, and `@annetaan/leko` bundles all of them in with `tsdown`, so a
+consumer installs one package with no runtime dependencies and a `.d.ts` that
+names none of them. **`pnpm check:pack` reads what `npm pack` would send and
+fails on a bare import the manifest does not depend on.**
 
 ## How to write here, and where tests go
 
@@ -1070,8 +1080,8 @@ the manifest does not depend on.**
 - **Where a class has to wait on more than one thing, its mode is one union
   and a pure function says what an event does to it.** The machine is
   `plan.ts` and `machine.ts`; the presenter is `plan.ts` and `presenter.ts` in
-  `packages/leko`, the same split. The presenter waits on a glide, a morph and
-  a retry deadline and listens to an observer and `resize`, and which of those
+  `packages/presenter`, the same split. The presenter waits on a glide, a morph
+  and a retry deadline and listens to an observer and `resize`, and which of those
   is running used to be four nullable fields read together, with the rules
   about their combinations written as prose that nothing checked. One field of
   four variants, each carrying what belongs to it, spells only the states the
@@ -1157,7 +1167,7 @@ carry anything on its own.
 | Evidence that a browser does not do what the spec suggests     | [`spike/`](spike/)                                           |
 | A situation a tour meets                                       | [`examples/sandbox/src/cases/`](examples/sandbox/src/cases/) |
 | The machine's states, in a form a search can walk              | [`packages/machine/model/`](packages/machine/model/)         |
-| The presenter's modes, in a form a search can walk             | [`packages/leko/model/`](packages/leko/model/)               |
+| The presenter's modes, in a form a search can walk             | [`packages/presenter/model/`](packages/presenter/model/)     |
 | How to walk the code, the layout, which project a test goes in | [ONBOARDING.md](ONBOARDING.md)                               |
 | How to work in the repository                                  | [CONTRIBUTING.md](CONTRIBUTING.md)                           |
 | How settled each state core is, and how that was measured      | [STATE-HEALTH.md](STATE-HEALTH.md)                           |

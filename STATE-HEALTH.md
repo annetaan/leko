@@ -9,7 +9,7 @@ each has a Quint model beside it that a search walks.
 This file is a **reading**, not a rule. [DESIGN.md](DESIGN.md) holds the rules
 and carries no history; the model READMEs under
 [`packages/machine/model/`](packages/machine/model/README.md) and
-[`packages/leko/model/`](packages/leko/model/README.md) hold the method. What is
+[`packages/presenter/model/`](packages/presenter/model/README.md) hold the method. What is
 here is a set of indicators, an argument for each, and where the two cores stood
 on **2026-09-05**, at `07f7f0d`.
 
@@ -36,10 +36,10 @@ question with an answer rather than a feeling.
 
 |           | the machine                          | the presenter                                   |
 | --------- | ------------------------------------ | ----------------------------------------------- |
-| Pure core | `packages/machine/src/plan.ts`       | `packages/leko/src/plan.ts`                     |
-| Shell     | `packages/machine/src/machine.ts`    | `packages/leko/src/presenter.ts`                |
+| Pure core | `packages/machine/src/plan.ts`       | `packages/presenter/src/plan.ts`                |
+| Shell     | `packages/machine/src/machine.ts`    | `packages/presenter/src/presenter.ts`           |
 | State     | `Core` — `position` and `phase`      | `Mode` — `idle`, `drawn`, `retrying`, `gliding` |
-| Model     | `packages/machine/model/machine.qnt` | `packages/leko/model/plan.qnt`                  |
+| Model     | `packages/machine/model/machine.qnt` | `packages/presenter/model/plan.qnt`             |
 | Extracted | 2026-08-26 (#88)                     | 2026-09-04 (#152)                               |
 
 ## What an indicator has to do here
@@ -266,13 +266,13 @@ Both model READMEs state things about the model beside them that nothing reads
 back, and five of those are wrong. This is the indicator with the shortest path
 to a fix and it applies to both cores equally.
 
-| where                                                        | says                            | is                       |
-| ------------------------------------------------------------ | ------------------------------- | ------------------------ |
-| `packages/machine/model/README.md`, **The corpus**           | `traces/` holds 11 traces       | 12                       |
-| `packages/machine/model/README.md`, opening                  | `machine.test.ts` is 1943 lines | 1778                     |
-| `packages/leko/model/README.md`, **What the corpus found**   | twenty edits to `plan.ts`       | twenty-two               |
-| `packages/leko/model/README.md`, **What the corpus found**   | these are the other ten         | twelve, in the table     |
-| `packages/leko/model/README.md`, **When `pnpm model` fails** | six invariants, in a command    | the model declares seven |
+| where                                                             | says                            | is                       |
+| ----------------------------------------------------------------- | ------------------------------- | ------------------------ |
+| `packages/machine/model/README.md`, **The corpus**                | `traces/` holds 11 traces       | 12                       |
+| `packages/machine/model/README.md`, opening                       | `machine.test.ts` is 1943 lines | 1778                     |
+| `packages/presenter/model/README.md`, **What the corpus found**   | twenty edits to `plan.ts`       | twenty-two               |
+| `packages/presenter/model/README.md`, **What the corpus found**   | these are the other ten         | twelve, in the table     |
+| `packages/presenter/model/README.md`, **When `pnpm model` fails** | six invariants, in a command    | the model declares seven |
 
 The last one is not a count and is the one to fix first. That heading gives the
 `quint run` line to reproduce a CI failure with, and it names the invariants
@@ -314,7 +314,7 @@ about the order of a list that nothing but a test and an invariant enforces.
 
 So the order of work the reading suggests:
 
-1. Stop `packages/leko/model/README.md` naming its invariants by hand — #166.
+1. Stop `packages/presenter/model/README.md` naming its invariants by hand — #166.
    A `--invariants` line typed into prose is a second copy of a list the model
    holds, and this one is already missing `worldIsFixed`, so a failure
    reproduced from it is told there is nothing there.
@@ -351,15 +351,17 @@ else, and the two cheapest on the list are among them.
 # settledness: every commit to each pure core, in order, with the breaking ones
 # marked by their own subject line. The extraction is the last entry.
 git log --format="%ad %s" --date=short -- packages/machine/src/plan.ts
-git log --format="%ad %s" --date=short -- packages/leko/src/plan.ts
+git log --follow --format="%ad %s" --date=short -- packages/presenter/src/plan.ts
 
-# settledness: the share of each pair's commits that were corrections
+# settledness: the share of each pair's commits that were corrections. The
+# presenter's pair moved out of `packages/leko` in #185, and `--follow` takes one
+# path, so this counts from the move; the `git log --follow` above has the rest.
 rate() { local all fix
   all=$(git log --format=%s -- "${@}" | wc -l)
   fix=$(git log --format=%s -- "${@}" | grep -c '^fix')
   printf '%d of %d\n' "$fix" "$all"; }
 rate packages/machine/src/plan.ts packages/machine/src/machine.ts
-rate packages/leko/src/plan.ts packages/leko/src/presenter.ts
+rate packages/presenter/src/plan.ts packages/presenter/src/presenter.ts
 
 # grip: the share of each pair that is shell
 share() { local pure shell
@@ -367,19 +369,19 @@ share() { local pure shell
   shell=$(grep -vcE '^\s*(//|\*|/\*|$)' "$2")
   printf '%d%%\n' $(( (shell * 200 / (pure + shell) + 1) / 2 )); }
 share packages/machine/src/plan.ts packages/machine/src/machine.ts
-share packages/leko/src/plan.ts packages/leko/src/presenter.ts
+share packages/presenter/src/plan.ts packages/presenter/src/presenter.ts
 
 # grip: branches in the shell
-grep -cE '\bif \(|\? ' packages/machine/src/machine.ts packages/leko/src/presenter.ts
+grep -cE '\bif \(|\? ' packages/machine/src/machine.ts packages/presenter/src/presenter.ts
 
 # what the search can see: invariants and witnesses, read the way CI reads them
 pnpm model
 
 # drift: what is on disk, against what the READMEs say about themselves
 ls packages/machine/model/traces | wc -l
-ls packages/leko/model/traces | wc -l
+ls packages/presenter/model/traces | wc -l
 wc -l packages/machine/src/machine.test.ts
-grep -A2 -- '--invariants' packages/leko/model/README.md
+grep -A2 -- '--invariants' packages/presenter/model/README.md
 ```
 
 Five rows are read rather than counted, and a command cannot take them:

@@ -1,7 +1,7 @@
 /**
  * What the machine needs of the world, and what it may ask of whatever draws
- * the tour. DESIGN.md argues the seam, and why `@annetaan/leko` declares the
- * published shapes again rather than importing them, under **Three packages,
+ * the tour. DESIGN.md argues the seam, and why `@annetaan/leko-types` declares
+ * the published shapes again rather than importing them, under **The packages,
  * and the seam between them**.
  */
 

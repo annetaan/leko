@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // The replay reads its corpus off disk, so this takes Node's types beside
+    // the DOM ones the rest of the package is written against. Only here:
+    // `tsconfig.json` is what the build reads, and nothing that ships touches
+    // the filesystem.
+    "types": ["vitest/globals", "node"],
+    // Resolve `@annetaan/leko-machine`, `@annetaan/leko-spotlight` and
+    // `@annetaan/leko-types` through their `development` export condition,
+    // which points at src.
+    //
+    // Without it this read `dist/index.d.ts`, so the typecheck was answering a
+    // question about the last build rather than about the source. Change the
+    // machine, skip the build, and `pnpm typecheck` passes against types that
+    // no longer exist — which is what it did while `Presenter` was growing a
+    // type parameter. Vitest resolves this way, and so do the three type tests
+    // under `packages/leko/type-tests`. This was the odd one out.
+    //
+    // `tsconfig.json` deliberately does not say it. It is what `tsc` emits
+    // from, and `@annetaan/leko` bundles this package out of its own `dist`,
+    // so the build order `pnpm -r build` already guarantees stays the thing
+    // that decides what ships.
+    "customConditions": ["development"]
+  },
+  "include": ["src/**/*"],
+  "exclude": []
+}

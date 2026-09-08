@@ -1,6 +1,6 @@
 # A model of the presenter's plan
 
-`plan.qnt` is `packages/leko/src/plan.ts` written down as a state machine, in
+`plan.qnt` is `packages/presenter/src/plan.ts` written down as a state machine, in
 [Quint](https://quint.sh/). A search walks it looking for a state that breaks one
 of its invariants. It is the presenter's half of what
 [`packages/machine/model/`](../../machine/model/) is for the machine, and that
@@ -376,7 +376,7 @@ that should have been answered with nothing and was not. Those are claims 1 to
 The run prints `--seed=0x…`. Reproduce with it:
 
 ```bash
-node_modules/.bin/quint run packages/leko/model/plan.qnt \
+node_modules/.bin/quint run packages/presenter/model/plan.qnt \
   --invariants screenIsTheModes armedIsTheModes glidingIsBare idleIsClean reentrantIsLast boundedReentry \
   --max-steps=24 --max-samples=100000 --seed=0x... --verbosity=3
 ```

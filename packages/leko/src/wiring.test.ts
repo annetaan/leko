@@ -20,9 +20,9 @@ import {
   start,
   watched,
 } from './harness.js'
-import { DomPresenter } from './presenter.js'
+import { DomPresenter } from '@annetaan/leko-presenter'
 import type { Leko } from './leko.js'
-import type { LekoProblem, LekoStep } from './types.js'
+import type { LekoProblem, LekoStep } from '@annetaan/leko-types'
 
 // The public API driven through the real `DomPresenter`, in one browser —
 // ONBOARDING.md, **Which Vitest project a new test belongs in**. Layout an
@@ -871,8 +871,8 @@ test('a resize while the target is hidden or removed takes the standing layers w
     window.dispatchEvent(new Event('resize'))
 
     // There is nothing to restack against and nothing new to cut, but the
-    // surface still moved — `presenter.ts` says what a layer left at its old
-    // height would leave uncovered.
+    // surface still moved — `DomPresenter.restack` in `@annetaan/leko-presenter`
+    // says what a layer left at its old height would leave uncovered.
     expect(leko.state, take).toBe('running')
     expect(layer.getBoundingClientRect().height, take).toBeGreaterThan(3000)
     expect(holes(), take).toBe(1)
@@ -1293,7 +1293,8 @@ test('a resize while the page glides puts the holes back and says nothing', asyn
   // The layers are remade against the surface as it is now and the standing
   // hole is put back in them. The message is not: it belongs to the step being
   // left, and the landing has its own to draw. The way out is placed regardless,
-  // for the reason `plan.ts` gives.
+  // for the reason the `resized` case of the presenter's plan gives, in
+  // `@annetaan/leko-presenter`.
   expect(holes()).toBe(1)
   expect(saying()).toBe(false)
   const out = closer()!.querySelector('button')!

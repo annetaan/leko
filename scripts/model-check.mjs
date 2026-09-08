@@ -2,7 +2,7 @@
 // count how often each search reached the states the model was written to reach.
 //
 // Two models: `packages/machine/model/machine.qnt` is the machine's `plan.ts`,
-// and `packages/leko/model/plan.qnt` is the presenter's. Each is searched under
+// and `packages/presenter/model/plan.qnt` is the presenter's. Each is searched under
 // its own invariants and witnesses, and the run fails if either search breaks an
 // invariant or leaves a witness unreached.
 //
@@ -42,7 +42,7 @@ const MODELS = [
   },
   {
     name: "the presenter's plan",
-    model: 'packages/leko/model/plan.qnt',
+    model: 'packages/presenter/model/plan.qnt',
     searches: [{ name: 'from idle', args: [] }],
   },
 ]

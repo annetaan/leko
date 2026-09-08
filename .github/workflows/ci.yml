@@ -37,7 +37,7 @@ jobs:
       # nobody opened.
       - run: pnpm check:citations
       # A search over the two Quint models — `packages/machine/model/machine.qnt`
-      # and `packages/leko/model/plan.qnt` — for a state that breaks one of
+      # and `packages/presenter/model/plan.qnt` — for a state that breaks one of
       # their invariants. The seeds are fresh every run, so a failure here is
       # not reproducible from this file: the run prints the seed that found it.
       # That is a fuzzer working, not flake.

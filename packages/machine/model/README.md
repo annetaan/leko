@@ -26,7 +26,7 @@ pnpm test           # among other things, replay the corpus
 ```
 
 Both commands cover the presenter's model as well; see
-[`packages/leko/model/README.md`](../../leko/model/README.md). What is written
+[`packages/presenter/model/README.md`](../../presenter/model/README.md). What is written
 below is about this one.
 
 `pnpm model` takes about 10 seconds here and runs in CI. It needs no JVM.

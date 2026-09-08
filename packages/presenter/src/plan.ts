@@ -1,5 +1,5 @@
 import type { Glide } from '@annetaan/leko-spotlight'
-import type { LekoStep, LekoTarget } from './types.js'
+import type { LekoStep, LekoTarget } from '@annetaan/leko-types'
 
 // Which mode the presenter is in between calls, and what an event does to it.
 // Pure, so `plan.test.ts` drives it in Node one `(mode, event)` pair at a time,

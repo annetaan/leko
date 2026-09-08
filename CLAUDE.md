@@ -4,7 +4,8 @@ Leko is a product-tour library that highlights an element by cutting a hole in a
 overlay, so the user can interact with the real element underneath.
 
 **Read [DESIGN.md](DESIGN.md) before changing anything under `packages/leko/`,
-`packages/machine/` or `packages/spotlight/`.** It states the three constraints
+`packages/types/`, `packages/presenter/`, `packages/machine/` or
+`packages/spotlight/`.** It states the three constraints
 the library exists for and argues every rule about the scrim next to the browser
 behaviour that forced it, citing the page under [`spike/`](spike/) that settled
 each one. Read the cited
@@ -63,8 +64,9 @@ DESIGN.md. Do not do any of them without reading that page first.
   besides. The glide is Leko's own frame loop, the way the morph is, and ends
   on its own clock.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none,
-  deliberately. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` are
-  first-party and are fine.
+  deliberately. `@annetaan/leko-types`, `@annetaan/leko-machine`,
+  `@annetaan/leko-presenter` and `@annetaan/leko-spotlight` are first-party and
+  are fine.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design: the vocabulary is gathered from those calls, and a `reached()` call
   has to stay compilable in builds where no tour runs. DESIGN.md argues it.
@@ -100,10 +102,10 @@ DOM work stays in `packages/spotlight` and in `presenter.ts` and stays small. A
 handle a timer or a frame hands back is data about what is running, so it
 belongs in the state that names it rather than in a field of its own. Where
 that state is a pure plan's, the plan cannot make the handle: the mode names
-the wait (`Pending` in `packages/leko/src/plan.ts`) and the shell holds what
-the page handed back, armed and cleared by effect, the way its observer is. The
-glide goes the other way — the shell mints it before the event and the mode
-carries it — so the plan can say what to stop.
+the wait (`Pending` in `packages/presenter/src/plan.ts`) and the shell holds
+what the page handed back, armed and cleared by effect, the way its observer
+is. The glide goes the other way — the shell mints it before the event and the
+mode carries it — so the plan can say what to stop.
 
 `packages/machine` decides which step the tour is on and takes no `lib.dom`, so
 a `document` in it is a compile error. It is the same split again inside:
@@ -116,20 +118,21 @@ decided it, written out rather than given a name of its own.
 The three types a host brings are one parameter, `W extends World`. A signature
 names one type, never three.
 
-The presenter is split the same way. `packages/leko/src/plan.ts` is the mode
-the presenter is in — one union, `idle`, `drawn`, `retrying` or `gliding`, each
-variant carrying what belongs to it — and what an event does to it, as the next
-mode and a list of effects. It is pure and its tests run in Node. `presenter.ts`
+The presenter is split the same way. `packages/presenter/src/plan.ts` is the
+mode the presenter is in — one union, `idle`, `drawn`, `retrying` or `gliding`,
+each variant carrying what belongs to it — and what an event does to it, as the
+next mode and a list of effects. It is pure and its tests run in Node. `presenter.ts`
 resolves targets, measures, builds the chrome and is a `switch` over the
 effects. What the page says — whether a target resolved, which glide landed —
 goes into the event as data, and a decision that lands in `presenter.ts` is in
 the wrong file.
 
-`packages/spotlight` draws and knows nothing about steps. `packages/leko` wires
-the two together, owns the public types, and is the only package that publishes.
-What each half may ask of the other is `Presenter` and `Host` in
-`packages/machine/src/types.ts`, and DESIGN.md argues the two rules that seam
-exists to keep.
+`packages/spotlight` draws and knows nothing about steps. `packages/presenter`
+wires the two together, `packages/types` is the public vocabulary, and
+`packages/leko` holds the class, re-exports that vocabulary, and is the only
+package that publishes. What each half may ask of the other is `Presenter` and
+`Host` in `packages/machine/src/types.ts`, and DESIGN.md argues the two rules
+that seam exists to keep.
 
 New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a
@@ -162,9 +165,10 @@ is the procedure.
   address without the id, so nothing breaks when a trailer drifts; it just
   stops being greppable, and the history was normalised once already.
 - `packages/leko` is built by `tsdown`, not `tsc`, because it bundles
-  `@annetaan/leko-machine` and `@annetaan/leko-spotlight` in. Both are private
-  and neither is on the registry, so an import of either left in `dist/` is a
-  package a consumer cannot install. `pnpm check:pack` is what catches that, and
+  `@annetaan/leko-types`, `@annetaan/leko-machine`, `@annetaan/leko-presenter`
+  and `@annetaan/leko-spotlight` in. All four are private and none is on the
+  registry, so an import of any of them left in `dist/` is a package a consumer
+  cannot install. `pnpm check:pack` is what catches that, and
   it runs in CI. Anything that changes what a package imports wants it run.
 - Markdown is out of the formatter's reach, and so are the pages under
   `spike/`: `waapi-clip-path/index.html` is attached to

@@ -190,7 +190,7 @@ A hole is shown and not handed over until the step says `interactive: true`.
 Most steps of a tour explain what is already on screen, and a click on one of
 those can take the user off the page the next step points at. Every option is
 documented next to itself in
-[`packages/leko/src/types.ts`](packages/leko/src/types.ts).
+[`packages/types/src/types.ts`](packages/types/src/types.ts).
 
 ## What makes it different
 

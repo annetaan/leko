@@ -8,12 +8,10 @@
     // by accident.
     "noEmit": true,
     // No ambient `@types` package, so nothing that ships can reach for a global
-    // the browser has not got. `tsconfig.test.json` beside this takes Node's
-    // types, because the replay reads its corpus off disk, and its `include` is
-    // the whole of `src` — so without this line that would be the type
-    // environment for every shipped file too, and a `process.env` in
-    // `presenter.ts` would compile. `pnpm typecheck` runs both programs for
-    // that reason: this one is the one that says what a consumer's browser has.
+    // the browser has not got, and a `process.env` in `leko.ts` is a compile
+    // error. `tsconfig.test.json` beside this adds Vitest's globals for the
+    // tests; `pnpm typecheck` runs both programs, and this one is the one that
+    // says what a consumer's browser has.
     "types": []
   },
   "include": ["src/**/*"],

@@ -454,7 +454,8 @@ test('a refusal during the opening morph does not take the message with it', asy
     { duration: 200 },
   )
 
-  // The box waits for the cutout to land, for the reason `presenter.ts` gives.
+  // The box waits for the cutout to land, for the reason the `morphed` case of
+  // the presenter's plan gives, in `@annetaan/leko-presenter`.
   expect(visible()).toBe(false)
   press()
 

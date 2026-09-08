@@ -1,5 +1,5 @@
 // Harvest the corpora `packages/machine/src/replay.test.ts` and
-// `packages/leko/src/replay.test.ts` replay.
+// `packages/presenter/src/replay.test.ts` replay.
 //
 // Each entry below names a state in one of the two models and asks `quint run`
 // to find a way to it, by handing it the negation as an invariant: the shortest
@@ -46,8 +46,8 @@ const CORPORA = [
     ],
   },
   {
-    model: 'packages/leko/model/plan.qnt',
-    out: 'packages/leko/model/traces',
+    model: 'packages/presenter/model/plan.qnt',
+    out: 'packages/presenter/model/traces',
     // The four claims the issue named are the first four. The rest are the
     // entrances the review of the first plan found unenumerated, and the two
     // last lines of defence.

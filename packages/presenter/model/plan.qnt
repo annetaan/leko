@@ -1,4 +1,4 @@
-// `packages/leko/src/plan.ts`, written down as a state machine so that a search
+// `packages/presenter/src/plan.ts`, written down as a state machine so that a search
 // can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
@@ -128,7 +128,7 @@ module plan {
     // --- the world
     // The steps, as {@link STEPS} defines them. Here rather than read off that
     // `pure val` alone so that the table lands in every state of a trace, and
-    // `packages/leko/src/replay.test.ts` builds its fixture out of the trace
+    // `packages/presenter/src/replay.test.ts` builds its fixture out of the trace
     // rather than out of a second copy written by hand. One definition, two
     // readers: everything with a state reads this, and {@link pointsAt} reads
     // `STEPS` because `reduce` is handed no state, the way `plan.ts` reads the
@@ -735,7 +735,7 @@ module plan {
     }
 
   /// The step table never changes. It is in the state so that it reaches a
-  /// trace and `packages/leko/src/replay.test.ts` can build its fixture from
+  /// trace and `packages/presenter/src/replay.test.ts` can build its fixture from
   /// one, and being in the state is what makes that worth saying out loud:
   /// `pointsAt` reads {@link STEPS} directly, because `reduce` is handed no
   /// state, so anything that wrote `world` would leave the two disagreeing and
@@ -793,7 +793,7 @@ module plan {
   val mutatedIgnored: bool = went(m, "mutated-ignored")
 
   /// A batch about a step the hunt is not looking for. The plan turns it down,
-  /// and `packages/leko/src/replay.test.ts` is what caught a plan that took it:
+  /// and `packages/presenter/src/replay.test.ts` is what caught a plan that took it:
   /// `plan.test.ts` had no example for a hunt hearing about another step.
   val mutatedElsewhere: bool = went(m, "mutated-elsewhere")
   val unmeasuredRetry: bool = went(m, "unmeasured-retry")
@@ -820,7 +820,7 @@ module plan {
   /// The same, with a step standing behind the glide, so what it inherited is
   /// a step rather than nothing.
   ///
-  /// `packages/leko/src/replay.test.ts` is why this is separate from the one
+  /// `packages/presenter/src/replay.test.ts` is why this is separate from the one
   /// above. A glide begun from a retry that had nothing standing looks exactly
   /// like one that inherited nothing at all, so a corpus that only reached
   /// that one replayed green against a plan which dropped `standing` on the

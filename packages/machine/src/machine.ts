@@ -16,7 +16,7 @@ import type { Host, MachineOptions, MachineState, Presenter, World } from './typ
  *
  * **Nothing here decides anything**, and nothing here knows what an element is:
  * CLAUDE.md states both under **Writing code here**, and DESIGN.md draws the
- * seam under **Three packages, and the seam between them**.
+ * seam under **The packages, and the seam between them**.
  */
 export class Machine<W extends World> {
   #core: Core<W> = idle()

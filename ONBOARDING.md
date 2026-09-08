@@ -66,20 +66,26 @@ drive the case.
 pnpm test
 ```
 
-633 test runs across 16 files. It takes about 20 seconds on a laptop once the
-browsers are installed. Six Vitest projects, three of them in real browsers.
+It takes well under a minute on a laptop once the browsers are installed.
+`vitest.config.ts` defines the projects, three of them in real browsers.
 
 ## The shape of the code
 
-Four packages. One of them publishes.
+Six packages. One of them publishes.
 
 ```
                     @annetaan/leko          the only published package
-                    packages/leko/          owns the public types
-                     |            |
-        Presenter    |            |    Host
-     (machine asks)  |            |  (presenter reports)
-                     v            v
+                    packages/leko/          the class, and the entry point
+                    /        |          \
+                   /         |           \      @annetaan/leko-types
+                  /          v            '-->  packages/types/
+                 |  @annetaan/leko-presenter    the public vocabulary
+                 |  packages/presenter/  ---->  types only
+                 |  where the two halves meet
+                 |    |                 |
+   new Machine() |    | Presenter       | Host
+                 |    | (machine asks)  | (presenter reports)
+                 v    v                 v
       @annetaan/leko-machine   @annetaan/leko-spotlight
       packages/machine/        packages/spotlight/
       which step, and when     the scrim, the hole, the message
@@ -90,25 +96,25 @@ Four packages. One of them publishes.
 ```
 
 The two halves never import each other. They meet in
-`packages/leko/src/presenter.ts`, and what each may ask of the other is written
-down in `Presenter` and `Host`, in `packages/machine/src/types.ts`.
+`packages/presenter/src/presenter.ts`, and what each may ask of the other is
+written down in `Presenter` and `Host`, in `packages/machine/src/types.ts`.
 
 `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in that
-package is a compile error. That is what lets its 73 tests run in Node against a
-fake presenter the test file writes, in under 200ms, instead of three times in
-three browser engines.
+package is a compile error. That is what lets its tests run in Node against a
+fake presenter the test file writes, in a fraction of a second, instead of three
+times in three browser engines.
 
-`packages/leko` is built by `tsdown`, which bundles both halves in. Both are
-`private: true` and neither is on npm, so an import of either left in `dist/` is
-a package a consumer cannot install. `pnpm check:pack` catches that and CI runs
-it.
+`packages/leko` is built by `tsdown`, which bundles the other four in. All four
+are `private: true` and none is on npm, so an import of any of them left in
+`dist/` is a package a consumer cannot install. `pnpm check:pack` catches that
+and CI runs it.
 
 | File | What it holds |
 | --- | --- |
-| `packages/leko/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | The public class. Four getters and six methods |
-| `packages/leko/src/plan.ts` | The presenter's mode, and what each event does to it. Pure |
-| `packages/leko/src/presenter.ts` | `DomPresenter`: the two halves, wired. It performs the plan's effects and decides nothing |
+| `packages/types/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
+| `packages/leko/src/leko.ts` | The public class. Four getters and three methods |
+| `packages/presenter/src/plan.ts` | The presenter's mode, and what each event does to it. Pure |
+| `packages/presenter/src/presenter.ts` | `DomPresenter`: the two halves, wired. It performs the plan's effects and decides nothing |
 | `packages/machine/src/types.ts` | What a host brings (`World`, `StepBase`, `StoryBase`) and what a presenter owes (`Presenter`, `Host`) |
 | `packages/machine/src/plan.ts` | The state, and what each event does to it. Pure |
 | `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
@@ -125,7 +131,7 @@ it.
 
 ## Read the files in this order
 
-**1. `packages/leko/src/types.ts`**
+**1. `packages/types/src/types.ts`**
 
 Start with the longest file in the repository. Almost none of it is code. It is the public API
 with the argument for each option written next to it, and reading it gives you
@@ -142,7 +148,7 @@ what the machine may ask of whatever draws, and `Host` is the three things a
 presenter may report back.
 
 Read the second half twice. Three rules live there and DESIGN.md states each under
-[Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
+[The packages, and the seam between them](DESIGN.md#the-packages-and-the-seam-between-them).
 The presenter never schedules itself. No words cross the seam, and the one
 string that does is the reason a guard gave. The presenter is told and never
 asks back.
@@ -178,7 +184,7 @@ rectangles from `complementRects` on the page.
 
 The box. Mostly inline styles and one interesting function, `chooseSide`.
 
-**7. `packages/leko/src/plan.ts`, then `presenter.ts`**
+**7. `packages/presenter/src/plan.ts`, then `presenter.ts`**
 
 Now the wiring makes sense, and it is the machine's split again. `plan.ts` is
 the mode the presenter is in — `idle`, `drawn`, `retrying` or `gliding`, one
@@ -190,7 +196,7 @@ those effects. Read `dispatch` and `perform` there the way you read them in
 
 **8. `packages/leko/src/leko.ts`**
 
-Four getters and six methods, each one delegating to the machine. It is thin
+Four getters and three methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
 **9. `packages/codegen/`** (optional)
@@ -265,10 +271,10 @@ machine a search can walk, in
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
 finds are replayed against the real class by `packages/machine/src/replay.test.ts`.
 The presenter's `plan.ts` has a model of the same shape in
-[`packages/leko/model/plan.qnt`](packages/leko/model/plan.qnt), and the same
+[`packages/presenter/model/plan.qnt`](packages/presenter/model/plan.qnt), and the same
 command walks it; its traces are replayed against the real `reduce` by
-`packages/leko/src/replay.test.ts`, which is the machine's arrangement inverted
-— a real plan over fake effects rather than a real machine over a fake
+`packages/presenter/src/replay.test.ts`, which is the machine's arrangement
+inverted — a real plan over fake effects rather than a real machine over a fake
 presenter. Read the README beside each model before changing either
 half, because a model that has drifted away from the code is worse than no
 model.
@@ -361,7 +367,7 @@ Grep for the other half of it:
 
 ```bash
 grep -rn "addEventListener\|new MutationObserver" \
-  packages/leko/src packages/spotlight/src packages/machine/src | grep -v "\.test\."
+  packages/presenter/src packages/spotlight/src packages/machine/src | grep -v "\.test\."
 ```
 
 Six lines come back. They are every listener the library installs, and none of
@@ -401,7 +407,7 @@ whether a browser could get the answer wrong.
 
 | Project | Runs in | Take a test here when |
 | --- | --- | --- |
-| `leko-plan` | Node | The claim is about which mode the presenter is in and what it owes for an event, with no page |
+| `presenter` | Node | The claim is about which mode the presenter is in and what it owes for an event, with no page |
 | `machine` | Node | The claim never touches layout. Which step, when, what was reported |
 | `codegen` | Node | The claim is about reading TypeScript source or writing a file |
 | `scripts` | Node | The claim is about the text a repository check reads — a file's comments, a citation of a heading |
@@ -424,22 +430,23 @@ DESIGN.md says so under
 
 | Change | Files |
 | --- | --- |
-| A new option on a step or story | `leko/src/types.ts`, then `machine/src/types.ts` if the machine reads it |
+| A new option on a step or story | `types/src/types.ts`, then `machine/src/types.ts` if the machine reads it |
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
-| What a target going, a glide landing or a resize does to what is drawn | `leko/src/plan.ts`, and its tests |
+| What a target going, a glide landing or a resize does to what is drawn | `presenter/src/plan.ts`, and its tests |
 | How the page is brought to a target | `spotlight/src/glide.ts`, with `scrollDelta` and `glideDuration` in `geometry.ts` |
 | Which surfaces carry a target, and where its box lands on one | `spotlight/src/surface.ts`, and its tests |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
-| What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `leko/src/presenter.ts` |
+| What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `presenter/src/presenter.ts` |
 | What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |
 
-`Target` and the two state literals are written out twice, in
-`@annetaan/leko` and in the package underneath it. That is deliberate while
-those packages are private, and DESIGN.md explains it under
-[Three packages, and the seam between them](DESIGN.md#three-packages-and-the-seam-between-them).
+The two state literals are written out twice, `LekoState` in
+`@annetaan/leko-types` and `MachineState` in the machine underneath it, and so
+is `Target`, in the vocabulary and in `spotlight/src/target.ts`. Both are
+deliberate, and DESIGN.md explains it under
+[The packages, and the seam between them](DESIGN.md#the-packages-and-the-seam-between-them).
 Change one and change the other.
 
 Before opening a pull request:

@@ -4,7 +4,7 @@ Thanks for looking. Leko is pre-release, so the API still moves; issues that
 report a broken assumption are as useful as pull requests.
 
 This file is the commands and the rules. [ONBOARDING.md](ONBOARDING.md) is the
-code: which file to open first, what the three packages are for, and one trace
+code: which file to open first, what each package is for, and one trace
 from a `reached()` call to the pixels it moves. Read it before your first
 change.
 
@@ -66,29 +66,29 @@ pnpm model:traces    # regenerate the traces those searches replay against
 their invariants. [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt)
 is the machine's `plan.ts` written down as a state machine; the traces it finds
 are committed and replayed against the real class by
-`packages/machine/src/replay.test.ts`. [`packages/leko/model/plan.qnt`](packages/leko/model/plan.qnt)
+`packages/machine/src/replay.test.ts`. [`packages/presenter/model/plan.qnt`](packages/presenter/model/plan.qnt)
 is the presenter's `plan.ts` written down the same way, with what the shell keeps
 implicitly said out loud so the invariants can read it. Together they take
 twenty to forty seconds depending on the machine, need no JVM, and run in CI. The seeds are fresh every run, so a
 failure there will not reproduce from the workflow file. The run prints the seed
 that found it. [`packages/machine/model/README.md`](packages/machine/model/README.md)
-and [`packages/leko/model/README.md`](packages/leko/model/README.md) say what
+and [`packages/presenter/model/README.md`](packages/presenter/model/README.md) say what
 each model covers and what it does not.
 
 `pnpm model:traces` regenerates both corpora. Each trace is harvested by handing
 `quint run` the negation of a target as its invariant, so every one of them
 arrives somewhere worth arriving, and each is then replayed against the real
 code — `packages/machine/src/replay.test.ts` drives a real `Machine` over a fake
-presenter, and `packages/leko/src/replay.test.ts` drives the real `reduce` over
-fake effects. The seeds are fixed so a diff means something. They are not
+presenter, and `packages/presenter/src/replay.test.ts` drives the real `reduce`
+over fake effects. The seeds are fixed so a diff means something. They are not
 portable across Quint versions, which is why regenerating is a command somebody
 runs rather than something CI checks.
 
 `pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
-`leko-wiring` in Chromium alone, and `leko-plan`, `machine`, `codegen` and
-`scripts` in Node. `leko-plan` is the presenter's plan twice over: `plan.test.ts` one
-`(mode, event)` pair at a time, and `replay.test.ts` over the corpus the search
-harvested.
+`leko-wiring` in Chromium alone, and `presenter`, `machine`, `codegen` and
+`scripts` in Node. `presenter` is the presenter's plan twice over:
+`plan.test.ts` one `(mode, event)` pair at a time, and `replay.test.ts` over the
+corpus the search harvested.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in
 each one. The short version is whether a browser could get the answer wrong.
 
@@ -106,8 +106,9 @@ carries the names alone, so an edit that moves a line changes nothing in it.
 
 ## What `@annetaan/leko` ships
 
-`packages/leko` is the only package here that publishes. `packages/machine` and
-`packages/spotlight` are `private: true` and stay that way.
+`packages/leko` is the only package here that publishes. `packages/types`,
+`packages/machine`, `packages/presenter` and `packages/spotlight` are
+`private: true` and stay that way.
 
 That means `packages/leko` cannot import them the way a package normally imports
 a dependency. It did, for a while. `tsc` emits one file per source file and
@@ -123,10 +124,10 @@ packages and everything resolves, so the build passed, the typecheck passed, and
 265 tests passed in three browsers. Every check the repository has was asking
 about the workspace rather than about the tarball.
 
-So `packages/leko` is built by `tsdown`, which bundles both halves into one
-`dist/index.js` and one `dist/index.d.ts`. Both are workspace `devDependencies`
-now. What a consumer installs is a single package with no runtime dependencies,
-which is what `packages/leko` promised in the first place.
+So `packages/leko` is built by `tsdown`, which bundles the four into one
+`dist/index.js` and one `dist/index.d.ts`. All four are workspace
+`devDependencies` now. What a consumer installs is a single package with no
+runtime dependencies, which is what `packages/leko` promised in the first place.
 
 `pnpm check:pack` is the check. It reads what `npm pack` would send, finds every
 bare import in it, and fails if one names something the manifest does not depend
@@ -191,8 +192,9 @@ page, not just the rule.
   morph is, so it ends on its own clock and stops when Leko says.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none on
   purpose: a dependency there is a licensing and bundle-size liability for every
-  consumer. `@annetaan/leko-machine` and `@annetaan/leko-spotlight` come from
-  this repository under the same licence and are not what the rule is about.
+  consumer. `@annetaan/leko-types`, `@annetaan/leko-machine`,
+  `@annetaan/leko-presenter` and `@annetaan/leko-spotlight` come from this
+  repository under the same licence and are not what the rule is about.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design. The vocabulary is gathered *from* those calls, so an error there fires
   only between typing a new name and the generator running, and a `reached()`

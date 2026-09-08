@@ -1,0 +1,42 @@
+{
+  "name": "@annetaan/leko-presenter",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The presenter: the mode Leko's drawing is in, what an event does to it, and the class that performs the effects. Where the machine and the spotlight meet.",
+  "homepage": "https://github.com/annetaan/leko",
+  "bugs": "https://github.com/annetaan/leko/issues",
+  "license": "MIT",
+  "author": "Annetaan Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annetaan/leko.git",
+    "directory": "packages/presenter"
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@annetaan/leko-machine": "workspace:*",
+    "@annetaan/leko-spotlight": "workspace:*",
+    "@annetaan/leko-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3"
+  }
+}
