@@ -118,6 +118,8 @@ it.
 | `packages/spotlight/src/glide.ts` | The scroll that brings a target into view |
 | `packages/spotlight/src/message.ts` | The box beside the hole |
 | `packages/spotlight/src/focus.ts` | The ring Tab cannot leave |
+| `packages/spotlight/src/close.ts` | The way out, and the corner it keeps to |
+| `packages/spotlight/src/motion.ts` | Whether the tour moves things or sets them |
 | `packages/codegen/src/scan.ts` | Every name a `reached()` call reports |
 
 ## Read the files in this order
