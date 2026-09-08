@@ -212,7 +212,7 @@ This is the trace worth walking with the files open. The application calls
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` is where it resolves the anchor and calls `presenter.show` |
 | 7 | `presenter.ts` `show`, then `plan.ts` the `show` event, then `presenter.ts` `reveal` | The plan stops whatever glide was running and moves to `drawn`, owing a `disarm` and a `reveal`. `reveal` works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
 | 8 | `scrim.ts` `morph` | Pads both cutout lists to the same length, then starts the loop |
-| 9 | `scrim.ts` `run` | Writes one `lerpPath` string into `element.style.clipPath` per frame. Main thread, on purpose |
+| 9 | `scrim.ts` `run`, then `paint` | Interpolates the cutouts with `lerpCutouts` and writes the three mask properties `maskLayers` makes from them, once per frame. Main thread, on purpose |
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
 | 11 | `plan.ts` the `morphed` event, then `presenter.ts` `say` | The morph finished, so the plan owes the words — whatever the step has been told by now — and `say` puts them beside the hole |
 | 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
