@@ -101,7 +101,10 @@ export interface Presenter<W extends World> {
   /**
    * The step's anchor, or `null` where it is not on the page and `null` again
    * where the step names nothing to point at. Which of the two it was is a
-   * drawing question, and {@link show} is where it is answered.
+   * drawing question, and {@link show} is where it is answered. The `validate`
+   * effect asks this too, and does not tell the two apart: the vocabulary
+   * refuses a guard on a step with no target, so a `null` there is a target
+   * that has gone.
    */
   resolve(step: W['step']): W['anchor'] | null
   /**

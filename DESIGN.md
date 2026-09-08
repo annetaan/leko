@@ -88,11 +88,13 @@ type TargetFunction = () => Element | null;
 type LekoTarget = Selector | TargetFunction;
 interface LekoRegion { elements: LekoTarget | LekoTarget[]; interactive?: boolean }
 interface LekoShownRegion { elements: LekoTarget | LekoTarget[]; interactive?: never }
-interface LekoStep {
+interface LekoTargetedStep {
   ...
-  target?: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
+  target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
   ...
 }
+interface LekoUntargetedStep { ...; target?: never; validate?: never; error?: never }
+type LekoStep = LekoTargetedStep | LekoUntargetedStep
 ```
 
 Each entry of the list is one hole, and a list never nests: several elements
@@ -201,6 +203,12 @@ validation. It does not apply to `awaits` steps, where the application directly
 reports the event via `reached()`.
 
 - Design principle: The purpose of validate is to keep "Story logic stays in the story."
+- A guard needs a target, and **the type holds that rule**: `validate` and
+  `error` are questions about the one element a step points at, so a step with
+  no `target` is a `LekoUntargetedStep`, where neither compiles. Without it the
+  first press ended the tour with `target-lost`, a report about a target that
+  never existed. `packages/leko/type-tests/guard.ts` is the claim, stated as a
+  program.
 - Feedback behavior: A validation failure is never silent; it always triggers a cutout shake. error provides the user-facing explanation message.
 - Error message lifecycle: error appears below the main instruction (never replacing it) and persists until the step changes or succeeds. To prevent stale state, error text is generated once per failed attempt and held, rather than re-evaluated on subsequent screen redraws.
 

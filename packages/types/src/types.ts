@@ -54,7 +54,7 @@ export type LekoTarget = Selector | TargetFunction
  * that are next to each other: a label and its input, two neighbouring columns,
  * the first and last row of a table.
  *
- * A bare {@link LekoTarget} anywhere {@link LekoStep.target} wants a region is
+ * A bare {@link LekoTarget} anywhere {@link LekoTargetedStep.target} wants a region is
  * shorthand for `{ elements: target }`: one element, one hole, not opened.
  *
  * ```ts
@@ -132,7 +132,7 @@ export interface LekoShownRegion {
 export interface LekoSignals {}
 
 /**
- * Augment this and an unknown name in {@link LekoStep.awaits} stops compiling.
+ * Augment this and an unknown name in {@link LekoTargetedStep.awaits} stops compiling.
  * **Empty on purpose**, so nothing tightens by surprise.
  *
  * ```ts
@@ -157,7 +157,7 @@ type Known = keyof LekoSignals
 type Strict = [keyof LekoStrict] extends [never] ? false : true
 
 /**
- * A name {@link LekoStep.awaits} may wait for.
+ * A name {@link LekoTargetedStep.awaits} may wait for.
  *
  * `string` until {@link LekoSignals} says otherwise, so a project that generates
  * nothing and declares nothing is typed exactly as it was before any of this
@@ -186,7 +186,8 @@ export type LekoKnownSignal = [Known] extends [never]
  */
 export type LekoSignal = [Known] extends [never] ? string : Known | (string & {})
 
-export interface LekoStep {
+/** What every step has, whichever member of {@link LekoStep} it is. */
+interface LekoStepBase {
   /**
    * Stable identifier. Leko never reads it, and it is required so that
    * everything else can.
@@ -199,53 +200,6 @@ export interface LekoStep {
    * chapters**; `story-setup.ts` does it with a table from id to chapter.
    */
   id: string
-
-  /**
-   * What this step cuts holes in the page for.
-   *
-   * **Each entry of the list is one cutout.** An entry is a {@link LekoRegion}
-   * — several elements become one hole by being named together in its
-   * `elements` — or a bare target, which is the region of one that it reads
-   * as. A list never nests: one entry, one hole, and nothing else a list can
-   * mean.
-   *
-   * ```ts
-   * target: '#save'                                  // one hole
-   * target: { elements: ['#qty-label', '#qty'] }     // one hole around both
-   * target: ['#save', { elements: ['#tax', '#total'] }] // two holes, three elements
-   * target: [{ elements: '#terms', interactive: true }, '#summary'] // the first is open
-   * ```
-   *
-   * **The first region is the one the step is about**, and it is the only
-   * position that may declare `interactive`. Its first element is what
-   * {@link validate} is handed, what the message anchors beside, and the one
-   * Leko looks for: a step whose first region is not on the page is not drawn,
-   * and Leko waits a moment for it. A later region that resolves to nothing is a
-   * hole this step does not cut, and nothing else happens. DESIGN.md argues the
-   * shape of the list under **A target is a question**.
-   *
-   * A target that scrolls is fine in a region that was opened: the wheel,
-   * clicks, focus and keys all reach it through the cutout. See
-   * {@link LekoRegion.interactive} for what opening means, and it is not the
-   * default.
-   *
-   * **Leave it out and the step has nothing to point at.** The page is covered
-   * with no hole in it and the message docks at the foot of the viewport. That
-   * is the step to write for a wait: give it {@link awaits}, start the work in
-   * {@link onEnter}, and the tour stands there with the page held until the
-   * application reports the name. DESIGN.md argues it under **A step that
-   * waits**.
-   *
-   * ```ts
-   * {
-   *   id: 'load-draft',
-   *   message: 'Loading the draft order…',
-   *   onEnter: () => void loadDraft(),
-   *   awaits: 'draft-loaded',
-   * }
-   * ```
-   */
-  target?: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
 
   /** Message shown alongside the cutout. */
   message?: string
@@ -348,6 +302,47 @@ export interface LekoStep {
    * handler hands back is dropped**.
    */
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
+}
+
+/**
+ * A step that points at something. The only kind that may declare
+ * {@link validate} and {@link error}: both are questions about the element
+ * {@link target} names — DESIGN.md, **A failed attempt**.
+ */
+export interface LekoTargetedStep extends LekoStepBase {
+  /**
+   * What this step cuts holes in the page for.
+   *
+   * **Each entry of the list is one cutout.** An entry is a {@link LekoRegion}
+   * — several elements become one hole by being named together in its
+   * `elements` — or a bare target, which is the region of one that it reads
+   * as. A list never nests: one entry, one hole, and nothing else a list can
+   * mean.
+   *
+   * ```ts
+   * target: '#save'                                  // one hole
+   * target: { elements: ['#qty-label', '#qty'] }     // one hole around both
+   * target: ['#save', { elements: ['#tax', '#total'] }] // two holes, three elements
+   * target: [{ elements: '#terms', interactive: true }, '#summary'] // the first is open
+   * ```
+   *
+   * **The first region is the one the step is about**, and it is the only
+   * position that may declare `interactive`. Its first element is what
+   * {@link validate} is handed, what the message anchors beside, and the one
+   * Leko looks for: a step whose first region is not on the page is not drawn,
+   * and Leko waits a moment for it. A later region that resolves to nothing is a
+   * hole this step does not cut, and nothing else happens. DESIGN.md argues the
+   * shape of the list under **A target is a question**.
+   *
+   * A target that scrolls is fine in a region that was opened: the wheel,
+   * clicks, focus and keys all reach it through the cutout. See
+   * {@link LekoRegion.interactive} for what opening means, and it is not the
+   * default.
+   *
+   * A step with nothing to point at is a {@link LekoUntargetedStep}, and this
+   * is left off there.
+   */
+  target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
 
   /**
    * Called before advancing on the next control. Returning `false` blocks the
@@ -356,8 +351,10 @@ export interface LekoStep {
    * **Ignored on a step that declares {@link awaits}.** Such a step has no
    * control, and it advances because the application said the thing happened.
    *
-   * Receives the first element of the first region of {@link LekoStep.target},
-   * which is the one element the step is about. No later region reaches this.
+   * Receives the first element of the first region of {@link target}, which is
+   * the one element the step is about. No later region reaches this, and a step
+   * with no `target` has nothing to hand it, so this does not compile there —
+   * DESIGN.md, **A failed attempt**.
    *
    * DESIGN.md argues what the guard is for under **A failed attempt**, and
    * `next-control.ts` shows it.
@@ -376,8 +373,9 @@ export interface LekoStep {
    * **Unlike {@link target} and {@link message}, this is asked once**, for the
    * attempt that just failed, and the words it gives back are held from there.
    * A function form must be cheap and must not have side effects; it is given
-   * the same element {@link validate} was. There is nothing to call to take the
-   * words away again: they go when the next attempt succeeds or the step
+   * the same element {@link validate} was, which is why this too does not
+   * compile on a step with no {@link target}. There is nothing to call to take
+   * the words away again: they go when the next attempt succeeds or the step
    * changes. DESIGN.md argues the lifecycle under **A failed attempt**.
    *
    * ```ts
@@ -387,6 +385,42 @@ export interface LekoStep {
    */
   error?: string | ((targetEl: Element) => string)
 }
+
+/**
+ * A step that points at nothing. The page is covered with no hole in it and the
+ * message docks at the foot of the viewport. That is the step to write for a
+ * wait: give it {@link awaits}, start the work in {@link onEnter}, and the tour
+ * stands there with the page held until the application reports the name.
+ * DESIGN.md argues it under **A step that waits**.
+ *
+ * ```ts
+ * {
+ *   id: 'load-draft',
+ *   message: 'Loading the draft order…',
+ *   onEnter: () => void loadDraft(),
+ *   awaits: 'draft-loaded',
+ * }
+ * ```
+ *
+ * There is no element here for a guard to ask about, so `validate` and `error`
+ * are `never`, and stay refused when the step arrives through a variable rather
+ * than as a literal — the same mechanism as {@link LekoShownRegion.interactive}.
+ */
+export interface LekoUntargetedStep extends LekoStepBase {
+  /** Nothing to point at. What a `target` is, is {@link LekoTargetedStep.target}. */
+  target?: never
+  /** A guard needs a target. See {@link LekoTargetedStep.validate}. */
+  validate?: never
+  /** The words for a failed guard, and there is no guard. See {@link LekoTargetedStep.error}. */
+  error?: never
+}
+
+/**
+ * One step of a story: a {@link LekoTargetedStep} when it names a `target`, a
+ * {@link LekoUntargetedStep} when it does not. `step.target !== undefined`
+ * narrows to the first.
+ */
+export type LekoStep = LekoTargetedStep | LekoUntargetedStep
 
 /**
  * One route through the application, start to finish.
@@ -439,7 +473,7 @@ export interface LekoStory {
   /**
    * Build the state this whole story assumes, before its first step is entered.
    *
-   * {@link LekoStep.onEnter} is the same job one step down. What belongs here
+   * {@link LekoTargetedStep.onEnter} is the same job one step down. What belongs here
    * is what the story takes for granted throughout — a screen to be on, a
    * record to run against, fixtures to stand in for data the user has not got
    * yet — and what makes it worth having is {@link onLeave}, which runs when
@@ -447,7 +481,7 @@ export interface LekoStory {
    * **The story's `onLeave` runs when the run ends, after the last step's**.
    *
    * **Whatever it hands back is dropped**, the same bargain
-   * {@link LekoStep.onEnter} strikes. Entry runs outermost first and all of it
+   * {@link LekoTargetedStep.onEnter} strikes. Entry runs outermost first and all of it
    * in one turn: this, then the first step's, then the page is measured. A
    * story whose setup has to finish before anything is measured starts the work
    * here and puts a step that waits at the top of `steps`.
@@ -462,7 +496,7 @@ export interface LekoStory {
    * moment this story stops being the one that is running: past the last step,
    * after `stop()`, and when another story is started.
    *
-   * It runs after the current step's {@link LekoStep.onLeave} — cleanup goes
+   * It runs after the current step's {@link LekoTargetedStep.onLeave} — cleanup goes
    * innermost first, the mirror of entry — and before the ending is reported
    * through {@link LekoOptions.onStep}. DESIGN.md, **Entry runs outermost
    * first, and the ending mirrors it, innermost first**.
@@ -510,7 +544,7 @@ export interface LekoOptions {
    * Whether every step brings its target into view before drawing it.
    * Defaults to `false`, and a step may say either way.
    *
-   * The whole of what it does is described on {@link LekoStep.scroll}. A host
+   * The whole of what it does is described on {@link LekoTargetedStep.scroll}. A host
    * that would rather its viewers never hunted for a highlight below the fold
    * turns it on once, here, and a step that lands somewhere a jump would be
    * wrong says `scroll: false`. Why it is off at all is DESIGN.md's **Bringing
@@ -523,7 +557,7 @@ export interface LekoOptions {
    * ignored when the visitor has asked for reduced motion.
    *
    * Also the least a glide runs for, on a step that scrolls. A glide grows
-   * with how far the page has to go — {@link LekoStep.scroll} says why — and
+   * with how far the page has to go — {@link LekoTargetedStep.scroll} says why — and
    * this is the floor under a short one. `0` turns both off together.
    */
   duration?: number
@@ -546,8 +580,8 @@ export interface LekoOptions {
    * The words on the next control. Defaults to `Next`.
    *
    * The control appears on the message of every step that declares no
-   * {@link LekoStep.awaits}, and on no other step. It is also the only route
-   * {@link LekoStep.validate} guards. Which steps have one is derived rather
+   * {@link LekoTargetedStep.awaits}, and on no other step. It is also the only route
+   * {@link LekoTargetedStep.validate} guards. Which steps have one is derived rather
    * than configured, and this option only says what it reads — DESIGN.md argues
    * that under **The next control**.
    */
@@ -604,7 +638,7 @@ export interface LekoOptions {
    * what a host may change is what it says and what it looks like, never
    * whether it is there. It is also the only control Leko draws outside the
    * message, and ending the tour is not a way past the work a step exists to
-   * make somebody do, so {@link LekoStep.awaits} says nothing about this.
+   * make somebody do, so {@link LekoTargetedStep.awaits} says nothing about this.
    * DESIGN.md argues both under **The way out**.
    *
    * A word rather than a symbol by default, because an icon with no accessible
@@ -697,7 +731,7 @@ export type LekoProblem =
    *
    * Two roads reach here, and DESIGN.md has both under **Target loss &
    * recovery**: an arrival whose grace period ran out, and a press on a step
-   * that declares {@link LekoStep.validate}, which resolves the target afresh
+   * that declares {@link LekoTargetedStep.validate}, which resolves the target afresh
    * to hand the guard its element and gets no grace at all.
    */
   | { kind: 'target-lost'; step: LekoStep; story: LekoStory }

@@ -13,4 +13,6 @@ export type {
   LekoStory,
   LekoStrict,
   LekoTarget,
+  LekoTargetedStep,
+  LekoUntargetedStep,
 } from '@annetaan/leko-types'
