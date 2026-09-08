@@ -164,11 +164,11 @@ export function outset(rect: Rect, room: Insets): Rect {
  *
  * Positive is forward — what `scrollBy` is handed.
  *
- * Three rules, and DESIGN.md argues each of them: **The middle of the port, not
- * the nearest edge**, then DESIGN.md's **A port that already holds the cutout
- * is not touched** for the zero, and DESIGN.md's **Nothing in the geometry
- * clamps; whoever scrolls does** for the delta that asks for a scroll past the
- * end.
+ * Three rules, and DESIGN.md argues each of them. DESIGN.md's **The middle of
+ * the port, not the nearest edge** for where the box lands, then DESIGN.md's
+ * **A port that already holds the cutout is not touched** for the zero, and
+ * DESIGN.md's **Nothing in the geometry clamps; whoever scrolls does** for the
+ * delta that asks for a scroll past the end.
  *
  * A box more than half the port tall leads with its top edge instead, and a box
  * wider than the port keeps its near edge. Neither has a twin on the other
