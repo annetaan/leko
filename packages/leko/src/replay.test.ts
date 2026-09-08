@@ -900,9 +900,9 @@ describe('every trace the model found', () => {
           ).toBe(true)
         }
 
-        // 3c, which the README has no row for. `Mode.retrying.unmeasured` in
-        // `plan.ts` says which wait this is and why the bound stops being a
-        // bound otherwise.
+        // Claim 3c of `packages/leko/model/README.md`.
+        // `Mode.retrying.unmeasured` in `plan.ts` says which wait this is and
+        // why the bound stops being a bound otherwise.
         if (now.marks.includes('expired-unmeasured')) {
           exercised.expiredUnmeasured += 1
           expect(

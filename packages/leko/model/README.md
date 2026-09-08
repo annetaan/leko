@@ -146,6 +146,7 @@ the real `reduce`:
 | 2 | an abandoned glide is told to stop, and never moves the page again, and nothing but the glide the mode holds is still carrying it |
 | 3 | an `expired` for a wait that ended is answered with nothing, however long ago it was set |
 | 3b | an `expired` that runs out onto a target that has turned up arrives at it rather than giving it up |
+| 3c | an `expired` for a wait a draw began gives its target up rather than arriving at it, whatever the last question answers |
 | 4 | a `resized` mid-glide puts the standing holes back and says nothing |
 | 5 | a re-entrant effect is last, on the real outcomes rather than the model's |
 

@@ -569,7 +569,13 @@ describe('every trace the model found', () => {
       balanced(run, 'the whole trace')
       // The tour is torn down as many times as it ended, and the recorder saw
       // every one of them.
-      expect(fake.torn).toBeGreaterThanOrEqual(0)
+      const ended = run.handlers.filter(
+        ({ kind, who }) => kind === 'leave' && who.startsWith('story:'),
+      ).length
+      expect(
+        fake.torn,
+        'the whole trace: torn down a different number of times than it ended',
+      ).toBe(ended)
       for (const throwing of escaped) expect(throwing).toThrow()
     })
   }
