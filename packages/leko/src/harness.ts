@@ -104,6 +104,44 @@ export const holes = (): number => (scrim()?.style.maskImage ?? '').split('url('
 /** The box holding the way out of the tour, or `null` while none is drawn. */
 export const closer = () => document.querySelector<HTMLElement>('.leko-close')
 
+const all = (selector: string) => [...document.querySelectorAll<HTMLElement>(selector)]
+const at = (el: HTMLElement | null, ...keys: string[]): string =>
+  el ? keys.map((key) => `${key}=${el.style.getPropertyValue(key)}`).join(' ') : 'none'
+
+/**
+ * Everything a draw wrote, as one string: every scrim's size and mask, every
+ * blocking rectangle, every halo, the anchor marker, and where the message and
+ * the way out were put. Two draws that wrote the same page dump the same
+ * string, so a test compares two of these where it would otherwise have to
+ * name each value the draw owes — and a diff against another branch is the
+ * same string dumped there.
+ */
+export function drawn(): string {
+  const inset = ['left', 'top', 'width', 'height']
+  return [
+    ...all('.leko-scrim').map(
+      (el, i) => `scrim ${i}: ${at(el, 'width', 'height', 'mask-position', 'mask-image')}`,
+    ),
+    ...all('.leko-block').map((el, i) => `block ${i}: ${at(el, ...inset)}`),
+    ...all('.leko-halo').map(
+      (el, i) =>
+        `halo ${i}: ${at(el, ...inset, 'border-radius')} open=${el.hasAttribute('data-open')}`,
+    ),
+    `anchor: ${at(document.querySelector<HTMLElement>('.leko-anchor'), 'left', 'top')}`,
+    `message: ${at(
+      document.querySelector<HTMLElement>('.leko-message'),
+      'left',
+      'top',
+      'position-area',
+      'margin-top',
+      'margin-right',
+      'margin-bottom',
+      'margin-left',
+    )}`,
+    `close: ${at(closer(), 'left', 'top')}`,
+  ].join('\n')
+}
+
 /**
  * The next control on the message, or `null` where the step showing has none —
  * DESIGN.md, **The next control**.
@@ -225,6 +263,21 @@ export async function shown(within = 8000): Promise<void> {
  * that says it landed is the presenter's. A grace period first, because the
  * offset is still before the first frame too, and six still ticks from a
  * standing start would otherwise be reached before the page had set off.
+ *
+ * **It cannot tell a starved frame loop from a finished one, and it breaks
+ * before the end of every flight.** Six still samples is 96ms, and the tail of
+ * a glide's easing is sub-pixel for longer than that: instrumented against the
+ * nested panel in `leko.test.ts`, on a machine with frames to spare, this broke
+ * at about 1500ms with the page 1px short of its destination, in every run of
+ * nine across the three engines. What covers that last pixel is the 400ms of
+ * real time below. So a flight is only waited out while the frames the rest of
+ * it needs arrive inside those 400ms — and where a frame interval stretches
+ * past 96ms, as WebKit's does under load for the reason {@link TICK} records,
+ * this breaks earlier in the curve, the distance left needs frames rather than
+ * time, and what a test reads afterwards is a page still on its way. A test
+ * that cannot afford that takes the clock — {@link clocked} — and waits on
+ * what the flight ends with rather than on the offset holding still, the way
+ * `a nested panel is set rather than glided` does.
  */
 export async function stopped(cap = 8000): Promise<void> {
   const began = performance.now()

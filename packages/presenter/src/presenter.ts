@@ -84,6 +84,8 @@ interface Measured {
   holes: Hole[]
   resolved: Cutout[]
   onScreen: Cutout[]
+  /** The visible box in `inner`'s space, for the opening; read here so that `converge` writes only. */
+  seen: Rect
 }
 
 /** The one question a draw puts to the page about where something is. */
@@ -354,8 +356,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * The layers under `anchor`, `holes` cut in the innermost, and the boxes to
    * draw them at in both spaces. Every draw and every redraw comes through
-   * here, so the sequence is written once. `undefined` where there was nothing
-   * to measure, and what that means is the caller's.
+   * here, so the sequence is written once: the layers are mounted, then every
+   * box is read, then every layer is written — DESIGN.md, **A draw mounts its
+   * layers, then reads, then writes**. `undefined` where there was nothing to
+   * measure, and what that means is the caller's.
+   *
+   * A stack kept is measured again, because the surface can have changed size
+   * while nothing was drawn — DESIGN.md, **Nothing is drawn for a retry** — and
+   * the step drawn afterwards would otherwise go into layers sized for a page
+   * that has since grown.
    *
    * `holes` is the caller's because the caller has other readers for them.
    * `null` is a step that points at something not on the page, which is nothing
@@ -367,14 +376,27 @@ export class DomPresenter implements Presenter<LekoWorld> {
     holes: Hole[] | null,
   ): Measured | undefined {
     const chain = surfaceChain(anchor ?? document.body)
-    const inner = this.restack(chain)
-    if (!inner || !holes) return undefined
+    const inner = this.stack(chain)
+    if (!inner) return undefined
+    if (!holes) {
+      this.fit()
+      return undefined
+    }
+    for (const layer of this.layers) layer.measure()
     // One read per element, and one of the surface for all of them.
     const onScreen = this.cutouts(step, holes)
     const resolved = withinSurface(inner.surface, onScreen)
-    // These holes move only when layout does, never when something scrolls.
-    this.cutOuterLayers(chain)
-    return { inner, holes, resolved, onScreen }
+    const seen = inner.seen()
+    const outer = this.outerHoles(chain)
+    for (const layer of this.layers) layer.resize()
+    this.cutOuterLayers(outer)
+    return { inner, holes, resolved, onScreen, seen }
+  }
+
+  /** Size every standing layer to its surface as it is now. Reads all, then writes all. */
+  private fit(): void {
+    for (const layer of this.layers) layer.measure()
+    for (const layer of this.layers) layer.resize()
   }
 
   /**
@@ -409,7 +431,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The opening — DESIGN.md, **A story opens by converging, from every hole
     // stretched over the whole surface**. The morph below re-blocks in the same
     // task, so no frame carries the opening's blocking.
-    if (!animate) inner.converge(resolved)
+    if (!animate) inner.converge(resolved, measured.seen)
 
     // Before the morph, not after it: the scrim blocks the page from the moment
     // it is set, and one morph is long enough to matter. The ring too — the
@@ -448,7 +470,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // same.
     const anchor = this.resolve(step)
     if (!anchor && pointsAt(step)) {
-      for (const layer of this.layers) layer.resize()
+      this.fit()
       return this.place(step, this.holes(step, null))
     }
     const holes = this.holes(step, anchor)
@@ -590,9 +612,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * The stack that carries `chain`, measured against the surface as it is now,
-   * made afresh where the one standing is for other surfaces, and answered
-   * innermost first.
+   * The stack that carries `chain`: the one standing where it is for these
+   * surfaces, made afresh where it is not, and answered innermost first. Mounted
+   * and nothing more — no layer is sized or cut here, because a layer mounted
+   * on a static scroller gives it a `position`, and everything a draw reads is
+   * read after that. {@link measure} is the order.
    *
    * A layer rides what its target rides. A target moves from one surface to
    * another when the tour moves to a step in a different set of scrollers, and
@@ -601,18 +625,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * under it carries the hole away on the next scroll while the header stays.
    * Rebuilding is not a morph, so it happens outright rather than half-way.
    *
-   * A stack kept is measured again, because the surface can have changed size
-   * while nothing was drawn — nothing is drawn for a retry, so a resize that
-   * lands while a target is missing is not acted on then, and the step drawn
-   * afterwards would otherwise go into layers sized for a page that has since
-   * grown. Every caller here is already reading layout, so the measurement
-   * costs nothing it was not paying.
-   *
    * Nothing here touches the hunt. A `replace` can land while a retry runs, and
    * what the hunt is looking for is a fact about the step rather than about the
    * surfaces under it.
    */
-  private restack(chain: Surface[]): Scrim | undefined {
+  private stack(chain: Surface[]): Scrim | undefined {
     const same =
       this.layers.length === chain.length &&
       this.layers.every((l, i) => {
@@ -627,26 +644,33 @@ export class DomPresenter implements Presenter<LekoWorld> {
         (surface, i) => new Scrim(surface, i === 0 ? (this.options.halo ?? 'return') : undefined),
       )
       this.watchViewport()
-    } else {
-      for (const layer of this.layers) layer.resize()
     }
     return this.layers[0]
   }
 
   /**
-   * Each outer layer is cut to the scroller nested inside it. Every surface
-   * with a layer outside it is a scroller: the document and the viewport are
-   * each the last of a chain.
+   * The hole each outer layer is cut to: the scroller nested inside it. Every
+   * surface with a layer outside it is a scroller — the document and the
+   * viewport are each the last of a chain — so `undefined` is a layer that is
+   * not outer. These holes move only when layout does, never when something
+   * scrolls. Reads only; {@link cutOuterLayers} writes them.
    */
-  private cutOuterLayers(chain: Surface[]): void {
-    this.layers.slice(1).forEach((layer, i) => {
+  private outerHoles(chain: Surface[]): (Cutout | undefined)[] {
+    return this.layers.slice(1).map((layer, i) => {
       const nested = chain[i]
-      if (nested?.kind !== 'scroller') return
+      if (nested?.kind !== 'scroller') return undefined
       // Match the scroller's own rounding, or its corners show through the hole.
       const radius = parseFloat(getComputedStyle(nested.element).borderTopLeftRadius) || 0
       // Always interactive. This hole is where the scrim below it lives, and a
       // rectangle over it would block that whole scroller, cutouts and all.
-      layer.set([{ ...paddingBoxWithin(nested.element, layer.surface), radius, interactive: true }])
+      return { ...paddingBoxWithin(nested.element, layer.surface), radius, interactive: true }
+    })
+  }
+
+  private cutOuterLayers(holes: readonly (Cutout | undefined)[]): void {
+    this.layers.slice(1).forEach((layer, i) => {
+      const cut = holes[i]
+      if (cut) layer.set([cut])
     })
   }
 

@@ -16,6 +16,8 @@ afterEach(() => {
 
 function mountScrim(surface: Surface = { kind: 'document' }): Scrim {
   const made = new Scrim(surface)
+  made.measure()
+  made.resize()
   scrims.push(made)
   return made
 }
@@ -47,10 +49,13 @@ const holes = (scrim: Scrim): number => scrim.element.style.maskImage.split('url
 
 test('an opening cuts one stretched hole per destination hole', () => {
   const scrim = mountScrim()
-  scrim.converge([
-    { x: 100, y: 100, width: 120, height: 40, radius: 8, interactive: true },
-    { x: 100, y: 300, width: 120, height: 40, radius: 8, interactive: false },
-  ])
+  scrim.converge(
+    [
+      { x: 100, y: 100, width: 120, height: 40, radius: 8, interactive: true },
+      { x: 100, y: 300, width: 120, height: 40, radius: 8, interactive: false },
+    ],
+    scrim.seen(),
+  )
   expect(holes(scrim)).toBe(2)
 })
 
@@ -60,7 +65,7 @@ test('a story that opens onto no holes still converges rather than snapping dark
   // that follows collapses, so the dark closes in instead of the page going
   // fully dimmed in a single frame.
   const scrim = mountScrim()
-  scrim.converge([])
+  scrim.converge([], scrim.seen())
   expect(holes(scrim)).toBe(1)
 })
 

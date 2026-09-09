@@ -56,9 +56,10 @@ export class Scrim {
   private readonly restorePosition: string | null
   private cutouts: Cutout[] = []
   /**
-   * The surface's size, kept from the one measurement {@link resize} makes.
-   * It is what {@link paint} and {@link block} build from, so that neither —
-   * and above all no frame of a morph — has to read layout to know it.
+   * The surface's size, kept from the one measurement {@link measure} makes.
+   * It is what {@link resize}, {@link paint} and {@link block} build from, so
+   * that none of them — and above all no frame of a morph — has to read layout
+   * to know it.
    */
   private width = 0
   private height = 0
@@ -114,9 +115,7 @@ export class Scrim {
     this.surface = surface
     this.halo = halo
 
-    // An absolutely positioned child only lands on the content origin if the
-    // scroller establishes a containing block. Nudge it if it does not, and put
-    // it back on destroy.
+    // DESIGN.md, **A draw mounts its layers, then reads, then writes**.
     const container = surface.kind === 'scroller' ? surface.element : null
     if (container && getComputedStyle(container).position === 'static') {
       this.restorePosition = container.style.position
@@ -177,9 +176,6 @@ export class Scrim {
     }
 
     this.mount().append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
-    // The size alone: there are no holes yet, so there is nothing to write from
-    // it. Everything after this goes through {@link resize}.
-    this.measureSurface()
   }
 
   /** Where this layer's elements go: inside the scroller, or on the body for the other two. */
@@ -220,32 +216,23 @@ export class Scrim {
   }
 
   /**
-   * Cover the whole scrollable area, not just the visible part — or, on the
-   * viewport's layer, the viewport itself, which is all there is to cover.
+   * Read the surface's size. The whole scrollable area, not just the visible
+   * part — or, on the viewport's layer, the viewport itself, which is all there
+   * is to cover.
    *
    * That is `innerWidth` and `innerHeight`, the scrollbar's gutter included,
    * and deliberately not the layout viewport a fixed box is laid out against,
    * which is the tighter and more obviously correct number. DESIGN.md argues
    * that under **That layer is sized past the layout viewport on purpose,
    * gutter included**, with what `spike/the-scrollbar-gutter/` measured for it.
+   *
+   * A read and nothing else: {@link resize}, {@link set} and {@link converge}
+   * write from the numbers this took. Called after the layer is mounted and
+   * before the first write to any layer, so that a stack of several reads
+   * every surface before it sizes any — DESIGN.md, **A draw mounts its layers,
+   * then reads, then writes**. The order is a promise the types cannot spell.
    */
-  resize(): void {
-    this.measureSurface()
-    // And what was drawn *from* the size, because the rectangles are the
-    // complement of the holes within it. Not through `draw`, which halts
-    // whatever is running: a morph cut short here settles unfinished, and
-    // unfinished is how the presenter knows an arrival was interrupted — the
-    // step would keep its hole and never be given its words. A morph's own
-    // frames are written from cutouts in a space a resize does not move, so it
-    // can go on running, and the next of them paints against the new size.
-    if (this.frame === undefined) this.paint(this.cutouts)
-    // Either way, because a morph blocks where its holes are heading rather
-    // than following them, so this is that same destination against the new
-    // size rather than anything mid-flight.
-    this.block(this.cutouts)
-  }
-
-  private measureSurface(): void {
+  measure(): void {
     const root = document.documentElement
     const [w, h] =
       this.surface.kind === 'scroller'
@@ -258,14 +245,35 @@ export class Scrim {
             ]
     this.width = w
     this.height = h
-    this.element.style.width = `${w}px`
-    this.element.style.height = `${h}px`
-    this.blocking.style.width = `${w}px`
-    this.blocking.style.height = `${h}px`
+  }
+
+  /**
+   * Size the layer to what {@link measure} read, and redraw what was drawn
+   * *from* the size. Writes only.
+   */
+  resize(): void {
+    const w = `${this.width}px`
+    const h = `${this.height}px`
+    this.element.style.width = w
+    this.element.style.height = h
+    this.blocking.style.width = w
+    this.blocking.style.height = h
     if (this.haloLayer) {
-      this.haloLayer.style.width = `${w}px`
-      this.haloLayer.style.height = `${h}px`
+      this.haloLayer.style.width = w
+      this.haloLayer.style.height = h
     }
+    // The rectangles are the complement of the holes within the size. Not
+    // through `draw`, which halts whatever is running: a morph cut short here
+    // settles unfinished, and unfinished is how the presenter knows an arrival
+    // was interrupted — the step would keep its hole and never be given its
+    // words. A morph's own frames are written from cutouts in a space a resize
+    // does not move, so it can go on running, and the next of them paints
+    // against the new size.
+    if (this.frame === undefined) this.paint(this.cutouts)
+    // Either way, because a morph blocks where its holes are heading rather
+    // than following them, so this is that same destination against the new
+    // size rather than anything mid-flight.
+    this.block(this.cutouts)
   }
 
   // ---------------------------------------------------------------- what is drawn
@@ -278,7 +286,7 @@ export class Scrim {
    * overlap for most of their flight. DESIGN.md argues it under **The morph**.
    *
    * Writes only, and no layout is read: three strings built from numbers the
-   * caller already has, on a surface whose size {@link resize} measured once.
+   * caller already has, on a surface whose size {@link measure} read once.
    */
   private paint(cutouts: Cutout[]): void {
     const { image, position, composite } = maskLayers(this.width, this.height, cutouts)
@@ -351,8 +359,9 @@ export class Scrim {
    * scrollable area, which on a long page is many screens; a hole starting that
    * size spends the whole morph larger than the window and arrives all at once
    * at the end. Starting from the visible box makes the convergence something a
-   * viewer watches from the first frame to the last. It reads layout to find
-   * that box, once, at an opening — not per frame, and never while scrolling.
+   * viewer watches from the first frame to the last. The box is the caller's,
+   * read with {@link seen} in the same pass as every other box the draw needs;
+   * this writes only, the same as {@link set}.
    *
    * Cutouts, and not holes. Nothing is cut yet, and this is what that has to be
    * drawn as — so no frame is laid on them and none rides out of them. A ring
@@ -360,8 +369,7 @@ export class Scrim {
    * `--leko-halo-*` asked for. The frames arrive with the holes, at the end of
    * the morph.
    */
-  converge(to: Cutout[]): void {
-    const seen = this.seen()
+  converge(to: Cutout[], seen: Rect): void {
     // Not interactive, so the page is blocked for the whole of the opening.
     // At least one, even when the first step cuts no holes at all — a step
     // that waits opens the same way, its one stretched cutout shrinking away,
@@ -374,8 +382,12 @@ export class Scrim {
     this.converging = true
   }
 
-  /** The visible box, in this layer's own coordinates; see {@link converge}. */
-  private seen(): Rect {
+  /**
+   * The visible box, in this layer's own coordinates — what {@link converge}
+   * starts from. A read, for the caller's read pass, and after {@link measure}:
+   * the viewport's layer answers from the size that took.
+   */
+  seen(): Rect {
     const { surface } = this
     if (surface.kind === 'scroller') {
       const { element } = surface
@@ -463,11 +475,11 @@ export class Scrim {
   /**
    * Fade in whatever frames are transparent.
    *
-   * The one layout read in this file, and it is here on purpose: it commits
-   * the transparent style a frame made this task is still carrying, so the
-   * transition has something to start from and the frame fades in rather than
-   * appearing. Once per placement, never per animation frame, and never while
-   * the user scrolls.
+   * The one read here that is no part of a draw's read pass, and it is here on
+   * purpose: it commits the transparent style a frame made this task is still
+   * carrying, so the transition has something to start from and the frame fades
+   * in rather than appearing. Once per placement, never per animation frame,
+   * and never while the user scrolls.
    */
   private revealHalos(): void {
     if (!this.haloLayer) return

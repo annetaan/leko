@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What moves when a static scroller is given position: relative?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  /* The nearest positioned ancestor of everything below, deliberately outside
+     the panel, so that an absolutely positioned child of the panel has this as
+     its containing block until the panel is given a position of its own. Its
+     padding is what a move is measured from, and fractional so that a move
+     shows in the low bits too. */
+  .stage { position: relative; width: 520px; padding: 40.25px 0 0 40.25px; }
+
+  /* The scroller, and static on purpose: that is the case the question is
+     about. The border is fractional as well, though every engine rounds its
+     used value to 3px, which the README's arithmetic reckons with. */
+  .panel {
+    width: 300px; height: 180px; overflow: auto;
+    border: 3.5px solid #8886; padding: 7.5px; border-radius: 6px;
+  }
+  .panel .tall { height: 900px; }
+
+  .chip {
+    width: 90px; height: 24px; border-radius: 4px;
+    background: #2f6fed; color: #fff;
+    font: 11px/24px ui-monospace, monospace; text-align: center;
+  }
+  .inflow { position: static; margin: 4px 0; }
+  .inset { position: absolute; left: 60.25px; top: 100.75px; }
+  .auto { position: absolute; }
+  .sticky { position: sticky; top: 0; }
+  .fixed { position: fixed; left: 400px; top: 60px; }
+
+  table { border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .same { color: #0a7d32; font-weight: 700; }
+  .moved { color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .same { color: #6ee79b; } .moved { color: #ff8a80; } }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>What moves when a static scroller is given <code>position: relative</code>?</h1>
+<p>
+  An overlay mounted inside a scroller as an absolutely positioned child lands
+  on the scroller's content origin only if the scroller establishes a containing
+  block, so a library that mounts one has to write <code>position: relative</code>
+  onto a scroller that was <code>static</code>. The specification says that
+  write changes the containing block of the scroller's absolutely positioned
+  descendants and nothing else about layout. Which of the scroller's children
+  move, and whether the ones that move then ride the scroller's own scroll, is
+  what this page measures.
+</p>
+<p>
+  Five children of one static scroller: one in the flow, one absolutely
+  positioned with an inset (its containing block until the write is the
+  <code>.stage</code> outside the panel), one absolutely positioned with every
+  inset <code>auto</code>, one sticky and one fixed. Each is measured, the panel
+  is given <code>position: relative</code>, each is measured again, and then the
+  panel is scrolled to see which ride it.
+</p>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<div class="stage" id="stage">
+  <div class="panel" id="panel">
+    <div class="chip inflow" id="inflow">in flow</div>
+    <div class="chip sticky" id="sticky">sticky</div>
+    <div class="chip auto" id="auto">abs, auto</div>
+    <div class="tall"></div>
+    <div class="chip inset" id="inset">abs, inset</div>
+    <div class="chip fixed" id="fixed">fixed</div>
+  </div>
+</div>
+
+<table id="results"></table>
+
+<script>
+const panel = document.getElementById('panel')
+const children = [
+  ['in flow', 'inflow'],
+  ['absolute, inset', 'inset'],
+  ['absolute, every inset auto', 'auto'],
+  ['sticky', 'sticky'],
+  ['fixed', 'fixed'],
+].map(([label, id]) => ({ label, el: document.getElementById(id) }))
+
+const SCROLL = 50
+const box = (el) => {
+  const r = el.getBoundingClientRect()
+  return { left: r.left, top: r.top, width: r.width, height: r.height }
+}
+const same = (a, b) => a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
+const delta = (a, b) => `${b.left - a.left}, ${b.top - a.top}`
+
+async function settle() {
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+}
+
+let running = Promise.resolve()
+function measure() {
+  running = running.then(read)
+  return running
+}
+
+// Does the panel's own scroll carry `el`? A child it carries moves up by the
+// scroll distance; one it does not carry stays. Read before and after the
+// write, because the question is whether the write changed the answer.
+async function ridesScroll() {
+  panel.scrollTop = 0
+  await settle()
+  const before = children.map(({ el }) => box(el))
+  panel.scrollTop = SCROLL
+  await settle()
+  const after = children.map(({ el }) => box(el))
+  panel.scrollTop = 0
+  await settle()
+  return before.map((b, i) => after[i].top === b.top - SCROLL)
+}
+
+async function read() {
+  panel.style.position = ''
+  await settle()
+  const position = getComputedStyle(panel).position
+  const before = children.map(({ el }) => box(el))
+  const rodeBefore = await ridesScroll()
+
+  panel.style.position = 'relative'
+  await settle()
+  const after = children.map(({ el }) => box(el))
+  const rodeAfter = await ridesScroll()
+
+  const rows = children.map(({ label }, i) => ({
+    label,
+    before: before[i],
+    after: after[i],
+    moved: !same(before[i], after[i]),
+    delta: delta(before[i], after[i]),
+    rodeBefore: rodeBefore[i],
+    rodeAfter: rodeAfter[i],
+  }))
+  render(position, rows)
+  return { position, rows }
+}
+
+function render(position, rows) {
+  const fmt = (b) => `${b.left.toFixed(2)}, ${b.top.toFixed(2)}`
+  document.getElementById('results').innerHTML =
+    `<tr><th>child</th><th>before (was ${position})</th><th>after relative</th><th>verdict</th><th>rides the scroll: before → after</th></tr>` +
+    rows
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${fmt(r.before)}</td><td>${fmt(r.after)}</td>` +
+          `<td class="${r.moved ? 'moved' : 'same'}">${r.moved ? `moved by ${r.delta}` : 'same'}</td>` +
+          `<td>${r.rodeBefore ? 'rides' : 'stays'} → ${r.rodeAfter ? 'rides' : 'stays'}</td></tr>`,
+      )
+      .join('')
+}
+
+document.getElementById('env').textContent = navigator.userAgent
+document.getElementById('measure').addEventListener('click', () => void measure())
+window.spikeRelative = { measure }
+void measure()
+</script>
+</body>
+</html>

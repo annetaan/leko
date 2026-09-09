@@ -20,6 +20,8 @@ afterEach(() => {
 
 function mountScrim(halo?: HaloMode): Scrim {
   const made = new Scrim({ kind: 'document' }, halo)
+  made.measure()
+  made.resize()
   scrims.push(made)
   return made
 }

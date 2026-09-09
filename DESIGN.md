@@ -726,6 +726,30 @@ and writes the layers, **at step boundaries, never per frame**.
   mask does no such thing, so what keeps them out here now is plainer: the scrim
   paints and catches nothing, the rectangles catch and paint nothing, and apart
   they need no reasoning about.
+- **A draw mounts its layers, then reads, then writes.** The scrim's writes do
+  not move the page — true of the mask, the rectangles, the halos and the
+  layers' sizes, and what lets a draw read every box it needs and then write
+  every layer without a read landing between two writes. The one exception is
+  mounting the first layer into a scroller that is `static`: the layer is an
+  absolutely positioned child and lands on the content origin only if the
+  scroller establishes a containing block, so Leko writes `position: relative`
+  onto it, and that moves the containing block of every absolutely positioned
+  descendant written inside that scroller. One with an inset jumps to the
+  scroller's padding box and onto its scroll; one with every inset `auto` stays
+  put and starts riding the scroll; nothing else moves, in any of the three
+  engines
+  ([`spike/a-static-scroller-made-relative/`](spike/a-static-scroller-made-relative/)).
+  So the layers are mounted first, every box is read after that, and the layers
+  are written last. The numbers then describe the layout the viewer looks at for
+  the rest of the step, and the same one every resize reads — a hole cut from
+  the boxes before the write would miss a target with an inset from the first
+  frame, and be corrected by the first resize. Only that kind of target turns on
+  the order: a hole is cut in the scroller's own space, and for a descendant with
+  every inset `auto` the write moves neither the box on screen nor that space's
+  origin, so the hole is the same either side of it. What the write settles there
+  is which scroll carries the target, and the hole was riding the scroller all
+  along. The box an opening converges from is one of the reads, so
+  `Scrim.converge` is handed it and writes only, like `set`.
 - **Do not go back to blocking with the scrim itself**, however much tidier
   one element looks. `elementFromPoint` reports the hole open the whole time
   the scrolling is broken, so the tests check this by geometry. Rectangles also

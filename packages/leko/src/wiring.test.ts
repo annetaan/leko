@@ -5,8 +5,10 @@ import {
   begin,
   box,
   centre,
+  clocked,
   closer,
   control,
+  drawn,
   frame,
   holding,
   holes,
@@ -871,7 +873,7 @@ test('a resize while the target is hidden or removed takes the standing layers w
     window.dispatchEvent(new Event('resize'))
 
     // There is nothing to restack against and nothing new to cut, but the
-    // surface still moved — `DomPresenter.restack` in `@annetaan/leko-presenter`
+    // surface still moved — `DomPresenter.measure` in `@annetaan/leko-presenter`
     // says what a layer left at its old height would leave uncovered.
     expect(leko.state, take).toBe('running')
     expect(layer.getBoundingClientRect().height, take).toBeGreaterThan(3000)
@@ -1133,6 +1135,253 @@ test("a resize reads a scroller's own box once for the surface, not once per ele
   // Counting the elements' own boxes in, this resize reads five where it read
   // ten.
   expect(container).toHaveBeenCalledTimes(2)
+})
+
+const scroller = (style: Partial<CSSStyleDeclaration>): HTMLElement => {
+  const el = document.createElement('div')
+  Object.assign(el.style, { overflow: 'auto', margin: '0', ...style })
+  return el
+}
+const tall = (height: string): HTMLElement => {
+  const el = document.createElement('div')
+  el.style.height = height
+  return el
+}
+const button = (style: Partial<CSSStyleDeclaration>): HTMLElement => {
+  const el = document.createElement('button')
+  el.textContent = 'target'
+  Object.assign(el.style, { margin: '0', ...style })
+  return el
+}
+
+/**
+ * Three scrollers inside one another, the outer two `static` so that the first
+ * draw's mounting gives each a `position`. Fractional borders, paddings and
+ * positions, so that every number the draw writes has low bits to be wrong in.
+ * Two regions and three elements, one of them absolutely positioned with an
+ * inset inside a scroller that was static, so that its containing block is a
+ * thing the mounting changes.
+ */
+function nested(): { targets: Element[] } {
+  const outer = keep(
+    scroller({
+      marginLeft: '30.5px',
+      marginTop: '20.25px',
+      width: '420.5px',
+      height: '320.75px',
+      border: '2.5px solid black',
+      padding: '5.25px',
+    }),
+  )
+  const middle = scroller({
+    marginLeft: '10.75px',
+    marginTop: '8.5px',
+    width: '340.25px',
+    height: '240.5px',
+    border: '1.5px solid black',
+    padding: '3.75px',
+  })
+  const inner = scroller({
+    position: 'relative',
+    marginLeft: '6.25px',
+    marginTop: '4.75px',
+    width: '260.5px',
+    height: '160.25px',
+    border: '3.5px solid black',
+    padding: '7.5px',
+  })
+  const first = button({
+    position: 'absolute',
+    left: '20.5px',
+    top: '400.25px',
+    width: '120.5px',
+    height: '40.25px',
+  })
+  const beside = button({
+    position: 'absolute',
+    left: '160.75px',
+    top: '410.5px',
+    width: '60.25px',
+    height: '30.75px',
+  })
+  const later = button({
+    position: 'absolute',
+    left: '200.25px',
+    top: '100.5px',
+    width: '80.5px',
+    height: '24.25px',
+  })
+  const innerContent = tall('1400px')
+  innerContent.append(first, beside)
+  inner.append(innerContent)
+  const middleContent = tall('900px')
+  middleContent.append(inner, later)
+  middle.append(middleContent)
+  outer.append(middle, tall('700px'))
+  document.body.append(outer)
+  inner.scrollTop = 137
+  middle.scrollTop = 19
+  outer.scrollTop = 7
+  return { targets: [first, beside, later] }
+}
+
+test('a first draw and the resize after it write the same values', () => {
+  const [first, beside, later] = nested().targets
+
+  start([
+    {
+      id: 'deep',
+      target: [{ elements: [() => first!, () => beside!], interactive: true }, () => later!],
+      message: 'Here.',
+    },
+  ])
+  const opened = drawn()
+  expect(opened).toContain('scrim 3:')
+
+  window.dispatchEvent(new Event('resize'))
+
+  // Nothing on the page moved between the two, so a value that differs is one
+  // the draws read in different orders — the first draw against the page as
+  // it was before its layers were mounted, the resize against the page after.
+  // What this cannot see is a write among the reads, the layers' own writes
+  // moving nothing on the page: `every box a draw reads is read before it
+  // writes a layer` is the test for that.
+  expect(drawn()).toBe(opened)
+})
+
+/** The engine's own accessor for `key`, wherever on the chain it is declared. */
+function getter(el: Element, key: string): () => unknown {
+  for (let proto = Object.getPrototypeOf(el); proto; proto = Object.getPrototypeOf(proto)) {
+    const found = Object.getOwnPropertyDescriptor(proto, key)?.get
+    if (found) return found
+  }
+  throw new Error(`no getter for ${key}`)
+}
+
+test('every box a draw reads is read before it writes a layer', () => {
+  // The order itself, and nothing about what it costs. A read is one of the
+  // three questions a draw puts to the page — a target's box, a surface's
+  // scrollable size, the visible box of the innermost layer — and a write is
+  // the first `style` a layer element receives. The claim is that none of those
+  // three comes after a write: DESIGN.md, **A draw mounts its layers, then
+  // reads, then writes**. `revealHalos` reads `offsetWidth` after `set` on this
+  // path as on every other, deliberately and outside this count — its own doc
+  // says why, and #176 left it where it is.
+  //
+  // The writes are read off a `MutationObserver` rather than spied on a
+  // setter, because `style.width = …` reaches no property this engine lets a
+  // test wrap. A mutation record is queued synchronously and delivered later,
+  // so draining the queue inside each read spy puts the writes that had already
+  // happened into the same log, in order.
+  const { targets } = nested()
+  const scrollers = [...document.querySelectorAll<HTMLElement>('div')].filter(
+    (el) => getComputedStyle(el).overflow === 'auto',
+  )
+  expect(scrollers.length).toBe(3)
+
+  const log: string[] = []
+  // Only the layer elements. The `position` a mount writes onto a static
+  // scroller is a write the order allows — it is what the reads are waiting
+  // for — and the message and the way out are placed after the draw.
+  const LAYERS = '.leko-scrim, .leko-blocking, .leko-halos'
+  const writes = new MutationObserver(() => {})
+  const drain = (): void => {
+    for (const record of writes.takeRecords()) {
+      const el = record.target as Element
+      if (el.matches?.(LAYERS)) log.push(`write ${el.className}`)
+    }
+  }
+  const read = (what: string): void => {
+    drain()
+    log.push(`read ${what}`)
+  }
+
+  start([
+    {
+      id: 'deep',
+      target: [
+        { elements: [() => targets[0]!, () => targets[1]!], interactive: true },
+        () => targets[2]!,
+      ],
+      message: 'Here.',
+    },
+  ])
+
+  writes.observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true })
+  for (const [i, el] of targets.entries()) {
+    const rect = el.getBoundingClientRect.bind(el)
+    vi.spyOn(el, 'getBoundingClientRect').mockImplementation(() => {
+      read(`target ${i}`)
+      return rect()
+    })
+  }
+  for (const [i, el] of scrollers.entries()) {
+    for (const side of ['scrollWidth', 'scrollHeight', 'clientWidth'] as const) {
+      const own = getter(el, side)
+      vi.spyOn(el, side, 'get').mockImplementation(() => {
+        read(`${side} ${i}`)
+        return own.call(el) as number
+      })
+    }
+  }
+
+  // Every surface grows, so that the sizes the draw writes differ from the ones
+  // standing: a `style.width` set to the value it already had changes no
+  // attribute, and the observer would have nothing to report. Appended rather
+  // than resized, so the growth itself writes no `style` for the log.
+  for (const el of scrollers) el.append(tall('600px'))
+
+  // A resize rather than the first draw, so the stack is the one standing and
+  // every read is about a page nothing of Leko's has touched this task.
+  window.dispatchEvent(new Event('resize'))
+  drain()
+
+  const reads = log.filter((entry) => entry.startsWith('read'))
+  const first = log.findIndex((entry) => entry.startsWith('write'))
+  expect(reads.length).toBeGreaterThan(0)
+  expect(first).toBeGreaterThan(0)
+  // Every read is before the first write, counted rather than described: a
+  // read after one would be missing from this slice. Put a layer's sizing back
+  // among the reads and this is the assertion that says so.
+  expect(log.slice(0, first).length).toBe(reads.length)
+
+  writes.disconnect()
+})
+
+test('the opening starts from the box the draw read, not one read after it wrote', () => {
+  // A story's first step converges from what the viewer can see of the inner
+  // surface — DESIGN.md, **A story opens by converging, from every hole
+  // stretched over the whole surface** — and that box is read in the draw's
+  // read pass with everything else, then handed to `Scrim.converge`, which
+  // writes only. With the clock held, the morph has not painted a frame, so
+  // what is on the mask is the opening itself.
+  clocked()
+  const [first, beside, later] = nested().targets
+  const inner = first!.parentElement!.parentElement!
+
+  start(
+    [
+      {
+        id: 'deep',
+        target: [{ elements: [() => first!, () => beside!], interactive: true }, () => later!],
+        message: 'Here.',
+      },
+    ],
+    { duration: 320 },
+  )
+
+  // Two stretched cutouts, one per destination hole, each the size of the
+  // scroller's visible box and sitting on its scroll offset.
+  const layer = scrim()!
+  expect(holes()).toBe(2)
+  const positions = layer.style.maskPosition.split(',').slice(1)
+  for (const position of positions) {
+    const [x, y] = position.trim().split(/\s+/).map(parseFloat)
+    expect(x).toBe(inner.scrollLeft)
+    expect(y).toBe(inner.scrollTop)
+  }
+  const svg = decodeURIComponent(layer.style.maskImage)
+  expect(svg).toContain(`width="${inner.clientWidth}" height="${inner.clientHeight}"`)
 })
 
 test('the words after a morph are placed from the holes read then, not the ones the draw left with', async () => {

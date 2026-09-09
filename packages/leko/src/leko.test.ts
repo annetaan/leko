@@ -390,6 +390,58 @@ test("a hole in a scroller is cut where the scroller's own coordinates put it", 
   expect(svg).toContain('<rect x="0" y="0"')
 })
 
+test("a target the scrim's own mounting moved is drawn where it ended up", () => {
+  // The panel is `static`, so the first layer mounted in it gives it a
+  // `position`, and the target — absolutely positioned with an inset, its
+  // containing block until then outside the panel — moves into the panel's
+  // padding box and onto its scroll. DESIGN.md, **A draw mounts its layers,
+  // then reads, then writes**: the hole is cut where the target ends up, which
+  // is where it stays for the rest of the step, and not where it stood before
+  // Leko touched the page.
+  const panel = keep(document.createElement('div'))
+  Object.assign(panel.style, {
+    marginLeft: '40px',
+    marginTop: '40px',
+    width: '300px',
+    height: '200px',
+    overflow: 'auto',
+    border: '3px solid black',
+  })
+  const content = document.createElement('div')
+  content.style.height = '1200px'
+  const target = document.createElement('button')
+  Object.assign(target.style, {
+    position: 'absolute',
+    left: '20px',
+    top: '60px',
+    width: '120px',
+    height: '40px',
+    margin: '0',
+  })
+  content.append(target)
+  panel.append(content)
+  document.body.append(panel)
+  panel.scrollTop = 30
+  expect(getComputedStyle(panel).position).toBe('static')
+  const before = target.getBoundingClientRect()
+
+  const PADDING = 8
+  start([{ id: 'moved', target: { elements: () => target, interactive: true }, padding: PADDING }])
+
+  // The mounting did move it, or this test is about nothing.
+  const after = target.getBoundingClientRect()
+  expect(getComputedStyle(panel).position).toBe('relative')
+  expect(after.top).not.toBe(before.top)
+
+  expect(centre(target)).toBe(target)
+  const c = panel.getBoundingClientRect()
+  const x = after.left - c.left - panel.clientLeft + panel.scrollLeft - PADDING
+  const y = after.top - c.top - panel.clientTop + panel.scrollTop - PADDING
+  const placed = scrim()!.style.maskPosition.split(',')[1]!.trim().split(/\s+/).map(parseFloat)
+  expect(placed[0]!).toBeCloseTo(round(x), 2)
+  expect(placed[1]!).toBeCloseTo(round(y), 2)
+})
+
 test('a fixed target keeps its hole while the page scrolls under it', () => {
   // Tall enough to scroll, so there is a scroll for the hole to be carried
   // off by. The document's scrim would be: it lives in the document and rides
@@ -928,6 +980,11 @@ test('a visitor who asked for reduced motion has the page set outright, as the m
 
 test('a nested panel is set rather than glided, so the page delta is exact', async () => {
   // DESIGN.md, **The page glides; a nested panel is set**.
+  //
+  // On a clock the test owns, because `stopped()` cannot tell a starved frame
+  // loop from a finished one — `harness.ts`'s {@link stopped} says what that
+  // measured.
+  clocked()
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
   document.body.append(spacer)
@@ -964,7 +1021,14 @@ test('a nested panel is set rather than glided, so the page delta is exact', asy
   // in, while the page is still on its way.
   expect(scroller.scrollTop).toBeGreaterThan(0)
 
-  await stopped()
+  // Every frame until the step's words are back, which is the end of the whole
+  // flight: the glide, the landing, the draw and the morph after it. The words
+  // rather than the target under the centre point, because nothing is drawn
+  // while the page moves — DESIGN.md, **Two stages, never one: the page glides,
+  // and the step is drawn when it stops** — so the target is already under that
+  // point, unblocked, halfway through the glide. Measured at 115 frames in all
+  // three engines, the page stopping at 89 to 91; 200 is room.
+  await until(said, 200, 'the deep step never said its words')
   expect(centre(target)).toBe(target)
   window.scrollTo(0, 0)
 })
