@@ -1137,6 +1137,31 @@ test("a resize reads a scroller's own box once for the surface, not once per ele
   expect(container).toHaveBeenCalledTimes(2)
 })
 
+test('a resize whose target has gone asks for it once', () => {
+  const target = box('target', inFlow('100px'))
+  let there: Element | null = target
+  const asks = vi.fn(() => there)
+
+  start([{ id: 'one', target: { elements: asks, interactive: true }, message: 'Press it.' }])
+  const before = drawn()
+
+  // Gone with nothing reporting it, the way a re-render over a drawn step
+  // takes one away.
+  there = null
+  asks.mockClear()
+  window.dispatchEvent(new Event('resize'))
+
+  // Once. The resize asks where the step is to decide what it owes, and the
+  // decision it reaches — the layers refitted, no holes cut — is handed that
+  // answer rather than putting the same question to the page again.
+  expect(asks).toHaveBeenCalledTimes(1)
+  // The hole standing over the gap stays, and nothing beside it moved or was
+  // said again: the page is as tall as it was, so a refit writes back what was
+  // already there.
+  expect(holes()).toBe(1)
+  expect(drawn()).toBe(before)
+})
+
 const scroller = (style: Partial<CSSStyleDeclaration>): HTMLElement => {
   const el = document.createElement('div')
   Object.assign(el.style, { overflow: 'auto', margin: '0', ...style })

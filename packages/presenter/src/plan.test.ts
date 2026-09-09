@@ -63,6 +63,14 @@ const arrival = (over: Partial<Event & { kind: 'show' }> = {}): Event => ({
   ...over,
 })
 
+/** What the page answered for a step a resize is putting back. */
+const answer = (found: Element | null, about: Drawn, saying = false): Event => ({
+  kind: 'resolved',
+  drawn: about,
+  saying,
+  found,
+})
+
 type Retrying = Mode & { kind: 'retrying' }
 type Gliding = Mode & { kind: 'gliding' }
 
@@ -421,18 +429,24 @@ describe('a deadline running out', () => {
 })
 
 describe('a resize', () => {
-  test('puts the step on screen back and says it again, reason and all, as one effect', () => {
+  test('asks where the step on screen is, and will put its words back', () => {
     const before = drawn('not yet')
 
     const outcome = reduce(before, { kind: 'resized' })
 
     expect(outcome.mode).toBe(before)
-    expect(outcome.effects).toEqual([
-      { kind: 'replace', drawn: { step, error: 'not yet' }, saying: true },
-    ])
+    // Nothing is done to the page until the page has answered: which of the
+    // two a resize owes turns on where the target is, and only the shell can
+    // ask.
+    expect(outcome.effects).toEqual([])
+    expect(outcome.last).toEqual({
+      kind: 'replace',
+      drawn: { step, error: 'not yet' },
+      saying: true,
+    })
   })
 
-  test('puts the standing holes back while a step is on its way, and says nothing', () => {
+  test('asks where the standing step is while one is on its way, and will say nothing', () => {
     const standing: Drawn = { step: other, error: 'was told' }
 
     for (const before of [gliding(glide(), standing), retrying(undefined, standing)]) {
@@ -441,7 +455,8 @@ describe('a resize', () => {
       // The step being left, not the one pending, and nothing said —
       // DESIGN.md, **Nothing is armed for it either, and a reason waits with
       // the step**.
-      expect(outcome.effects).toEqual([{ kind: 'replace', drawn: standing, saying: false }])
+      expect(outcome.effects).toEqual([])
+      expect(outcome.last).toEqual({ kind: 'replace', drawn: standing, saying: false })
     }
   })
 
@@ -455,6 +470,39 @@ describe('a resize', () => {
 
   test('does nothing while idle', () => {
     expect(reduce(idle, { kind: 'resized' }).effects).toEqual([])
+  })
+})
+
+describe('a target answered for a resize', () => {
+  test('draws the holes again where the target is on the page', () => {
+    const before = drawn('not yet')
+    const there: Drawn = { step, error: 'not yet' }
+
+    const outcome = reduce(before, answer(anchor, there, true))
+
+    expect(outcome.mode).toBe(before)
+    expect(outcome.effects).toEqual([{ kind: 'redraw', drawn: there, anchor, saying: true }])
+  })
+
+  test('fits the standing layers where the target has gone, and says nothing', () => {
+    const standing: Drawn = { step: other, error: 'was told' }
+    const before = gliding(glide(), standing)
+
+    // `saying` is the resize's and this is the mode a resize mid-glide asks
+    // from, so it is already false; the effect has no such field at all,
+    // because there are no holes for words to be said beside.
+    const outcome = reduce(before, answer(null, standing))
+
+    expect(outcome.mode).toBe(before)
+    expect(outcome.effects).toEqual([{ kind: 'refit', drawn: standing }])
+  })
+
+  test('draws a step that points at nothing, which has no target to have gone', () => {
+    const held: Drawn = { step: waiting, error: undefined }
+
+    const outcome = reduce({ kind: 'drawn', step: waiting, error: undefined }, answer(null, held))
+
+    expect(outcome.effects).toEqual([{ kind: 'redraw', drawn: held, anchor: null, saying: false }])
   })
 })
 

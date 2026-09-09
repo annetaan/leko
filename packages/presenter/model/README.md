@@ -95,19 +95,21 @@ offers them so that the comparison is exercised rather than assumed.
 
 ## Re-entry, and how deep
 
-Three effects come back into the plan from inside the shell: `reveal` reports
-`unmeasured` or `morphed` from inside itself, `arrive` is a `show`, and `lost`
-is a teardown from inside the machine's call. An `Outcome` carries at most one
-of them, in `last`, and the shell performs it after every other effect, so the
-order is the type's and nothing checks it. Quint has no recursion, so the
-interpreter is unrolled — `dispatch`, `dispatch2`, `dispatch3` — as deep as the
-plan nests, and an effect of the third level's outcome that came back in marks
-the state `deep` instead of running. `boundedReentry` says that never happened.
-A plan that nests further wants another level, not a quieter model.
+Four effects come back into the plan from inside the shell: `reveal` reports
+`unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
+`arrive` is a `show`, and `lost` is a teardown from inside the machine's call.
+An `Outcome` carries at most one of them, in `last`, and the shell performs it
+after every other effect, so the order is the type's and nothing checks it.
+Quint has no recursion, so the interpreter is unrolled — `dispatch`,
+`dispatch2`, `dispatch3` — as deep as the plan nests, and an effect of the
+third level's outcome that came back in marks the state `deep` instead of
+running. `boundedReentry` says that never happened. A plan that nests further
+wants another level, not a quieter model.
 
 The deepest chain as the plan stands is a hunt finding its target: `mutated`
 owes an `arrive`, the `show` it makes owes a `reveal`, and the `reveal` reports
-`unmeasured` or `morphed`. Three deep.
+`unmeasured` or `morphed`. Three deep. A resize is two: `resized` owes a
+`replace`, and the answer comes back as `resolved`.
 
 ## What is checked, and where
 
@@ -125,8 +127,8 @@ for a state predicate to hold is the mode against the implicit state:
 | `worldIsFixed` | the step table never changes, which is what lets `pointsAt` read it off the `pure val` while everything with a state reads the variable |
 
 What used to be `reentrantIsLast` is the shape of `Outcome` now — `effects`
-cannot hold `reveal`, `arrive` or `lost`, and `last` holds at most one — the
-way `replace` carrying `saying` retired the first review finding.
+cannot hold `reveal`, `replace`, `arrive` or `lost`, and `last` holds at most
+one — the way `redraw` carrying `saying` retired the first review finding.
 
 The claims about what a *transition* did cannot be seen by a predicate over one
 state at all, and writing them into the model as a flag an action sets would
@@ -148,7 +150,7 @@ asked, and the witnesses below are what aim the harvest.
 
 ## The corpus
 
-`traces/` holds 17 traces, harvested the way the machine's are: `quint run` is
+`traces/` holds 18 traces, harvested the way the machine's are: `quint run` is
 handed the negation of a target as its invariant, and the shortest thing that
 breaks "this never happens" is a trace where it does. The targets and the seeds
 are in `HARVEST` in `scripts/model-traces.mjs`, under this model's entry.
@@ -334,7 +336,7 @@ review findings were entrances of that shape — a glide begun from a retry, a
 `retellInRetry` are those; `showOverGlide`, `showOverRetry`, `retellInGlide`,
 `teardownFromGlide`, `teardownFromRetry` and `landedWithReason` are the other
 entrances of the same class. The first finding, a `replace` owed beside a `say`
-that assumed it had succeeded, is the shape of the `Effect` type now — `replace`
+that assumed it had succeeded, is the shape of the `Effect` type now — `redraw`
 carries `saying` — and has no witness because there is no longer a branch to
 reach.
 
@@ -402,15 +404,15 @@ the commit, because a model that lies is worse than no model.
   on a resize, for the 100ms until it ends. `unmeasured` is unreachable as far
   as anyone can tell, and this is the one place the model chooses the reading
   that keeps the invariant strict rather than the one that would weaken it.
-- `replace` failing to measure. `DomPresenter.replace` has the same exit after
+- A redraw failing to measure. `DomPresenter.redraw` has the same exit after
   the target resolved — the way out placed, no holes, no words, no event — and
   it is unreachable for the same reason: `resolveTargets` is `resolveTarget`
   over a list, so a first region whose first element resolved a moment ago has
-  a box. The model's `Replace` takes it that measuring succeeds, and reads no
+  a box. The model's `Redraw` takes it that measuring succeeds, and reads no
   knob for it.
 - Anything the corpus does not reach. The replay drives the traces under
   `traces/` and no other path, so a claim about a transition is checked exactly
-  where a trace goes. `traces/` is 17 of them, and the search is what aimed each.
+  where a trace goes. `traces/` is 18 of them, and the search is what aimed each.
 - Any depth at all, in the sense of a finished search. `nextToken` grows and
   nothing resets it, so the state space is infinite and only a bound is on
   offer. `quint verify` has not been run against this model.

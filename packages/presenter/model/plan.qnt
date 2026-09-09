@@ -58,6 +58,7 @@ module plan {
     | Unmeasured({ step: str, animate: bool })
     | Expired({ pending: Pending, found: bool })
     | Resized
+    | Resolved({ drawn: Picture, saying: bool, found: bool })
 
   /// `Effect` in plan.ts. `Reword` is its `retell`, renamed because the event
   /// above already has the name. `Hunt` carries no anchor: there is no node to
@@ -69,7 +70,8 @@ module plan {
     | Hunt({ step: str })
     | Deadline(Pending)
     | Cancel
-    | Replace({ drawn: Picture, saying: bool })
+    | Redraw({ drawn: Picture, found: bool, saying: bool })
+    | Refit(Picture)
     | Say(Picture)
     | Reword({ step: str, reason: str })
     | Destroy
@@ -77,6 +79,7 @@ module plan {
   /// `Reentrant` in plan.ts.
   type Reentrant =
     | Reveal({ drawn: Picture, anchor: bool, animate: bool })
+    | Replace({ drawn: Picture, saying: bool })
     | Arrive({ pending: Pending, error: Maybe[str] })
     | Lost({ step: str })
 
@@ -108,7 +111,7 @@ module plan {
     deadline: Maybe[Pending],
     // The step whose cutouts the innermost scrim holds — or, for a step that
     // points at nothing, the step drawn on the document with none. Written by
-    // `reveal` and `replace`, cleared by `destroy`.
+    // `reveal` and `redraw`, cleared by `destroy`.
     screen: Maybe[str],
     // Whether the message is visible.
     messageUp: bool,
@@ -374,16 +377,26 @@ module plan {
       | Resized =>
         match mode {
           | Drawn(d) =>
-            { mode: mode, effects: [Replace({ drawn: d, saying: true })], last: Nothing, mark: "resized-said" }
+            { mode: mode, effects: [], last: Just(Replace({ drawn: d, saying: true })), mark: "resized-said" }
           // A step on its way, or nothing at all: what stands goes back
           // without its words, where anything stands.
           | _ =>
             match standingIn(mode) {
               | Nothing => nothing(mode, "resized-nothing")
               | Just(d) =>
-                { mode: mode, effects: [Replace({ drawn: d, saying: false })], last: Nothing, mark: "resized-holes" }
+                { mode: mode, effects: [], last: Just(Replace({ drawn: d, saying: false })), mark: "resized-holes" }
             }
         }
+
+      // The page has answered where the step a resize is putting back is, and
+      // the answer decides which of the two the resize owes. The mode does not
+      // move: a resize is the surface moving under the tour.
+      | Resolved(e) =>
+        if (not(e.found) and pointsAt(e.drawn.step))
+          { mode: mode, effects: [Refit(e.drawn)], last: Nothing, mark: "resolved-refit" }
+        else
+          { mode: mode, effects: [Redraw({ drawn: e.drawn, found: e.found, saying: e.saying })],
+            last: Nothing, mark: "resolved-redraw" }
     }
 
   // ----------------------------------------------------------------- the shell
@@ -422,23 +435,17 @@ module plan {
       // `cancel()` then `setTimeout`, so there is never a second one.
       | Deadline(p) => s.with("deadline", Just(p))
       | Cancel => s.with("deadline", Nothing)
-      | Replace(r) => {
-        // A target that is not on the page this instant is one a mutation
-        // batch is about to report, and `replace` places the way out and
-        // nothing else: no holes, and no words even where `saying` asked.
-        val resolvable = match s.world.get(r.drawn.step).target {
-          | Nothing => true
-          | Just(t) => s.page.contains(t)
-        }
-        if (not(resolvable)) s
-        else {
-          // `set`, which halts a morph in flight: it settles unfinished and
-          // reports nothing. `measure` failing after the anchor resolved is
-          // the same unreachable exit `reveal` has, and this arm takes it that
-          // measuring succeeds; `README.md` says so beside `unmeasured`.
-          val holes = s.with("screen", Just(r.drawn.step)).with("morphing", Nothing)
-          if (r.saying) holes.with("messageUp", true) else holes
-        }
+      // The layers standing are sized to the surface again and the way out is
+      // placed: nothing is cut and nothing is said, so nothing the model keeps
+      // moves.
+      | Refit(_) => s
+      | Redraw(r) => {
+        // `set`, which halts a morph in flight: it settles unfinished and
+        // reports nothing. `measure` failing after the anchor resolved is the
+        // same unreachable exit `reveal` has, and this arm takes it that
+        // measuring succeeds; `README.md` says so beside `unmeasured`.
+        val holes = s.with("screen", Just(r.drawn.step)).with("morphing", Nothing)
+        if (r.saying) holes.with("messageUp", true) else holes
       }
       // Every step in the world has words, so `say` always shows the box.
       | Say(_) => s.with("messageUp", true).with("onPage", true)
@@ -451,11 +458,11 @@ module plan {
          .with("morphing", Nothing)
     }
 
-  /// The three that come back in — `reveal` reports `unmeasured` or `morphed`
-  /// from inside itself, `arrive` is a `show`, `lost` is a teardown from inside
-  /// the machine's call — and `again` is how. Quint has no recursion, so
-  /// {@link dispatch} unrolls it as deep as the plan nests, and the next level
-  /// marks the state `deep` instead of running.
+  /// The four that come back in — `reveal` reports `unmeasured` or `morphed`
+  /// from inside itself, `replace` reports `resolved`, `arrive` is a `show`,
+  /// `lost` is a teardown from inside the machine's call — and `again` is how.
+  /// Quint has no recursion, so {@link dispatch} unrolls it as deep as the plan
+  /// nests, and the next level marks the state `deep` instead of running.
   pure def reenter(s: M, e: Reentrant, k: Knobs, again: (M, Event) => M): M =
     match e {
       | Reveal(r) => {
@@ -478,6 +485,17 @@ module plan {
           else placed.with("morphing", Just(r.drawn.step))
         }
       }
+      // `perform`'s `replace` in presenter.ts: the page is asked where the step
+      // is and answers as data. The one place the page is read here, which is
+      // the same question `show`'s anchor is.
+      | Replace(r) =>
+        again(s, Resolved({
+          drawn: r.drawn, saying: r.saying,
+          found: match s.world.get(r.drawn.step).target {
+            | Nothing => false
+            | Just(t) => s.page.contains(t)
+          },
+        }))
       | Arrive(a) => {
         // `arrive` in presenter.ts: the one place a scroll happens. A glide is
         // minted where `bringIntoView` had somewhere to go, and the `show`
@@ -818,6 +836,8 @@ module plan {
   val resizedSaid: bool = went(m, "resized-said")
   val resizedHoles: bool = went(m, "resized-holes")
   val resizedNothing: bool = went(m, "resized-nothing")
+  val resolvedRedraw: bool = went(m, "resolved-redraw")
+  val resolvedRefit: bool = went(m, "resolved-refit")
 
   // --- a mark and the mode it landed in: the entrances the review of the first
   // --- plan found unenumerated, and the others of that class

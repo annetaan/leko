@@ -3522,7 +3522,7 @@
             }
           ]
         },
-        "marks": ["resized-holes"],
+        "marks": ["resized-holes", "resolved-redraw"],
         "messageUp": false,
         "mode": {
           "tag": "Gliding",
@@ -3571,13 +3571,15 @@
           ]
         },
         "nextToken": {
-          "#bigint": "23"
+          "#bigint": "24"
         },
         "onPage": true,
         "outcomes": [
           {
-            "effects": [
-              {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
                 "tag": "Replace",
                 "value": {
                   "drawn": {
@@ -3589,6 +3591,26 @@
                     },
                     "step": "one"
                   },
+                  "saying": false
+                }
+              }
+            }
+          },
+          {
+            "effects": [
+              {
+                "tag": "Redraw",
+                "value": {
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "one"
+                  },
+                  "found": true,
                   "saying": false
                 }
               }

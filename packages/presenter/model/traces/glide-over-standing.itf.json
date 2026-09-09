@@ -1405,7 +1405,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["resized-said"],
+        "marks": ["resized-said", "resolved-redraw"],
         "messageUp": true,
         "mode": {
           "tag": "Drawn",
@@ -1429,13 +1429,15 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "10"
+          "#bigint": "11"
         },
         "onPage": true,
         "outcomes": [
           {
-            "effects": [
-              {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
                 "tag": "Replace",
                 "value": {
                   "drawn": {
@@ -1447,6 +1449,26 @@
                     },
                     "step": "wait"
                   },
+                  "saying": true
+                }
+              }
+            }
+          },
+          {
+            "effects": [
+              {
+                "tag": "Redraw",
+                "value": {
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
+                  },
+                  "found": false,
                   "saying": true
                 }
               }
@@ -1580,7 +1602,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["resized-said"],
+        "marks": ["resized-said", "resolved-redraw"],
         "messageUp": true,
         "mode": {
           "tag": "Drawn",
@@ -1604,13 +1626,15 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "11"
+          "#bigint": "13"
         },
         "onPage": true,
         "outcomes": [
           {
-            "effects": [
-              {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
                 "tag": "Replace",
                 "value": {
                   "drawn": {
@@ -1622,6 +1646,26 @@
                     },
                     "step": "wait"
                   },
+                  "saying": true
+                }
+              }
+            }
+          },
+          {
+            "effects": [
+              {
+                "tag": "Redraw",
+                "value": {
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
+                  },
+                  "found": false,
                   "saying": true
                 }
               }
@@ -1777,7 +1821,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "12"
+          "#bigint": "14"
         },
         "onPage": true,
         "outcomes": [
@@ -1918,7 +1962,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "12"
+              "#bigint": "14"
             }
           ]
         },
@@ -1934,13 +1978,13 @@
               }
             },
             "glide": {
-              "#bigint": "12"
+              "#bigint": "14"
             },
             "pending": {
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             },
             "standing": {
@@ -1964,12 +2008,12 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "12"
+              "#bigint": "14"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "14"
+          "#bigint": "16"
         },
         "onPage": true,
         "outcomes": [
@@ -2009,7 +2053,7 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             }
           ]
@@ -2116,7 +2160,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           }
         },
@@ -2125,7 +2169,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "12"
+              "#bigint": "14"
             }
           ]
         },
@@ -2144,7 +2188,7 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             },
             "standing": {
@@ -2170,7 +2214,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "15"
+          "#bigint": "17"
         },
         "onPage": true,
         "outcomes": [
@@ -2188,7 +2232,7 @@
                   "animate": false,
                   "step": "two",
                   "token": {
-                    "#bigint": "13"
+                    "#bigint": "15"
                   }
                 }
               }
@@ -2214,7 +2258,7 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             }
           ]
@@ -2253,7 +2297,7 @@
         "glidePick": {
           "tag": "Some",
           "value": {
-            "#bigint": "12"
+            "#bigint": "14"
           }
         },
         "landedOn": {
@@ -2323,7 +2367,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           }
         },
@@ -2332,7 +2376,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "12"
+              "#bigint": "14"
             }
           ]
         },
@@ -2349,7 +2393,7 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             },
             "standing": {
@@ -2375,7 +2419,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "16"
+          "#bigint": "18"
         },
         "onPage": true,
         "outcomes": [
@@ -2402,7 +2446,7 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             }
           ]
@@ -2514,10 +2558,10 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "12"
+              "#bigint": "14"
             },
             {
-              "#bigint": "16"
+              "#bigint": "18"
             }
           ]
         },
@@ -2533,13 +2577,13 @@
               }
             },
             "glide": {
-              "#bigint": "16"
+              "#bigint": "18"
             },
             "pending": {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             "standing": {
@@ -2563,12 +2607,12 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "16"
+              "#bigint": "18"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "18"
+          "#bigint": "20"
         },
         "onPage": true,
         "outcomes": [
@@ -2614,14 +2658,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "13"
+                "#bigint": "15"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             }
           ]

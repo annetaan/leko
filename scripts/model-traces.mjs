@@ -79,6 +79,9 @@ const CORPORA = [
       { name: 'hunt-elsewhere', target: 'mutatedElsewhere', seed: '0xf' },
       { name: 'morphed-stale', target: 'morphedStale', seed: '0xb' },
       { name: 'resized-in-retry', target: 'resizedInRetry', seed: '0xc' },
+      // A resize whose target has gone, which refits the layers standing
+      // rather than cutting the holes again.
+      { name: 'resized-gone', target: 'resolvedRefit', seed: '0x13' },
     ],
   },
 ]

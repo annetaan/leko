@@ -27,7 +27,6 @@ import {
   type Event,
   idle,
   type Mode,
-  pointsAt,
   reduce,
   regionsOf,
   type Reentrant,
@@ -200,11 +199,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * to point at is not drawn at all. A later region that resolves to nothing is
    * a hole this step does not cut, and nothing else follows from it.
    *
-   * `anchor` is the first element of the first region, already resolved, so it
-   * heads that region rather than being resolved twice — the rule {@link lit}
-   * follows. `null` there asks the page for every element.
+   * `anchor` is what the page has already answered for the first element of the
+   * first region, and it has three states: an `Element` heads that region
+   * rather than being resolved twice — the rule {@link lit} follows — `null`
+   * says the page was asked and it has gone, and `undefined` says nobody has
+   * asked, so every element is put to the page here. The middle one is what
+   * keeps a caller that resolved the anchor itself from asking twice for an
+   * answer it already has.
    */
-  private holes(step: LekoStep, anchor: Element | null): Hole[] | null {
+  private holes(step: LekoStep, anchor: Element | null | undefined): Hole[] | null {
     const regions = regionsOf(step.target)
     // A step that names nothing cuts nothing, and a scrim with no holes in it
     // is one rectangle over everything. That is the whole of what a step that
@@ -212,8 +215,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
     if (regions.length === 0) return []
     const cut = regions.map((region, i) =>
       hole(
-        i === 0 && anchor
-          ? [anchor, ...resolveTargets(region.elements.slice(1))]
+        i === 0 && anchor !== undefined
+          ? [...(anchor ? [anchor] : []), ...resolveTargets(region.elements.slice(1))]
           : resolveTargets(region.elements),
         region.interactive,
       ),
@@ -341,7 +344,18 @@ export class DomPresenter implements Presenter<LekoWorld> {
       case 'reveal':
         return this.reveal(effect.drawn, effect.anchor, effect.animate)
       case 'replace':
-        return this.replace(effect.drawn, effect.saying)
+        // What the page answers goes into the event as data, and `plan.ts`
+        // decides on it there.
+        return this.dispatch({
+          kind: 'resolved',
+          drawn: effect.drawn,
+          saying: effect.saying,
+          found: this.resolve(effect.drawn.step),
+        })
+      case 'redraw':
+        return this.redraw(effect.drawn, effect.anchor, effect.saying)
+      case 'refit':
+        return this.refit(effect.drawn.step)
       case 'say':
         return this.say(effect.drawn.step, effect.drawn.error)
       case 'retell':
@@ -456,35 +470,41 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * The `replace` effect, performed — what it means is `Effect` in `plan.ts`.
+   * The `redraw` effect, performed — what it means is `Effect` in `plan.ts`.
    * Replaying the opening instead would blow the cutout back up to the size of
    * the page and converge again, so for a moment almost nothing would be
    * dimmed. This sets.
    */
-  private replace(drawn: Drawn, saying: boolean): void {
+  private redraw(drawn: Drawn, anchor: Element | null, saying: boolean): void {
     const { step } = drawn
-    // A step whose target is not on the page this instant has no surface to put
-    // layers under, and restacking against the document would destroy the
-    // layers the standing hole and its blocking rectangles live in, leaving the
-    // page dimmed with nothing held back. So the layers standing are kept and
-    // told the surface moved: without that they keep the size they had and the
-    // part the page grew by is neither dimmed nor blocked for the rest of the
-    // step. Nothing is drawn for a retry, so no words either — they would be
-    // said beside holes that could not be found. The way out is placed all the
-    // same.
-    const anchor = this.resolve(step)
-    if (!anchor && pointsAt(step)) {
-      this.fit()
-      return this.place(step, this.holes(step, null))
-    }
     const holes = this.holes(step, anchor)
     const measured = this.measure(step, anchor, holes)
+    // The same exit {@link reveal} has, and not reached from either way in
+    // here: an anchor resolved a moment ago in this same task has a box, and a
+    // step that points at nothing arrives with holes of `[]` rather than
+    // `null`, onto a surface chain that always answers with the document.
+    // `../model/README.md` says so under **What it does not cover**.
     if (!measured) return this.place(step, holes)
     measured.inner.set(measured.resolved)
     // Said from what was just measured. Nothing between here and there moves
     // the page.
     if (saying) return this.say(step, drawn.error, measured)
     this.place(step, holes, measured.onScreen)
+  }
+
+  /**
+   * The `refit` effect, performed: the layers standing are kept and told the
+   * surface moved. Without that they keep the size they had, and the part the
+   * page grew by is neither dimmed nor blocked for the rest of the step.
+   *
+   * Nothing is cut, because the target the holes belong to has gone — which is
+   * what `plan.ts` decided on, and where it says why the layers are not
+   * restacked. `null` carries that answer down, so the first element is not
+   * asked for a second time.
+   */
+  private refit(step: LekoStep): void {
+    this.fit()
+    this.place(step, this.holes(step, null))
   }
 
   /**
@@ -500,7 +520,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private say(step: LekoStep, error: string | undefined, measured?: Measured): void {
     const content = this.content(step, error)
-    const holes = measured?.holes ?? this.holes(step, null)
+    const holes = measured?.holes ?? this.holes(step, undefined)
     const onScreen = measured?.onScreen ?? (holes ? this.cutouts(step, holes) : [])
     this.showClose(onScreen)
     if (!content.text && !content.error && !content.next) {

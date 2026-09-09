@@ -201,6 +201,13 @@ export type Event =
    */
   | { kind: 'expired'; pending: Pending; found: Element | null }
   | { kind: 'resized' }
+  /**
+   * The page answered where a step a resize has to put back is, and `found` is
+   * what resolving it turned up. `drawn` and `saying` are the resize's, carried
+   * here rather than read off the mode again: a resize does not move the tour,
+   * so what it was putting back is what it is still putting back.
+   */
+  | { kind: 'resolved'; drawn: Drawn; saying: boolean; found: Element | null }
 
 // ------------------------------------------------------------------- the effects
 
@@ -223,13 +230,24 @@ export type Effect =
   /** The clock stops. */
   | { kind: 'cancel' }
   /**
-   * Put the holes back where the surface moved under them and place the way
-   * out again; `saying` puts the words back beside them too, which a step on
-   * its way must not. One effect rather than a `replace` and a `say`, because
-   * the shell can find nothing to put back — the target went in the same task
-   * — and the words follow only where the holes did.
+   * Cut the holes again where the surface moved under them, around the target
+   * the page has just answered with, and place the way out beside them.
+   * `saying` puts the words back too, which a step on its way must not.
+   *
+   * One effect rather than this and a `say` beside it, because the words are
+   * placed from the boxes this draw has just read: a `say` of its own would
+   * ask the page for them again.
    */
-  | { kind: 'replace'; drawn: Drawn; saying: boolean }
+  | { kind: 'redraw'; drawn: Drawn; anchor: Element | null; saying: boolean }
+  /**
+   * Size the standing layers to the surface as it is now, and place the way out
+   * where they leave it. Nothing is cut, and the `resolved` case of
+   * {@link reduce} is where what is missing is decided and argued.
+   *
+   * It carries no `saying` because there are no holes for words to be said
+   * beside.
+   */
+  | { kind: 'refit'; drawn: Drawn }
   /** Put the message beside the holes. */
   | { kind: 'say'; drawn: Drawn }
   /** Only the words change. */
@@ -238,16 +256,23 @@ export type Effect =
   | { kind: 'destroy' }
 
 /**
- * The three that come back into the plan from inside the shell: `reveal`
- * reports `unmeasured` or `morphed` from inside itself, `arrive` is a `show`,
- * and `lost` is a teardown from inside the machine's call. Each replaces the
- * mode while the shell is still working through the outcome, so anything
- * performed after one would run against a mode that is gone. An outcome holds
- * at most one, in {@link Outcome.last}, and `effects` cannot hold any.
+ * The four that answer the plan from inside the shell: `reveal` reports
+ * `unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
+ * `arrive` is a `show`, and `lost` is a teardown from inside the machine's
+ * call. Each dispatches while the shell is still working through the outcome
+ * that owed it, so an outcome holds at most one, in {@link Outcome.last}, and
+ * `effects` cannot hold any: three of them replace the mode, and anything
+ * performed after one of those would run against a mode that is gone.
  */
 export type Reentrant =
   /** Draw `drawn` around `anchor`, morphing where `animate` says. */
   | { kind: 'reveal'; drawn: Drawn; anchor: Element | null; animate: boolean }
+  /**
+   * Ask the page where `drawn`'s target is and report it back as `resolved`.
+   * Whether a resize redraws the holes or only refits the layers turns on that
+   * answer, and only the page can give it.
+   */
+  | { kind: 'replace'; drawn: Drawn; saying: boolean }
   /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
   | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
   /** `Host.lost`, whose own doc says what it is the only part of. */
@@ -484,7 +509,7 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // the side it was put on without room, so that choice is made again.
       if (mode.kind === 'drawn') {
         const drawn: Drawn = { step: mode.step, error: mode.error }
-        return { mode, effects: [{ kind: 'replace', drawn, saying: true }] }
+        return { mode, effects: [], last: { kind: 'replace', drawn, saying: true } }
       }
       // A step is on its way, so the words stay away, and the standing holes go
       // back with the way out all the same — a resize can take away the corner
@@ -494,7 +519,22 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // either, and a reason waits with the step** for a glide, and DESIGN.md's
       // **Nothing is drawn for a retry** for a retry.
       if (mode.kind === 'idle' || !mode.standing) return nothing(mode)
-      return { mode, effects: [{ kind: 'replace', drawn: mode.standing, saying: false }] }
+      return { mode, effects: [], last: { kind: 'replace', drawn: mode.standing, saying: false } }
+    }
+
+    case 'resolved': {
+      // A step whose target is not on the page this instant has no surface to
+      // put layers under, and a redraw would restack against the document and
+      // destroy the layers the standing hole and its blocking rectangles live
+      // in. So the layers standing are kept and told the surface moved, which
+      // is the trade DESIGN.md argues under **Nothing is drawn for a retry**.
+      // A step that points at nothing has no target to have gone, and is
+      // drawn.
+      if (!event.found && pointsAt(event.drawn.step)) {
+        return { mode, effects: [{ kind: 'refit', drawn: event.drawn }] }
+      }
+      const { drawn, found, saying } = event
+      return { mode, effects: [{ kind: 'redraw', drawn, anchor: found, saying }] }
     }
   }
 }

@@ -168,6 +168,20 @@ function toldEffect(value: Itf): Owed {
         saying: inner['saying'] as boolean,
       }
     }
+    case 'Redraw': {
+      const drawn = picture(inner['drawn'])
+      return {
+        kind: 'redraw',
+        step: drawn.step,
+        error: drawn.error,
+        anchor: inner['found'] as boolean,
+        saying: inner['saying'] as boolean,
+      }
+    }
+    case 'Refit': {
+      const drawn = picture(payload(value))
+      return { kind: 'refit', step: drawn.step, error: drawn.error }
+    }
     case 'Say': {
       const drawn = picture(payload(value))
       return { kind: 'say', step: drawn.step, error: drawn.error }
@@ -435,11 +449,23 @@ class Shell {
         return
       }
       case 'replace': {
-        // A step whose target has gone gets the way out and nothing else — no
-        // holes, and no words even where `saying` asked. `replace` in
-        // `presenter.ts` says why.
+        // The page asked where the step is, and the answer goes back in as
+        // data: `perform` in `presenter.ts` reads it off the page and decides
+        // nothing.
         const target = targetOf(effect.drawn.step)
-        if (target !== undefined && !this.page.has(target)) return
+        this.dispatch({
+          kind: 'resolved',
+          drawn: effect.drawn,
+          saying: effect.saying,
+          found: target !== undefined && this.page.has(target) ? ANCHOR : null,
+        })
+        return
+      }
+      // The layers standing are sized to the surface again and the way out is
+      // placed. Nothing is cut and nothing is said, so nothing here moves.
+      case 'refit':
+        return
+      case 'redraw': {
         // `set`, which halts a morph in flight: it settles unfinished and the
         // shell reports nothing for it.
         this.screen = effect.drawn.step
@@ -600,6 +626,16 @@ class Shell {
           error: effect.drawn.error,
           saying: effect.saying,
         }
+      case 'redraw':
+        return {
+          kind: 'redraw',
+          step: effect.drawn.step.id,
+          error: effect.drawn.error,
+          anchor: effect.anchor !== null,
+          saying: effect.saying,
+        }
+      case 'refit':
+        return { kind: 'refit', step: effect.drawn.step.id, error: effect.drawn.error }
       case 'say':
         return { kind: 'say', step: effect.drawn.step.id, error: effect.drawn.error }
       case 'retell':
@@ -930,7 +966,7 @@ describe('every trace the model found', () => {
             `${where}: the page said something while it was still moving`,
           ).toEqual([])
           for (const effect of flat) {
-            if (effect.kind !== 'replace') continue
+            if (effect.kind !== 'replace' && effect.kind !== 'redraw') continue
             expect(effect.saying, `${where}: a replace mid-glide put the words back`).toBe(false)
           }
           expect(shell.messageUp, `${where}: the message came back mid-glide`).toBe(false)
