@@ -277,7 +277,8 @@ export async function shown(within = 8000): Promise<void> {
  * time, and what a test reads afterwards is a page still on its way. A test
  * that cannot afford that takes the clock — {@link clocked} — and waits on
  * what the flight ends with rather than on the offset holding still, the way
- * `a nested panel is set rather than glided` does.
+ * `a step that asks for staged leaves its panel until the page has landed`
+ * does.
  */
 export async function stopped(cap = 8000): Promise<void> {
   const began = performance.now()

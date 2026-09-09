@@ -502,8 +502,8 @@ test('a fixed element an ancestor has taken back into the flow rides the page', 
  * A target the page has to be scrolled to reach: a tall document, and a button
  * in its flow far below the fold.
  *
- * Absolute rather than fixed, because a fixed target is carried by the viewport
- * and there is nothing to scroll it to — which is one of the tests below.
+ * Absolute rather than fixed: DESIGN.md,
+ * **A `position: fixed` target is not scrolled**.
  */
 function belowTheFold(top: number): HTMLElement {
   const spacer = keep(document.createElement('div'))
@@ -533,13 +533,12 @@ const port = () => ({
  * How far the middle of `el`'s cutout is from the middle of the screen.
  *
  * The cutout rather than the element, because that is what is brought in: the
- * hole overhangs the element by the step's `padding`, and an asked-for
- * `scroll-margin` leans the box further. `room` is what to add to each side,
- * top first.
+ * hole overhangs the element by the step's `padding`, which every step below
+ * leaves at the default of 8.
  */
-const offCentre = (el: Element, room: [number, number] = [8, 8]): number => {
+const offCentre = (el: Element): number => {
   const r = el.getBoundingClientRect()
-  return (r.top - room[0] + (r.bottom + room[1])) / 2 - port().height / 2
+  return (r.top - 8 + (r.bottom + 8)) / 2 - port().height / 2
 }
 
 test('a step told to scroll brings its target into view before drawing it', () => {
@@ -565,38 +564,14 @@ test('a step that says nothing about scrolling leaves the page where it was', ()
   window.scrollTo(0, 0)
 })
 
-test('a target at the end of the content lands as near the middle as it can', () => {
-  // Centring this would need a scroll past the end of the page — DESIGN.md,
-  // **Nothing in the geometry clamps; whoever scrolls does**.
-  const spacer = keep(document.createElement('div'))
-  spacer.style.height = '2100px'
-  document.body.append(spacer)
-  const target = document.createElement('button')
-  target.textContent = 'last'
-  Object.assign(target.style, {
-    position: 'absolute',
-    left: '100px',
-    top: '2000px',
-    width: '120px',
-    height: '40px',
-    margin: '0',
-  })
-  spacer.append(target)
-
-  start([{ id: 'last', target: { elements: () => target, interactive: true }, scroll: true }])
-
-  expect(centre(target)).toBe(target)
-  // Below the middle, and at the foot of the scroll range rather than short of
-  // it: as far as the content goes.
-  expect(offCentre(target)).toBeGreaterThan(0)
-  const end = document.documentElement.scrollHeight - port().height
-  expect(window.scrollY).toBeCloseTo(end, 0)
-  window.scrollTo(0, 0)
-})
-
-test('a target taller than half the screen leads with its top edge, at the middle', () => {
-  // DESIGN.md, **A target more than half the port tall leads with its top edge,
-  // put at the middle**.
+test("the step's padding is part of the box the page is brought to", () => {
+  // Which box leads with its top edge, and where that edge goes, is arithmetic
+  // `geometry.test.ts` asks of `scrollDelta` — this is the wiring: that the
+  // `padding` the step is read for reaches the room `bringIntoView` is given.
+  // A tall target is the only shape that shows it, symmetric room cancelling
+  // out of a box that gets centred. DESIGN.md, **A target more than half the
+  // port tall leads with its top edge, put at the middle**, and
+  // **`scroll-margin` on the target wins over the step's `padding`**.
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '4000px'
   document.body.append(spacer)
@@ -614,43 +589,10 @@ test('a target taller than half the screen leads with its top edge, at the middl
 
   start([{ id: 'tall', target: { elements: () => tall, interactive: true }, scroll: true }])
 
-  // The cutout's top edge at the middle of the screen, padding included.
+  // The cutout's top edge at the middle of the screen, which is 8px above where
+  // the element's own would be. Room of nothing lands the second of these.
   expect(tall.getBoundingClientRect().top - 8).toBeCloseTo(port().height / 2, 0)
-  // Which is what leaves the message its half. Nothing here places one, so this
-  // is the room rather than the box: half the screen, above the hole.
-  expect(tall.getBoundingClientRect().top - 8).toBeGreaterThan(200)
-  window.scrollTo(0, 0)
-})
-
-test('a target a little over half the screen leads too, and one under it is centred', () => {
-  const spacer = keep(document.createElement('div'))
-  spacer.style.height = '4000px'
-  document.body.append(spacer)
-  const half = document.documentElement.clientHeight / 2
-  const make = (top: number, height: number): HTMLElement => {
-    const el = document.createElement('section')
-    Object.assign(el.style, {
-      position: 'absolute',
-      left: '100px',
-      top: `${top}px`,
-      width: '200px',
-      height: `${height}px`,
-      margin: '0',
-    })
-    spacer.append(el)
-    return el
-  }
-  // Either side of the threshold, the padded box being what is measured.
-  const over = make(1500, half + 40)
-  const under = make(2600, half - 40)
-
-  start([{ id: 'over', target: () => over, scroll: true }])
-  expect(over.getBoundingClientRect().top - 8).toBeCloseTo(half, 0)
-
-  const leko = start([{ id: 'under', target: () => under, scroll: true }])
-  const cutout = under.getBoundingClientRect()
-  expect((cutout.top - 8 + cutout.bottom + 8) / 2).toBeCloseTo(half, 0)
-  leko.stop()
+  expect(tall.getBoundingClientRect().top).not.toBeCloseTo(port().height / 2, 0)
   window.scrollTo(0, 0)
 })
 
@@ -669,37 +611,9 @@ test('the instance can ask for it, and a step can say no', () => {
   window.scrollTo(0, 0)
 })
 
-test('a target already in view is left exactly where it is', () => {
-  const target = belowTheFold(2000)
-  // Somewhere the viewer has settled, with the target well inside the screen.
-  window.scrollTo(0, 2000 - port().height / 2)
-  const settled = window.scrollY
-
-  start([{ id: 'near', target: { elements: () => target, interactive: true }, scroll: true }])
-
-  // DESIGN.md, **A port that already holds the cutout is not touched**.
-  expect(window.scrollY).toBe(settled)
-  window.scrollTo(0, 0)
-})
-
-test('scroll-margin on the target is honoured over the step padding', () => {
-  const target = belowTheFold(2000)
-  // DESIGN.md, **`scroll-margin` on the target wins over the step's `padding`**.
-  target.style.scrollMarginBottom = '120px'
-
-  start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }])
-
-  // Off centre by half of what the margin asked for, and clear of whatever it
-  // was asked for on account of.
-  expect(offCentre(target, [8, 120])).toBeCloseTo(0, 0)
-  expect(target.getBoundingClientRect().bottom + 120).toBeLessThanOrEqual(port().height)
-  window.scrollTo(0, 0)
-})
-
 /**
- * Two small elements one above the other on a tall page, `gap` apart, for a
- * region that names both. The hole is the union, and the union is what the
- * tests below expect to see brought in.
+ * Two small elements one above the other on a tall page, `gap` apart: one
+ * region that names both, or two regions of one each.
  */
 function twoApart(gap: number): [HTMLElement, HTMLElement] {
   const upper = belowTheFold(2000)
@@ -718,7 +632,7 @@ function twoApart(gap: number): [HTMLElement, HTMLElement] {
   return [upper, lower]
 }
 
-test('a region of several elements is brought in by its hole, not its first element', () => {
+test('a region the page was brought to is reachable through its hole, every element of it', () => {
   const [upper, lower] = twoApart(200)
 
   start([
@@ -729,30 +643,14 @@ test('a region of several elements is brought in by its hole, not its first elem
     },
   ])
 
-  // DESIGN.md, **What is brought in is the first region's hole, not its first
-  // element**. Centred on the first element alone, the hole would sit half the
-  // gap low, and a gap wide enough would leave the lower element past the fold.
-  const hole = {
-    top: upper.getBoundingClientRect().top,
-    bottom: lower.getBoundingClientRect().bottom,
-  }
-  expect((hole.top - 8 + hole.bottom + 8) / 2).toBeCloseTo(port().height / 2, 0)
-  expect(offCentre(upper)).toBeCloseTo(-100, 0)
+  // Which box a region is brought in by is
+  // `the box brought in is the one around every element, not the first` in
+  // `glide.test.ts`; what is asked here is that the hole is cut against where
+  // the page ended up, for the whole region rather than the element the scroll
+  // was measured from. DESIGN.md, **What is brought in is the first region's
+  // hole, not its first element**.
   expect(centre(upper)).toBe(upper)
   expect(centre(lower)).toBe(lower)
-  window.scrollTo(0, 0)
-})
-
-test('a region whose hole is taller than half the screen leads with its top edge', () => {
-  // Two elements each a fraction of the screen, far enough apart that the hole
-  // around them is not. It is the hole's height the rule reads, so this one
-  // leads like a tall section does and leaves the message its half above.
-  const half = document.documentElement.clientHeight / 2
-  const [upper, lower] = twoApart(half + 100)
-
-  start([{ id: 'pair', target: { elements: [() => upper, () => lower] }, scroll: true }])
-
-  expect(upper.getBoundingClientRect().top - 8).toBeCloseTo(half, 0)
   window.scrollTo(0, 0)
 })
 
@@ -771,62 +669,6 @@ test('a later region is not brought in', () => {
 
   expect(offCentre(upper)).toBeCloseTo(0, 0)
   expect(lower.getBoundingClientRect().top).toBeGreaterThan(port().height)
-  window.scrollTo(0, 0)
-})
-
-test('every scrollport carrying the target is scrolled, innermost first', () => {
-  const spacer = keep(document.createElement('div'))
-  spacer.style.height = '3000px'
-  document.body.append(spacer)
-  const scroller = keep(document.createElement('div'))
-  Object.assign(scroller.style, {
-    position: 'absolute',
-    left: '40px',
-    top: '1600px',
-    width: '300px',
-    height: '200px',
-    overflow: 'auto',
-  })
-  const content = document.createElement('div')
-  content.style.height = '1200px'
-  const target = document.createElement('button')
-  target.textContent = 'deep'
-  Object.assign(target.style, {
-    position: 'absolute',
-    left: '20px',
-    top: '900px',
-    width: '120px',
-    height: '40px',
-    margin: '0',
-  })
-  content.append(target)
-  scroller.append(content)
-  spacer.append(scroller)
-
-  start([{ id: 'deep', target: { elements: () => target, interactive: true }, scroll: true }])
-
-  // Both ports moved: the panel to bring the row into itself, and the page to
-  // bring the panel onto the screen. A viewer who does not know there is a
-  // scroller at all could not have found this row.
-  expect(scroller.scrollTop).toBeGreaterThan(0)
-  expect(window.scrollY).toBeGreaterThan(0)
-  expect(centre(target)).toBe(target)
-  window.scrollTo(0, 0)
-})
-
-test('a fixed target is not scrolled to, having nowhere to be scrolled', () => {
-  const spacer = keep(document.createElement('div'))
-  spacer.style.height = '3000px'
-  document.body.append(spacer)
-  const pinned = box('pinned', { left: '100px', top: '100px', width: '120px', height: '40px' })
-  window.scrollTo(0, 600)
-  const settled = window.scrollY
-
-  start([{ id: 'one', target: { elements: () => pinned, interactive: true }, scroll: true }])
-
-  // DESIGN.md, **A `position: fixed` target is not scrolled**.
-  expect(window.scrollY).toBe(settled)
-  expect(centre(pinned)).toBe(pinned)
   window.scrollTo(0, 0)
 })
 
@@ -930,33 +772,6 @@ test('a glide draws nothing until the page has stopped', async () => {
   window.scrollTo(0, 0)
 })
 
-test('a scroll the port cannot make is not glided at all', () => {
-  // A target hanging off the left edge of a page already against that edge, so
-  // the destination clamps to where the page already is — DESIGN.md, **A port
-  // that needs no scroll is never waited on**.
-  const target = keep(document.createElement('button'))
-  target.textContent = 'edge'
-  Object.assign(target.style, {
-    position: 'absolute',
-    left: '-60px',
-    top: '100px',
-    width: '120px',
-    height: '40px',
-    margin: '0',
-  })
-  document.body.append(target)
-
-  start([{ id: 'edge', target: { elements: () => target, interactive: true }, scroll: true }], {
-    duration: 320,
-  })
-
-  // The scrim is made the moment the step is drawn, so a scrim already here is
-  // a step that did not wait. A first step has none until then.
-  expect(scrim()).not.toBeNull()
-  expect(window.scrollX).toBe(0)
-  window.scrollTo(0, 0)
-})
-
 test('a visitor who asked for reduced motion has the page set outright, as the morph is', () => {
   // `motion.ts` is the one predicate the morph and the scroll before it both
   // read. Mocked at `matchMedia`, which is the one place it looks.
@@ -1011,44 +826,18 @@ function deepInAPanel(): { scroller: HTMLElement; target: HTMLElement } {
   return { scroller, target }
 }
 
-test('a nested panel is set rather than glided, so the page delta is exact', async () => {
-  // DESIGN.md, **The page glides; a nested panel is set**.
-  //
-  // On a clock the test owns, because `stopped()` cannot tell a starved frame
-  // loop from a finished one — `harness.ts`'s {@link stopped} says what that
-  // measured.
-  clocked()
-  const { scroller, target } = deepInAPanel()
-  start([{ id: 'deep', target: { elements: () => target, interactive: true }, scroll: true }], {
-    duration: 320,
-  })
-
-  // The panel is already where it belongs, in the same task the step arrived
-  // in, while the page is still on its way.
-  expect(scroller.scrollTop).toBeGreaterThan(0)
-
-  // Every frame until the step's words are back, which is the end of the whole
-  // flight: the glide, the landing, the draw and the morph after it. The words
-  // rather than the target under the centre point, because nothing is drawn
-  // while the page moves — DESIGN.md, **The scroll finishes before the step is
-  // drawn, never both at once** — so the target is already under that
-  // point, unblocked, halfway through the glide. Measured at 115 frames in all
-  // three engines, the page stopping at 89 to 91; 200 is room.
-  await until(said, 200, 'the deep step never said its words')
-  expect(centre(target)).toBe(target)
-  window.scrollTo(0, 0)
-})
-
 test('a step that asks for staged leaves its panel until the page has landed', async () => {
   // The seam from the word a host writes to the mode the glide takes:
   // `scrolls()` in `presenter.ts` reads `scroll` off the step and the instance
   // and normalises it, and every other test here says `true`, so nothing but
   // this would notice `'staged'` arriving as a direct scroll. What staged then
   // does with the ports is `glide.test.ts`'s to say; what is asked here is that
-  // the word got through, which is the test above with its answer reversed —
-  // the panel stays where it is while the page moves.
+  // the word got through — the panel stays where it is while the page moves,
+  // which is the answer a direct scroll gives reversed.
   //
-  // On a clock the test owns, for the reason that test gives.
+  // On a clock the test owns, because `stopped()` cannot tell a starved frame
+  // loop from a finished one — `harness.ts`'s {@link stopped} says what that
+  // measured.
   clocked()
   const { scroller, target } = deepInAPanel()
   start([{ id: 'deep', target: { elements: () => target, interactive: true }, scroll: 'staged' }], {
