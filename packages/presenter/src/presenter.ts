@@ -13,6 +13,7 @@ import {
   resolveTargets,
   sameSurface,
   Scrim,
+  type ScrollMode,
   type Side,
   type Surface,
   surfaceChain,
@@ -177,11 +178,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Whether this step brings its target into view before it is drawn. **Off
-   * unless somebody asks** — DESIGN.md, **Bringing a target into view**.
+   * How this step brings its target into view, or nothing where it does not.
+   * **Off unless somebody asks** — DESIGN.md, **Bringing a target into view**.
    */
-  private scrolls(step: LekoStep): boolean {
-    return step.scroll ?? this.options.scroll ?? false
+  private scrolls(step: LekoStep): ScrollMode | undefined {
+    const asked = step.scroll ?? this.options.scroll ?? false
+    if (asked === false) return undefined
+    return asked === true ? 'direct' : asked
   }
 
   resolve(step: LekoStep): Element | null {
@@ -270,9 +273,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     animate: boolean,
     error: string | undefined,
   ): void {
+    const mode = this.scrolls(step)
     const glide =
-      anchor && this.scrolls(step)
-        ? bringIntoView(lit(step, anchor), this.setting(step, 'padding'), this.duration())
+      anchor && mode
+        ? bringIntoView(lit(step, anchor), this.setting(step, 'padding'), this.duration(), mode)
         : undefined
     if (glide) {
       void glide.settled.then(() => {

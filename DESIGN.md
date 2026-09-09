@@ -769,8 +769,8 @@ target below the fold is cut out of a scrim nobody can see, and the viewer is
 left to work out that scrolling is what the step wants — honest, and not what a
 tour is for.
 
-- **Two stages, never one: the page glides, and the step is drawn when it
-  stops.** The hole itself would survive a morph running alongside the scroll —
+- **The scroll finishes before the step is drawn, never both at once.** The
+  hole itself would survive a morph running alongside the scroll —
   the scrim lives inside the scrolling content, so its cutouts are in content
   coordinates and a scroll moves scrim and target together. What would not is
   every decision taken in viewport coordinates: the side of the hole the
@@ -815,7 +815,11 @@ tour is for.
   The geometry does not clamp, and a port clamps whatever is written to it, so
   a loop writing offsets past the end would read them back clamped and take
   that for the viewer. The range is read up front, where reading layout is
-  already allowed, and the loop never writes past it.
+  already allowed, and the loop never writes past it. A staged scroll clamps
+  every port's the same way and at the same moment — before anything moves —
+  but in the fold rather than beside the loop, for the reason
+  **Nothing in the geometry clamps; whoever scrolls does** gives where it names
+  its one exception.
 - **The viewer taking over.** Each frame reads the page's offset before it
   writes one, and where the page is not within a pixel of where the last frame
   left it, somebody else moved it: the loop stops, and the step is drawn where
@@ -823,16 +827,71 @@ tour is for.
   offset, during a scroll Leko started, and **The morph** says next to the rule
   why it is neither layout nor the viewer's scroll. A pixel rather than
   equality because engines round what is written and some report fractions
-  back.
-- **The page glides; a nested panel is set.** The movement a viewer follows is
-  the page's, and a panel's inner scroll is a detail inside a box that is not
-  on screen yet, so the panel is put where it belongs outright, first — which
-  also makes the page's own delta exact rather than measured against a scroller
-  still in flight. It is a preference and no longer a rule an engine dictates.
-  Gliding every port together needs the document's destination worked out from
-  the panel's without re-measuring — the target moves in the viewport by
-  exactly what the panel scrolls, which is arithmetic for `geometry.ts` — and
-  is a second step if it is ever wanted.
+  back. The offset read is that of the port the frame is moving, so a staged
+  scroll asks this per port, and a viewer who takes one over ends the whole
+  glide there rather than going on to the next port. The stages after it would
+  still be aimed correctly — a destination is a port's own offset, and moving
+  an outer port moves the box and the inner ports together — so what ends the
+  glide is the same sentence above: their scroll is not Leko's to undo, and
+  carrying on to move a second port under somebody who has just taken charge of
+  the page is undoing it in all but name.
+- **The page glides; a nested panel is set.** `scroll: true`, which is
+  `'direct'`, and the default of the two modes. The movement a viewer follows
+  is the page's, and a panel's inner scroll is a detail inside a box that is
+  not on screen yet, so the panel is put where it belongs outright, first —
+  which also makes the page's own delta exact rather than measured against a
+  scroller still in flight. It is a preference and no longer a rule an engine
+  dictates. It stays the default because it is one movement and most steps are
+  one port deep, and a step that is one port deep is the same trip either way.
+  The walk keeps measuring rather than doing the arithmetic below: the box is
+  read again for each port, so what the page glides is what the panels left,
+  down to whatever an engine rounded a panel's offset to. Gliding every port at
+  the same time is a different thing again from staging them, and is still a
+  second step if it is ever wanted.
+- **`scroll: 'staged'` moves one port at a time, outermost first.** What a
+  viewer has to be able to do afterwards, alone, is *the page goes down to the
+  panel, then that list scrolls to the row*. Shown as one movement, the row was
+  never anywhere else: its panel's scroll happened before the panel was on
+  screen, and a move made before the thing making it can be watched teaches
+  nothing. So the page glides until the panel is on screen, the panel then
+  glides to bring its own child in, and the step is drawn when the last one
+  lands. The order is the reverse of the walk that computes it, and it is the
+  order a person would make the moves in: nothing scrolls before the thing
+  doing the scrolling can be watched.
+  - **Nothing is written until every destination is known.** An outer port is
+    measured against a box the inner ones have not moved yet, so the walk stays
+    innermost first and answers arithmetic rather than a second measurement:
+    the box moves in the viewport by exactly what a port scrolls, which is
+    `scrollStages` in `geometry.ts` and `shift` underneath it. Only the box
+    moves along the chain — a port scrolls its own content, and the client box
+    of every port outside it is where it was.
+  - **It is one `Glide`.** `settled` resolves when the last stage lands and
+    `abandon` cancels whatever is running, so everything that waits on a glide
+    waits on this one the same way, and the presenter holds one mode and
+    compares one identity. What that costs is that the page stops part-way
+    through a stage rather than part-way through a trip, which is what **A
+    glide the tour has moved past is cancelled, and the page stops where it
+    is** already promises.
+  - **A port with nothing to do is not a stage**, the delta deciding as it does
+    for a direct scroll, so a target already showing in its panel means the
+    page glides and nothing else happens. **Duration is per stage**, each one
+    `glideDuration` of its own distance with `duration` as the floor under it —
+    a stage is a trip, and a trip is paced by how far it goes.
+- **A beat of 300ms between stages, and it is not a setting.** A stage running
+  straight into the next one is one long movement again, which is the thing
+  staged exists not to be: what a viewer has to take in at the hand-off is that
+  *this* panel is what moves next, and that reading costs a moment. So a stage
+  lands, the page holds still for 300ms, and the next one starts — never before
+  the first stage or after the last, so a single-stage staged scroll is exactly
+  the trip a direct one is. `GLIDE_BEAT` sits beside `GLIDE_PACE` in
+  `geometry.ts` and is one constant rather than an option for the reason
+  `GLIDE_PACE` is one: a host that wants the whole thing quicker has
+  `duration`, and a beat a host could tune is a second setting about the same
+  movement. `duration: 0` and reduced motion have no stages to hold between, so
+  the beat never runs there. A beat is not a stage: nothing is drawn during one
+  and nothing is armed, it is inside the glide, and an arrival that cancels the
+  glide cancels a beat in flight exactly as it cancels a frame. It is judged by
+  eye in `staged-scroll.ts`, the way the pace was.
 - **A glide grows with the distance, and is much slower than the morph.** A
   tour is for somebody new to the application, and what passes under the
   pointer while the page glides is part of what they are there to see — a
@@ -859,7 +918,9 @@ tour is for.
 - **The scroll animates exactly when the morph does.** `duration: 0` and
   `prefers-reduced-motion` each put the page where it belongs outright, and the
   rule is one predicate in `motion.ts` read by both, so the two can never
-  disagree about whether the tour is moving things or setting them.
+  disagree about whether the tour is moving things or setting them. Whichever
+  mode was asked for: a mode is what a movement looks like, not whether there
+  is one, so every port is set in the same task and the step is drawn in it.
 - **Nothing is drawn for the gap.** The words of the step being left go before
   the page moves, rather than riding a glide to somewhere they are not about.
   Nothing else changes while it runs: the dimming stays, and the standing hole
@@ -921,7 +982,12 @@ tour is for.
   the one that would put it there — past the end. The port clamps a panel set
   outright, and the glide clamps its own destination before its first frame,
   which lands the target as near as the content allows and against the far edge
-  in the limit.
+  in the limit. **`scrollStages` is the exception, and is the only one.** A
+  staged scroll works out every destination before it writes any of them, and
+  the port after each one is measured against the move that will happen rather
+  than the one that was asked for — so what the port would have clamped has to
+  be clamped in the fold, from that port's own limit, which is why those limits
+  are read up front and handed in with the ports.
 - **`scroll-margin` on the target wins over the step's `padding`** wherever it
   asks for more. How much of an application's own sticky chrome is in the way is
   a thing the application knows and Leko cannot guess; the padding is only the

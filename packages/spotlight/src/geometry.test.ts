@@ -20,6 +20,7 @@ import {
   padCutouts,
   type Rect,
   scrollDelta,
+  scrollStages,
   segmentAt,
   shift,
   union,
@@ -165,6 +166,84 @@ test('nothing here clamps, so the port is what stops at the end of the content',
   // the honest delta: the scrollport clamps it and the box lands as near the
   // middle as the content allows.
   expect(scrollDelta(rect(20, 300, 40, 40), rect(0, 0, 200, 200))).toEqual({ x: 0, y: 220 })
+})
+
+// `scrollStages`: every destination of a staged scroll, worked out before any
+// of them is written. DESIGN.md,
+// **`scroll: 'staged'` moves one port at a time, outermost first**.
+
+/** A port with room to spare on both axes, for a test that is not about running out. */
+const roomy = (port: Rect, from = { x: 0, y: 0 }) => ({ port, from, limit: { x: 2000, y: 2000 } })
+
+test('one port is asked for its own destination, clamped to its own end', () => {
+  // The delta is 220 and the port has 150 left, so 150 is the answer: the port
+  // would clamp it anyway, and the arithmetic for the port outside it has to
+  // know which of the two happened.
+  expect(
+    scrollStages(rect(20, 300, 40, 40), [
+      { port: rect(0, 0, 200, 200), from: { x: 0, y: 0 }, limit: { x: 0, y: 150 } },
+    ]),
+  ).toEqual([{ x: 0, y: 150 }])
+})
+
+test('an outer port is measured against the box the inner one moved', () => {
+  // The row is 400 down the screen and the panel brings it to 130 by scrolling
+  // 270. Measured where it started, the page would move 320 to centre it; the
+  // page it is now on already holds it, so the page does not move at all.
+  expect(
+    scrollStages(rect(20, 400, 40, 40), [
+      roomy(rect(0, 100, 100, 100)),
+      roomy(rect(0, 0, 200, 200)),
+    ]),
+  ).toEqual([
+    { x: 0, y: 270 },
+    { x: 0, y: 0 },
+  ])
+})
+
+test('a clamped inner port moves the outer one by what happened, not what was asked', () => {
+  // The panel is asked for 270 and has 100 left. The page is then measured
+  // against a box that came up 100, not 270 — 220 rather than nothing.
+  expect(
+    scrollStages(rect(20, 400, 40, 40), [
+      { port: rect(0, 100, 100, 100), from: { x: 0, y: 0 }, limit: { x: 0, y: 100 } },
+      roomy(rect(0, 0, 200, 200)),
+    ]),
+  ).toEqual([
+    { x: 0, y: 100 },
+    { x: 0, y: 220 },
+  ])
+})
+
+test('a port that already holds the box stays where it is and moves nothing along', () => {
+  // Both answers are where the ports already stand — the refusal `scrollDelta`
+  // makes, carried through the fold rather than special-cased here.
+  expect(
+    scrollStages(rect(20, 120, 40, 40), [
+      roomy(rect(0, 100, 100, 100), { x: 0, y: 50 }),
+      roomy(rect(0, 0, 200, 200), { x: 0, y: 30 }),
+    ]),
+  ).toEqual([
+    { x: 0, y: 50 },
+    { x: 0, y: 30 },
+  ])
+})
+
+test('three ports compose, each measured against every move inside it', () => {
+  // A row 1500 down the page, in a list clipped by the panel that holds it. The
+  // list comes up 420 and the panel 250, so the page is measured against a row
+  // 670 higher than the one it was handed: 550 rather than 1220.
+  expect(
+    scrollStages(rect(20, 1500, 200, 40), [
+      roomy(rect(0, 900, 300, 400)),
+      roomy(rect(0, 700, 300, 300)),
+      { port: rect(0, 0, 400, 600), from: { x: 0, y: 0 }, limit: { x: 0, y: 3000 } },
+    ]),
+  ).toEqual([
+    { x: 0, y: 420 },
+    { x: 0, y: 250 },
+    { x: 0, y: 550 },
+  ])
 })
 
 test('a glide takes longer the further it goes, by the cube root of the way', () => {

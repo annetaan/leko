@@ -166,6 +166,16 @@ export const GLIDE_PACE = 140
 export const glideDuration = (distance: number, duration: number): number =>
   Math.max(duration, Math.cbrt(distance) * GLIDE_PACE)
 
+/**
+ * How long a staged scroll holds still between one port landing and the next
+ * one starting, in ms.
+ *
+ * Beside {@link GLIDE_PACE} because it is the same kind of number, and one
+ * constant rather than an option for the same reason: DESIGN.md,
+ * **A beat of 300ms between stages, and it is not a setting**.
+ */
+export const GLIDE_BEAT = 300
+
 /** A rect collapsed to nothing at its own centre. */
 export function collapse(rect: Rect): Rect {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: 0, height: 0 }
@@ -180,6 +190,56 @@ const round = (n: number): number => Math.round(n * 100) / 100
 
 /** `n` held between `0` and `max`. A `max` below zero is no room to move at all. */
 export const clamp = (n: number, max: number): number => Math.min(Math.max(0, n), Math.max(0, max))
+
+/**
+ * One scrollport of a staged scroll: where it can put a box, where it is, and
+ * how far it can go.
+ *
+ * `port` is the client box in viewport coordinates, the same rect
+ * {@link scrollDelta} takes. `from` and `limit` are the port's own scroll
+ * offset and the largest one it has — a {@link Point} either way, being two
+ * numbers across the same page.
+ */
+export interface PortScroll {
+  port: Rect
+  from: Point
+  limit: Point
+}
+
+/**
+ * Where each port of a chain has to end up to bring `box` in, innermost first
+ * and one answer per port.
+ *
+ * Every destination is worked out before anything is written, because an outer
+ * port is measured against a box the inner ones have not moved yet: scrolling a
+ * port moves the box in the viewport by exactly what the port scrolls, so the
+ * next port along is measured against the box {@link shift}ed by that, and
+ * DESIGN.md argues the arithmetic under
+ * **`scroll: 'staged'` moves one port at a time, outermost first**.
+ *
+ * **Clamped here, per port, rather than by whoever writes it.** Nothing else in
+ * this file clamps — DESIGN.md, **Nothing in the geometry clamps; whoever
+ * scrolls does** — but a port asked for more than it has gives only what it
+ * has, and an outer port measured against the move that was asked for rather
+ * than the one that happened is measured against a box that is not there.
+ *
+ * **Only the box moves along the chain, never the ports.** A port scrolls its
+ * own content and nothing else, so the client box of every port outside it is
+ * where it was.
+ */
+export function scrollStages(box: Rect, ports: readonly PortScroll[]): Point[] {
+  return ports.reduce<{ box: Rect; stages: Point[] }>(
+    ({ box: moved, stages }, { port, from, limit }) => {
+      const delta = scrollDelta(moved, port)
+      const to = { x: clamp(from.x + delta.x, limit.x), y: clamp(from.y + delta.y, limit.y) }
+      return {
+        box: shift(moved, { x: from.x - to.x, y: from.y - to.y }),
+        stages: [...stages, to],
+      }
+    },
+    { box, stages: [] },
+  ).stages
+}
 
 const ascending = <T>(list: readonly T[], by: (item: T) => number): T[] =>
   list.toSorted((a, b) => by(a) - by(b))

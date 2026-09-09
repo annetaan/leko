@@ -222,21 +222,34 @@ interface LekoStepBase {
    * left alone, and one near the end of the content lands as near as the
    * content allows. Later regions stay where they are.
    *
-   * The page is glided rather than jumped, and the step is drawn once it has
-   * stopped; a nested panel is set outright. The glide grows with the distance
-   * by its cube root and runs for at least {@link LekoOptions.duration}, and a
-   * viewer who scrolls takes it over. `duration: 0` and reduced motion set the
-   * page outright instead. `scroll-margin` on the target is honoured, and how
-   * far is DESIGN.md's **`scroll-margin` on the target wins over the step's
-   * `padding`**.
+   * `true` is `'direct'` and is what `true` has always meant: the page is
+   * glided rather than jumped, the step is drawn once it has stopped, and a
+   * nested panel is set outright before the page moves — one movement, whatever
+   * the target is nested in.
+   *
+   * `'staged'` makes the moves one port at a time instead, outermost first: the
+   * page glides until the panel is on screen, the panel then glides to bring
+   * its own child in, and the step is drawn when the last one lands. A beat
+   * between two of them says that the thing which moves next has changed. It is
+   * for a target several scrollers deep, where what a viewer will have to do
+   * alone is two moves rather than one, and DESIGN.md argues it under
+   * **`scroll: 'staged'` moves one port at a time, outermost first**.
+   *
+   * Whichever is asked for, the glide grows with the distance by its cube root
+   * and runs for at least {@link LekoOptions.duration}, and a viewer who
+   * scrolls takes it over. `duration: 0` and reduced motion set every port
+   * outright instead, with no beat and nothing to wait for.
+   * `scroll-margin` on the target is honoured, and how far is DESIGN.md's
+   * **`scroll-margin` on the target wins over the step's `padding`**.
    *
    * Nothing happens on a step with no `target`, nor for a `position: fixed`
    * one, and a redraw never scrolls again.
    *
    * DESIGN.md argues all of it under **Bringing a target into view**;
-   * `scrolls-into-view.ts` is the case.
+   * `scrolls-into-view.ts` is the case, and `staged-scroll.ts` is the pair of
+   * stories the two modes are watched side by side in.
    */
-  scroll?: boolean
+  scroll?: boolean | 'direct' | 'staged'
 
   /**
    * The name of the thing this step is waiting for the application to report.
@@ -541,8 +554,8 @@ export interface LekoOptions {
   radius?: number
 
   /**
-   * Whether every step brings its target into view before drawing it.
-   * Defaults to `false`, and a step may say either way.
+   * Whether every step brings its target into view before drawing it, and how.
+   * Defaults to `false`, and a step may say either way — the mode included.
    *
    * The whole of what it does is described on {@link LekoTargetedStep.scroll}. A host
    * that would rather its viewers never hunted for a highlight below the fold
@@ -550,14 +563,15 @@ export interface LekoOptions {
    * wrong says `scroll: false`. Why it is off at all is DESIGN.md's **Bringing
    * a target into view**.
    */
-  scroll?: boolean
+  scroll?: boolean | 'direct' | 'staged'
 
   /**
    * How long a step-to-step morph runs, in ms. Defaults to `320`, and is
    * ignored when the visitor has asked for reduced motion.
    *
-   * Also the least a glide runs for, on a step that scrolls. A glide grows
-   * with how far the page has to go — {@link LekoTargetedStep.scroll} says why — and
+   * Also the least a glide runs for, on a step that scrolls — the least each
+   * stage of one runs for, where the step asked for stages. A glide grows with
+   * how far the page has to go — {@link LekoTargetedStep.scroll} says why — and
    * this is the floor under a short one. `0` turns both off together.
    */
   duration?: number

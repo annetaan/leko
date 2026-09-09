@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest'
 
 import {
   absorbed,
+  advance,
   begin,
   box,
   centre,
@@ -906,8 +907,8 @@ test('a glide draws nothing until the page has stopped', async () => {
 
   const drawn = flight.findIndex((f) => f.mask !== held)
   expect(drawn).toBeGreaterThan(0)
-  // DESIGN.md, **Two stages, never one: the page glides, and the step is drawn
-  // when it stops**: the page had moved by the frame the step was drawn on, had
+  // DESIGN.md, **The scroll finishes before the step is drawn, never both at
+  // once**: the page had moved by the frame the step was drawn on, had
   // already stopped the frame before, and did not move again afterwards. A step
   // drawn before the page set off fails the first; a morph running alongside a
   // glide fails the last two.
@@ -978,13 +979,8 @@ test('a visitor who asked for reduced motion has the page set outright, as the m
   window.scrollTo(0, 0)
 })
 
-test('a nested panel is set rather than glided, so the page delta is exact', async () => {
-  // DESIGN.md, **The page glides; a nested panel is set**.
-  //
-  // On a clock the test owns, because `stopped()` cannot tell a starved frame
-  // loop from a finished one — `harness.ts`'s {@link stopped} says what that
-  // measured.
-  clocked()
+/** A target two ports deep: a panel well below the fold, and a long list in it. */
+function deepInAPanel(): { scroller: HTMLElement; target: HTMLElement } {
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
   document.body.append(spacer)
@@ -1012,7 +1008,17 @@ test('a nested panel is set rather than glided, so the page delta is exact', asy
   content.append(target)
   scroller.append(content)
   spacer.append(scroller)
+  return { scroller, target }
+}
 
+test('a nested panel is set rather than glided, so the page delta is exact', async () => {
+  // DESIGN.md, **The page glides; a nested panel is set**.
+  //
+  // On a clock the test owns, because `stopped()` cannot tell a starved frame
+  // loop from a finished one — `harness.ts`'s {@link stopped} says what that
+  // measured.
+  clocked()
+  const { scroller, target } = deepInAPanel()
   start([{ id: 'deep', target: { elements: () => target, interactive: true }, scroll: true }], {
     duration: 320,
   })
@@ -1024,11 +1030,41 @@ test('a nested panel is set rather than glided, so the page delta is exact', asy
   // Every frame until the step's words are back, which is the end of the whole
   // flight: the glide, the landing, the draw and the morph after it. The words
   // rather than the target under the centre point, because nothing is drawn
-  // while the page moves — DESIGN.md, **Two stages, never one: the page glides,
-  // and the step is drawn when it stops** — so the target is already under that
+  // while the page moves — DESIGN.md, **The scroll finishes before the step is
+  // drawn, never both at once** — so the target is already under that
   // point, unblocked, halfway through the glide. Measured at 115 frames in all
   // three engines, the page stopping at 89 to 91; 200 is room.
   await until(said, 200, 'the deep step never said its words')
+  expect(centre(target)).toBe(target)
+  window.scrollTo(0, 0)
+})
+
+test('a step that asks for staged leaves its panel until the page has landed', async () => {
+  // The seam from the word a host writes to the mode the glide takes:
+  // `scrolls()` in `presenter.ts` reads `scroll` off the step and the instance
+  // and normalises it, and every other test here says `true`, so nothing but
+  // this would notice `'staged'` arriving as a direct scroll. What staged then
+  // does with the ports is `glide.test.ts`'s to say; what is asked here is that
+  // the word got through, which is the test above with its answer reversed —
+  // the panel stays where it is while the page moves.
+  //
+  // On a clock the test owns, for the reason that test gives.
+  clocked()
+  const { scroller, target } = deepInAPanel()
+  start([{ id: 'deep', target: { elements: () => target, interactive: true }, scroll: 'staged' }], {
+    duration: 320,
+  })
+
+  expect(scroller.scrollTop).toBe(0)
+  // Frames enough for the page to be plainly on its way, and nowhere near the
+  // end of its stage.
+  for (let n = 0; n < 10; n++) await advance()
+  expect(window.scrollY).toBeGreaterThan(0)
+  expect(scroller.scrollTop).toBe(0)
+
+  // The page's stage, the beat, the panel's stage, the draw and the morph.
+  await until(said, 400, 'the staged step never said its words')
+  expect(scroller.scrollTop).toBeGreaterThan(0)
   expect(centre(target)).toBe(target)
   window.scrollTo(0, 0)
 })

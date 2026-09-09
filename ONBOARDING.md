@@ -434,7 +434,7 @@ DESIGN.md says so under
 | How the hole is shaped | `spotlight/src/geometry.ts` and its tests. Nothing else |
 | When a step advances | `machine/src/plan.ts` only |
 | What a target going, a glide landing or a resize does to what is drawn | `presenter/src/plan.ts`, and its tests |
-| How the page is brought to a target | `spotlight/src/glide.ts`, with `scrollDelta` and `glideDuration` in `geometry.ts` |
+| How the page is brought to a target | `spotlight/src/glide.ts`, with `scrollDelta`, `scrollStages` and `glideDuration` in `geometry.ts` |
 | Which surfaces carry a target, and where its box lands on one | `spotlight/src/surface.ts`, and its tests |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `presenter/src/presenter.ts` |

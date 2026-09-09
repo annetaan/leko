@@ -705,6 +705,30 @@ button:disabled {
 }
 
 /*
+ * The outer of the two nested ports in `staged-scroll.ts`. Taller than the
+ * `.scroller` it holds, so that the list inside it is a box the panel has to
+ * scroll to rather than one it already shows — three ports deep is what makes
+ * the case, and two of them are inside this card.
+ */
+.staged-case .deep-scroller {
+  height: 320px;
+  padding: 0 14px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/*
+ * Room above and below the list, so the panel starts with the list off its own
+ * port and has somewhere to put it once it scrolls. Enough of it either side
+ * that the list can be centred rather than stopping where the content runs out,
+ * which is a rule `scrolls-into-view.ts` is about and this case is not.
+ */
+.staged-case .scroll-filler {
+  min-height: 260px;
+}
+
+/*
  * The transform is the point: a common hint to promote a card to its own
  * layer, and it makes the card the containing block of every fixed descendant.
  */

@@ -10,9 +10,9 @@ import { type Case, html } from '../case.js'
 // middle**, and against the end of a scrollport where the content runs out
 // first.
 //
-// It is also the case to watch the staging on, which DESIGN.md argues under
-// **Two stages, never one: the page glides, and the step is drawn when it
-// stops**; `spike/a-smooth-scroll-settling/` has how far off a morph alongside
+// It is also the case to watch the order on, which DESIGN.md argues under
+// **The scroll finishes before the step is drawn, never both at once**;
+// `spike/a-smooth-scroll-settling/` has how far off a morph alongside
 // a glide lands. This is the case the glide's pace was set by eye on. Scroll
 // during it and it stops where you put the page. The panel in the fifth step is
 // set rather than glided — DESIGN.md, **The page glides; a nested panel is

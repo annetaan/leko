@@ -1408,8 +1408,8 @@ test('the words after a morph are placed from the holes read then, not the ones 
 // --- what a glide leaves standing
 //
 // A step told to `scroll` is drawn only once the page has stopped — DESIGN.md,
-// **Two stages, never one: the page glides, and the step is drawn when it
-// stops**. Two things redraw without the tour moving, a reason the guard gave
+// **The scroll finishes before the step is drawn, never both at once**. Two
+// things redraw without the tour moving, a reason the guard gave
 // and a resize, and each of them reads a record here. A batch of mutations is
 // not a third: a glide arms nothing.
 //

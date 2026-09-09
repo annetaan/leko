@@ -14,6 +14,7 @@ import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
 import { scrollsIntoView } from './scrolls-into-view.js'
+import { stagedScroll } from './staged-scroll.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { storySetup } from './story-setup.js'
@@ -43,6 +44,7 @@ export const cases: Case[] = [
   nestedScroller,
   scrollableTarget,
   scrollsIntoView,
+  stagedScroll,
   fixedChrome,
   messageSides,
   targetNotThereYet,
