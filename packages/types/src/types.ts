@@ -577,6 +577,24 @@ export interface LekoOptions {
   duration?: number
 
   /**
+   * The curve a morph and a glide follow, from a fraction of the time to a
+   * fraction of the way. Defaults to Material 3's standard easing,
+   * `cubic-bezier(0.2, 0, 0, 1)`, which `cubicBezier` here will build for you.
+   *
+   * A house rule, so there is no per-step version of it, for the reason
+   * {@link LekoOptions.duration} has none — DESIGN.md, **Settings, and where
+   * they are read from**. The shake a refused step gives keeps Leko's own
+   * curve either way: it is a gesture of refusal rather than an arrival.
+   *
+   * `f(1)` need not be exactly `1` — the last frame writes the destination
+   * itself — and a morph that overshoots and comes back does no harm. **A
+   * glide wants a curve that stays inside `[0, 1]`, though.** A scroll past
+   * either end is clamped by the port, and the next frame reads that back as
+   * somebody else having taken the page over, so the glide stops there.
+   */
+  easing?: (t: number) => number
+
+  /**
    * What the halo does while a morph carries its hole somewhere else.
    * Defaults to `'return'`.
    *

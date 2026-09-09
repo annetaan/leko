@@ -5,6 +5,7 @@ import {
   collapse,
   complementRects,
   cornerRect,
+  cubicBezier,
   type Cutout,
   ease,
   freeCorner,
@@ -391,7 +392,53 @@ test('the ease starts at nothing and ends at everything', () => {
 })
 
 test('the ease is out: half the time has covered most of the way', () => {
-  expect(ease(0.5)).toBeCloseTo(0.875, 10)
+  expect(ease(0.5)).toBeCloseTo(0.878, 3)
+})
+
+test('the ease leaves from rest, where the ease-out shoved', () => {
+  // Issue #154. The curve before this one was `1 - (1 - t) ** 3`, which is at
+  // full speed on its first frame and answers 0.0297 here — three per cent of
+  // the way in one per cent of the time, and on a glide that is the whole
+  // viewport jumping. DESIGN.md, **The morph**.
+  expect(ease(0.01)).toBeLessThan(0.01)
+})
+
+test('half the way is covered in the first fifth of the time', () => {
+  // The other half of the shape, which DESIGN.md, **The morph**, argues:
+  // nothing was traded away for the soft start.
+  expect(ease(0.2)).toBeCloseTo(0.5, 2)
+})
+
+test('cubicBezier(0, 0, 1, 1) is the line', () => {
+  const linear = cubicBezier(0, 0, 1, 1)
+  for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) expect(linear(t)).toBeCloseTo(t, 6)
+})
+
+test('cubicBezier solves x for t rather than reading t as x', () => {
+  // What the parameter search is for: the control points are not the curve's
+  // own parameter. Evaluating the vertical Bézier at `t` directly answers
+  // 0.104 here, which is a different curve that also runs from 0 to 1.
+  expect(cubicBezier(0.2, 0, 0, 1)(0.2)).toBeCloseTo(0.5, 2)
+})
+
+test('a control point outside the range still runs from 0 to 1', () => {
+  // The horizontal control points are held inside the range, because outside
+  // it the search has no single answer to find. A host that writes one anyway
+  // gets a curve rather than a hole in the animation.
+  //
+  // `x1` past `x2` rather than either one merely out of range: unclamped, this
+  // pair turns back on 28 of the samples below, where `(-2, 0, 3, 1)` is
+  // monotonic by luck and holds nothing.
+  const wild = cubicBezier(2, 0, -1, 1)
+  expect(wild(0)).toBe(0)
+  expect(wild(1)).toBe(1)
+  let last = 0
+  for (let t = 0; t <= 1.0000001; t += 0.01) {
+    const now = wild(t)
+    expect(Number.isFinite(now)).toBe(true)
+    expect(now).toBeGreaterThanOrEqual(last - 1e-9)
+    last = now
+  }
 })
 
 test('the ease never turns back', () => {

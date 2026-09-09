@@ -966,6 +966,15 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
   // and the second glide runs from there to the offset it computed — so it
   // lands where it meant to, which the browser's own glide only did when asked
   // in one of two spellings (`spike/a-smooth-scroll-settling/`, question 5).
+  //
+  // **On a clock the test owns**, the way `a glide draws nothing until the page
+  // has stopped` is. What has to happen here is two glides and the morph after
+  // them — a little over two seconds on this page — and `stopped()` guesses at
+  // the last part of that: it waits out the page and then gives the morph a
+  // fixed tail. Measured on this page, that tail leaves the morph about 170ms
+  // of room, which a loaded machine short of frames spends without trying.
+  // Watching frames instead makes the wait the thing the test is about.
+  clocked()
   const [near, far] = nearAndFar()
   const spacer = near.parentElement!
   spacer.style.height = '5000px'
@@ -994,12 +1003,22 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
     ],
     { duration: 320 },
   )
-  await shown()
+  await until(said, 30, 'the first step never said its words')
 
   press()
-  await pause(MID_GLIDE)
+  // Six frames into a glide of 772px over 140 · ∛772 ≈ 1284ms: the page has set
+  // off and is nowhere near the step it is heading for, on any curve.
+  for (let n = 0; n < 6; n++) await advance()
+  expect(window.scrollY).toBeGreaterThan(0)
+  expect(window.scrollY).toBeLessThan(700)
+  // And nothing has been drawn, so what arrives next arrives mid-glide rather
+  // than after one.
+  expect(said()).toBe(false)
+
   leko.reached('landed')
-  await stopped()
+  // The glide that replaces it is some 1900px — 140 · ∛1900 ≈ 1740ms, 109
+  // frames — and the morph after it is twenty more; 200 is room.
+  await until(said, 200, 'the step that arrived mid-glide never said its words')
 
   expect(leko.step?.id).toBe('other')
   expect(centre(other)).toBe(other)

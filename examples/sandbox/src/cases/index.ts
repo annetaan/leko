@@ -6,6 +6,7 @@ import { fixedChrome } from './fixed-chrome.js'
 import { formValidation } from './form-validation.js'
 import { haloFollows } from './halo-follows.js'
 import { hiddenTarget } from './hidden-target.js'
+import { hostEasing } from './host-easing.js'
 import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
 import { lookThenUse } from './look-then-use.js'
@@ -45,6 +46,7 @@ export const cases: Case[] = [
   scrollableTarget,
   scrollsIntoView,
   stagedScroll,
+  hostEasing,
   fixedChrome,
   messageSides,
   targetNotThereYet,

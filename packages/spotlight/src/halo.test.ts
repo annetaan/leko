@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest'
 
-import type { Cutout } from './geometry.js'
+import { type Cutout, ease } from './geometry.js'
 import { type HaloMode, Scrim } from './scrim.js'
 import { rectWithin } from './surface.js'
 
@@ -87,7 +87,7 @@ test('returning halos leave for the length of a morph and fade back with the hol
   const drawn = mountScrim('return')
   drawn.set([cutout(100, 100, true), cutout(100, 300)])
 
-  const arriving = drawn.morph([cutout(500, 100, true)], 60)
+  const arriving = drawn.morph([cutout(500, 100, true)], 60, ease)
   // DESIGN.md, **What a morph does to the halo is the host's choice, `halo` on
   // the options**, for what each mode paints. `undefined` is
   // `prefers-reduced-motion` applying the change outright, and the halo goes with
@@ -113,7 +113,7 @@ test('following halos stay on and ride the morph to the destination', async () =
   const drawn = mountScrim('follow')
   drawn.set([cutout(100, 100, true), cutout(100, 300)])
 
-  const arriving = drawn.morph([cutout(500, 100, true)], 60)
+  const arriving = drawn.morph([cutout(500, 100, true)], 60, ease)
   if (arriving) {
     // Nothing left for the flight: both frames are on — the departing hole
     // keeps its frame while it shrinks away — and the surviving one already

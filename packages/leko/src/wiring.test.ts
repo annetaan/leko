@@ -17,9 +17,11 @@ import {
   pair,
   pause,
   press,
+  said,
   scrim,
   shown,
   start,
+  until,
   watched,
 } from './harness.js'
 import { DomPresenter } from '@annetaan/leko-presenter'
@@ -1523,6 +1525,80 @@ test('a replacement that lands while the page glides draws nothing', async () =>
   expect(leko.step?.id).toBe('far')
 
   window.scrollTo(0, 0)
+})
+
+test('an easing given on the options is the curve the morph and the glide both follow', async () => {
+  // On a clock the test owns, so every frame of both loops is sampled.
+  clocked()
+  const [near, far] = farApart()
+
+  // A curve that answers "nowhere yet" until the frame each loop writes its
+  // own destination on. Nothing about that shape is the claim — it is a shape
+  // no host would write — but it is one no Leko curve is, so a page and a hole
+  // that hold still are proof the option reached both loops.
+  const leko = start(
+    [
+      { id: 'near', target: { elements: () => near, interactive: true } },
+      { id: 'far', target: { elements: () => far, interactive: true }, scroll: true },
+    ],
+    { duration: 320, easing: () => 0 },
+  )
+  await until(said, 30, 'the first step never said its words')
+
+  press()
+  // The glide is `glideDuration` of some 2300px — about 116 frames — and the
+  // morph after it is twenty more; 300 is room.
+  const flight: { scrollY: number; mask: string }[] = []
+  await until(
+    () => {
+      flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
+      return said()
+    },
+    300,
+    'the far step never said its words',
+  )
+
+  // Two offsets and no others: where the page started, and where the last
+  // frame put it. The default curve gives a different one nearly every frame,
+  // which is what `leko.test.ts` asks for under **a glide draws nothing until
+  // the page has stopped**.
+  expect(new Set(flight.map((f) => f.scrollY)).size).toBe(2)
+  expect(flight[flight.length - 1]!.scrollY).toBeGreaterThan(0)
+
+  // And the morph the same: the mask settles rather than travels. Two changes
+  // rather than one because the blend starts from a departure padded to the
+  // arrival's length. A morph on the default curve moves it every frame.
+  const masks = flight.map((f) => f.mask)
+  expect(masks.filter((mask, i) => i > 0 && mask !== masks[i - 1]!).length).toBeLessThanOrEqual(2)
+
+  expect(centre(far)).toBe(far)
+  leko.stop()
+  window.scrollTo(0, 0)
+})
+
+test("a refused step shakes on Leko's own curve, whatever the host asked for", async () => {
+  clocked()
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = start(
+    [{ id: 'one', target: { elements: () => target, interactive: true }, validate: () => false }],
+    // The same curve that holds the morph and the glide still in the test
+    // above. A shake that followed it would never leave the settled cutouts,
+    // and the mask below would not move at all.
+    { duration: 320, easing: () => 0 },
+  )
+  await until(said, 30, 'the step never said its words')
+  const settled = scrim()!.style.maskPosition
+
+  press()
+  // `scrim.ts` says why the shake keeps the built-in curve and the built-in
+  // length: it is a gesture of refusal rather than an arrival.
+  await until(
+    () => scrim()!.style.maskPosition !== settled,
+    30,
+    'the refused step never shook the hole',
+  )
+
+  expect(leko.step?.id).toBe('one')
 })
 
 test('a reason told while the page glides is drawn when it lands', async () => {

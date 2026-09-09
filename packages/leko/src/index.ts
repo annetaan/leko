@@ -1,4 +1,5 @@
 export { createLeko } from './leko.js'
+export { cubicBezier } from '@annetaan/leko-spotlight'
 export type { Leko } from './leko.js'
 export type {
   LekoKnownSignal,

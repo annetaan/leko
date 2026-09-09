@@ -2,6 +2,7 @@ import {
   complementRects,
   type Cutout,
   ease,
+  type Easing,
   hasArea,
   lerpCutouts,
   maskLayers,
@@ -534,6 +535,7 @@ export class Scrim {
   private run(
     frames: Cutout[][],
     duration: number,
+    easing: Easing,
     onFrame?: (eased: number) => void,
   ): Promise<boolean> {
     this.halt()
@@ -552,7 +554,7 @@ export class Scrim {
           resolve(true)
           return
         }
-        const eased = ease(t)
+        const eased = easing(t)
         const { index, local } = segmentAt(frames.length, eased)
         const from = frames[index]
         const to = frames[index + 1]
@@ -575,7 +577,7 @@ export class Scrim {
    * The two lists are padded to equal length, so every hole has something to
    * be blended with and blending them is a matter of walking the numbers.
    */
-  morph(to: Cutout[], duration: number): Promise<boolean> | undefined {
+  morph(to: Cutout[], duration: number, easing: Easing): Promise<boolean> | undefined {
     const [from, padded] = padCutouts(this.cutouts, to)
 
     if (!animates(duration)) {
@@ -618,7 +620,7 @@ export class Scrim {
     const riding = this.haloLayer
       ? (eased: number) => this.slideHalos(lerpCutouts(from, padded, eased))
       : undefined
-    const arriving = this.run([from, padded], duration, riding)
+    const arriving = this.run([from, padded], duration, easing, riding)
     this.arriving = arriving
     void arriving.then((finished) => {
       if (finished) this.placeHalos(to)
@@ -661,7 +663,10 @@ export class Scrim {
   private nudge(): void {
     const nudged = (dx: number): Cutout[] => this.cutouts.map((c) => ({ ...c, x: c.x + dx }))
     const settled = this.cutouts
-    void this.run([settled, nudged(-6), nudged(5), nudged(-3), settled], 320)
+    // Leko's own curve, never the host's, and the length beside it is fixed for
+    // the same reason: a shake is a refusal rather than an arrival, and a curve
+    // that overshoots would make nonsense of four segments that already do.
+    void this.run([settled, nudged(-6), nudged(5), nudged(-3), settled], 320, ease)
   }
 
   // ------------------------------------------------------------------ taking down

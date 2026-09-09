@@ -3,6 +3,8 @@ import {
   bringIntoView,
   Close,
   type Cutout,
+  ease,
+  type Easing,
   FocusRing,
   grow,
   Message,
@@ -33,7 +35,7 @@ import {
 } from './plan.js'
 import type { LekoOptions, LekoStep, LekoWorld } from '@annetaan/leko-types'
 
-const DEFAULTS = { padding: 8, radius: 8, duration: 320 } as const
+const DEFAULTS = { padding: 8, radius: 8, duration: 320, easing: ease } as const
 
 const NEXT_LABEL = 'Next'
 
@@ -176,6 +178,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
     return this.options.duration ?? DEFAULTS.duration
   }
 
+  /** The curve a morph and the scroll before it are both eased by. */
+  private easing(): Easing {
+    return this.options.easing ?? DEFAULTS.easing
+  }
+
   /**
    * How this step brings its target into view, or nothing where it does not.
    * **Off unless somebody asks** — DESIGN.md, **Bringing a target into view**.
@@ -279,7 +286,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const mode = this.scrolls(step)
     const glide =
       anchor && mode
-        ? bringIntoView(lit(step, anchor), this.setting(step, 'padding'), this.duration(), mode)
+        ? bringIntoView(
+            lit(step, anchor),
+            this.setting(step, 'padding'),
+            this.duration(),
+            mode,
+            this.easing(),
+          )
         : undefined
     if (glide) {
       void glide.settled.then(() => {
@@ -462,7 +475,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
-    const morphing = inner.morph(resolved, this.duration())
+    const morphing = inner.morph(resolved, this.duration(), this.easing())
     if (!morphing) return this.dispatch({ kind: 'morphed', step })
     void morphing.then((finished) => {
       if (finished) this.dispatch({ kind: 'morphed', step })

@@ -524,5 +524,85 @@ export function segmentAt(count: number, progress: number): { index: number; loc
   return { index, local: p * spans - index }
 }
 
-/** Ease out, so a cutout arrives rather than stops. */
-export const ease = (t: number): number => 1 - (1 - t) ** 3
+/**
+ * A curve from a fraction of the time to a fraction of the way.
+ *
+ * `LekoOptions.easing` in `packages/types` writes this shape out again rather
+ * than importing it, the way `Target` and `MachineState` are written twice:
+ * DESIGN.md, **The packages, and the seam between them**.
+ */
+export type Easing = (t: number) => number
+
+/**
+ * The curve two control points describe, read the way CSS reads one: solve the
+ * horizontal Bézier for the parameter at `t`, then evaluate the vertical one
+ * there. Reading `t` as the parameter directly is a different curve — for the
+ * default below it answers 0.104 where this answers 0.5.
+ *
+ * Only `x1` and `x2` are held to `[0, 1]`, and not to keep a host's curve
+ * tame: outside that range the horizontal Bézier stops being monotonic, so
+ * there is no single parameter at `t` to find. CSS constrains its own the same
+ * way, and leaves `y1` and `y2` free.
+ *
+ * No lookup table. A table is state, and what it saves is a few dozen
+ * arithmetic operations on a curve evaluated a handful of times a frame.
+ */
+export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Easing {
+  const ax = clamp(x1, 1)
+  const bx = clamp(x2, 1)
+  // The ends are exact, so a caller can rely on the first frame writing where
+  // it started and the last one writing the destination.
+  return (t) => (t <= 0 || t >= 1 ? t : along(y1, y2, parameterAt(ax, bx, t)))
+}
+
+/** One axis of a cubic Bézier from 0 to 1, at parameter `s`. */
+function along(a: number, b: number, s: number): number {
+  const u = 1 - s
+  return 3 * u * u * s * a + 3 * u * s * s * b + s * s * s
+}
+
+/** That axis' rate of change at `s`, which is what Newton needs. */
+function rate(a: number, b: number, s: number): number {
+  const u = 1 - s
+  return 3 * u * u * a + 6 * u * s * (b - a) + 3 * s * s * (1 - b)
+}
+
+/**
+ * The parameter at which the horizontal Bézier reaches `x`.
+ *
+ * Newton-Raphson from `s = x`, which is where the default curve ends up for
+ * seven values of `t` in eight, within six iterations. The eighth is `t`
+ * between 0.375 and 0.5, where `s = x` is far enough under the answer that the
+ * first step lands just past 1 — the rate there is 0.4, so nothing is flat
+ * about it — and bisection finishes those. The rate guard is the other way
+ * out, and belongs to a curve with a control point at 0, where a step divided
+ * by it would leave the interval as well.
+ */
+function parameterAt(x1: number, x2: number, x: number): number {
+  let s = x
+  for (let i = 0; i < 8; i++) {
+    const error = along(x1, x2, s) - x
+    if (Math.abs(error) < 1e-7) return s
+    const d = rate(x1, x2, s)
+    if (Math.abs(d) < 1e-6) break
+    s -= error / d
+    if (s < 0 || s > 1) break
+  }
+  let low = 0
+  let high = 1
+  for (let i = 0; i < 32; i++) {
+    const mid = (low + high) / 2
+    if (along(x1, x2, mid) < x) low = mid
+    else high = mid
+  }
+  return (low + high) / 2
+}
+
+/**
+ * The default curve: Material 3's standard easing, and what a hole and a page
+ * follow where the host brings nothing of its own.
+ *
+ * DESIGN.md argues the shape, and what the ease-out before it did at the first
+ * frame, under **The morph**.
+ */
+export const ease: Easing = cubicBezier(0.2, 0, 0, 1)

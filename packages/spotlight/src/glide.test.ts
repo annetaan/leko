@@ -1,5 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
+import { ease } from './geometry.js'
 import { bringIntoView, type Glide } from './glide.js'
 
 // What `glide.ts` does that the geometry cannot be asked. The line is purity
@@ -131,7 +132,7 @@ test('a nested panel is set in the same task, and only the page glides', async (
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  const glide = watch(bringIntoView([row], 0, DURATION, 'direct'))
+  const glide = watch(bringIntoView([row], 0, DURATION, 'direct', ease))
 
   // Before a single frame has run: the panel is where it belongs already and
   // the page has not set off. DESIGN.md, **The page glides; a nested panel is
@@ -147,6 +148,25 @@ test('a nested panel is set in the same task, and only the page glides', async (
   expect(middleOf(row)).toBeCloseTo(document.documentElement.clientHeight / 2, -1)
 })
 
+test('the curve the caller brought is the one the frames follow', async () => {
+  vi.useFakeTimers()
+  add(spacer())
+  const card = add(block(40))
+  add(spacer())
+
+  // A curve that answers "nowhere yet" for the whole trip. Not a claim about
+  // any shape — `geometry.test.ts` asks those — but about the wiring: what the
+  // frames follow is what the caller handed in, and the last frame writes the
+  // destination itself whatever the curve said.
+  const glide = watch(bringIntoView([card], 0, DURATION, 'direct', () => 0))
+  await frames(STAGE - 1)
+  expect(window.scrollY).toBe(0)
+  expect(glide.settled()).toBe(false)
+
+  await until(glide.settled, 10, 'the glide never landed')
+  expect(middleOf(card)).toBeCloseTo(document.documentElement.clientHeight / 2, -1)
+})
+
 test('a destination past the end of the content is clamped to it, before the first frame', async () => {
   vi.useFakeTimers()
   add(spacer())
@@ -154,7 +174,7 @@ test('a destination past the end of the content is clamped to it, before the fir
   // of the screen is a scroll the page has no room to make.
   const card = add(block(40))
 
-  const glide = watch(bringIntoView([card], 0, DURATION, 'direct'))
+  const glide = watch(bringIntoView([card], 0, DURATION, 'direct', ease))
   // Still flying, which is the whole of what clamping before the first frame
   // buys and the only thing that tells this apart from a loop that did not.
   // Aimed past the end, every write comes back clamped, the loop reads that as
@@ -203,7 +223,7 @@ test('a scroll the page has no room to make is not a glide at all', () => {
   // Half off the left edge of a page already against that edge, so the
   // destination clamps to where the page stands and there is nothing to glide
   // to. DESIGN.md, **A port that needs no scroll is never waited on**.
-  expect(bringIntoView([edge], 0, DURATION, 'direct')).toBeUndefined()
+  expect(bringIntoView([edge], 0, DURATION, 'direct', ease)).toBeUndefined()
   expect(window.scrollX).toBe(0)
   expect(window.scrollY).toBe(0)
 })
@@ -220,7 +240,7 @@ test('a port that already holds the cutout is not scrolled', () => {
 
   // The delta answers zero and nothing else is asked. DESIGN.md, **A port that
   // already holds the cutout is not touched**.
-  expect(bringIntoView([card], 0, DURATION, 'direct')).toBeUndefined()
+  expect(bringIntoView([card], 0, DURATION, 'direct', ease)).toBeUndefined()
   expect(window.scrollX).toBe(settled.x)
   expect(window.scrollY).toBe(settled.y)
 })
@@ -241,7 +261,7 @@ test('a fixed target has no port to be scrolled in', () => {
 
   // Its chain is the viewport alone, and a viewport is skipped whichever mode
   // asked. DESIGN.md, **A `position: fixed` target is not scrolled**.
-  expect(bringIntoView([pinned], 0, DURATION, 'direct')).toBeUndefined()
+  expect(bringIntoView([pinned], 0, DURATION, 'direct', ease)).toBeUndefined()
   expect(window.scrollX).toBe(0)
   expect(window.scrollY).toBe(settled)
 })
@@ -252,7 +272,7 @@ test('a page moved by two pixels is the viewer, and the glide stops there', asyn
   const card = add(block(40))
   add(spacer())
 
-  const glide = watch(bringIntoView([card], 0, DURATION, 'direct'))
+  const glide = watch(bringIntoView([card], 0, DURATION, 'direct', ease))
   // Two pixels, between the walk and the first frame — the one moment nothing
   // has been written and the loop is still comparing against where the page
   // was, so no easing fraction is in the comparison. That is what puts a
@@ -285,7 +305,7 @@ test('the box brought in is the one around every element, not the first', () => 
   const lower = add(block(40))
   add(spacer())
 
-  expect(bringIntoView([upper, lower], 0, 0, 'direct')).toBeUndefined()
+  expect(bringIntoView([upper, lower], 0, 0, 'direct', ease)).toBeUndefined()
 
   // DESIGN.md, **What is brought in is the first region's hole, not its first
   // element**: the union of the two is what the port centres, so the first
@@ -308,7 +328,7 @@ test('scroll-margin on the first element wins over the room asked for', () => {
   add(spacer())
   const top = upper.getBoundingClientRect().top
 
-  expect(bringIntoView([upper, lower], 8, 0, 'direct')).toBeUndefined()
+  expect(bringIntoView([upper, lower], 8, 0, 'direct', ease)).toBeUndefined()
 
   // DESIGN.md, **`scroll-margin` on the target wins over the step's
   // `padding`**: 8px of room above, 120px below, and the box the margin asks
@@ -329,7 +349,7 @@ test('a panel’s border is not somewhere a target can be brought', () => {
   vi.useFakeTimers()
   const { panel, row } = nested({ borderTop: '40px solid' })
 
-  expect(bringIntoView([row], 0, 0, 'direct')).toBeUndefined()
+  expect(bringIntoView([row], 0, 0, 'direct', ease)).toBeUndefined()
 
   // The client box both times, so 40px of border above the content moves the
   // middle of the port 20px down from the middle of the border box. The one
@@ -348,7 +368,7 @@ test('a staged scroll moves the page first and leaves the panel where it is', as
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  watch(bringIntoView([row], 0, DURATION, 'staged'))
+  watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   await frames(3)
 
   expect(window.scrollY).toBeGreaterThan(0)
@@ -359,7 +379,7 @@ test('the panel starts only after the page has landed, and after a beat', async 
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  watch(bringIntoView([row], 0, DURATION, 'staged'))
+  watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   // The page's stage is over by here, and the beat has not run out.
   await frames(past(STAGE) + 4)
   const landed = window.scrollY
@@ -375,7 +395,7 @@ test('the glide settles when the last stage lands, with every port where it belo
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  const glide = watch(bringIntoView([row], 0, DURATION, 'staged'))
+  const glide = watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   await until(glide.settled, past(STAGE) * 2 + 40, 'the staged glide never settled')
 
   // The row is at the middle of the panel, and the panel has put it at the
@@ -389,7 +409,7 @@ test('a scroll of the viewer’s own ends the glide there, and no stage follows 
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  const glide = watch(bringIntoView([row], 0, DURATION, 'staged'))
+  const glide = watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   await frames(10)
   window.scrollTo(0, 0)
 
@@ -403,7 +423,7 @@ test('a glide abandoned during the beat leaves the page where the stage put it',
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  const glide = watch(bringIntoView([row], 0, DURATION, 'staged'))
+  const glide = watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   await frames(past(STAGE) + 4)
   const landed = window.scrollY
   glide.abandon()
@@ -420,7 +440,7 @@ test('a glide abandoned as a stage lands runs no more stages', async () => {
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  const glide = watch(bringIntoView([row], 0, DURATION, 'staged'))
+  const glide = watch(bringIntoView([row], 0, DURATION, 'staged', ease))
   // The window `play` guards with `over`: a stage has landed and settled its
   // own promise, and the arrival that abandons the glide lands before the
   // handler that would start the next one. Nothing but the guard stands
@@ -448,7 +468,7 @@ test('a staged scroll with duration 0 sets every port outright and glides nothin
   vi.useFakeTimers()
   const { panel, row } = nested()
 
-  expect(bringIntoView([row], 0, 0, 'staged')).toBeUndefined()
+  expect(bringIntoView([row], 0, 0, 'staged', ease)).toBeUndefined()
   expect(panel.scrollTop).toBeGreaterThan(0)
   expect(window.scrollY).toBeGreaterThan(0)
   const port = panel.getBoundingClientRect()
@@ -462,7 +482,7 @@ test('a staged scroll of one port is the trip a direct one is, with no beat afte
   Object.assign(card.style, { height: '40px' })
   add(spacer())
 
-  const glide = watch(bringIntoView([card], 0, DURATION, 'staged'))
+  const glide = watch(bringIntoView([card], 0, DURATION, 'staged', ease))
   await frames(past(STAGE))
   // The page's own stage is the whole glide, so it settles on the frame that
   // lands rather than a beat later.

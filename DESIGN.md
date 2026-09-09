@@ -360,8 +360,8 @@ not know a tour is running.
 ## Settings, and where they are read from
 
 - `padding`, `radius` and `scroll` are read from the step, then from the
-  instance, then a built-in default. `duration`, `nextLabel` and `closeLabel`
-  are read from the instance alone.
+  instance, then a built-in default. `duration`, `easing`, `nextLabel` and
+  `closeLabel` are read from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.
 - **A story carries no settings.** A per-story value is a `.map()` over `steps`
@@ -784,7 +784,8 @@ tour is for.
   the shape is the same: a page that is moving is a different screen every
   frame, and nothing is decided about it until it stops.
 - **The glide is Leko's own animation, the way the morph is.** A
-  `requestAnimationFrame` loop in `glide.ts`, eased with the morph's curve,
+  `requestAnimationFrame` loop in `glide.ts`, eased with the morph's curve —
+  **The morph** argues its shape, and a host may bring its own as `easing` —
   writing one instant `scrollTo` per frame from numbers it
   computed before the first one, the exact destination on the last frame, and
   ending on its own clock. Nothing then has to be inferred about when an
@@ -1063,6 +1064,29 @@ tour is for.
   nothing measurable in any engine — but **an `<svg>` scrim masked the SVG way
   costs 81ms a frame in WebKit**, which is the tidier design and unusable, and
   only WebKit says so ([`spike/overlapping-holes/`](spike/overlapping-holes/)).
+- **The curve leaves from rest, and arrives the way it always did.** `ease` in
+  `geometry.ts` is Material 3's standard easing, `cubic-bezier(0.2, 0, 0, 1)`,
+  and the glide follows the same one. The curve before it was
+  `1 - (1 - t) ** 3`: continuous in position and not in speed, leaving at three
+  times the average, so a hole was at full tilt on its first frame. In a morph
+  that is a jolt in the mask; in a glide it is the whole viewport shoved, and
+  the shove grows with the trip, because `glideDuration` stretches with the
+  cube root of the distance while a speed of three times the average scales
+  with all of it. **The peak is not lower — it is higher**: 4.05 times the
+  average at `t ≈ 0.12`, against 3 at `t = 0`. What was fixed is the
+  discontinuity, not the maximum, and flattening the curve to bring the peak
+  down would trade away the asymmetry the shape is for. What changed is the
+  departure: the two curves are 0.132 apart at their widest, at `t ≈ 0.075`,
+  and from the midpoint on they never differ by more than a hundredth — 0.0097
+  at `t ≈ 0.694`, which on a 2 000px glide is 19px, and both of them are within
+  0.003 of each other at `t = 0.5` and at `t = 0.9`, so sampling only there
+  flatters it. Half the way is still covered by `t = 0.2`, where the old curve
+  had covered 0.488, and the last tenth of the time still covers a fraction of
+  the first, so the arrival — the part anyone is looking at — is the arrival it
+  always was. An `ease-in-out` is the symmetric answer and
+  the wrong one for the same reason: the departure should be over before
+  anybody has looked. CSS's own `ease`, Material, Fluent and Apple's springs
+  are all asymmetric this way.
 
 ### The halo
 

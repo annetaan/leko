@@ -10,7 +10,7 @@
 
 import {
   clamp,
-  ease,
+  type Easing,
   GLIDE_BEAT,
   glideDuration,
   type Insets,
@@ -79,8 +79,11 @@ export function bringIntoView(
   room: number,
   duration: number,
   mode: ScrollMode,
+  easing: Easing,
 ): Glide | undefined {
-  return mode === 'staged' ? staged(lit, room, duration) : direct(lit, room, duration)
+  return mode === 'staged'
+    ? staged(lit, room, duration, easing)
+    : direct(lit, room, duration, easing)
 }
 
 /**
@@ -103,6 +106,7 @@ function direct(
   lit: readonly [Element, ...Element[]],
   room: number,
   duration: number,
+  easing: Easing,
 ): Glide | undefined {
   const [anchor] = lit
   const asked = roomAround(anchor, room)
@@ -125,7 +129,7 @@ function direct(
       writeTo(surface, to)
       return undefined
     }
-    return play([{ surface, from, to }], duration)
+    return play([{ surface, from, to }], duration, easing)
   }
   return undefined
 }
@@ -148,6 +152,7 @@ function staged(
   lit: readonly [Element, ...Element[]],
   room: number,
   duration: number,
+  easing: Easing,
 ): Glide | undefined {
   const [anchor] = lit
   const ports = surfaceChain(anchor).flatMap((surface) => {
@@ -163,7 +168,7 @@ function staged(
     for (const { surface, to } of stages) writeTo(surface, to)
     return undefined
   }
-  return play(stages.toReversed(), duration)
+  return play(stages.toReversed(), duration, easing)
 }
 
 /** One port's move: where it is now, and where it is going. */
@@ -199,7 +204,7 @@ type Running =
  * handled, and without it the next stage would start after the tour had moved
  * past the step it belongs to.
  */
-function play(stages: readonly Stage[], duration: number): Glide {
+function play(stages: readonly Stage[], duration: number, easing: Easing): Glide {
   let settle!: () => void
   const settled = new Promise<void>((resolve) => {
     settle = resolve
@@ -214,7 +219,7 @@ function play(stages: readonly Stage[], duration: number): Glide {
     if (!stage) return over()
     const { surface, from, to } = stage
     const length = glideDuration(Math.hypot(to.x - from.x, to.y - from.y), duration)
-    const flight = frames(surface, from, to, length)
+    const flight = frames(surface, from, to, length, easing)
     running = { kind: 'flying', flight }
     void flight.landed.then((landed) => {
       if (running.kind === 'over') return
@@ -252,7 +257,8 @@ interface Flight {
 /**
  * Move `surface` from `from` to `to` over `length` ms.
  *
- * A frame loop on `requestAnimationFrame`, eased with the morph's own curve,
+ * A frame loop on `requestAnimationFrame`, eased with the curve the caller
+ * brought, which is the morph's,
  * writing one instant scroll per frame from numbers computed before the
  * first, and ending on its own clock with the exact destination written on the
  * last frame. DESIGN.md, **The glide is Leko's own animation, the way the morph
@@ -268,7 +274,7 @@ interface Flight {
  * writing past the end would read back. What these frames cost on the main
  * thread is DESIGN.md's **What it costs**.
  */
-function frames(surface: Surface, from: Point, to: Point, length: number): Flight {
+function frames(surface: Surface, from: Point, to: Point, length: number, easing: Easing): Flight {
   let land!: (landed: boolean) => void
   const landed = new Promise<boolean>((resolve) => {
     land = resolve
@@ -289,7 +295,7 @@ function frames(surface: Surface, from: Point, to: Point, length: number): Fligh
     if (taken()) return land(false)
     // Clamped at both ends, for the reason `segmentAt` in `geometry.ts` gives.
     const t = Math.min(1, Math.max(0, (now - began) / length))
-    const eased = ease(t)
+    const eased = easing(t)
     last =
       t >= 1 ? to : { x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased }
     writeTo(surface, last)
