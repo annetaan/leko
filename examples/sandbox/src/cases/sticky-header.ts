@@ -1,17 +1,19 @@
 import { at, type Case, html } from '../case.js'
 
-// The two states a `position: sticky` target has, and the drift between them —
-// DESIGN.md, **A sticky target is drawn in the state it is in, and there are
-// two**. The filter bar under the hero is the same element in both: riding the
-// page while the hero is still above it, held against the top of the screen
-// once the page has gone past. The table head in the panel is the second kind
-// of pinned, held against a scrollport that is not the viewport, and the case
-// is here to be scrolled in both directions afterwards.
+// The two states a `position: sticky` target has, and the hole crossing between
+// them — DESIGN.md, **A sticky target is drawn in the state it is in, and there
+// are two**, and **A sticky target's hole is corrected on a frame loop, and
+// that is the only exception to the ban**. The filter bar under the hero is the
+// same element in both: riding the page while the hero is still above it, held
+// against the top of the screen once the page has gone past. The table head in
+// the panel is the second kind of pinned, held against a scrollport that is not
+// the viewport.
 //
-// The drift is the point of the first step rather than something the case
-// hides. A hole cut while the bar rides is left behind at the pin, and the
-// first step asks the viewer to scroll down far enough to watch that happen
-// before scrolling back and pressing the control.
+// Every step here is to be scrolled in both directions, because which state the
+// step was drawn in is what the loop is not allowed to matter to. The first is
+// drawn riding and asks for a scroll down past the pin; the second is drawn
+// already pinned and asks for the scroll back up, which is the other side of
+// the same claim.
 
 const rows = Array.from(
   { length: 40 },
@@ -29,9 +31,9 @@ export const stickyHeader: Case = {
   title: 'A bar that pins, and a table head that pins inside a panel',
   proves:
     'A sticky target is drawn in flow while it rides and glued to its ' +
-    'scrollport once it pins, so the hole stays under it on the side of the ' +
-    'pin the step was drawn on — and drifts on the other, which is named ' +
-    'rather than hidden.',
+    'scrollport once it pins, and a frame loop keeps the hole under it either ' +
+    'way — so the hole follows the target across the pin whichever side of it ' +
+    'the step was drawn on.',
 
   mount(root) {
     const page = html(`
@@ -120,9 +122,9 @@ export const stickyHeader: Case = {
           message:
             'The hero is still above the bar, so the bar is riding the page ' +
             'and this hole is cut in the page. Scroll down until the bar ' +
-            'stops at the top of the screen: the hole stays behind at the ' +
-            'pin, which is the drift two states leave. Scroll back up and ' +
-            'press Only mine.',
+            'stops at the top of the screen: the hole comes with it across ' +
+            'the pin and stays on the button. Scroll back up and press Only ' +
+            'mine.',
         },
         {
           id: 'pinned',
@@ -137,8 +139,9 @@ export const stickyHeader: Case = {
           message:
             'The same button, drawn with the bar already pinned — so this ' +
             'hole was cut on the viewport, the way a fixed target’s is. ' +
-            'Scroll as far as you like: it stays under the bar. Press Only ' +
-            'mine again.',
+            'Scroll back up past the hero, which is the other side of the ' +
+            'pin from where this was drawn: the hole rides down with the bar. ' +
+            'Press Only mine again.',
         },
         {
           id: 'in-a-panel',
@@ -150,8 +153,10 @@ export const stickyHeader: Case = {
           message:
             'This head is held against the top of the panel, not the screen, ' +
             'so its hole is glued to the panel’s scrollport. Scroll the rows ' +
-            'inside the panel and then the page itself — the hole stays on ' +
-            'the head through both. Press Status to sort.',
+            'inside the panel both ways — up past the pin, where the head ' +
+            'rides its own rows again, as well as down — and then the page ' +
+            'itself. The hole stays on the head through all of it. Press ' +
+            'Status to sort.',
         },
       ],
     },

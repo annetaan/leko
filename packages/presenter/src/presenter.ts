@@ -1,6 +1,7 @@
 import type { Host, Presenter } from '@annetaan/leko-machine'
 import {
   bringIntoView,
+  chainOf,
   chromeInsets,
   Close,
   type Cutout,
@@ -12,15 +13,14 @@ import {
   Message,
   type MessageContent,
   paddingBoxWithin,
+  portsOf,
   type Rect,
   resolveTarget,
   resolveTargets,
   sameSurface,
   Scrim,
   type ScrollMode,
-  type Side,
   type Surface,
-  surfaceChain,
   union,
   withinSurface,
 } from '@annetaan/leko-spotlight'
@@ -434,13 +434,22 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * `holes` is the caller's because the caller has other readers for them.
    * `null` is a step that points at something not on the page, which is nothing
    * to measure the same way a missing surface is.
+   *
+   * **The one place the follow is armed, and the one place it is taken down**
+   * — DESIGN.md, **A sticky target's hole is corrected on a frame loop, and
+   * that is the only exception to the ban**. Down on the way in, so no way out
+   * of here leaves a loop asking about the step before; up at the end, where
+   * the boxes it will be correcting have just been written, and only for a
+   * target the page can move out from under them. `refit` is the one other
+   * caller and takes it down itself, having no draw to arm it with.
    */
   private measure(
     step: LekoStep,
     anchor: Element | null,
     holes: Hole[] | null,
   ): Measured | undefined {
-    const chain = surfaceChain(anchor ?? document.body)
+    this.layers[0]?.follow(undefined)
+    const { surfaces: chain, sticky } = chainOf(anchor ?? document.body)
     const inner = this.stack(chain)
     if (!inner) return undefined
     if (!holes) {
@@ -456,7 +465,26 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const outer = this.outerHoles(chain)
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(outer)
+    if (sticky && holes.length > 0) {
+      inner.follow(() => this.holesNow(step, holes, inner), portsOf(chain))
+    }
     return { inner, holes, resolved, onScreen, chrome, room: DomPresenter.roomIn(chrome), seen }
+  }
+
+  /**
+   * Where this step's holes are on screen right now, in the innermost layer's
+   * own space — the question a frame of the follow puts to the page, and the
+   * same two lines {@link measure} asks in its read pass.
+   *
+   * `undefined` where the target has left the page, which is what stops the
+   * loop. The elements are asked rather than the step's `target` resolved
+   * again: a hole is the elements the draw found, and a step is not re-resolved
+   * between draws.
+   */
+  private holesNow(step: LekoStep, holes: readonly Hole[], inner: Scrim): Cutout[] | undefined {
+    const gone = holes.some(({ elements }) => elements.some((el) => !el.isConnected))
+    if (gone) return undefined
+    return withinSurface(inner.surface, this.cutouts(step, holes))
   }
 
   /** Size every standing layer to its surface as it is now. Reads all, then writes all. */
@@ -556,6 +584,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * asked for a second time.
    */
   private refit(step: LekoStep): void {
+    // The target is gone, so there is nothing left to follow. The loop cannot
+    // see this for itself: what has gone is the answer to the step's question,
+    // and the elements the last draw found can still be on the page.
+    this.layers[0]?.follow(undefined)
     this.fit()
     this.place(step, this.holes(step, null))
   }
@@ -587,19 +619,16 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.message ??= new Message(() => this.host.next())
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
-    // The scrim's space, from the boxes just read on screen. Absent where there
-    // is no scrim, and where there are no holes to put in one.
-    const within =
-      measured?.resolved ?? (inner && holes ? withinSurface(inner.surface, onScreen) : undefined)
-    const box = within && union(within)
     this.message.show(
       content,
       onScreen,
       gap,
       measured?.room ?? DomPresenter.roomIn(chrome),
-      // Absent where there is no scrim to hang the anchor in, which is what
-      // makes the box dock instead.
-      inner && box ? (side) => inner.anchorAt(...DomPresenter.edge(box, side)) : undefined,
+      // The side, and never the point: the scrim holds the holes the point is
+      // taken from, so a hole a follow moves takes the marker with it.
+      // Absent where there is no scrim to hang the anchor in, or no hole to
+      // hang it off, which is what makes the box dock instead.
+      inner && holes?.length ? (side) => inner.anchorTo(side) : undefined,
     )
     // Last, so the next control is showing by the time the ring is asked
     // whether the message is a stop.
@@ -638,21 +667,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
       error,
       next: step.awaits === undefined ? (this.options.nextLabel ?? NEXT_LABEL) : undefined,
     }
-  }
-
-  /**
-   * The midpoint of one edge of `box`, which is where the message's anchor
-   * goes. The edge rather than the middle: the anchor has no area, so
-   * `position-area` lays the box out from this point alone, and a point in the
-   * middle of the hole would put the message over half of it.
-   */
-  private static edge(box: Rect, side: Side): [number, number] {
-    const midX = box.x + box.width / 2
-    const midY = box.y + box.height / 2
-    if (side === 'bottom') return [midX, box.y + box.height]
-    if (side === 'top') return [midX, box.y]
-    if (side === 'right') return [box.x + box.width, midY]
-    return [box.x, midY]
   }
 
   /**

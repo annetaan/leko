@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-import { begin, box, control, frame, keep, press, start } from './harness.js'
+import { begin, box, control, frame, keep, press, shown, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -20,6 +20,11 @@ const on = (el: HTMLElement | null | undefined) =>
 const visible = () =>
   message()?.checkVisibility({ visibilityProperty: true, opacityProperty: true }) === true
 const rect = (el: Element) => el.getBoundingClientRect()
+/** Where the marker the message anchors to has been put, in the innermost scrim's space. */
+const at = () => {
+  const mark = document.querySelector<HTMLElement>('.leko-anchor')!
+  return { x: parseFloat(mark.style.left), y: parseFloat(mark.style.top) }
+}
 
 const overlaps = (a: DOMRect, b: DOMRect): boolean =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
@@ -265,6 +270,89 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   // script ran between these two reads, and it moved with the target anyway.
   expect(after.target - before.target).toBeCloseTo(-60, 0)
   expect(after.note - before.note).toBeCloseTo(after.target - before.target, 0)
+})
+
+test('a step whose target has no area still takes the anchor off the step before', () => {
+  // The marker is put where the union of the step's holes is, and a hole with
+  // no area is still a place. Skipped instead, it would be left where the step
+  // before put it — and the message, which is written beside the marker and
+  // knows nothing about which step made it, would come up beside the last
+  // step's target.
+  const first = box('first', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const nothing = box('nothing', {
+    left: '400px',
+    top: '300px',
+    width: '0',
+    height: '0',
+    padding: '0',
+    border: '0',
+  })
+
+  start([
+    { id: 'one', target: { elements: () => first, interactive: true }, message: 'First.' },
+    {
+      id: 'two',
+      target: { elements: () => nothing, interactive: true },
+      message: 'Second.',
+      padding: 0,
+    },
+  ])
+  expect(at().x).toBeCloseTo(180, 0)
+
+  press()
+
+  // Every edge of a box with no area is the same point, so which side the
+  // message took does not come into it.
+  expect(at().x).toBeCloseTo(400, 0)
+  expect(at().y).toBeCloseTo(300, 0)
+})
+
+test('a hole with no area takes its place from its own region, not a morph leftover', async () => {
+  // A step with fewer holes than the last one leaves the departing ones in the
+  // rendered list, collapsed to no area at their own centres — DESIGN.md, **The
+  // morph**. They have no area either, so the filter drops them along with the
+  // step's own hole, and a fallback that unioned what was left would put the
+  // marker between this step's target and the last step's.
+  //
+  // A real duration, because that is what makes a padded list: a morph that
+  // does not animate sets the step's own holes and there is nothing to leave
+  // behind.
+  const left = box('left', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const right = box('right', { left: '800px', top: '100px', width: '120px', height: '40px' })
+  const nothing = box('nothing', {
+    left: '400px',
+    top: '300px',
+    width: '0',
+    height: '0',
+    padding: '0',
+    border: '0',
+  })
+
+  start(
+    [
+      {
+        id: 'one',
+        target: [{ elements: () => left, interactive: true }, () => right],
+        message: 'First.',
+      },
+      {
+        id: 'two',
+        target: { elements: () => nothing, interactive: true },
+        message: 'Second.',
+        padding: 0,
+      },
+    ],
+    { duration: 320 },
+  )
+  await shown()
+  press()
+  // The words arrive with the anchor: both are the `say` that waits for the
+  // morph to land. Not {@link shown}, which a hidden message satisfies — it
+  // keeps its control in the DOM while it is away.
+  await vi.waitUntil(() => words() === 'Second.')
+
+  expect(at().x).toBeCloseTo(400, 0)
+  expect(at().y).toBeCloseTo(300, 0)
 })
 
 test('the step is read for its words every time, so an edit to it is seen', () => {

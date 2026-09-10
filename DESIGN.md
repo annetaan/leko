@@ -647,7 +647,9 @@ and writes the layers, **at step boundaries, never per frame**.
 - The scrim lives **inside** the scrolling content, sized to it, with the path
   in content coordinates. Scrolling moves scrim and targets together and
   nothing needs recomputing. **Scroll tracking runs no JS at all** (T6a, T6b,
-  and `nested-scroller.ts`).
+  and `nested-scroller.ts`). There is **one exception**, it is a
+  `position: sticky` target and nothing else, and it has a bullet of its own
+  below — so the ban and the exception cannot be quoted apart.
 - That leaves the rest of the page, so there is **one scrim per scrolling
   ancestor**, innermost first and always ending at the document. Only the
   innermost carries the step's cutouts. Each outer one is cut to the **padding
@@ -715,9 +717,43 @@ and writes the layers, **at step boundaries, never per frame**.
   document's scrollport is the viewport, which is the layer a fixed target
   already gets, and a panel's is a layer glued to that panel. Which of the two
   is read once, at the draw, from the boxes the draw is reading anyway, and
-  never again while the viewer scrolls. The chain outside the innermost layer
-  is untouched, because a glued layer still lives in its panel and the page
-  scrolling still carries the panel.
+  never again while the viewer scrolls: what a later scroll changes is not
+  which layer carries the target but where in that layer the target has got to,
+  and the bullet below is what corrects that. The chain outside the innermost
+  layer is untouched, because a glued layer still lives in its panel and the
+  page scrolling still carries the panel.
+- **A sticky target's hole is corrected on a frame loop, and that is the only
+  exception to the ban.** A target that pins moves inside whichever layer
+  carries it — that is what pinning is — so the hole cut at the draw is right
+  on one side of the pin and wrong on the other. A loop of Leko's own puts it
+  back: one `getBoundingClientRect` per element of the step's holes, on
+  `requestAnimationFrame`, and the boxes written from what came back.
+  - **Only a draw whose target resolved sticky starts it**, and it is armed in
+    the one place every draw and every redraw passes through. An in-flow
+    target's layer rides the scroll with it and a fixed target's does not move
+    at all, so neither has anything to correct and neither costs a frame.
+  - **It measures rather than predicting.** The piecewise-linear path a
+    scroll-driven animation would follow is only right while the layout it was
+    computed from holds, and it goes stale silently when the application
+    changes the page under the tour. A measurement cannot: it is late by a
+    frame and never wrong.
+  - **A frame writes the mask, the blocking rectangles, the halo boxes and the
+    anchor marker, and nothing else.** The target is not resolved again, the
+    surface chain is not walked again, no layer is measured or resized, the
+    outer layers' holes stay where layout left them, the host's chrome is not
+    re-read, and nothing is asked that forces a layout — the halos are moved
+    rather than placed, because placing them commits a style through
+    `offsetWidth`. The blocking is written *with* the mask rather than ahead of
+    it, unlike the morph's: hit-testing lagging the paint under the viewer's
+    own pointer is the cost that ruled the compositor out in the first place.
+    The message's side and the way out's corner are not chosen again, for the
+    reasons under **The message** and **The way out**.
+  - **The cost is a frame of lag, and on a page nobody is scrolling it is not
+    even that.** The loop is started by a `scroll` on one of the ports the
+    chain named, and parks after two frames of boxes that have not moved. An
+    idle page pays for a passive listener per port and no frames at all. A
+    background tab runs none either, which leaves what the draw drew — as does
+    a target that has left the page, which stops the loop for good.
 - **Pinned is read from the inset, never from `offsetTop`.** The obvious test
   — the element's box against where `offsetTop` says the flow put it — says
   nothing at all: `offsetTop` reports the stuck position and grows with the
@@ -761,36 +797,50 @@ and writes the layers, **at step boundaries, never per frame**.
   engines. For a target in the page this shape is not needed: the document's
   scrollport is the viewport, and that is the fixed layer, saying the same
   thing more cheaply.
-- **The hole is wrong only on the other side of the pin from where the step was
-  drawn.** That is the drift the two states buy, and it is named rather than
-  hidden. A header at the top of the document with `top: 0` has the same
-  position pinned and unpinned, so it is right at every offset. A bar under a
-  hero is right from the pin onwards and drifts only if the viewer scrolls back
-  above it. At the instant of the pin itself an element sitting exactly on its
-  inset is one pixel of scroll from pinning and is read as pinned; either
-  answer is right at that offset and wrong on one side of it. An element sticky
-  on two axes with only one of them held is drawn glued, and the free axis
-  drifts. Only the start edges are read — `top` and `left` — so an element
-  given both insets on an axis and held against its `bottom` or `right` reads
-  as riding. And the reading is taken against the innermost surface of the
-  chain, which is the innermost scroller that actually scrolls: an element
-  sticky against an ancestor that is not one — `overflow: hidden`, or
-  `overflow: auto` with nothing overflowing — is measured against the port
-  outside it instead, which is usually the viewport, so it reads as pinned only
-  where it happens to be sitting on that port's edge. `sticky-header.ts` is the
-  case, and it shows the drift rather than avoiding it.
-- **The exact answer is `animation-timeline: scroll()`, and it is not built.**
-  A scroll-driven animation would let the hole follow the whole piecewise-linear
-  path — flow position, then the inset, then flat again — with no JS per frame.
-  Four things stand in the way and none of them is settled: the support floor
-  it would need is not the one under **Browser support**; it runs on the
+- **What the two states can get wrong is the layer, not where the hole is.**
+  Every case below is a reading that picks one state where the other was meant,
+  and each is named rather than hidden — but a layer is only what the hole is
+  measured *against*, and the loop above measures the hole in whichever layer
+  it was given. So what a wrong reading costs is the frames the loop does not
+  run in: a background tab, and the moment before the first `scroll`. At the
+  instant of the pin itself an element sitting exactly on its inset is one
+  pixel of scroll from pinning and is read as pinned; either answer is right at
+  that offset and wrong on one side of it. An element sticky on two axes with
+  only one of them held is drawn glued. Only the start edges are read — `top`
+  and `left` — so an element given both insets on an axis and held against its
+  `bottom` or `right` reads as riding. And the reading is taken against the
+  innermost surface of the chain, which is the innermost scroller that actually
+  scrolls: an element sticky against an ancestor that is not one —
+  `overflow: hidden`, or `overflow: auto` with nothing overflowing — is
+  measured against the port outside it instead, which is usually the viewport,
+  so it reads as pinned only where it happens to be sitting on that port's
+  edge. `sticky-header.ts` is the case.
+- **What moves a target without a scroll is not followed.** An image arriving,
+  a font swapping, a panel opening beside the target: layout moves and no port
+  has scrolled, so no frame is asked for and the hole stays where it was until
+  the next resize or the next step. That is what the tour did before the loop
+  existed as well, for every kind of target, so it is a limit rather than a
+  regression — and the shape to reach for if it ever has to be answered is a
+  `ResizeObserver`, the way **That layer is sized past the layout viewport on
+  purpose, gutter included** already notes.
+- **The zero-JS answer is `animation-timeline: scroll()`, and it was not
+  taken.** A scroll-driven animation would let the hole follow the whole
+  piecewise-linear path — flow position, then the inset, then flat again — with
+  no JS per frame at all, which is one better than the loop above. What ruled
+  it out is not the frames. It **predicts**: the path is computed once from a
+  layout, and an application that changes that layout under the tour leaves it
+  confidently wrong with nothing to notice. The loop measures, and can only be
+  late. And the blocking rectangles are not paint — they are elements a
+  hit-test has to find in the right place — so they could not go to the
+  compositor with the mask however the rest was spelled, which leaves a design
+  where what is drawn and what is reachable are answered by two different
+  clocks. Three more things stand in the way besides: the support floor it
+  would need is not the one under **Browser support**; it runs on the
   compositor, which is where [`spike/waapi-clip-path/`](spike/waapi-clip-path/)
-  found Chrome rasterising a clip path at the wrong scale; it would drive the
-  same inline `mask-position` the morph writes frame by frame, so the two would
-  need a handover; and the blocking rectangles, the halo and the anchor marker
-  would each need to follow as well. Two states are cheap, and the drift they
-  leave is a scroll back past a pin. If that stops being enough it wants a page
-  in `spike/` of its own.
+  found Chrome rasterising a clip path at the wrong scale; and it would drive
+  the same inline `mask-position` the morph writes frame by frame, so the two
+  would need a handover. If it is ever wanted it wants a page in `spike/` of
+  its own.
 - **Every layer paints and catches nothing. Plain rectangles in the gaps
   between the open cutouts do the blocking.** A mask has no effect on
   hit-testing at all, so a masked scrim asking to be hit is a solid sheet over
@@ -1157,7 +1207,12 @@ tour is for.
   of its frames reads back the one scroll offset it wrote the frame before, to
   tell whether the viewer has moved the page, and writes the next from numbers
   it had before the first — a read of a scroll offset during a scroll Leko
-  started, not layout, and not the viewer's scroll. On a scrim 12 000px tall,
+  started, not layout, and not the viewer's scroll. The third loop is the one
+  this rule is about, and it is the exception: the follow under **A sticky
+  target's hole is corrected on a frame loop, and that is the only exception to
+  the ban** reads layout, during the viewer's own scroll, and is bounded
+  instead by what starts it — a sticky target and a `scroll` on one of its own
+  ports — and by parking two frames after the boxes stop. On a scrim 12 000px tall,
   three holes and 120 frames cost
   nothing measurable in any engine — but **an `<svg>` scrim masked the SVG way
   costs 81ms a frame in WebKit**, which is the tidier design and unusable, and

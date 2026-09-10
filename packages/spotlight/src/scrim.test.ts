@@ -1,5 +1,6 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
+import { type Cutout, ease } from './geometry.js'
 import { Scrim } from './scrim.js'
 import type { Surface } from './surface.js'
 
@@ -10,6 +11,7 @@ import type { Surface } from './surface.js'
 const scrims: Scrim[] = []
 
 afterEach(() => {
+  vi.useRealTimers()
   for (const scrim of scrims.splice(0)) scrim.destroy()
   for (const restore of gutters.splice(0)) restore()
   for (const box of panels.splice(0)) box.remove()
@@ -151,4 +153,83 @@ test('a glued layer does not grow the scroller it is mounted in', () => {
   mountScrim({ kind: 'glued', element: box })
   expect(box.scrollWidth).toBe(w)
   expect(box.scrollHeight).toBe(h)
+})
+
+// The handover between the two frame loops this class has running. Which of
+// them writes the mask at any moment is the scrim's own business — DESIGN.md,
+// **A sticky target's hole is corrected on a frame loop, and that is the only
+// exception to the ban** — so it is asked here rather than through the
+// presenter. On a clock the test owns, because the claims are about frames.
+
+const hole = (x: number): Cutout => ({
+  x,
+  y: 0,
+  width: 60,
+  height: 20,
+  radius: 0,
+  interactive: true,
+})
+
+const tick = async (count = 1): Promise<void> => {
+  for (let n = 0; n < count; n++) {
+    vi.advanceTimersByTime(16)
+    await Promise.resolve()
+  }
+}
+
+/** Long enough that a scroll during it is unambiguously during it. */
+const MORPH = 320
+const PAST_MORPH = 40
+
+test('a follow armed during a morph waits for the morph to end', async () => {
+  vi.useFakeTimers()
+  const scrim = mountScrim()
+  scrim.set([hole(0)])
+  const port = new EventTarget()
+  let asked = 0
+  scrim.follow(() => {
+    asked += 1
+    return [hole(200)]
+  }, [port])
+
+  scrim.morph([hole(100)], MORPH, ease)
+  port.dispatchEvent(new Event('scroll'))
+  await tick(4)
+  // The morph is writing the mask, and two loops writing it would be two
+  // answers a frame apart.
+  expect(asked).toBe(0)
+
+  await tick(PAST_MORPH)
+  port.dispatchEvent(new Event('scroll'))
+  await tick()
+  expect(asked).toBeGreaterThan(0)
+})
+
+test('a shake gives the follow back when it ends', async () => {
+  vi.useFakeTimers()
+  const scrim = mountScrim()
+  const port = new EventTarget()
+  let asked = 0
+  scrim.follow(() => {
+    asked += 1
+    return [hole(200)]
+  }, [port])
+  scrim.set([hole(0)])
+
+  port.dispatchEvent(new Event('scroll'))
+  await tick()
+  expect(asked).toBeGreaterThan(0)
+
+  scrim.shake()
+  const during = asked
+  port.dispatchEvent(new Event('scroll'))
+  await tick(4)
+  expect(asked).toBe(during)
+
+  // A refusal is not a step ending, so the hole goes on following its target
+  // once the shake has finished shaking it.
+  await tick(PAST_MORPH)
+  port.dispatchEvent(new Event('scroll'))
+  await tick()
+  expect(asked).toBeGreaterThan(during)
 })

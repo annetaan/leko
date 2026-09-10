@@ -208,6 +208,23 @@ export function sideWithRoom(
 }
 
 /**
+ * The midpoint of one side of `box`, which is where the message's anchor goes.
+ *
+ * The edge rather than the middle: the anchor has no area, so `position-area`
+ * lays the message out from this point alone, and a point in the middle of the
+ * hole would put the message over half of it. DESIGN.md, **The message anchors
+ * to a marker, never to the target**.
+ */
+export function edgeOf(box: Rect, side: Side): Point {
+  const midX = box.x + box.width / 2
+  const midY = box.y + box.height / 2
+  if (side === 'bottom') return { x: midX, y: box.y + box.height }
+  if (side === 'top') return { x: midX, y: box.y }
+  if (side === 'right') return { x: box.x + box.width, y: midY }
+  return { x: box.x, y: midY }
+}
+
+/**
  * How far a scrollport has to move to put `box` where a step wants it, and zero
  * on an axis that already holds it.
  *
@@ -310,8 +327,8 @@ export interface StickyInsets {
  * An axis given both insets is read against the start edge — `top`, `left` —
  * and nothing else. A sticky element given both is held against whichever the
  * scroll ran it into, so one held at its `bottom` reads here as riding.
- * DESIGN.md names that with the rest of the drift under **The hole is wrong
- * only on the other side of the pin from where the step was drawn**.
+ * DESIGN.md names that with the rest of what a reading can get wrong under
+ * **What the two states can get wrong is the layer, not where the hole is**.
  */
 export function stickySlack(
   box: Rect,
@@ -627,6 +644,32 @@ export function lerpCutouts(from: Cutout[], to: Cutout[], t: number): Cutout[] {
       interactive: end.interactive,
     }
   })
+}
+
+/**
+ * Whether two lists of cutouts would draw the same thing.
+ *
+ * Exact equality, and not a tolerance: what these are compared for is whether a
+ * frame of the follow has anything to write, and a box read twice without the
+ * page moving answers with the same numbers. A tolerance would instead decide
+ * how far the hole may lag its target, which is not a judgement this has any
+ * grounds to make.
+ */
+export function sameCutouts(a: readonly Cutout[], b: readonly Cutout[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((one, i) => {
+      const other = b[i]!
+      return (
+        one.x === other.x &&
+        one.y === other.y &&
+        one.width === other.width &&
+        one.height === other.height &&
+        one.radius === other.radius &&
+        one.interactive === other.interactive
+      )
+    })
+  )
 }
 
 /**

@@ -30,9 +30,10 @@ export { Message, type MessageContent } from './message.js'
 export { type HaloMode, Scrim } from './scrim.js'
 export { bringIntoView, type Glide, type ScrollMode } from './glide.js'
 export {
+  chainOf,
   paddingBoxWithin,
+  portsOf,
   sameSurface,
   type Surface,
-  surfaceChain,
   withinSurface,
 } from './surface.js'

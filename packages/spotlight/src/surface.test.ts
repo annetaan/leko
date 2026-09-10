@@ -1,6 +1,13 @@
 import { afterEach, expect, test } from 'vitest'
 
-import { originOf, rectWithin, sameSurface, type Surface, surfaceChain } from './surface.js'
+import {
+  chainOf,
+  originOf,
+  rectWithin,
+  sameSurface,
+  type Surface,
+  surfaceChain,
+} from './surface.js'
 
 // Which surfaces carry a target, read the way the presenter reads them. In
 // three engines, because what an ancestor does to a fixed element is a claim
@@ -320,6 +327,59 @@ test('a sticky target past the end of its block inside a scroller rides again', 
   const panel = head.parentElement!.parentElement!
   panel.scrollTop = 600
   expect(named(surfaceChain(head))).toEqual(['scroller panel', 'document'])
+})
+
+// --- whether the hole has to be followed
+//
+// The other half of what the walk answers: whether anything inside the
+// innermost surface is `position: sticky`, which is the one thing that arms the
+// frame loop — DESIGN.md, **A sticky target's hole is corrected on a frame
+// loop, and that is the only exception to the ban**. Both halves of the rule
+// are asked here, because being too broad costs frames on pages that need none
+// and being too narrow leaves the hole behind at a pin.
+
+test('a target nothing pins does not have to be followed', () => {
+  expect(chainOf(make({})).sticky).toBe(false)
+  expect(chainOf(make({ position: 'fixed', top: '10px' })).sticky).toBe(false)
+  const box = scroller()
+  expect(chainOf(make({}, box)).sticky).toBe(false)
+})
+
+test('a sticky target has to be followed in either of its states', () => {
+  // Riding as much as pinned: the state is which layer the hole is measured
+  // against, and what is being asked here is whether it can move inside that
+  // layer at all.
+  const bar = stickyInPage(600, 1200)
+  expect(chainOf(bar).sticky).toBe(true)
+  window.scrollTo(0, pinsAt(bar) + 200)
+  expect(chainOf(bar).sticky).toBe(true)
+})
+
+test('a target inside a sticky bar has to be followed with it', () => {
+  // What a step points at is a button in the bar, not the bar — the same
+  // reason every ancestor is asked about `position: fixed`.
+  const bar = stickyInPage(600, 1200)
+  expect(chainOf(make({}, bar)).sticky).toBe(true)
+})
+
+test('a sticky ancestor outside the innermost scroller is not followed', () => {
+  // The pin moves the panel, and the layer is mounted inside that panel, so
+  // the two move together and there is nothing to correct. This is the half of
+  // the rule that keeps the exception from spreading: a panel in a sticky
+  // toolbar would otherwise arm the loop for every step drawn in it.
+  const block = make({ position: 'relative', height: 'auto' })
+  const bar = make({ position: 'sticky', top: '0', height: 'auto' }, block)
+  const panel = make({ height: '120px', overflow: 'auto' }, bar)
+  panel.id = 'inner'
+  const target = make({}, panel)
+  make({ height: '900px' }, panel)
+  make({ height: '2000px' })
+
+  expect(named(chainOf(target).surfaces)[0]).toBe('scroller inner')
+  expect(chainOf(target).sticky).toBe(false)
+  // And the panel pinning with its bar does not change that.
+  window.scrollTo(0, pinsAt(bar) + 200)
+  expect(chainOf(target).sticky).toBe(false)
 })
 
 test('a glued surface begins at the scrollport, whatever the scroller is scrolled to', () => {

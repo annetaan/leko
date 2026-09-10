@@ -1,14 +1,18 @@
+import { type Follow, follow } from './follow.js'
 import {
   complementRects,
   type Cutout,
   ease,
   type Easing,
+  edgeOf,
   hasArea,
   lerpCutouts,
   maskLayers,
   padCutouts,
   type Rect,
   segmentAt,
+  type Side,
+  union,
 } from './geometry.js'
 import { animates, prefersReducedMotion } from './motion.js'
 import type { Surface } from './surface.js'
@@ -125,6 +129,27 @@ export class Scrim {
   private halos: HTMLElement[] = []
   private frame: number | undefined
   private settle: ((finished: boolean) => void) | undefined
+  /**
+   * Which side of the hole the message took, once anything has asked. Kept
+   * rather than the point it came out at, so every write of the cutouts can
+   * put the marker back on the same side of wherever they have got to.
+   */
+  private side: Side | undefined
+  /**
+   * How to ask the page where this scrim's holes are now, on a step whose
+   * target the page can move under it, or `undefined` on every other step.
+   * Armed and taken down by whoever draws — see {@link follow}.
+   */
+  private reading: (() => Cutout[] | undefined) | undefined
+  /** The ports {@link reading}'s answer can be changed by; see {@link follow}. */
+  private ports: readonly EventTarget[] = []
+  /**
+   * The loop itself while it is armed, held beside {@link frame} because it is
+   * the same kind of thing: a handle on frames this layer has running, in the
+   * state that names them. DESIGN.md, **A sticky target's hole is corrected on
+   * a frame loop, and that is the only exception to the ban**.
+   */
+  private following: Follow | undefined
   /**
    * The morph in flight, or `undefined` between morphs. A shake is never held
    * here: what this exists for is telling a step still arriving apart from one
@@ -254,11 +279,47 @@ export class Scrim {
   }
 
   /**
-   * Put the anchor point where the message asked for it, in this scrim's
-   * coordinates. Written once per step rather than per frame, the same as the
-   * cutouts, because the container carries both from then on.
+   * Put the anchor point on `side` of the holes, in this scrim's coordinates.
+   *
+   * The side and not the point, because the point moves with the holes and the
+   * side does not: it is chosen once a step, from how much room is on screen —
+   * DESIGN.md, **The message** — and every write of the cutouts puts the marker
+   * back on that same side of wherever they have got to. So a hole a follow is
+   * correcting takes its message with it without the message picking a new side
+   * every frame.
    */
-  anchorAt(x: number, y: number): void {
+  anchorTo(side: Side): void {
+    this.side = side
+    this.markAnchor()
+  }
+
+  /**
+   * The marker where the holes are now, or nothing at all until a message has
+   * said which side it wants.
+   *
+   * The collapsed leftovers of a morph are left out of the union, the same rule
+   * {@link placeHalos} follows: a hole shrinking away at its own centre would
+   * otherwise drag the box the message hangs off toward it. **Where that leaves
+   * nothing at all, the first hole is the place** — a step whose target has no
+   * area is a hole with a place but no size, and every edge of it is the same
+   * point. Skipping it instead would leave the marker on the step before, and
+   * the message beside a hole it is not about.
+   *
+   * The first and not the union of the lot, because a step with fewer holes
+   * than the last one leaves leftovers with no area either, and they are in
+   * this list beside the step's own — {@link padCutouts} pads the destination
+   * to length, so the step's regions come first and the collapsed leftovers
+   * after them. Which makes the first the step's first region wherever the list
+   * came from, and DESIGN.md's **A hole, and whether it is open** says that is
+   * the region the step is about.
+   */
+  private markAnchor(): void {
+    const side = this.side
+    if (side === undefined) return
+    const framed = this.cutouts.filter(hasArea)
+    const box = framed.length > 0 ? union(framed) : this.cutouts[0]
+    if (!box) return
+    const { x, y } = edgeOf(box, side)
     // Made on demand, and only ever by the innermost scrim. Every layer making
     // one would put the same `anchor-name` on several elements at once, and a
     // name that answers to more than one element is a name that answers to the
@@ -438,6 +499,74 @@ export class Scrim {
     this.draw(cutouts)
     this.converging = false
     this.placeHalos(cutouts)
+    this.markAnchor()
+    this.trail()
+  }
+
+  // ------------------------------------------------------------------ following
+
+  /**
+   * Keep the holes on a target the page can move out from under them, asking
+   * `read` for their boxes on a frame loop while any of `ports` scrolls.
+   * `undefined` takes the loop down.
+   *
+   * One at a time, and armed by whoever draws rather than started here: a morph
+   * or a shake writes the same mask, so the loop begins only once the draw that
+   * armed it has finished writing — {@link trail}. DESIGN.md, **A sticky
+   * target's hole is corrected on a frame loop, and that is the only exception
+   * to the ban**.
+   */
+  follow(read: (() => Cutout[] | undefined) | undefined, ports: readonly EventTarget[] = []): void {
+    this.following?.stop()
+    this.following = undefined
+    this.reading = read
+    this.ports = ports
+  }
+
+  /**
+   * Start the follow behind a draw that has just written what it means to keep,
+   * which is the end of {@link set} and the last frame of a {@link run}. An
+   * interrupted run leaves it down: whoever interrupted is drawing, and their
+   * own draw arms it or takes it away.
+   *
+   * What is on screen is handed over as where the loop starts from, so a first
+   * frame that finds the target where the draw left it writes nothing.
+   */
+  private trail(): void {
+    if (!this.reading || this.following) return
+    this.following = follow(
+      this.cutouts,
+      this.reading,
+      (cutouts) => this.moveTo(cutouts),
+      this.ports,
+    )
+  }
+
+  /**
+   * One frame of a follow: the holes, the blocking, the halos and the marker,
+   * all where the page has just said the target is.
+   *
+   * **Not {@link set}.** That fades the halos in through {@link revealHalos},
+   * which reads `offsetWidth` to commit a style, and a forced layout every
+   * frame is what this loop exists to keep to one measurement.
+   *
+   * **The blocking is written with the mask, not behind it.** A morph blocks
+   * where its holes are heading because nobody can act inside 320ms; here the
+   * hole is under the viewer's pointer the whole time, and hit-testing lagging
+   * the paint is exactly what a compositor-side answer would have cost.
+   */
+  private moveTo(cutouts: Cutout[]): void {
+    this.cutouts = cutouts
+    this.paint(cutouts)
+    this.block(cutouts)
+    if (this.haloLayer) {
+      const framed = cutouts.filter(hasArea)
+      // The count changes only where a hole has collapsed or come back, which a
+      // scroll cannot do; placing them is the answer for the case it can.
+      if (framed.length === this.halos.length) this.slideHalos(framed)
+      else this.placeHalos(cutouts)
+    }
+    this.markAnchor()
   }
 
   /**
@@ -608,6 +737,11 @@ export class Scrim {
    * holding a promise that will never settle.
    */
   private halt(): void {
+    // The follow is paused rather than disarmed: `halt` is the way in to every
+    // draw, so this is what keeps a frame of it from landing between two of a
+    // morph's. What armed it says when it is done — {@link trail}.
+    this.following?.stop()
+    this.following = undefined
     if (this.frame !== undefined) cancelAnimationFrame(this.frame)
     this.frame = undefined
     this.settle?.(false)
@@ -646,6 +780,9 @@ export class Scrim {
           if (last) this.paint(last)
           this.frame = undefined
           this.settle = undefined
+          // What the run leaves standing is what a follow corrects from here,
+          // so a shake hands the loop back rather than ending it.
+          this.trail()
           resolve(true)
           return
         }
@@ -695,7 +832,7 @@ export class Scrim {
     // frame saying goodbye is the old hole's. A frame the flight would need
     // that was not there before is made transparent and, returning, never
     // revealed: a hole that had no frame does not grow one to lose it.
-    const follow = this.halo === 'follow'
+    const follows = this.halo === 'follow'
     // Nothing to ride out of a converging scrim, and nothing that may: see
     // {@link converge}. The frames are made and faded in on arrival.
     const converging = this.converging
@@ -707,9 +844,9 @@ export class Scrim {
         const end = padded[i]
         if (!start || !end) return
         this.layHalo(el, start)
-        el.toggleAttribute('data-open', (follow ? end : start).interactive)
+        el.toggleAttribute('data-open', (follows ? end : start).interactive)
       })
-      if (follow) this.revealHalos()
+      if (follows) this.revealHalos()
       else this.hideHalos()
     }
     const riding = this.haloLayer
@@ -767,6 +904,9 @@ export class Scrim {
   // ------------------------------------------------------------------ taking down
 
   destroy(): void {
+    // `halt` stops the loop; this is what keeps it from being started again by
+    // a run that is still to settle.
+    this.reading = undefined
     this.halt()
     this.element.remove()
     this.blocking.remove()

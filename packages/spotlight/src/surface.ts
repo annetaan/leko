@@ -44,7 +44,8 @@ export function sameSurface(a: Surface, b: Surface): boolean {
 }
 
 /**
- * Every surface between `el` and the viewport, innermost first.
+ * Every surface between `el` and the viewport, innermost first, and whether
+ * anything inside the innermost of them is `position: sticky`.
  *
  * A layer mounted outside the scroller it points into drifts off the target
  * the moment the user scrolls — and so does a document layer under a fixed
@@ -58,9 +59,43 @@ export function sameSurface(a: Surface, b: Surface): boolean {
  * A sticky element is carried by its ancestors the way anything in the flow
  * is, right up until it pins, and then by the scrollport it is held against;
  * see {@link heldAt}.
+ *
+ * `sticky` is what says whether the hole has to be followed while the viewer
+ * scrolls — DESIGN.md, **A sticky target's hole is corrected on a frame loop,
+ * and that is the only exception to the ban**. It is answered by the same walk
+ * because the walk already has every computed style it would take to ask
+ * again. A sticky ancestor *outside* the innermost surface does not count:
+ * what it pins is the panel, and the layer is inside that panel and pins with
+ * it.
  */
-export function surfaceChain(el: Element): Surface[] {
+export interface Carried {
+  surfaces: Surface[]
+  sticky: boolean
+}
+
+export function chainOf(el: Element): Carried {
   return outside(el, getComputedStyle(el))
+}
+
+export function surfaceChain(el: Element): Surface[] {
+  return chainOf(el).surfaces
+}
+
+/**
+ * Where a `scroll` that could move this chain's boxes is heard: the element
+ * for either kind of scroller, and the window for the two that stand for the
+ * page's own scroll.
+ *
+ * The ports are named rather than one capturing listener on the document,
+ * because "a `scroll` does not bubble but is heard in the capture phase" is a
+ * claim about a browser and would want a page under `spike/` behind it. The
+ * chain is in hand at every draw, so naming them costs nothing and claims
+ * nothing.
+ */
+export function portsOf(chain: readonly Surface[]): EventTarget[] {
+  return chain.map((surface) =>
+    surface.kind === 'scroller' || surface.kind === 'glued' ? surface.element : window,
+  )
 }
 
 /**
@@ -71,10 +106,11 @@ export function surfaceChain(el: Element): Surface[] {
  * a button in a fixed toolbar is the viewport's, and a button in a sticky bar
  * that has pinned is that bar's scrollport's.
  */
-function outside(node: Element, style: CSSStyleDeclaration): Surface[] {
-  if (style.position === 'fixed') return heldBy(node)
-  const chain = carriedBy(node.parentElement)
-  return style.position === 'sticky' ? heldAt(node, chain, insetsOf(style)) : chain
+function outside(node: Element, style: CSSStyleDeclaration): Carried {
+  if (style.position === 'fixed') return { surfaces: heldBy(node), sticky: false }
+  const carried = carriedBy(node.parentElement)
+  if (style.position !== 'sticky') return carried
+  return { surfaces: heldAt(node, carried.surfaces, insetsOf(style)), sticky: true }
 }
 
 /**
@@ -188,7 +224,7 @@ export function scrollportOf(surface: Surface): Rect | undefined {
  */
 function heldBy(el: Element): Surface[] {
   const block = el instanceof HTMLElement ? el.offsetParent : null
-  return block ? carriedBy(block) : [{ kind: 'viewport' }]
+  return block ? carriedBy(block).surfaces : [{ kind: 'viewport' }]
 }
 
 /**
@@ -198,18 +234,24 @@ function heldBy(el: Element): Surface[] {
  * a `parentElement` of `null` is a shadow root, whose host page is left to be
  * the document too.
  */
-function carriedBy(node: Element | null): Surface[] {
+function carriedBy(node: Element | null): Carried {
   if (!node || node === document.body || node === document.documentElement) {
-    return [{ kind: 'document' }]
+    return { surfaces: [{ kind: 'document' }], sticky: false }
   }
   const style = getComputedStyle(node)
   const scrolls = /auto|scroll|overlay/.test(style.overflowY + style.overflowX)
   const overflows = node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth
-  const own: Surface[] =
-    scrolls && overflows && node instanceof HTMLElement ? [{ kind: 'scroller', element: node }] : []
   // `node`'s own scroll is inside whatever holds `node`, so a pin outside it
-  // leaves it alone: what is glued is the surface `own` sits in, not `own`.
-  return [...own, ...outside(node, style)]
+  // leaves it alone: what is glued is the surface `node` sits in, not `node`'s
+  // own. That is also where the walk stops asking about sticky: everything
+  // from here out is outside the innermost surface.
+  if (scrolls && overflows && node instanceof HTMLElement) {
+    return {
+      surfaces: [{ kind: 'scroller', element: node }, ...outside(node, style).surfaces],
+      sticky: false,
+    }
+  }
+  return outside(node, style)
 }
 
 /**

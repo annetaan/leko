@@ -56,7 +56,11 @@ DESIGN.md. Do not do any of them without reading that page first.
 - **Reading layout while the user scrolls.** Scroll tracking runs no JS at all
   and must stay that way. A bounded morph writing strings from numbers it
   already has is not the same thing and is fine, and nor is the glide reading
-  back the one scroll offset it wrote the frame before.
+  back the one scroll offset it wrote the frame before. There is exactly one
+  exception, it was argued rather than assumed, and it is a `position: sticky`
+  target whose hole has to cross a pin: DESIGN.md, **A sticky target's hole is
+  corrected on a frame loop, and that is the only exception to the ban**. A
+  second one wants that page answered, not this line extended.
 - **Using the browser's smooth scroll for the glide.** `behavior: 'smooth'` is
   the obvious spelling, and an animation Leko did not run has to be watched
   from the outside: a `scrollend` that Safari only fires from 26, a deadline

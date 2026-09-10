@@ -123,6 +123,7 @@ and CI runs it.
 | `packages/spotlight/src/scrim.ts` | The overlay element and its morph loop |
 | `packages/spotlight/src/surface.ts` | What a layer is carried by, and how a target is measured against it |
 | `packages/spotlight/src/glide.ts` | The scroll that brings a target into view |
+| `packages/spotlight/src/follow.ts` | The frame loop that keeps a sticky target's hole under it |
 | `packages/spotlight/src/message.ts` | The box beside the hole |
 | `packages/spotlight/src/focus.ts` | The ring Tab cannot leave |
 | `packages/spotlight/src/close.ts` | The way out, and the corner it keeps to |
@@ -435,6 +436,7 @@ DESIGN.md says so under
 | When a step advances | `machine/src/plan.ts` only |
 | What a target going, a glide landing or a resize does to what is drawn | `presenter/src/plan.ts`, and its tests |
 | How the page is brought to a target | `spotlight/src/glide.ts`, with `scrollDelta`, `scrollStages` and `glideDuration` in `geometry.ts` |
+| Whether the hole follows its target while the viewer scrolls | `spotlight/src/follow.ts`, armed in `measure` in `presenter/src/presenter.ts` |
 | Which surfaces carry a target, and where its box lands on one | `spotlight/src/surface.ts`, and its tests |
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `presenter/src/presenter.ts` |

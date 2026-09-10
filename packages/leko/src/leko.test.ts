@@ -9,6 +9,7 @@ import {
   centre,
   clocked,
   closer,
+  frame,
   holding,
   holes,
   keep,
@@ -519,6 +520,188 @@ test('a sticky target pinned inside a panel keeps its hole while the panel scrol
 
   panel.scrollTop = 900
   expect(centre(head)).toBe(head)
+})
+
+// A sticky target's hole is corrected on a frame loop, so that it stays under
+// the target on both sides of the pin — DESIGN.md, **A sticky target's hole is
+// corrected on a frame loop, and that is the only exception to the ban**. Every
+// claim below is `centre()`, which is `elementFromPoint`, so it is about the
+// mask and the blocking rectangles at once.
+
+/** A bar that pins against the top of the page, with room either side of the pin. */
+function stickyBar(): HTMLElement {
+  const block = keep(document.createElement('div'))
+  block.style.position = 'relative'
+  const lead = document.createElement('div')
+  lead.style.height = '200px'
+  const bar = document.createElement('button')
+  bar.textContent = 'filters'
+  Object.assign(bar.style, { position: 'sticky', top: '0', display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '3000px'
+  block.append(lead, bar, tail)
+  document.body.append(block)
+  return bar
+}
+
+const marker = (): HTMLElement => document.querySelector<HTMLElement>('.leko-anchor')!
+const messageBox = (): HTMLElement => document.querySelector<HTMLElement>('.leko-message')!
+
+/**
+ * Frames until `is` holds, on the page's own clock, and **says so if it never
+ * does**.
+ *
+ * Real frames rather than {@link clocked}: what is being waited for begins with
+ * a `scroll` event, which an engine fires while it updates the rendering rather
+ * than when the offset is written, and a fake clock does not run that. The cap
+ * is frames rather than time for the reason `until` in `harness.ts` gives.
+ */
+async function within(is: () => boolean, count: number, what: string): Promise<void> {
+  for (let n = 0; n < count; n++) {
+    if (is()) return
+    await frame()
+  }
+  if (!is()) throw new Error(`${what} — not within ${count} frames`)
+}
+
+test('a sticky target drawn while it rides keeps its hole once it pins', async () => {
+  const bar = stickyBar()
+  window.scrollTo(0, 0)
+
+  start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+
+  // Riding, so it is an in-flow element and the layer is the document's.
+  expect(getComputedStyle(scrim()!).position).toBe('absolute')
+  window.scrollTo(0, 900)
+  await within(() => centre(bar) === bar, 30, 'the hole never caught the pinned bar')
+  expect(centre(bar)).toBe(bar)
+  window.scrollTo(0, 0)
+})
+
+test('a sticky target drawn while it is pinned keeps its hole once it rides again', async () => {
+  const bar = stickyBar()
+  window.scrollTo(0, 900)
+
+  start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+
+  // Pinned, so the layer is the viewport's — the one a fixed target gets.
+  expect(getComputedStyle(scrim()!).position).toBe('fixed')
+  window.scrollTo(0, 0)
+  await within(() => centre(bar) === bar, 30, 'the hole never came back down with the bar')
+  expect(centre(bar)).toBe(bar)
+})
+
+test('a sticky head in a panel keeps its hole on both sides of its pin', async () => {
+  const panel = keep(document.createElement('div'))
+  Object.assign(panel.style, {
+    position: 'relative',
+    width: '300px',
+    height: '200px',
+    overflow: 'auto',
+    padding: '8px',
+  })
+  const block = document.createElement('div')
+  block.style.position = 'relative'
+  const lead = document.createElement('div')
+  lead.style.height = '120px'
+  const head = document.createElement('button')
+  head.textContent = 'status'
+  Object.assign(head.style, { position: 'sticky', top: '0', display: 'block', height: '30px' })
+  const rows = document.createElement('div')
+  rows.style.height = '1200px'
+  block.append(lead, head, rows)
+  panel.append(block)
+  document.body.append(panel)
+  panel.scrollTop = 400
+
+  start([{ id: 'one', target: { elements: () => head, interactive: true } }])
+
+  panel.scrollTop = 900
+  await within(() => centre(head) === head, 30, 'the hole left the head further down the panel')
+  // Back above the pin, where the head rides its own rows again. The layer is
+  // still the one glued to the panel — which of the two states a step is drawn
+  // in is read once — and the loop is what puts the hole where the head is.
+  panel.scrollTop = 40
+  await within(() => centre(head) === head, 30, 'the hole never came back down with the head')
+  expect(centre(head)).toBe(head)
+})
+
+test("the message's anchor follows a sticky hole and the side does not change", async () => {
+  const bar = stickyBar()
+  window.scrollTo(0, 0)
+
+  start([
+    { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
+  ])
+
+  const before = marker().style.top
+  const side = messageBox().style.getPropertyValue('position-area')
+
+  window.scrollTo(0, 900)
+  await within(() => marker().style.top !== before, 30, 'the anchor never moved with the hole')
+  // The side is a discrete choice made once a step — DESIGN.md, **The message**
+  // — so what follows the hole is the point the message hangs off, not the
+  // decision about where to hang it.
+  expect(messageBox().style.getPropertyValue('position-area')).toBe(side)
+  window.scrollTo(0, 0)
+})
+
+test('an in-flow target rewrites nothing on a scroll', async () => {
+  // The loop is armed for a sticky target and for nothing else: the scrim of an
+  // in-flow target rides the scroll with it, so a frame spent reading layout
+  // for it would break the ban for nothing — DESIGN.md, **A sticky target's
+  // hole is corrected on a frame loop, and that is the only exception to the
+  // ban**.
+  const block = keep(document.createElement('div'))
+  const lead = document.createElement('div')
+  lead.style.height = '200px'
+  const target = document.createElement('button')
+  Object.assign(target.style, { display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '3000px'
+  block.append(lead, target, tail)
+  document.body.append(block)
+  window.scrollTo(0, 0)
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+
+  const held = scrim()!.style.maskPosition
+  window.scrollTo(0, 400)
+  for (let n = 0; n < 6; n++) await frame()
+  expect(scrim()!.style.maskPosition).toBe(held)
+  window.scrollTo(0, 0)
+})
+
+test('a fixed target rewrites nothing on a scroll', async () => {
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const target = box('pinned', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  window.scrollTo(0, 0)
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+
+  const held = scrim()!.style.maskPosition
+  window.scrollTo(0, 400)
+  for (let n = 0; n < 6; n++) await frame()
+  expect(scrim()!.style.maskPosition).toBe(held)
+  window.scrollTo(0, 0)
+})
+
+test('a sticky hole stops following when its target leaves the page', async () => {
+  // The same answer a `refit` gives — what was drawn last stays drawn, rather
+  // than the page snapping undimmed under somebody.
+  const bar = stickyBar()
+  window.scrollTo(0, 900)
+
+  start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+
+  const held = scrim()!.style.maskPosition
+  bar.remove()
+  window.scrollTo(0, 1400)
+  for (let n = 0; n < 6; n++) await frame()
+  expect(scrim()!.style.maskPosition).toBe(held)
+  window.scrollTo(0, 0)
 })
 
 test('a fixed element an ancestor has taken back into the flow rides the page', () => {

@@ -8,6 +8,7 @@ import {
   cubicBezier,
   type Cutout,
   ease,
+  edgeOf,
   freeCorner,
   GLIDE_PACE,
   glideDuration,
@@ -23,6 +24,7 @@ import {
   outset,
   padCutouts,
   type Rect,
+  sameCutouts,
   scrollDelta,
   STICKY_SLACK,
   scrollStages,
@@ -751,4 +753,35 @@ test('half a pixel is still on the inset, and more is not', () => {
   expect(heldAgainst(rect(20, 0.5, 200, 40), port, insets({ top: 0 }))).toBe(true)
   expect(heldAgainst(rect(20, -0.5, 200, 40), port, insets({ top: 0 }))).toBe(true)
   expect(heldAgainst(rect(20, 0.6, 200, 40), port, insets({ top: 0 }))).toBe(false)
+})
+
+test('the anchor point is the middle of the side the message took', () => {
+  const box = rect(100, 200, 60, 40)
+  expect(edgeOf(box, 'bottom')).toEqual({ x: 130, y: 240 })
+  expect(edgeOf(box, 'top')).toEqual({ x: 130, y: 200 })
+  expect(edgeOf(box, 'right')).toEqual({ x: 160, y: 220 })
+  expect(edgeOf(box, 'left')).toEqual({ x: 100, y: 220 })
+})
+
+test('cutouts are the same when every number and every flag is', () => {
+  expect(sameCutouts([cutout(10, 20, 30, 40)], [cutout(10, 20, 30, 40)])).toBe(true)
+  expect(sameCutouts([cutout(10, 20, 30, 40)], [cutout(10, 21, 30, 40)])).toBe(false)
+  expect(sameCutouts([cutout(10, 20, 30, 40, 8)], [cutout(10, 20, 30, 40, 9)])).toBe(false)
+  expect(
+    sameCutouts([cutout(10, 20, 30, 40)], [{ ...cutout(10, 20, 30, 40), interactive: false }]),
+  ).toBe(false)
+})
+
+test('a different number of cutouts is a different set of them', () => {
+  expect(sameCutouts([], [])).toBe(true)
+  expect(sameCutouts([cutout(0, 0, 10, 10)], [])).toBe(false)
+  expect(sameCutouts([cutout(0, 0, 10, 10)], [cutout(0, 0, 10, 10), cutout(0, 0, 10, 10)])).toBe(
+    false,
+  )
+})
+
+test('a hundredth of a pixel is a move, because the mask would show it', () => {
+  // No tolerance at all — the follow's frames are told to write whenever the
+  // page answers differently, and the mask rounds to the hundredth.
+  expect(sameCutouts([cutout(10, 20, 30, 40)], [cutout(10.01, 20, 30, 40)])).toBe(false)
 })
