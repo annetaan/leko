@@ -102,6 +102,112 @@ export function outset(rect: Rect, room: Insets): Rect {
 }
 
 /**
+ * A rect with `room` taken off each of its sides — {@link outset}'s opposite,
+ * and never smaller than nothing.
+ */
+export function inset(rect: Rect, room: Insets): Rect {
+  return {
+    x: rect.x + room.left,
+    y: rect.y + room.top,
+    width: Math.max(0, rect.width - room.left - room.right),
+    height: Math.max(0, rect.height - room.top - room.bottom),
+  }
+}
+
+/**
+ * The nearer of two opposite edges and how deep the box reaches from it, or
+ * nothing where the box sits exactly between them.
+ *
+ * Their depths sum to the whole viewport plus the box, so claiming both would
+ * leave a room of no height. DESIGN.md argues what that costs, and why saying
+ * nothing is the better of the two, under **A host's own chrome is named once,
+ * and every reader takes the boxes**.
+ */
+const nearerEdge = (
+  low: keyof Insets,
+  lowDepth: number,
+  high: keyof Insets,
+  highDepth: number,
+): readonly [keyof Insets, number] | undefined =>
+  lowDepth === highDepth
+    ? undefined
+    : lowDepth < highDepth
+      ? ([low, lowDepth] as const)
+      : ([high, highDepth] as const)
+
+/**
+ * A viewport of `width` by `height`, and boxes a host said are its own chrome:
+ * how deep each edge of the viewport is spoken for.
+ *
+ * Each box is a band on the edge it is nearest, as deep as the box reaches from
+ * that edge, and on two edges where it is as near one as the other — which only
+ * ever happens in a corner, per {@link nearerEdge}. Deepest wins where several
+ * boxes claim a side. DESIGN.md argues why the bands are wider than the boxes,
+ * and why that is the direction to be wrong in, under **A host's own chrome is
+ * named once, and every reader takes the boxes**.
+ */
+export function chromeInsets(width: number, height: number, chrome: readonly Rect[]): Insets {
+  return chrome.reduce<Insets>(
+    (room, box) => {
+      const claims = [
+        nearerEdge('top', box.y + box.height, 'bottom', height - box.y),
+        nearerEdge('left', box.x + box.width, 'right', width - box.x),
+      ].filter((claim) => claim !== undefined)
+      const nearest = Math.min(...claims.map(([, depth]) => depth))
+      // Nothing to claim, or a box with no part of it on screen.
+      if (claims.length === 0 || nearest <= 0) return room
+      const claim = (side: keyof Insets): number =>
+        claims.some(([edge, depth]) => edge === side && depth === nearest)
+          ? Math.max(room[side], nearest)
+          : room[side]
+      return {
+        top: claim('top'),
+        right: claim('right'),
+        bottom: claim('bottom'),
+        left: claim('left'),
+      }
+    },
+    { top: 0, right: 0, bottom: 0, left: 0 },
+  )
+}
+
+/**
+ * Which side of the cutout the message sits on, in preference order: below
+ * first, because a message under the thing it describes is the least surprising
+ * place for it, and reading order puts it after the target rather than before.
+ */
+export const SIDES = ['bottom', 'top', 'right', 'left'] as const
+export type Side = (typeof SIDES)[number]
+
+/**
+ * The side of `box` with room for something of `size`, `gap` clear of it.
+ *
+ * `room` rather than the viewport — DESIGN.md, **The message**. Falls back to
+ * `bottom` when nothing fits, which is when the browser's own fallbacks — where
+ * it has them — get their turn.
+ */
+export function sideWithRoom(
+  box: Rect,
+  size: { width: number; height: number },
+  room: Rect,
+  gap: number,
+): Side {
+  const free: Record<Side, number> = {
+    bottom: room.y + room.height - (box.y + box.height),
+    top: box.y - room.y,
+    right: room.x + room.width - (box.x + box.width),
+    left: box.x - room.x,
+  }
+  const need: Record<Side, number> = {
+    bottom: size.height + gap,
+    top: size.height + gap,
+    right: size.width + gap,
+    left: size.width + gap,
+  }
+  return SIDES.find((side) => free[side] >= need[side]) ?? 'bottom'
+}
+
+/**
  * How far a scrollport has to move to put `box` where a step wants it, and zero
  * on an axis that already holds it.
  *
@@ -278,9 +384,15 @@ export function cornerRect(
  * Which corner of the viewport a box can take without covering a hole.
  *
  * A cutout is a hole because the user has to reach what is under it, so a box
- * put on top of one takes that back. This is the same job {@link Message} does
- * with `chooseSide`, one size down: four candidates rather than four sides, and
- * an answer that is always one of them.
+ * put on top of one takes that back. This is the same job {@link sideWithRoom}
+ * does, one size down: four candidates rather than four sides, and an answer
+ * that is always one of them.
+ *
+ * `holes` is not only the step's cutouts. Whatever a host named as its own
+ * chrome is in the list too, so the way out dodges that the same way — nothing
+ * here has to tell the two apart, and DESIGN.md argues why the boxes rather
+ * than an inset arrive under **A host's own chrome is named once, and every
+ * reader takes the boxes**.
  *
  * **Where every corner is covered the least covered one wins.** A step that
  * cuts a full-width header and a full-width footer leaves no corner free, and

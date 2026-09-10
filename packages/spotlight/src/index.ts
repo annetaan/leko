@@ -11,11 +11,22 @@
  * too. A name here that no consumer names is a promise this package is not
  * making.
  */
-export { cubicBezier, type Cutout, ease, type Easing, grow, type Rect, union } from './geometry.js'
+export {
+  chromeInsets,
+  cubicBezier,
+  type Cutout,
+  ease,
+  type Easing,
+  grow,
+  inset,
+  type Rect,
+  type Side,
+  union,
+} from './geometry.js'
 export { resolveTarget, resolveTargets } from './target.js'
 export { Close } from './close.js'
 export { FocusRing } from './focus.js'
-export { Message, type MessageContent, type Side } from './message.js'
+export { Message, type MessageContent } from './message.js'
 export { type HaloMode, Scrim } from './scrim.js'
 export { bringIntoView, type Glide, type ScrollMode } from './glide.js'
 export {

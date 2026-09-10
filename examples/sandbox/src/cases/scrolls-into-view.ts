@@ -148,15 +148,13 @@ export const scrollsIntoView: Case = {
           id: 'far-below',
           target: '[data-far]',
           message:
-            'This card was past the fold, and it is now near the middle of ' +
-            'the screen rather than against the edge it came over. It sits a ' +
-            "little above the middle because the card's scroll-margin-bottom " +
-            "says how tall the sandbox's own footer is, and this box had to " +
-            'land clear of it. The page glided and nothing was drawn until it ' +
-            'stopped — watch the previous hole ride the page on the way. The ' +
-            "glide is Leko's own and grows with the distance, slowly enough to " +
-            'take in what passes: scroll while it runs and it stops where you ' +
-            'put the page, and the step is drawn there.',
+            'This card was past the fold, and it is now in the middle of the ' +
+            'screen rather than against the edge it came over. The page ' +
+            'glided and nothing was drawn until it stopped — watch the ' +
+            "previous hole ride the page on the way. The glide is Leko's own " +
+            'and grows with the distance, slowly enough to take in what ' +
+            'passes: scroll while it runs and it stops where you put the ' +
+            'page, and the step is drawn there.',
         },
         {
           id: 'one-hole-two-cards',

@@ -8,6 +8,7 @@ import {
   box,
   centre,
   clocked,
+  closer,
   holding,
   holes,
   keep,
@@ -1243,4 +1244,25 @@ test('focus never lands on the page on its way round the ring', async () => {
   // Not once, not even for the turn a net would take to put it back. Tab at the
   // edge of a segment is stepped over before the browser acts on it.
   expect(touched).toEqual([])
+})
+
+test("the way out avoids the corner the host's chrome owns", () => {
+  // An account menu of the host's, in the corner the way out prefers. It is not
+  // a cutout, and until a host could say so nothing kept the two apart —
+  // DESIGN.md, **A host's own chrome is named once, and every reader takes the
+  // boxes**.
+  const menu = box('menu', {
+    right: '16px',
+    top: '16px',
+    left: 'auto',
+    width: '180px',
+    height: '56px',
+  })
+  const target = box('target', { left: '100px', top: '300px', width: '160px', height: '48px' })
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
+    hostChrome: () => menu,
+  })
+
+  expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
 })

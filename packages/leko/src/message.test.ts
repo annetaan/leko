@@ -151,6 +151,68 @@ test.runIf(anchors)('the message sits beside a target inside a shadow root', asy
   expect(gap(note, target)).toBeLessThan(40)
 })
 
+/**
+ * A footer of the host's own, sticky above the scrim — the sandbox's, and the
+ * page #141 was written against. 200px so the numbers below have room to be
+ * unambiguous on whatever viewport the runner brings.
+ */
+const CHROME = 200
+const footer = () =>
+  box('footer', { left: '0px', right: '0px', bottom: '0px', top: 'auto', height: `${CHROME}px` })
+
+test('a docked message with no chrome named sits where it always did', () => {
+  // The invariant the rewrite of `dock` had to keep: centred on the layout
+  // viewport and its foot `--leko-message-dock` above the foot of it, which is
+  // what `left: 50%` and `bottom: 24px` resolved to before there was a room to
+  // dock into. Measured against `clientWidth`/`clientHeight` rather than
+  // `innerWidth`/`innerHeight`, because a fixed box is laid out against the
+  // initial containing block and the scrollbar gutter is not in it — DESIGN.md,
+  // **That layer is sized past the layout viewport on purpose, gutter
+  // included**.
+  const root = document.documentElement
+  start([{ id: 'one', message: 'Nothing to point at.' }])
+
+  // Within a pixel rather than exactly: the box has a fractional width, so the
+  // translate that centres it lands on a half pixel and WebKit rounds it. What
+  // this is watching for is the width of a scrollbar gutter, which is fifteen.
+  const note = rect(message()!)
+  expect(Math.abs(note.left + note.width / 2 - root.clientWidth / 2)).toBeLessThan(1)
+  expect(Math.abs(note.bottom - (root.clientHeight - 24))).toBeLessThan(1)
+})
+
+test.runIf(anchors)('the message clears chrome the host declared', () => {
+  const bar = footer()
+  // Just above the footer: room under the target in the viewport, none in what
+  // the host left. Without `hostChrome` the box goes below and lands in the bar.
+  const target = box('target', {
+    left: '200px',
+    top: `${window.innerHeight - CHROME - 60}px`,
+    width: '160px',
+    height: '40px',
+  })
+  start(
+    [
+      {
+        id: 'one',
+        target: { elements: () => target, interactive: true },
+        message: 'Press it.',
+      },
+    ],
+    { hostChrome: () => bar },
+  )
+
+  expect(overlaps(rect(message()!), rect(bar))).toBe(false)
+})
+
+test("the docked message sits above the host's chrome", () => {
+  const bar = footer()
+  // No target, so there is no hole to sit beside and the box docks — the other
+  // reader of the room, and the one that runs on every engine.
+  start([{ id: 'one', message: 'Waiting for the import to finish.' }], { hostChrome: () => bar })
+
+  expect(rect(message()!).bottom).toBeLessThanOrEqual(rect(bar).top)
+})
+
 test('Leko writes no anchor-name into the page it is pointing at', () => {
   // The marker is Leko's own element, so the host's is left exactly as it was.
   // This used to be written and put back, and putting something back is a

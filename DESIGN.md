@@ -75,7 +75,7 @@ the right way round for the person the step is asking something of.
 Without a built-in close control, host applications risk trapping users under the scrim overlay. To ensure a guaranteed escape path, this control:
 
 - **Cannot be disabled:** Hosts may customize its appearance via `renderClose`, but cannot remove it or assign it any action other than ending the tour.
-- **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes.
+- **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes — and whatever chrome the host named as its own, which arrives in the same list of boxes.
 - **Is the only global control:** Unlike "Next" (which is step-specific and derived from `awaits`), ending the tour is always permitted and available unconditionally.
 
 ## A target is a question
@@ -360,8 +360,8 @@ not know a tour is running.
 ## Settings, and where they are read from
 
 - `padding`, `radius` and `scroll` are read from the step, then from the
-  instance, then a built-in default. `duration`, `easing`, `nextLabel` and
-  `closeLabel` are read from the instance alone.
+  instance, then a built-in default. `duration`, `easing`, `nextLabel`,
+  `closeLabel` and `hostChrome` are read from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.
 - **A story carries no settings.** A per-story value is a `.map()` over `steps`
@@ -1139,10 +1139,76 @@ is anchored beside. `position-try-fallbacks` covers what a measurement could
 not — a target scrolled towards the edge after the step began — and is an
 enhancement on top of that choice, not the mechanism.
 
+**The side is chosen from the room a host left, not from the whole viewport**,
+and so is the foot the box docks to. A side with two hundred pixels under a
+sticky footer has no room at all, and a box docked twenty-four pixels off the
+foot of the viewport is docked inside the footer. `sideWithRoom` therefore takes
+a rect rather than measuring the viewport itself, and where a host has named
+nothing that rect is the layout viewport — the box being placed is
+`position: fixed`, so that is what it is laid out against — and a page with no
+chrome to declare is placed exactly as it always was.
+
 **The core has no third-party runtime dependencies and must stay that way.** A
 scalar tween is all this needs, and a dependency here is a licensing and
 bundle-size liability for every consumer. `@annetaan/leko-spotlight` ships from
 this repository under the same licence, so the rule is not about it.
+
+### A host's own chrome is named once, and every reader takes the boxes
+
+Three boxes Leko draws are placed from the viewport: the message beside a
+cutout, the message docked where there is no cutout, and the way out in a
+corner no hole covers. A host with a sticky footer, a top bar or a support
+widget gets all three on top of its own controls, because the viewport is the
+only thing they ever measured.
+
+`hostChrome` is what a host says about that, and it is **a list of targets, not
+an inset**. Two inputs for one fact is the arrangement where a footer that
+changes height leaves one of them stale, and the boxes are the more precise of
+the two: the way out already takes a list of rectangles to dodge, so a support
+widget in one corner is added to that list and costs nothing, where an inset
+would reserve a band the width of the screen for it. What the other two readers
+need — how deep each edge is spoken for — is arithmetic on the boxes, and
+`chromeInsets` is it. So the inset is derived per draw and never written down.
+
+**Each box becomes a band along the edge it is nearest**, as deep as it reaches
+from that edge. Each axis nominates one edge, so a box claims two only where
+its two nominations are equally shallow — which is to say, in a corner. For
+chrome that sits against an edge the band is wider than the box, and that is
+the direction to be wrong in: a box placed into space the host had not claimed
+lands on the host's own controls, while one placed a band too far away is only
+further away. It is the rule `freeCorner` already follows in taking the least
+covered corner where every corner is covered.
+
+**A box equidistant from both edges of an axis claims nothing on that axis**,
+and one equidistant on both axes claims nothing at all. There is no band that
+describes something floating clear of every edge: a band deep enough to hold it
+reaches from an edge across half the screen, and the two of them meet and leave
+a room of no height. That is the worse of the two ways to be wrong, and it is
+not a hypothetical — it makes every side fail at once, `sideWithRoom` falls back
+to `bottom`, and the box is docked onto the very element that was named.
+Claiming nothing leaves the placement exactly where it would have been had the
+host said nothing, which is no worse than not naming it, and the way out is
+unaffected either way because `freeCorner` takes the boxes themselves rather
+than the bands.
+
+So **the safe direction holds for chrome on an edge, and that is the whole of
+what this models.** A widget floating in the middle of the screen is not a band,
+and a message can still land on it. Name chrome that sits against an edge; there
+is nothing here that can dodge the rest, and pretending otherwise costs the room
+its height.
+
+**Nothing is kept.** The elements are resolved and measured inside the same
+read that measures the step's targets, so a footer that is not on the page
+right now claims nothing and one that grew is read at its new height — **A
+target is a question**, and **The page is measured when a step is drawn, and
+not again**. The reads sit with the others, after the layers are mounted and
+before anything is written: **A draw mounts its layers, then reads, then
+writes**.
+
+**Placement is all it does.** The scrim still blocks whatever the step did not
+open, so naming an element here does not make it usable; the sandbox's
+`host-chrome.ts` is the case, and the footer it declares is chrome the sandbox
+paints above the scrim itself.
 
 ## The packages, and the seam between them
 

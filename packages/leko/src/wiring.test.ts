@@ -1007,7 +1007,10 @@ test('a resize whose task took the target away leaves the words where they were'
   // to the foot of the screen with no hole to sit beside. The way out is placed
   // regardless.
   expect(getComputedStyle(words).visibility).toBe('visible')
-  expect(words.style.bottom).not.toContain('leko-message-dock')
+  // Read off `top`, which is where `Message.dock` writes the custom property:
+  // the box docks by pinning its foot to the room's, so `bottom` says `auto`
+  // whichever way this went and asking it proves nothing.
+  expect(words.style.top).not.toContain('leko-message-dock')
   expect(closer()).not.toBeNull()
 })
 

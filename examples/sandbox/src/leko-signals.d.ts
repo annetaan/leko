@@ -15,6 +15,8 @@ declare module '@annetaan/leko' {
     'order-sent': true
     'path-chosen': true
     'project-renamed': true
+    'test-sent': true
+    'test-started': true
   }
 
   // The vocabulary above came from the call sites, so a name missing from it

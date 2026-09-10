@@ -1,12 +1,14 @@
 import type { Host, Presenter } from '@annetaan/leko-machine'
 import {
   bringIntoView,
+  chromeInsets,
   Close,
   type Cutout,
   ease,
   type Easing,
   FocusRing,
   grow,
+  inset,
   Message,
   type MessageContent,
   paddingBoxWithin,
@@ -86,6 +88,10 @@ interface Measured {
   holes: Hole[]
   resolved: Cutout[]
   onScreen: Cutout[]
+  /** Where the host said its own chrome is, on screen — {@link DomPresenter.chromeBoxes}. */
+  chrome: Rect[]
+  /** The viewport with those boxes taken off it, which is where the message may go. */
+  room: Rect
   /** The visible box in `inner`'s space, for the opening; read here so that `converge` writes only. */
   seen: Rect
 }
@@ -253,6 +259,34 @@ export class DomPresenter implements Presenter<LekoWorld> {
     }))
   }
 
+  /**
+   * Where the host's own chrome is, now — one read per element it named, and
+   * none where it named nothing. DESIGN.md, **A host's own chrome is named
+   * once, and every reader takes the boxes**.
+   */
+  private chromeBoxes(): Rect[] {
+    const named = this.options.hostChrome
+    if (named === undefined) return []
+    return resolveTargets(Array.isArray(named) ? named : [named]).map(screenBox)
+  }
+
+  /**
+   * The part of the page left for what Leko draws.
+   *
+   * **The layout viewport, not `innerWidth` and `innerHeight`.** Everything
+   * placed from this is `position: fixed`, so it is laid out against the
+   * initial containing block, which is `clientWidth` and `clientHeight` on the
+   * root with the scrollbar gutter taken off — and the boxes it is compared
+   * against came from `getBoundingClientRect`, which is in that same space. The
+   * scrim goes the other way and is sized past it on purpose: DESIGN.md, **That
+   * layer is sized past the layout viewport on purpose, gutter included**.
+   */
+  private static roomIn(chrome: readonly Rect[]): Rect {
+    const root = document.documentElement
+    const viewport = { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+    return inset(viewport, chromeInsets(viewport.width, viewport.height, chrome))
+  }
+
   // ---------------------------------------------------------- what the machine calls
 
   show(step: LekoStep, anchor: Element | null, animate: boolean): void {
@@ -417,11 +451,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // One read per element, and one of the surface for all of them.
     const onScreen = this.cutouts(step, holes)
     const resolved = withinSurface(inner.surface, onScreen)
+    const chrome = this.chromeBoxes()
     const seen = inner.seen()
     const outer = this.outerHoles(chain)
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(outer)
-    return { inner, holes, resolved, onScreen, seen }
+    return { inner, holes, resolved, onScreen, chrome, room: DomPresenter.roomIn(chrome), seen }
   }
 
   /** Size every standing layer to its surface as it is now. Reads all, then writes all. */
@@ -437,12 +472,17 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * which can put the way out over the hole standing there; a corner the viewer
    * can reach beats one a resize took off screen.
    *
-   * `onScreen` is what a caller that has just measured these holes hands over.
+   * `measured` is what a caller that has just measured these holes hands over.
    * It is a default rather than a branch: nothing here chooses between
    * measuring afresh and reusing.
+   *
+   * The corner dodges the host's own chrome along with the holes: both are
+   * boxes the way out may not cover, and `freeCorner` never had to tell them
+   * apart.
    */
-  private place(step: LekoStep, holes: Hole[] | null, onScreen?: readonly Cutout[]): void {
-    this.showClose(onScreen ?? (holes ? this.cutouts(step, holes) : []))
+  private place(step: LekoStep, holes: Hole[] | null, measured?: Measured): void {
+    const onScreen = measured?.onScreen ?? (holes ? this.cutouts(step, holes) : [])
+    this.showClose([...onScreen, ...(measured?.chrome ?? this.chromeBoxes())])
     this.showRing(holes)
   }
 
@@ -470,7 +510,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     //
     // Placed from the boxes measured a moment ago in this same task. Converging
     // wrote a mask and moved nothing on the page.
-    this.place(step, holes, measured.onScreen)
+    this.place(step, holes, measured)
 
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
@@ -502,7 +542,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Said from what was just measured. Nothing between here and there moves
     // the page.
     if (saying) return this.say(step, drawn.error, measured)
-    this.place(step, holes, measured.onScreen)
+    this.place(step, holes, measured)
   }
 
   /**
@@ -535,7 +575,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const content = this.content(step, error)
     const holes = measured?.holes ?? this.holes(step, undefined)
     const onScreen = measured?.onScreen ?? (holes ? this.cutouts(step, holes) : [])
-    this.showClose(onScreen)
+    // Read here as well, because a `say` after a morph is a task later than the
+    // draw and brings no measurements of its own.
+    const chrome = measured?.chrome ?? this.chromeBoxes()
+    this.showClose([...onScreen, ...chrome])
     if (!content.text && !content.error && !content.next) {
       this.message?.hide()
       this.showRing(holes)
@@ -553,6 +596,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       content,
       onScreen,
       gap,
+      measured?.room ?? DomPresenter.roomIn(chrome),
       // Absent where there is no scrim to hang the anchor in, which is what
       // makes the box dock instead.
       inner && box ? (side) => inner.anchorAt(...DomPresenter.edge(box, side)) : undefined,

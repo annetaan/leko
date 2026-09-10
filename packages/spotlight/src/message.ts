@@ -1,17 +1,9 @@
-import { type Rect, union } from './geometry.js'
+import { type Rect, type Side, sideWithRoom, union } from './geometry.js'
 import { prefersReducedMotion } from './motion.js'
 import { MESSAGE_ANCHOR } from './scrim.js'
 
 /** How long the message takes to fade back in after a morph. */
 const FADE = 120
-
-/**
- * Which side of the cutout the message sits on, in preference order: below
- * first, because a message under the thing it describes is the least surprising
- * place for it, and reading order puts it after the target rather than before.
- */
-const SIDES = ['bottom', 'top', 'right', 'left'] as const
-export type Side = (typeof SIDES)[number]
 
 /**
  * Physical keywords, not logical ones. The side is chosen from measurements in
@@ -50,27 +42,6 @@ export interface MessageContent {
  */
 const canAnchor = (): boolean =>
   CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
-
-/**
- * The side with room for the message, given how much of the viewport the cutouts
- * already take up. Falls back to `bottom` when nothing fits, which is when the
- * browser's own fallbacks — where it has them — get their turn.
- */
-function chooseSide(box: Rect, width: number, height: number, gap: number): Side {
-  const room: Record<Side, number> = {
-    bottom: window.innerHeight - (box.y + box.height),
-    top: box.y,
-    right: window.innerWidth - (box.x + box.width),
-    left: box.x,
-  }
-  const need: Record<Side, number> = {
-    bottom: height + gap,
-    top: height + gap,
-    right: width + gap,
-    left: width + gap,
-  }
-  return SIDES.find((side) => room[side] >= need[side]) ?? 'bottom'
-}
 
 /**
  * The step's message, placed beside its cutout.
@@ -208,8 +179,17 @@ export class Message {
    * gap between the two is turned into a margin here, once, and stays right for
    * as long as the two move together — which they do, being cut from the same
    * scrim.
+   *
+   * `room` is the part of the page the box may go in, in the same coordinates
+   * as the cutouts — DESIGN.md, **The message**.
    */
-  show(content: MessageContent, cutouts: Rect[], gap: number, at?: (side: Side) => void): void {
+  show(
+    content: MessageContent,
+    cutouts: Rect[],
+    gap: number,
+    room: Rect,
+    at?: (side: Side) => void,
+  ): void {
     this.fill(content)
     if (!this.element.isConnected) document.body.append(this.element)
     if (!this.open) {
@@ -218,7 +198,7 @@ export class Message {
       this.element.showPopover?.()
       this.open = true
     }
-    this.place(cutouts, gap, at)
+    this.place(cutouts, gap, room, at)
     Object.assign(this.element.style, {
       transition: prefersReducedMotion() ? '' : `opacity ${FADE}ms`,
       visibility: 'visible',
@@ -284,13 +264,18 @@ export class Message {
     this.shown = false
   }
 
-  private place(cutouts: Rect[], gap: number, at: ((side: Side) => void) | undefined): void {
+  private place(
+    cutouts: Rect[],
+    gap: number,
+    room: Rect,
+    at: ((side: Side) => void) | undefined,
+  ): void {
     const style = this.element.style
     const box = union(cutouts)
     // No cutouts, or nowhere to put the anchor, is a step that points at
     // nothing: there is no hole to sit beside, so the box goes where it goes
     // when the browser cannot track one either.
-    if (!this.anchored || !box || !at) return this.dock()
+    if (!this.anchored || !box || !at) return this.dock(room)
 
     for (const margin of MARGINS) style[margin] = '0px'
     for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''
@@ -300,7 +285,8 @@ export class Message {
     // put on that edge of the cutout. **The whole of the clearance is the gap.**
     // What is being anchored to is the edge itself rather than the target
     // inside it, so there is no padding left to make up for here.
-    const side = chooseSide(box, this.element.offsetWidth, this.element.offsetHeight, gap)
+    const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
+    const side = sideWithRoom(box, size, room, gap)
     at(side)
     style.setProperty('position-anchor', MESSAGE_ANCHOR)
     style.setProperty('position-area', AREA[side])
@@ -334,21 +320,26 @@ export class Message {
 
   /**
    * Where the browser cannot track an anchor, the message goes to the foot of
-   * the viewport and stays there.
+   * `room` and stays there.
    *
    * The alternative — placing it beside the cutout from measurements, and
    * leaving it — would be a message that points at the right place until the
    * first scroll and at the wrong one forever after. Anchor positioning is
    * allowed to degrade; being wrong is not the same as being plain.
+   *
+   * Written as the foot of the room less the dock rather than as `bottom`,
+   * which is measured from the foot of the viewport and not from the foot of
+   * the room. `translate` carries the box up by its own height, so what lands
+   * on that line is its lower edge.
    */
-  private dock(): void {
+  private dock(room: Rect): void {
     const style = this.element.style
     style.removeProperty('position-area')
     for (const margin of MARGINS) style[margin] = '0px'
-    style.left = '50%'
-    style.top = 'auto'
-    style.bottom = 'var(--leko-message-dock, 24px)'
-    style.translate = '-50% 0'
+    style.left = `${room.x + room.width / 2}px`
+    style.top = `calc(${room.y + room.height}px - var(--leko-message-dock, 24px))`
+    style.bottom = 'auto'
+    style.translate = '-50% -100%'
   }
 
   destroy(): void {

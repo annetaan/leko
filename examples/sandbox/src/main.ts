@@ -223,6 +223,12 @@ function show(next: Case): void {
     // The footer's pace stretches whatever the case asked for. At ×1 this
     // writes the same number the defaults would have landed on.
     duration: (next.options?.duration ?? 320) * pace,
+    // The sandbox is a host with chrome of its own: the footer console is
+    // sticky and sits above the scrim, so a message that measured the whole
+    // viewport landed in it. Named once here for every case, and a case that
+    // mounts chrome of its own — `host-chrome.ts` — adds to the list rather
+    // than replacing it.
+    hostChrome: ['.controls', ...[next.options?.hostChrome ?? []].flat()],
     // Nothing is logged by the library, so this is where a project decides.
     // The sandbox puts it in the footer, because a call that did nothing is
     // exactly the thing a person reading a case wants to see.

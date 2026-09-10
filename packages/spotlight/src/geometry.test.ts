@@ -12,8 +12,10 @@ import {
   GLIDE_PACE,
   glideDuration,
   grow,
+  chromeInsets,
   clipToSurface,
   hasArea,
+  inset,
   holeImage,
   lerpCutouts,
   maskLayers,
@@ -24,6 +26,7 @@ import {
   scrollStages,
   segmentAt,
   shift,
+  sideWithRoom,
   union,
 } from './geometry.js'
 
@@ -577,6 +580,94 @@ test('every corner covered gives the least covered one, and gives it every time'
   // less. Ties go to the earlier corner, which makes the answer repeatable.
   expect(freeCorner(1000, 800, SIZE, holes, 16)).toBe('top-right')
   expect(freeCorner(1000, 800, SIZE, holes, 16)).toBe('top-right')
+})
+
+// What a host says about its own chrome, and what every reader takes from it.
+// The boxes are read per draw and folded into bands here, so nothing is written
+// twice and nothing is kept — DESIGN.md, **A host's own chrome is named once,
+// and every reader takes the boxes**.
+
+/** The sandbox's own footer, at the viewport #141 measured it in. */
+const FOOTER: Rect = { x: 0, y: 621, width: 1280, height: 179 }
+
+test('a chrome box against an edge is a band as deep as it reaches', () => {
+  expect(chromeInsets(1280, 800, [FOOTER])).toEqual({ top: 0, right: 0, bottom: 179, left: 0 })
+})
+
+test('the deepest band on a side is the one that counts', () => {
+  const strip = { x: 0, y: 700, width: 400, height: 100 }
+
+  expect(chromeInsets(1280, 800, [FOOTER, strip])).toEqual({
+    top: 0,
+    right: 0,
+    bottom: 179,
+    left: 0,
+  })
+})
+
+test('a box between two opposite edges claims neither', () => {
+  // As near the top as the foot, so neither is the edge it belongs to. Claiming
+  // both would put a band from each end and leave a room of no height, and the
+  // message would then be docked onto the very widget the bands were for.
+  const floating = { x: 500, y: 350, width: 280, height: 100 }
+
+  expect(chromeInsets(1280, 800, [floating])).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
+})
+
+test('a box centred on one axis is placed by the other', () => {
+  const rail = { x: 0, y: 350, width: 280, height: 100 }
+
+  expect(chromeInsets(1280, 800, [rail])).toEqual({ top: 0, right: 0, bottom: 0, left: 280 })
+})
+
+test('a box in a corner claims both edges it is nearest', () => {
+  // A support bubble, 60 square, 20 in from the bottom right corner: 80 deep
+  // from each of the two, and further from the other two than that.
+  const bubble = { x: 1200, y: 720, width: 60, height: 60 }
+
+  expect(chromeInsets(1280, 800, [bubble])).toEqual({ top: 0, right: 80, bottom: 80, left: 0 })
+})
+
+test('chrome with no part of it on screen claims nothing', () => {
+  const gone = { x: -400, y: 300, width: 200, height: 100 }
+
+  expect(chromeInsets(1280, 800, [gone])).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
+})
+
+test('the room is the viewport with the bands taken off', () => {
+  const viewport = rect(0, 0, 1280, 800)
+
+  expect(inset(viewport, chromeInsets(1280, 800, [FOOTER]))).toEqual(rect(0, 0, 1280, 621))
+})
+
+// The side the message takes. #141's table is the case: a hole in the middle of
+// the screen with 200px under it, and a footer that owns 179 of them.
+
+const room = inset(rect(0, 0, 1280, 800), chromeInsets(1280, 800, [FOOTER]))
+
+test('a side is chosen from the room, not the viewport', () => {
+  // A row centred on screen, and the box that goes beside it: 435..629 when it
+  // goes below, which is into the footer at 621.
+  const row = rect(560, 381, 160, 38)
+  const note = { width: 320, height: 194 }
+
+  expect(sideWithRoom(row, note, rect(0, 0, 1280, 800), 16)).toBe('bottom')
+  expect(sideWithRoom(row, note, room, 16)).toBe('top')
+})
+
+test('a taller message beside a lower row goes the same way', () => {
+  // #141's second row: the message would be 525..761, further into the footer.
+  const row = rect(560, 471, 160, 38)
+  const note = { width: 320, height: 236 }
+
+  expect(sideWithRoom(row, note, room, 16)).toBe('top')
+})
+
+test('no side has room, and bottom is still the answer', () => {
+  // The browser's own fallbacks get their turn from there.
+  const wide = rect(0, 0, 1280, 621)
+
+  expect(sideWithRoom(wide, { width: 320, height: 194 }, room, 16)).toBe('bottom')
 })
 
 test('a corner rect sits inside the viewport, gap in from both edges', () => {

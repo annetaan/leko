@@ -664,6 +664,42 @@ export interface LekoOptions {
   onDiagnostic?: (problem: LekoProblem) => void
 
   /**
+   * Where the host's own chrome is, so that nothing Leko draws lands on top of
+   * it: a sticky footer, a top bar, a support widget in a corner.
+   *
+   * One target or several, named the way a step names one — a selector, or a
+   * function that hands back the element. Read every time a step is drawn,
+   * because a target is a question and this is no different; a bar that is not
+   * on the page at that moment claims nothing.
+   *
+   * On the instance alone, and there is no per-step version: a host's chrome is
+   * the same for every step of every story. DESIGN.md, **Settings, and where
+   * they are read from**.
+   *
+   * ```ts
+   * createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
+   * ```
+   *
+   * It moves three things: which side of a cutout the message takes, where the
+   * message sits when it has no cutout to sit beside, and which corner the
+   * control that ends the tour goes in.
+   *
+   * **Name chrome that sits against an edge of the screen.** For the two
+   * readers that want an inset, each box is read as a band along the edge it is
+   * nearest, so a footer, a bar or a corner widget reserves a little more than
+   * itself. Something floating clear of every edge is not a band and reserves
+   * nothing, and a message can still land on it — DESIGN.md argues why that is
+   * the better of the two ways to be wrong, under **A host's own chrome is
+   * named once, and every reader takes the boxes**. The control that ends the
+   * tour takes the boxes themselves and dodges any of them.
+   *
+   * **It does not make the chrome usable.** The scrim blocks whatever the step
+   * did not open, and naming an element here says only where Leko's own boxes
+   * may not go.
+   */
+  hostChrome?: LekoTarget | LekoTarget[]
+
+  /**
    * The words on the control that ends the tour.
    *
    * **There is always such a control, and there is no way to turn it off**, so

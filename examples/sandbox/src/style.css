@@ -669,16 +669,42 @@ button:disabled {
 }
 
 /*
- * How an application says how much of its own chrome is in the way, for
- * `scrolls-into-view.ts`, and here it is the sandbox's own: the footer below is
- * sticky and sits above the scrim, so a target centred on the screen leaves its
- * message landing in it. Saying so here leans the target that much further up,
- * and the message lands clear. Leko knows nothing about a host's own chrome
- * when it places a message — that is issue #141 — and `scroll-margin` is the
- * answer it does have.
+ * `host-chrome.ts`. The bubble is the application's own support widget, in the
+ * corner the way out prefers; the row is pinned just above the footer console,
+ * so the screen under it is nearly all the console's. Both are fixed, because
+ * what each step is about is a distance to a viewport edge.
  */
-.scroll-case [data-far] {
-  scroll-margin-bottom: 236px;
+.support-bubble {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pinned-row {
+  position: fixed;
+  left: calc(260px + 48px);
+  /* Clear of the console by a little, so the row itself is never under it and
+     the only thing arguing about that strip of screen is the message. */
+  bottom: 200px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.chrome-case .filler {
+  max-width: 680px;
+  color: var(--muted);
 }
 
 /*

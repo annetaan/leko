@@ -85,11 +85,21 @@ export class Close {
   }
 
   /**
-   * Put it in a corner that no cutout covers.
+   * Put it in a corner that neither a cutout nor the host's own chrome covers.
    *
-   * `cutouts` are in viewport coordinates, the same ones the message chooses a
-   * side from. The corner is decided every time this is called, so it follows a
-   * step whose hole moved into the corner this was in.
+   * `cutouts` is everything to keep off, in viewport coordinates — the step's
+   * holes, and whatever the host named as its chrome. The corner is decided
+   * every time this is called, so it follows a step whose hole moved into the
+   * corner this was in.
+   *
+   * **The layout viewport, not `innerWidth` and `innerHeight`.** This box is
+   * `position: fixed`, so it is laid out against the initial containing block,
+   * and the boxes handed in came from `getBoundingClientRect`, which is in that
+   * same space. Measured against `innerWidth` the corner rect sits a scrollbar
+   * gutter too far out, and the one control that must always be pressable ends
+   * up under the scrollbar. The scrim goes the other way and is sized past the
+   * layout viewport on purpose: DESIGN.md, **That layer is sized past the
+   * layout viewport on purpose, gutter included**.
    */
   place(cutouts: readonly Rect[]): void {
     if (!this.element.isConnected) document.body.append(this.element)
@@ -102,8 +112,10 @@ export class Close {
     // Measured rather than assumed, because a host's own control is whatever
     // size it decided to be.
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
-    this.corner = freeCorner(window.innerWidth, window.innerHeight, size, cutouts, GAP)
-    const at = cornerRect(window.innerWidth, window.innerHeight, size, this.corner, GAP)
+    const root = document.documentElement
+    const [width, height] = [root.clientWidth, root.clientHeight]
+    this.corner = freeCorner(width, height, size, cutouts, GAP)
+    const at = cornerRect(width, height, size, this.corner, GAP)
     Object.assign(this.element.style, {
       left: `${at.x}px`,
       top: `${at.y}px`,
