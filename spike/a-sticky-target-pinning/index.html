@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>When is a sticky element pinned, and does it say so?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 24px 24px 40px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p, li { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p, li { color: #a8a8a8; } }
+
+  /* 1. A sticky header in the page's own flow. The section is its containing
+     block, so the header pins for the section's height and is pushed out at
+     the bottom of it. `position: relative` makes the section the header's
+     offsetParent as well, which is what `offsetTop` is read against. The tail
+     under the section is what makes the state past the pinned range reachable:
+     with nowhere to scroll afterwards, the last state is the last state the
+     page has, and an element the page cannot scroll past reads as pinned for
+     ever. */
+  .section { position: relative; height: 2400px; border: 1px solid #8886; border-radius: 8px; }
+  .lead { height: 900px; }
+  .tail { height: 1400px; }
+  #docStick {
+    position: sticky; top: 0;
+    height: 44px; line-height: 44px; padding: 0 12px;
+    background: #2f6fed; color: #fff; font-weight: 600;
+  }
+
+  /* 2. The same element inside a scroller, which pins to that scrollport. */
+  .panel {
+    position: relative; width: 420px; height: 220px; overflow: auto;
+    border: 1px solid #8886; border-radius: 8px;
+  }
+  .panel .lead { height: 300px; }
+  .panel .section { height: 900px; }
+  .panel .tail { height: 500px; }
+  #panelStick {
+    position: sticky; top: 0;
+    height: 36px; line-height: 36px; padding: 0 12px;
+    background: #0a7d32; color: #fff; font-weight: 600;
+  }
+
+  /* 3. The layer a pinned target inside a scroller would need: something the
+     size of the scrollport that stays over it for the whole scroll range. The
+     wrapper is sized to the scroller's content and is the sticky child's
+     containing block, so the child pins from the first pixel to the last. */
+  #room { width: 1400px; height: 1600px; background: repeating-linear-gradient(45deg, #8881 0 12px, transparent 12px 24px); }
+  #wrapper { position: absolute; top: 0; left: 0; }
+  /* Drawn inside the box: an outline is painted outside the border box, and
+     the scroller clips it away. */
+  #glued { position: sticky; top: 0; left: 0; outline: 2px solid #c62828; outline-offset: -2px; pointer-events: none; }
+
+  /* 6. The same two questions in a panel that has padding. A scroller an
+     application owns usually does, and where a sticky element comes to rest
+     inside one is not something 2 or 3 could see: both panels above are
+     padding-free, so the padding box and the content box are the same box
+     there and nothing can tell them apart. */
+  .padded { padding: 11px; }
+  #padded .wide { width: 900px; height: 1px; }
+  #paddedStick {
+    position: sticky; top: 0;
+    height: 36px; line-height: 36px; padding: 0 12px;
+    background: #6a1b9a; color: #fff; font-weight: 600;
+  }
+  #paddedGlued { position: sticky; outline: 2px solid #c62828; outline-offset: -2px; pointer-events: none; }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; white-space: nowrap; }
+  td { font-family: ui-monospace, monospace; }
+  th { font-weight: 600; }
+  .yes { color: #0a7d32; font-weight: 700; }
+  .no { color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .yes { color: #6ee79b; } .no { color: #ff8a80; } }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>When is a <code>position: sticky</code> element pinned, and does it say so?</h1>
+<p>
+  A sticky element rides the scroll until it pins, and from then on it stays
+  against its scrollport's edge while everything under it moves — until its
+  containing block runs out and it is pushed away again. A hole cut where it
+  stood is right in one of those states and wrong in the other, so anything
+  drawing one has to know which state the element is in at the moment of the
+  draw, from one reading and without watching the scroll.
+</p>
+<p>
+  Every panel measures itself. <strong>Held</strong> is the ground truth and is
+  read the way a viewer would see it: scroll one further pixel and look at
+  whether the element moved. Beside it are three candidate tests, each
+  something a library could ask at the draw, each marked against what held
+  says.
+</p>
+<ul>
+  <li>
+    <strong>offset</strong> — the element's box on screen, less where
+    <code>offsetTop</code> puts it. A test only if <code>offsetTop</code> is
+    the flow position; if it moves with the pin, it says nothing.
+  </li>
+  <li>
+    <strong>inset</strong> — the element's box against its scrollport's edge,
+    less the used <code>top</code>. A pinned element sits exactly on its inset,
+    so this is zero when pinned.
+  </li>
+  <li>
+    <strong>static</strong> — write <code>position: static</code>, read the box
+    again, put the style back. Exact, and it writes to an element the
+    application owns and flushes layout to do it.
+  </li>
+</ul>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<h2>1. A sticky header in the page's flow</h2>
+<p>
+  A 44px header with <code>top: 0</code> inside a 2400px section at the foot of
+  this page, with 1400px of tail under it so the page can be scrolled past the
+  section's end. The offsets are worked out from the layout rather than written
+  down.
+</p>
+<table id="doc"></table>
+
+<h2>2. A sticky header inside a scroller</h2>
+<p>
+  The same element, pinned to a panel's scrollport rather than to the viewport.
+  The page's own scroll is at rest throughout, so anything that moves here is
+  the panel's doing.
+</p>
+<div class="panel" id="panel">
+  <div class="lead"></div>
+  <div class="section"><div id="panelStick">Panel header</div></div>
+  <div class="tail"></div>
+</div>
+<table id="panel-table"></table>
+
+<h2>3. A layer that pins to a scroller's scrollport</h2>
+<p>
+  <code>position: fixed</code> cannot say &ldquo;the scrollport of that
+  panel&rdquo;. This can: an absolutely positioned wrapper the size of the
+  scroller's content, holding a <code>position: sticky</code> child at
+  <code>top: 0; left: 0</code> the size of the scrollport. The wrapper is the
+  child's containing block, so the child pins across the whole range, on both
+  axes, and takes no space in the flow. The red outline is the child, and it
+  should sit exactly on the panel's padding box at every offset. The last row
+  asks whether mounting it grew the scrollable area — a layer that adds
+  overflow to what it covers is no use.
+</p>
+<div class="panel" id="glue"><div id="room"></div></div>
+<table id="glue-table"></table>
+
+<h2>4. Can the pin be predicted from one reading?</h2>
+<p>
+  A step that wants its target drawn pinned has to be able to scroll to that
+  state, and the destination is not the target's own box. While the element is
+  riding, the distance between its box and its inset is exactly the scroll left
+  before it pins, so the destination is arithmetic on one reading. Each row
+  scrolls to either side of the predicted offset and checks.
+</p>
+<table id="pin-table"></table>
+
+<h2>5. What <code>scrollIntoView</code> does to a sticky target</h2>
+<p>
+  The obvious spelling for bringing a target into view, asked of a sticky
+  element from above the pin and from inside the pinned range.
+</p>
+<table id="into-table"></table>
+
+<h2>6. What a scroller's padding does to both of those</h2>
+<p>
+  The panels above have none, so the padding box and the content box are the
+  same box in them and nothing there can tell which one a sticky element is
+  held within. This one has <code>padding: 11px</code>, which is what a panel
+  an application owns usually has. Two readings: where a header asking for
+  <code>top: 0</code> comes to rest, and where the glued layer of question 3
+  lands — first asking for <code>top: 0; left: 0</code> the way it did there,
+  then asking the padding back as a negative inset. A layer that lands on the
+  content box leaves the padding of the panel it is dimming undimmed, and a
+  reading taken against the padding box calls a pinned header riding by exactly
+  that padding.
+</p>
+<div class="panel padded" id="padded">
+  <div class="wide"></div>
+  <div class="lead"></div>
+  <div class="section"><div id="paddedStick">Padded panel header</div></div>
+  <div class="tail"></div>
+</div>
+<table id="padded-table"></table>
+
+<div class="lead"></div>
+<div class="section"><div id="docStick">Page header — sticky, top: 0</div></div>
+<div class="tail"></div>
+
+<script>
+const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+const round = (n) => Math.round(n * 10) / 10
+const near = (n) => Math.abs(n) < 0.5
+
+const panel = document.getElementById('panel')
+const panelStick = document.getElementById('panelStick')
+const docStick = document.getElementById('docStick')
+const glue = document.getElementById('glue')
+const padded = document.getElementById('padded')
+const paddedStick = document.getElementById('paddedStick')
+
+const topOf = (el) => el.getBoundingClientRect().top
+const heightOf = (el) => el.getBoundingClientRect().height
+
+// The two ports, each as the four things a reading asks of one: how to scroll
+// it, where its scrollport's top edge is on screen, where it stands, and how
+// far it can go.
+const page = {
+  scroll: (y) => window.scrollTo(0, y),
+  portTop: () => 0,
+  at: () => window.scrollY,
+  max: () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+}
+const port = {
+  scroll: (y) => { panel.scrollTop = y },
+  portTop: () => panel.getBoundingClientRect().top + panel.clientTop,
+  at: () => panel.scrollTop,
+  max: () => panel.scrollHeight - panel.clientHeight,
+}
+// Question 6's port. `portTop` is the padding box's top edge, the same as the
+// one above — which is the point: whether that is the edge a sticky element is
+// held against is what question 6 asks.
+const paddedPort = {
+  scroll: (y) => { padded.scrollTop = y },
+  portTop: () => padded.getBoundingClientRect().top + padded.clientTop,
+  at: () => padded.scrollTop,
+  max: () => padded.scrollHeight - padded.clientHeight,
+}
+
+// Where the flow would have put the element, on screen. `offsetTop` is measured
+// from the offsetParent's padding edge, so that edge is what it is added to.
+// Whether the number is the flow position or the stuck one is the question: if
+// it is the flow position it does not change as the element pins.
+function flowTop(el) {
+  const parent = el.offsetParent
+  if (!parent) return null
+  return parent.getBoundingClientRect().top + parent.clientTop + el.offsetTop
+}
+
+// The used `top`, which is what a pinned element's box sits on. `auto` is an
+// element sticky on some other edge, and this page does not measure those.
+const insetOf = (el) => parseFloat(getComputedStyle(el).top)
+
+// The exact answer, and the expensive one: take the sticky away, read where the
+// element falls, put it back. The inline style the element came with is
+// restored rather than cleared, because an application may have written one.
+function staticTop(el) {
+  const had = el.style.position
+  el.style.position = 'static'
+  const top = topOf(el)
+  el.style.position = had
+  return top
+}
+
+// One reading of one element in one state of the page. `held` scrolls a further
+// pixel and looks: an element that did not move is pinned to something, one
+// that moved with the page is riding it. That is the definition a scrim cares
+// about, and it is deliberately derived from nothing the element reports.
+async function reading(label, el, of, at) {
+  await of.scroll(at)
+  await settle()
+  const rectTop = topOf(el)
+  const flow = flowTop(el)
+  const candidates = {
+    offset: flow === null ? null : round(rectTop - flow),
+    inset: round(rectTop - of.portTop() - insetOf(el)),
+    static: round(rectTop - staticTop(el)),
+  }
+  await of.scroll(at + 1)
+  await settle()
+  const moved = topOf(el)
+  await of.scroll(at)
+  await settle()
+  return {
+    label,
+    at,
+    rectTop: round(rectTop),
+    offsetTop: round(el.offsetTop),
+    candidates,
+    held: near(moved - rectTop),
+  }
+}
+
+// A candidate is right about a state when the number it produced, read the way
+// that candidate is read, means what `held` saw. `inset` runs the other way
+// from the other two — a pinned element is *on* its inset, so zero is the
+// pinned answer — and `zeroIsPinned` is that.
+const zeroIsPinned = { offset: false, inset: true, static: false }
+const says = (name, value) =>
+  value === null ? null : zeroIsPinned[name] ? near(value) : !near(value)
+
+// The states a sticky element passes through, worked out from the layout rather
+// than written down: it pins once the scroll has eaten the distance between its
+// box and its inset, and is pushed out when its containing block's bottom
+// arrives. Every offset is kept inside the range the port can reach, because a
+// clamped scroll leaves the element where it was and would report a riding
+// element as a pinned one.
+async function states(el, of) {
+  await of.scroll(0)
+  await settle()
+  const pin = topOf(el) - of.portTop() - insetOf(el)
+  const span = heightOf(el.parentElement) - heightOf(el)
+  const clamp = (n) => Math.max(0, Math.min(Math.round(n), of.max() - 2))
+  const rows = []
+  rows.push(await reading('at rest', el, of, 0))
+  rows.push(await reading('just before the pin', el, of, clamp(pin - 40)))
+  rows.push(await reading('just after the pin', el, of, clamp(pin + 100)))
+  rows.push(await reading('deep in the pinned range', el, of, clamp(pin + span / 2)))
+  rows.push(await reading('past the end of the block', el, of, clamp(pin + span + 100)))
+  await of.scroll(0)
+  await settle()
+  return rows
+}
+
+// Question 3. The layer mounted the way a scrim would mount it: sized to the
+// scroller's content, with a child sized to the scrollport, both read before
+// anything is written.
+function mountGlue() {
+  const before = { w: glue.scrollWidth, h: glue.scrollHeight }
+  const wrapper = document.createElement('div')
+  wrapper.id = 'wrapper'
+  const child = document.createElement('div')
+  child.id = 'glued'
+  wrapper.style.width = `${glue.scrollWidth}px`
+  wrapper.style.height = `${glue.scrollHeight}px`
+  child.style.width = `${glue.clientWidth}px`
+  child.style.height = `${glue.clientHeight}px`
+  wrapper.append(child)
+  glue.append(wrapper)
+  return { child, grew: { before, after: { w: glue.scrollWidth, h: glue.scrollHeight } } }
+}
+
+// A layer is right when it covers the scrollport and nothing else, so what is
+// measured is its box against the scroller's padding box, at both ends of both
+// axes and in between.
+async function measureGlue() {
+  // The layer is left mounted at the end, so that a person reading the page can
+  // see the outline sitting on the scrollport; a previous run's is what this
+  // takes away.
+  document.getElementById('wrapper')?.remove()
+  glue.scrollTo(0, 0)
+  await settle()
+  const { child, grew } = mountGlue()
+  const offsets = [
+    ['at rest', 0, 0],
+    ['scrolled down', 0, 400],
+    ['scrolled across', 500, 0],
+    ['both, mid-range', 500, 700],
+    ['at the far corner', glue.scrollWidth - glue.clientWidth, glue.scrollHeight - glue.clientHeight],
+  ]
+  const rows = []
+  for (const [label, x, y] of offsets) {
+    glue.scrollTo(x, y)
+    await settle()
+    const box = child.getBoundingClientRect()
+    const scroller = glue.getBoundingClientRect()
+    const dx = box.left - (scroller.left + glue.clientLeft)
+    const dy = box.top - (scroller.top + glue.clientTop)
+    rows.push({
+      label,
+      at: `${x}, ${y}`,
+      dx: round(dx),
+      dy: round(dy),
+      size: `${round(box.width)}×${round(box.height)}`,
+      glued: near(dx) && near(dy),
+    })
+  }
+  glue.scrollTo(0, 0)
+  await settle()
+  return {
+    rows,
+    grew: {
+      before: `${grew.before.w}×${grew.before.h}`,
+      after: `${grew.after.w}×${grew.after.h}`,
+      same: grew.before.w === grew.after.w && grew.before.h === grew.after.h,
+    },
+  }
+}
+
+// Question 6. The same two arrangements in a panel with padding, which is what
+// tells the padding box and the content box apart. Each row says where the box
+// it measured came to rest: on the padding box, on the content box, or neither.
+async function measurePadding() {
+  const style = getComputedStyle(padded)
+  const pad = { top: parseFloat(style.paddingTop), left: parseFloat(style.paddingLeft) }
+  const boxes = () => {
+    const r = padded.getBoundingClientRect()
+    return { left: r.left + padded.clientLeft, top: r.top + padded.clientTop }
+  }
+  // Which box a reading landed on, from its distance to the padding box's
+  // corner. Nothing is assumed about which one is right; both are named and the
+  // page says which one the engine chose.
+  const restsOn = (dx, dy) => {
+    if (near(dx) && near(dy)) return 'the padding box'
+    if (near(dx - pad.left) && near(dy - pad.top)) return 'the content box'
+    return 'neither'
+  }
+  // The header is sticky on one axis, so only that axis is a verdict about
+  // sticky: its left edge comes from the flow, and the section it is written in
+  // has a border, so `dx` is a pixel over the content box and says nothing.
+  const restsVertically = (dy) =>
+    near(dy) ? 'the padding box' : near(dy - pad.top) ? 'the content box' : 'neither'
+  const rows = []
+
+  document.getElementById('paddedWrapper')?.remove()
+  // Both axes, every time: this panel scrolls sideways too, and a previous run
+  // left it at the far corner.
+  padded.scrollTo(0, 0)
+  await settle()
+
+  // The header, taken well past its pin so that where it rests is the sticky
+  // constraint's doing rather than the flow's.
+  const pin = topOf(paddedStick) - paddedPort.portTop() - insetOf(paddedStick)
+  const at = Math.min(Math.round(pin + 200), paddedPort.max() - 2)
+  padded.scrollTo(0, at)
+  await settle()
+  {
+    const box = paddedStick.getBoundingClientRect()
+    const corner = boxes()
+    const dx = round(box.left - corner.left)
+    const dy = round(box.top - corner.top)
+    rows.push({ label: 'a header at top: 0, pinned', at: `0, ${at}`, dx, dy, rests: restsVertically(dy), want: 'the content box' })
+  }
+  padded.scrollTo(0, 0)
+  await settle()
+
+  // The glued layer of question 3, mounted the same way, and asked both ways
+  // round. The offsets are the far corner as well as the origin, because a
+  // layer that is right at rest and wrong at the far corner is no use.
+  const wrapper = document.createElement('div')
+  wrapper.id = 'paddedWrapper'
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '0'
+  wrapper.style.top = '0'
+  wrapper.style.width = `${padded.scrollWidth}px`
+  wrapper.style.height = `${padded.scrollHeight}px`
+  const child = document.createElement('div')
+  child.id = 'paddedGlued'
+  child.style.width = `${padded.clientWidth}px`
+  child.style.height = `${padded.clientHeight}px`
+  wrapper.append(child)
+  padded.append(wrapper)
+
+  const far = [padded.scrollWidth - padded.clientWidth, padded.scrollHeight - padded.clientHeight]
+  // What each spelling is expected to do, per offset rather than per spelling.
+  // The naive one is held on the content box while there is room to hold it
+  // there, and pushed back onto the padding box at the far corner by the end of
+  // its containing block — so a page that expected one answer for both offsets
+  // would mark the engines wrong for doing what the prose above says they do.
+  const asked = [
+    [
+      'a glued child at top: 0; left: 0',
+      { top: '0', left: '0' },
+      { 'at rest': 'the content box', 'at the far corner': 'the padding box' },
+    ],
+    [
+      'a glued child asking the padding back',
+      { top: `${-pad.top}px`, left: `${-pad.left}px` },
+      { 'at rest': 'the padding box', 'at the far corner': 'the padding box' },
+    ],
+  ]
+  for (const [label, insets, want] of asked) {
+    child.style.top = insets.top
+    child.style.left = insets.left
+    for (const [where, x, y] of [['at rest', 0, 0], ['at the far corner', far[0], far[1]]]) {
+      padded.scrollTo(x, y)
+      await settle()
+      const box = child.getBoundingClientRect()
+      const corner = boxes()
+      const dx = round(box.left - corner.left)
+      const dy = round(box.top - corner.top)
+      rows.push({ label: `${label}, ${where}`, at: `${x}, ${y}`, dx, dy, rests: restsOn(dx, dy), want: want[where] })
+    }
+  }
+  // Left asking for the padding back, so that a person reading the page sees
+  // the outline on the panel's padding box rather than inside it.
+  padded.scrollTo(0, 0)
+  await settle()
+  return { pad: `${pad.left}, ${pad.top}`, rows }
+}
+
+// Question 4. From a reading taken while the element is riding, the offset at
+// which it pins is where the port stands plus the gap between the element's box
+// and its inset. Checked from either side: three pixels short of it the element
+// must still ride, and two past it must be held.
+async function pinPoint(label, el, of, from) {
+  await of.scroll(from)
+  await settle()
+  const predicted = Math.round(from + topOf(el) - of.portTop() - insetOf(el))
+  const short = await reading('short', el, of, Math.max(0, predicted - 3))
+  const past = await reading('past', el, of, Math.min(predicted + 2, of.max() - 2))
+  await of.scroll(0)
+  await settle()
+  return {
+    label,
+    from,
+    predicted,
+    shortHeld: short.held,
+    pastHeld: past.held,
+    right: !short.held && past.held,
+  }
+}
+
+async function measurePin() {
+  return [
+    await pinPoint('page, read at rest', docStick, page, 0),
+    await pinPoint('page, read part of the way there', docStick, page, 1500),
+    await pinPoint('panel, read at rest', panelStick, port, 0),
+    await pinPoint('panel, read part of the way there', panelStick, port, 150),
+  ]
+}
+
+// Question 5. Where a scroll aimed at a sticky element leaves the port, and
+// which state the element is in when it lands.
+async function measureIntoView() {
+  const pinnedPage = await pinPoint('', docStick, page, 0)
+  const pinnedPort = await pinPoint('', panelStick, port, 0)
+  const trips = [
+    ['page, from above the pin', docStick, page, 0],
+    ['page, from inside the pinned range', docStick, page, pinnedPage.predicted + 400],
+    ['panel, from above the pin', panelStick, port, 0],
+    ['panel, from inside the pinned range', panelStick, port, pinnedPort.predicted + 200],
+  ]
+  const rows = []
+  for (const [label, el, of, at] of trips) {
+    await of.scroll(at)
+    await settle()
+    const before = of.at()
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    await settle()
+    const after = of.at()
+    const gap = topOf(el) - of.portTop() - insetOf(el)
+    rows.push({
+      label,
+      before: round(before),
+      after: round(after),
+      moved: !near(after - before),
+      pinned: near(gap),
+    })
+    await of.scroll(0)
+    await settle()
+  }
+  return rows
+}
+
+// One at a time: the page measures itself on load and again on the button, and
+// `run.mjs` asks as well. Two of these interleaved read each other's scroll.
+let running = Promise.resolve()
+function measure() {
+  running = running.then(read)
+  return running
+}
+
+async function read() {
+  const doc = await states(docStick, page)
+  const inPanel = await states(panelStick, port)
+  const glued = await measureGlue()
+  const pin = await measurePin()
+  const intoView = await measureIntoView()
+  const padding = await measurePadding()
+  const all = { doc, panel: inPanel, glue: glued, pin, intoView, padding }
+  render(all)
+  return all
+}
+
+const names = ['offset', 'inset', 'static']
+const flag = (ok, yes, no) => `<td class="${ok ? 'yes' : 'no'}">${ok ? yes : no}</td>`
+
+function stateRows(rows) {
+  const head =
+    '<tr><th>state</th><th>at</th><th>rect.top</th><th>offsetTop</th><th>held</th>' +
+    names.map((n) => `<th>${n}</th>`).join('') +
+    '</tr>'
+  return (
+    head +
+    rows
+      .map((r) => {
+        const cells = names.map((n) => {
+          const value = r.candidates[n]
+          if (value === null) return '<td>—</td>'
+          const right = says(n, value) === r.held
+          return `<td class="${right ? 'yes' : 'no'}">${value} · ${right ? 'agrees' : 'WRONG'}</td>`
+        })
+        return (
+          `<tr><td>${r.label}</td><td>${r.at}</td><td>${r.rectTop}</td><td>${r.offsetTop}</td>` +
+          `<td>${r.held ? 'pinned' : 'riding'}</td>` +
+          cells.join('') +
+          '</tr>'
+        )
+      })
+      .join('')
+  )
+}
+
+function render(all) {
+  document.getElementById('doc').innerHTML = stateRows(all.doc)
+  document.getElementById('panel-table').innerHTML = stateRows(all.panel)
+  document.getElementById('glue-table').innerHTML =
+    '<tr><th>offset</th><th>scrollTo</th><th>dx</th><th>dy</th><th>size</th><th>on the scrollport</th></tr>' +
+    all.glue.rows
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.at}</td><td>${r.dx}</td><td>${r.dy}</td><td>${r.size}</td>` +
+          flag(r.glued, 'glued', 'DRIFTED') +
+          '</tr>',
+      )
+      .join('') +
+    `<tr><td>scrollable area</td><td>${all.glue.grew.before}</td>` +
+    `<td colspan="3">${all.glue.grew.after} with the layer mounted</td>` +
+    flag(all.glue.grew.same, 'unchanged', 'GREW') +
+    '</tr>'
+  document.getElementById('pin-table').innerHTML =
+    '<tr><th>reading</th><th>taken at</th><th>pin predicted at</th><th>3px short</th>' +
+    '<th>2px past</th><th>verdict</th></tr>' +
+    all.pin
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.from}</td><td>${r.predicted}</td>` +
+          `<td>${r.shortHeld ? 'pinned' : 'riding'}</td><td>${r.pastHeld ? 'pinned' : 'riding'}</td>` +
+          flag(r.right, 'the pin is there', 'WRONG') +
+          '</tr>',
+      )
+      .join('')
+  document.getElementById('padded-table').innerHTML =
+    `<tr><th>reading</th><th>at</th><th>dx</th><th>dy</th><th>rests on (padding ${all.padding.pad})</th></tr>` +
+    all.padding.rows
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.at}</td><td>${r.dx}</td><td>${r.dy}</td>` +
+          flag(r.rests === r.want, r.rests, `${r.rests} — expected ${r.want}`) +
+          '</tr>',
+      )
+      .join('')
+  document.getElementById('into-table').innerHTML =
+    '<tr><th>trip</th><th>offset before</th><th>offset after</th><th>scrolled</th><th>ends</th></tr>' +
+    all.intoView
+      .map(
+        (r) =>
+          `<tr><td>${r.label}</td><td>${r.before}</td><td>${r.after}</td>` +
+          `<td>${r.moved ? 'moved' : 'stayed'}</td>` +
+          flag(r.pinned, 'pinned', 'riding') +
+          '</tr>',
+      )
+      .join('')
+}
+
+document.getElementById('env').textContent = navigator.userAgent
+document.getElementById('measure').addEventListener('click', () => void measure())
+window.spikeSticky = { measure }
+void measure()
+</script>
+
+</body>
+</html>

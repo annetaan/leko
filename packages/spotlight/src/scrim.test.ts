@@ -12,6 +12,7 @@ const scrims: Scrim[] = []
 afterEach(() => {
   for (const scrim of scrims.splice(0)) scrim.destroy()
   for (const restore of gutters.splice(0)) restore()
+  for (const box of panels.splice(0)) box.remove()
 })
 
 function mountScrim(surface: Surface = { kind: 'document' }): Scrim {
@@ -90,4 +91,64 @@ test('the gutter going mid-step leaves the viewport layer covering everything', 
   expect(document.documentElement.clientWidth).toBe(window.innerWidth)
   expect(scrim.element.style.width).toBe(drawn)
   expect(scrim.element.style.width).toBe(`${document.documentElement.clientWidth}px`)
+})
+
+/** A panel with more inside it than it shows, cleaned up after the test. */
+function panel(): HTMLElement {
+  const box = document.createElement('div')
+  Object.assign(box.style, {
+    position: 'relative',
+    width: '200px',
+    height: '140px',
+    overflow: 'auto',
+    border: '7px solid black',
+    padding: '11px',
+  })
+  const content = document.createElement('div')
+  Object.assign(content.style, { width: '900px', height: '900px' })
+  box.append(content)
+  document.body.append(box)
+  panels.push(box)
+  return box
+}
+
+const panels: HTMLElement[] = []
+
+test('a glued layer sits on the scrollport at every offset', () => {
+  // DESIGN.md, **A layer glued to a scrollport is what `position: fixed` cannot
+  // say**, and `spike/a-sticky-target-pinning/` measured this shape in four
+  // engines before it was written here.
+  const box = panel()
+  const scrim = mountScrim({ kind: 'glued', element: box })
+  const port = (): DOMRect => {
+    const r = box.getBoundingClientRect()
+    return new DOMRect(
+      r.left + box.clientLeft,
+      r.top + box.clientTop,
+      box.clientWidth,
+      box.clientHeight,
+    )
+  }
+
+  for (const [x, y] of [
+    [0, 0],
+    [180, 240],
+    [box.scrollWidth, box.scrollHeight],
+  ]) {
+    box.scrollTo(x!, y!)
+    const on = scrim.element.getBoundingClientRect()
+    const want = port()
+    expect(on.left).toBeCloseTo(want.left, 1)
+    expect(on.top).toBeCloseTo(want.top, 1)
+    expect(on.width).toBeCloseTo(want.width, 1)
+    expect(on.height).toBeCloseTo(want.height, 1)
+  }
+})
+
+test('a glued layer does not grow the scroller it is mounted in', () => {
+  const box = panel()
+  const [w, h] = [box.scrollWidth, box.scrollHeight]
+  mountScrim({ kind: 'glued', element: box })
+  expect(box.scrollWidth).toBe(w)
+  expect(box.scrollHeight).toBe(h)
 })

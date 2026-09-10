@@ -10,7 +10,7 @@
  * viewport, so its layer is too**.
  */
 
-import { type Point, type Rect, shift } from './geometry.js'
+import { heldAgainst, inset, type Point, type Rect, shift, type StickyInsets } from './geometry.js'
 
 /**
  * What carries a layer of the scrim when the page moves.
@@ -21,15 +21,26 @@ import { type Point, type Rect, shift } from './geometry.js'
  * a target that `position: fixed` holds against it. A layer on that last
  * surface is fixed itself, the size of the viewport, and nothing about it
  * moves on scroll — which is the point, since nothing about its target does.
+ *
+ * `glued` is the same move one scroller in: what carries a `position: sticky`
+ * target that has pinned is the scroller's scrollport rather than its content,
+ * so the layer is held there while the content goes by. It is to `scroller`
+ * what `viewport` is to `document`, and `position: fixed` cannot say it —
+ * DESIGN.md, **A layer glued to a scrollport is what `position: fixed` cannot
+ * say**.
  */
 export type Surface =
   | { kind: 'viewport' }
   | { kind: 'document' }
   | { kind: 'scroller'; element: HTMLElement }
+  | { kind: 'glued'; element: HTMLElement }
 
 export function sameSurface(a: Surface, b: Surface): boolean {
-  if (a.kind === 'scroller' && b.kind === 'scroller') return a.element === b.element
-  return a.kind === b.kind
+  if (a.kind !== b.kind) return false
+  if (a.kind === 'scroller' || a.kind === 'glued') {
+    return a.element === (b as { element: HTMLElement }).element
+  }
+  return true
 }
 
 /**
@@ -43,9 +54,122 @@ export function sameSurface(a: Surface, b: Surface): boolean {
  * ancestors — not the scroller it is written inside, not the document. It is
  * carried by the viewport alone, unless an ancestor has taken it back into
  * the flow; see {@link heldBy}.
+ *
+ * A sticky element is carried by its ancestors the way anything in the flow
+ * is, right up until it pins, and then by the scrollport it is held against;
+ * see {@link heldAt}.
  */
 export function surfaceChain(el: Element): Surface[] {
-  return getComputedStyle(el).position === 'fixed' ? heldBy(el) : carriedBy(el.parentElement)
+  return outside(el, getComputedStyle(el))
+}
+
+/**
+ * What carries `node` from `node` outwards, its own scroll excepted.
+ *
+ * Both questions a position asks, in the one place either is asked, so that a
+ * target and every ancestor between it and the document get the same answer:
+ * a button in a fixed toolbar is the viewport's, and a button in a sticky bar
+ * that has pinned is that bar's scrollport's.
+ */
+function outside(node: Element, style: CSSStyleDeclaration): Surface[] {
+  if (style.position === 'fixed') return heldBy(node)
+  const chain = carriedBy(node.parentElement)
+  return style.position === 'sticky' ? heldAt(node, chain, insetsOf(style)) : chain
+}
+
+/**
+ * The chain of a sticky element that has pinned: the innermost surface
+ * swapped for the scrollport holding it, and everything outside it left alone.
+ *
+ * DESIGN.md argues the two states under **A sticky target is drawn in the
+ * state it is in, and there are two**, and why the answer is read from the
+ * inset under **Pinned is read from the inset, never from `offsetTop`**.
+ *
+ * The outer surfaces stay because a glued layer lives inside its scroller and
+ * travels with it: the page scrolling still moves the panel, and the document
+ * layer over it is as necessary as it ever was. A chain innermost at the
+ * document swaps to the viewport, which is the same layer `position: fixed`
+ * already gets, and one already inside a fixed subtree is held twice over and
+ * is left as it stands.
+ */
+function heldAt(el: Element, chain: Surface[], insets: StickyInsets): Surface[] {
+  const [innermost, ...outer] = chain
+  if (!innermost) return chain
+  const port = stickyPortOf(innermost)
+  if (!port) return chain
+  const r = el.getBoundingClientRect()
+  const box = { x: r.left, y: r.top, width: r.width, height: r.height }
+  if (!heldAgainst(box, port, insets)) return chain
+  if (innermost.kind === 'document') return [{ kind: 'viewport' }]
+  if (innermost.kind !== 'scroller') return chain
+  return [{ kind: 'glued', element: innermost.element }, ...outer]
+}
+
+/**
+ * The rectangle a sticky element is held within: the scrollport less the
+ * scroller's own padding.
+ *
+ * Not {@link scrollportOf}, which is the padding box. An element asking for
+ * `top: 0` comes to rest on the content box rather than the padding box, so a
+ * scroller with padding would read as riding by exactly that padding —
+ * DESIGN.md, **A layer glued to a scrollport is what `position: fixed` cannot
+ * say**, which is the same fact the glued layer's own insets take back off.
+ */
+function stickyPortOf(surface: Surface): Rect | undefined {
+  const port = scrollportOf(surface)
+  if (!port) return undefined
+  const el = surface.kind === 'scroller' ? surface.element : document.documentElement
+  const style = getComputedStyle(el)
+  return inset(port, {
+    top: px(style.paddingTop),
+    right: px(style.paddingRight),
+    bottom: px(style.paddingBottom),
+    left: px(style.paddingLeft),
+  })
+}
+
+/** The four sticky insets as numbers, `auto` as `null`. */
+function insetsOf(style: CSSStyleDeclaration): StickyInsets {
+  return {
+    top: asked(style.top),
+    right: asked(style.right),
+    bottom: asked(style.bottom),
+    left: asked(style.left),
+  }
+}
+
+/** A length in px, or `0` where there is none. */
+const px = (value: string): number => parseFloat(value) || 0
+
+/** A used inset in px, or `null` for the `auto` that asks for nothing. */
+const asked = (value: string): number | null => {
+  const n = parseFloat(value)
+  return Number.isNaN(n) ? null : n
+}
+
+/**
+ * What a surface can be scrolled within, in viewport coordinates, or nothing
+ * where it cannot be scrolled at all.
+ *
+ * The client box rather than the border box, both times: a scrollbar's gutter
+ * is not somewhere a target can be brought to, and neither is a border. It is
+ * also the box a sticky descendant is held against, which is why this is here
+ * rather than in `glide.ts`, which was where it started.
+ */
+export function scrollportOf(surface: Surface): Rect | undefined {
+  if (surface.kind === 'viewport' || surface.kind === 'glued') return undefined
+  if (surface.kind === 'document') {
+    const root = document.documentElement
+    return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+  }
+  const el = surface.element
+  const r = el.getBoundingClientRect()
+  return {
+    x: r.left + el.clientLeft,
+    y: r.top + el.clientTop,
+    width: el.clientWidth,
+    height: el.clientHeight,
+  }
 }
 
 /**
@@ -83,8 +207,9 @@ function carriedBy(node: Element | null): Surface[] {
   const overflows = node.scrollHeight > node.clientHeight || node.scrollWidth > node.clientWidth
   const own: Surface[] =
     scrolls && overflows && node instanceof HTMLElement ? [{ kind: 'scroller', element: node }] : []
-  const rest = style.position === 'fixed' ? heldBy(node) : carriedBy(node.parentElement)
-  return [...own, ...rest]
+  // `node`'s own scroll is inside whatever holds `node`, so a pin outside it
+  // leaves it alone: what is glued is the surface `own` sits in, not `own`.
+  return [...own, ...outside(node, style)]
 }
 
 /**
@@ -114,9 +239,13 @@ export function originOf(surface: Surface): Point {
   if (surface.kind === 'document') return { x: -window.scrollX, y: -window.scrollY }
   const container = surface.element
   const c = container.getBoundingClientRect()
+  // A glued layer is held on the padding box and the scroll goes by underneath
+  // it, so its space begins there and the offsets are no part of it. That is
+  // the whole of the difference between the two kinds.
+  const scrolled = surface.kind === 'scroller'
   return {
-    x: c.left + container.clientLeft - container.scrollLeft,
-    y: c.top + container.clientTop - container.scrollTop,
+    x: c.left + container.clientLeft - (scrolled ? container.scrollLeft : 0),
+    y: c.top + container.clientTop - (scrolled ? container.scrollTop : 0),
   }
 }
 

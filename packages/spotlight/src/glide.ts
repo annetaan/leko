@@ -22,7 +22,7 @@ import {
   union,
 } from './geometry.js'
 import { animates } from './motion.js'
-import { type Surface, surfaceChain } from './surface.js'
+import { scrollportOf, type Surface, surfaceChain } from './surface.js'
 
 /**
  * A glide in flight: when the page has stopped, and how to stop it.
@@ -59,7 +59,9 @@ export type ScrollMode = 'direct' | 'staged'
  * needs no scroll is never waited on**.
  *
  * A `viewport` surface is skipped whichever mode is asked for: DESIGN.md,
- * **A `position: fixed` target is not scrolled**.
+ * **A `position: fixed` target is not scrolled**. A pinned sticky target skips
+ * its own port for the same reason — scrolling the port it is held against
+ * does not move it.
  *
  * **The box around every element is what is brought in, and the first element
  * is what is scrolled.** DESIGN.md argues the first half, and what measuring
@@ -111,7 +113,7 @@ function direct(
   const [anchor] = lit
   const asked = roomAround(anchor, room)
   for (const surface of surfaceChain(anchor)) {
-    const port = scrollport(surface)
+    const port = scrollportOf(surface)
     if (!port) continue
     const delta = scrollDelta(outset(around(lit), asked), port)
     if (delta.x === 0 && delta.y === 0) continue
@@ -156,7 +158,7 @@ function staged(
 ): Glide | undefined {
   const [anchor] = lit
   const ports = surfaceChain(anchor).flatMap((surface) => {
-    const port = scrollport(surface)
+    const port = scrollportOf(surface)
     return port ? [{ surface, port, from: offsetOf(surface), limit: limitOf(surface) }] : []
   })
   const destinations = scrollStages(outset(around(lit), roomAround(anchor, room)), ports)
@@ -354,28 +356,5 @@ function roomAround(el: Element, room: number): Insets {
     right: side(style.scrollMarginRight),
     bottom: side(style.scrollMarginBottom),
     left: side(style.scrollMarginLeft),
-  }
-}
-
-/**
- * What a surface can be scrolled within, in viewport coordinates, or nothing
- * where it cannot be scrolled at all.
- *
- * The client box rather than the border box, both times: a scrollbar's gutter
- * is not somewhere a target can be brought to, and neither is a border.
- */
-function scrollport(surface: Surface): Rect | undefined {
-  if (surface.kind === 'viewport') return undefined
-  if (surface.kind === 'document') {
-    const root = document.documentElement
-    return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
-  }
-  const el = surface.element
-  const r = el.getBoundingClientRect()
-  return {
-    x: r.left + el.clientLeft,
-    y: r.top + el.clientTop,
-    width: el.clientWidth,
-    height: el.clientHeight,
   }
 }

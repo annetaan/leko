@@ -15,6 +15,7 @@ import {
   chromeInsets,
   clipToSurface,
   hasArea,
+  heldAgainst,
   inset,
   holeImage,
   lerpCutouts,
@@ -23,14 +24,25 @@ import {
   padCutouts,
   type Rect,
   scrollDelta,
+  STICKY_SLACK,
   scrollStages,
   segmentAt,
   shift,
+  stickySlack,
   sideWithRoom,
+  type StickyInsets,
   union,
 } from './geometry.js'
 
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height })
+/** The sides an element asks for, with `auto` — which is `null` here — for the rest. */
+const insets = (asked: Partial<StickyInsets>): StickyInsets => ({
+  top: null,
+  right: null,
+  bottom: null,
+  left: null,
+  ...asked,
+})
 /** The SVG a hole layer carries, readable again. */
 const svgOf = (layer: string) =>
   decodeURIComponent(layer.replace(/^url\("data:image\/svg\+xml;utf8,|"\)$/g, ''))
@@ -683,4 +695,60 @@ test('a corner rect sits inside the viewport, gap in from both edges', () => {
     width: 120,
     height: 40,
   })
+})
+
+// --- what a sticky box's inset says about it
+//
+// The arithmetic behind which of a sticky target's two states it is in —
+// DESIGN.md, **Pinned is read from the inset, never from `offsetTop`**, and
+// `spike/a-sticky-target-pinning/` is the page that scored it against the two
+// tests it beat. The port here is the scrollport, in the same coordinates as
+// the box, which is what the caller reads.
+
+test('a sticky box sitting on its inset is held', () => {
+  const port = rect(0, 0, 400, 300)
+  expect(stickySlack(rect(20, 0, 200, 40), port, insets({ top: 0 })).y).toBe(0)
+  expect(heldAgainst(rect(20, 0, 200, 40), port, insets({ top: 0 }))).toBe(true)
+  // And with an inset of its own, which is what a bar under another bar has.
+  expect(stickySlack(rect(20, 56, 200, 40), port, insets({ top: 56 })).y).toBe(0)
+})
+
+test('a sticky box short of its inset is riding, by the scroll left to the pin', () => {
+  // 130px of scroll before the box reaches `top: 20`, which is what the spike
+  // showed the same number predicting to the pixel.
+  const slack = stickySlack(rect(20, 150, 200, 40), rect(0, 0, 400, 300), insets({ top: 20 }))
+  expect(slack.y).toBe(130)
+  expect(heldAgainst(rect(20, 150, 200, 40), rect(0, 0, 400, 300), insets({ top: 20 }))).toBe(false)
+})
+
+test('a sticky box pushed past its inset by the end of its containing block is riding', () => {
+  // Above its inset rather than short of it, which is the state the
+  // `position: static` test answers as pinned and this one does not.
+  const box = rect(20, -60, 200, 40)
+  const port = rect(0, 0, 400, 300)
+  expect(stickySlack(box, port, insets({ top: 0 })).y).toBe(-60)
+  expect(heldAgainst(box, port, insets({ top: 0 }))).toBe(false)
+})
+
+test('a bottom-sticky box is the same arithmetic against the far edge', () => {
+  const port = rect(0, 0, 400, 300)
+  // Sitting on `bottom: 10`: its foot is 10px above the port's.
+  expect(stickySlack(rect(20, 250, 200, 40), port, insets({ bottom: 10 })).y).toBe(0)
+  // Higher up the port, so there is still scroll to come before it pins.
+  expect(stickySlack(rect(20, 150, 200, 40), port, insets({ bottom: 10 })).y).toBe(100)
+})
+
+test('an axis with no inset holds nothing', () => {
+  const slack = stickySlack(rect(20, 0, 200, 40), rect(0, 0, 400, 300), insets({ top: 0 }))
+  expect(slack.x).toBeNull()
+  // Neither axis asking for anything is an element that never pins.
+  expect(heldAgainst(rect(20, 0, 200, 40), rect(0, 0, 400, 300), insets({}))).toBe(false)
+})
+
+test('half a pixel is still on the inset, and more is not', () => {
+  const port = rect(0, 0, 400, 300)
+  expect(STICKY_SLACK).toBe(0.5)
+  expect(heldAgainst(rect(20, 0.5, 200, 40), port, insets({ top: 0 }))).toBe(true)
+  expect(heldAgainst(rect(20, -0.5, 200, 40), port, insets({ top: 0 }))).toBe(true)
+  expect(heldAgainst(rect(20, 0.6, 200, 40), port, insets({ top: 0 }))).toBe(false)
 })

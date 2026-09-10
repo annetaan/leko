@@ -19,6 +19,7 @@ import { scrollsIntoView } from './scrolls-into-view.js'
 import { stagedScroll } from './staged-scroll.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
+import { stickyHeader } from './sticky-header.js'
 import { storySetup } from './story-setup.js'
 import { styledTour } from './styled-tour.js'
 import { svgTarget } from './svg-target.js'
@@ -49,6 +50,7 @@ export const cases: Case[] = [
   stagedScroll,
   hostEasing,
   fixedChrome,
+  stickyHeader,
   messageSides,
   hostChrome,
   targetNotThereYet,

@@ -463,6 +463,64 @@ test('a fixed target keeps its hole while the page scrolls under it', () => {
   window.scrollTo(0, 0)
 })
 
+test('a pinned sticky target keeps its hole while the page scrolls under it', () => {
+  // The second of a sticky target's two states — DESIGN.md, **A sticky target
+  // is drawn in the state it is in, and there are two**. The page is taken past
+  // the pin before the story starts, so the bar is held against the top of the
+  // screen when the step is drawn, and the layer is the viewport's.
+  const block = keep(document.createElement('div'))
+  block.style.position = 'relative'
+  const lead = document.createElement('div')
+  lead.style.height = '900px'
+  const bar = document.createElement('button')
+  bar.textContent = 'filters'
+  Object.assign(bar.style, { position: 'sticky', top: '0', display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '2400px'
+  block.append(lead, bar, tail)
+  document.body.append(block)
+  window.scrollTo(0, bar.getBoundingClientRect().top + window.scrollY + 300)
+
+  start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+
+  expect(getComputedStyle(scrim()!).position).toBe('fixed')
+  window.scrollTo(0, window.scrollY + 500)
+  expect(centre(bar)).toBe(bar)
+  window.scrollTo(0, 0)
+})
+
+test('a sticky target pinned inside a panel keeps its hole while the panel scrolls', () => {
+  // The other kind of pinned: held against a scrollport that is not the
+  // viewport, which `position: fixed` cannot express — DESIGN.md, **A layer
+  // glued to a scrollport is what `position: fixed` cannot say**.
+  const panel = keep(document.createElement('div'))
+  Object.assign(panel.style, {
+    position: 'relative',
+    width: '300px',
+    height: '200px',
+    overflow: 'auto',
+    padding: '8px',
+  })
+  const block = document.createElement('div')
+  block.style.position = 'relative'
+  const lead = document.createElement('div')
+  lead.style.height = '300px'
+  const head = document.createElement('button')
+  head.textContent = 'status'
+  Object.assign(head.style, { position: 'sticky', top: '0', display: 'block', height: '30px' })
+  const rows = document.createElement('div')
+  rows.style.height = '1200px'
+  block.append(lead, head, rows)
+  panel.append(block)
+  document.body.append(panel)
+  panel.scrollTop = 500
+
+  start([{ id: 'one', target: { elements: () => head, interactive: true } }])
+
+  panel.scrollTop = 900
+  expect(centre(head)).toBe(head)
+})
+
 test('a fixed element an ancestor has taken back into the flow rides the page', () => {
   // A transform on the card makes it the containing block, so the "fixed" badge
   // inside scrolls with the page. DESIGN.md, **Whether the viewport still holds

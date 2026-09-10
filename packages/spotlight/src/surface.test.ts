@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest'
 
-import { originOf, rectWithin, type Surface, surfaceChain } from './surface.js'
+import { originOf, rectWithin, sameSurface, type Surface, surfaceChain } from './surface.js'
 
 // Which surfaces carry a target, read the way the presenter reads them. In
 // three engines, because what an ancestor does to a fixed element is a claim
@@ -33,7 +33,9 @@ function scroller(style: Partial<CSSStyleDeclaration> = {}): HTMLElement {
 
 /** A chain as the words a reader would use for it. */
 const named = (chain: Surface[]): string[] =>
-  chain.map((s) => (s.kind === 'scroller' ? `scroller ${s.element.id}` : s.kind))
+  chain.map((s) =>
+    s.kind === 'scroller' || s.kind === 'glued' ? `${s.kind} ${s.element.id}` : s.kind,
+  )
 
 test('an element in the flow is carried by the document', () => {
   expect(named(surfaceChain(make({})))).toEqual(['document'])
@@ -229,4 +231,136 @@ test('a scroller inside a scroller has a space of its own, and it begins the sam
   // wrong one of them has somewhere to go wrong.
   beginsAt({ kind: 'scroller', element: inner }, marker)
   placedAt(deep, { kind: 'scroller', element: inner }, marker)
+})
+
+// --- which state a sticky target is in
+//
+// The two a sticky element has, read at the draw — DESIGN.md, **A sticky
+// target is drawn in the state it is in, and there are two**. In three engines
+// because the used inset and the box are both the engine's answer, and
+// `spike/a-sticky-target-pinning/` is the page that settled which reading to
+// take.
+
+/**
+ * A sticky bar in the page, with `above` px of its containing block over it and
+ * `below` under it, and enough after the block that the page can scroll past
+ * the end of it.
+ */
+function stickyInPage(above: number, below: number): HTMLElement {
+  const block = make({ position: 'relative', height: 'auto' })
+  make({ height: `${above}px` }, block)
+  const bar = make({ position: 'sticky', top: '0', height: '40px' }, block)
+  make({ height: `${below}px` }, block)
+  make({ height: '2000px' })
+  return bar
+}
+
+/** Where the page has to stand for `bar` to be sitting on its `top: 0`. */
+const pinsAt = (bar: Element): number => bar.getBoundingClientRect().top + window.scrollY
+
+test('a sticky target riding the page is carried by the document', () => {
+  const bar = stickyInPage(600, 1200)
+  expect(named(surfaceChain(bar))).toEqual(['document'])
+})
+
+test('a sticky target pinned to the page is carried by the viewport', () => {
+  const bar = stickyInPage(600, 1200)
+  window.scrollTo(0, pinsAt(bar) + 200)
+  // The document's scrollport is the viewport, so pinned in the page is the
+  // layer a fixed target already gets.
+  expect(named(surfaceChain(bar))).toEqual(['viewport'])
+})
+
+test('a control inside a pinned bar is carried by the viewport too', () => {
+  // The question is asked of every ancestor, the way it is for a fixed
+  // toolbar: what a step points at is a button in the bar, not the bar.
+  const bar = stickyInPage(600, 1200)
+  const button = make({}, bar)
+  window.scrollTo(0, pinsAt(bar) + 200)
+  expect(named(surfaceChain(button))).toEqual(['viewport'])
+})
+
+test('a sticky target past the end of its containing block rides again', () => {
+  // Displaced by the whole block and moving with the page — the state the
+  // `position: static` probe answers as pinned, in every engine.
+  const bar = stickyInPage(600, 200)
+  window.scrollTo(0, pinsAt(bar) + 400)
+  expect(bar.getBoundingClientRect().top).toBeLessThan(0)
+  expect(named(surfaceChain(bar))).toEqual(['document'])
+})
+
+/** A sticky head in a panel, with `above` px of its containing block over it and `below` under it. */
+function stickyInPanel(above: number, below: number): HTMLElement {
+  const panel = make({ height: '200px', overflow: 'auto', position: 'relative' })
+  panel.id = 'panel'
+  const block = make({ position: 'relative', height: 'auto' }, panel)
+  make({ height: `${above}px` }, block)
+  const head = make({ position: 'sticky', top: '0', height: '30px' }, block)
+  make({ height: `${below}px` }, block)
+  make({ height: '1000px' }, panel)
+  return head
+}
+
+test('a sticky target riding inside a scroller has the scroller, then the document', () => {
+  const head = stickyInPanel(300, 800)
+  expect(named(surfaceChain(head))).toEqual(['scroller panel', 'document'])
+})
+
+test('a sticky target pinned inside a scroller is glued to its scrollport', () => {
+  const head = stickyInPanel(300, 800)
+  const panel = head.parentElement!.parentElement!
+  panel.scrollTop = 500
+  // The document stays: a glued layer lives in the panel, and the page
+  // scrolling still carries the panel.
+  expect(named(surfaceChain(head))).toEqual(['glued panel', 'document'])
+})
+
+test('a sticky target past the end of its block inside a scroller rides again', () => {
+  const head = stickyInPanel(300, 100)
+  const panel = head.parentElement!.parentElement!
+  panel.scrollTop = 600
+  expect(named(surfaceChain(head))).toEqual(['scroller panel', 'document'])
+})
+
+test('a glued surface begins at the scrollport, whatever the scroller is scrolled to', () => {
+  const panel = make({
+    position: 'relative',
+    width: '200px',
+    height: '120px',
+    overflow: 'auto',
+    border: '7px solid black',
+    padding: '11px',
+  })
+  make({ width: '900px', height: '900px' }, panel)
+  const glued: Surface = { kind: 'glued', element: panel }
+  const port = (): { x: number; y: number } => {
+    const r = panel.getBoundingClientRect()
+    return { x: r.left + panel.clientLeft, y: r.top + panel.clientTop }
+  }
+
+  // The padding box on screen, and no part of the scroll — which is the whole
+  // of what separates a glued layer from one riding the scroller's content.
+  expect(originOf(glued)).toEqual(originOf({ kind: 'scroller', element: panel }))
+  panel.scrollLeft = 60
+  panel.scrollTop = 90
+  const origin = originOf(glued)
+  expect(origin.x).toBeCloseTo(port().x, 2)
+  expect(origin.y).toBeCloseTo(port().y, 2)
+})
+
+test('two glued surfaces are the same one only when they name the same scroller', () => {
+  // What tells `stack` in `presenter.ts` to build the layers again. Comparing
+  // the kind alone would let a step pinned in one panel keep the layer mounted
+  // in another, and the hole would stay in the first panel's scrollport.
+  const one = make({})
+  const two = make({})
+  expect(sameSurface({ kind: 'glued', element: one }, { kind: 'glued', element: one })).toBe(true)
+  expect(sameSurface({ kind: 'glued', element: one }, { kind: 'glued', element: two })).toBe(false)
+  // And the two kinds a scroller can carry are not each other: the same panel
+  // riding its content and held against its port are different layers.
+  expect(sameSurface({ kind: 'glued', element: one }, { kind: 'scroller', element: one })).toBe(
+    false,
+  )
+  expect(sameSurface({ kind: 'viewport' }, { kind: 'document' })).toBe(false)
+  expect(sameSurface({ kind: 'viewport' }, { kind: 'viewport' })).toBe(true)
 })

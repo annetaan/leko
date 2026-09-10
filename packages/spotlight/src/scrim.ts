@@ -65,6 +65,31 @@ export class Scrim {
   private width = 0
   private height = 0
   /**
+   * The scroller's whole content, on a `glued` layer alone: what the wrapper of
+   * {@link glued} is sized to, while {@link width} and {@link height} stay the scrollport's,
+   * which is all a glued layer covers.
+   */
+  private spanWidth = 0
+  private spanHeight = 0
+  /**
+   * The scroller's own padding, on a `glued` layer alone: what {@link resize}
+   * writes back as the held child's insets, so that it lands on the padding
+   * box rather than the content box. DESIGN.md, **A layer glued to a
+   * scrollport is what `position: fixed` cannot say**.
+   */
+  private gluePad = { top: 0, left: 0 }
+  /**
+   * The pair a glued layer is mounted through, or `undefined` on any other.
+   *
+   * An absolutely positioned box the size of the scroller's content, holding a
+   * `position: sticky` child the size of the scrollport — the arrangement
+   * `spike/a-sticky-target-pinning/` measured, and DESIGN.md argues under
+   * **A layer glued to a scrollport is what `position: fixed` cannot say**.
+   * Removing the wrapper takes the child and the three layers inside it away
+   * with it, so a teardown has one element to remove here as everywhere else.
+   */
+  private readonly glued: { wrapper: HTMLElement; held: HTMLElement } | undefined
+  /**
    * Whether what is on screen is {@link converge}'s stretched cutouts rather
    * than a step's holes.
    *
@@ -117,13 +142,16 @@ export class Scrim {
     this.halo = halo
 
     // DESIGN.md, **A draw mounts its layers, then reads, then writes**.
-    const container = surface.kind === 'scroller' ? surface.element : null
+    const container =
+      surface.kind === 'scroller' || surface.kind === 'glued' ? surface.element : null
     if (container && getComputedStyle(container).position === 'static') {
       this.restorePosition = container.style.position
       container.style.position = 'relative'
     } else {
       this.restorePosition = null
     }
+
+    this.glued = container && surface.kind === 'glued' ? Scrim.glue(container) : undefined
 
     // Everything of this layer's is positioned alike, and the surface says
     // how: absolutely, to ride the scroller or the document it is inside, or
@@ -179,8 +207,44 @@ export class Scrim {
     this.mount().append(el, blocking, ...(this.haloLayer ? [this.haloLayer] : []))
   }
 
-  /** Where this layer's elements go: inside the scroller, or on the body for the other two. */
+  /**
+   * The pair that holds a glued layer on its scroller's scrollport, mounted.
+   *
+   * Both carry the stacking level the layers inside them use. A
+   * `position: sticky` element makes a stacking context whatever its
+   * `z-index`, so without it the layers' 9999 would be trapped inside a box at
+   * the scroller's own level and could go under a positioned sibling in there.
+   */
+  private static glue(container: HTMLElement): { wrapper: HTMLElement; held: HTMLElement } {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'leko-glue'
+    wrapper.setAttribute('aria-hidden', 'true')
+    Object.assign(wrapper.style, {
+      position: 'absolute',
+      left: '0',
+      top: '0',
+      zIndex: 'var(--leko-z, 9999)',
+      pointerEvents: 'none',
+    })
+    const held = document.createElement('div')
+    held.className = 'leko-glued'
+    // The insets {@link resize} writes; see {@link gluePad}.
+    Object.assign(held.style, {
+      position: 'sticky',
+      zIndex: 'var(--leko-z, 9999)',
+      pointerEvents: 'none',
+    })
+    wrapper.append(held)
+    container.append(wrapper)
+    return { wrapper, held }
+  }
+
+  /**
+   * Where this layer's elements go: held on the scrollport for a glued layer,
+   * inside the scroller for one riding it, and on the body for the other two.
+   */
   private mount(): HTMLElement {
+    if (this.glued) return this.glued.held
     return this.surface.kind === 'scroller' ? this.surface.element : document.body
   }
 
@@ -235,10 +299,26 @@ export class Scrim {
    */
   measure(): void {
     const root = document.documentElement
+    const surface = this.surface
+    if (surface.kind === 'glued') {
+      // The port is all a glued layer covers, the way the viewport's layer
+      // covers the viewport. The content behind it is the wrapper's business.
+      const el = surface.element
+      const style = getComputedStyle(el)
+      this.width = el.clientWidth
+      this.height = el.clientHeight
+      this.spanWidth = el.scrollWidth
+      this.spanHeight = el.scrollHeight
+      this.gluePad = {
+        top: parseFloat(style.paddingTop) || 0,
+        left: parseFloat(style.paddingLeft) || 0,
+      }
+      return
+    }
     const [w, h] =
-      this.surface.kind === 'scroller'
-        ? [this.surface.element.scrollWidth, this.surface.element.scrollHeight]
-        : this.surface.kind === 'viewport'
+      surface.kind === 'scroller'
+        ? [surface.element.scrollWidth, surface.element.scrollHeight]
+        : surface.kind === 'viewport'
           ? [window.innerWidth, window.innerHeight]
           : [
               Math.max(root.scrollWidth, window.innerWidth),
@@ -255,6 +335,18 @@ export class Scrim {
   resize(): void {
     const w = `${this.width}px`
     const h = `${this.height}px`
+    if (this.glued) {
+      Object.assign(this.glued.wrapper.style, {
+        width: `${this.spanWidth}px`,
+        height: `${this.spanHeight}px`,
+      })
+      Object.assign(this.glued.held.style, {
+        width: w,
+        height: h,
+        top: `${-this.gluePad.top}px`,
+        left: `${-this.gluePad.left}px`,
+      })
+    }
     this.element.style.width = w
     this.element.style.height = h
     this.blocking.style.width = w
@@ -399,8 +491,11 @@ export class Scrim {
         height: element.clientHeight,
       }
     }
-    // The viewport's layer is the viewport, so what is seen is the whole of it.
-    if (surface.kind === 'viewport') return { x: 0, y: 0, width: this.width, height: this.height }
+    // The viewport's layer is the viewport, and a glued one is its scrollport,
+    // so in both cases what is seen is the whole of the layer.
+    if (surface.kind === 'viewport' || surface.kind === 'glued') {
+      return { x: 0, y: 0, width: this.width, height: this.height }
+    }
     return {
       x: window.scrollX,
       y: window.scrollY,
@@ -677,8 +772,13 @@ export class Scrim {
     this.blocking.remove()
     this.haloLayer?.remove()
     this.marker?.remove()
-    if (this.surface.kind === 'scroller' && this.restorePosition !== null) {
-      this.surface.element.style.position = this.restorePosition
+    this.glued?.wrapper.remove()
+    const surface = this.surface
+    if (
+      (surface.kind === 'scroller' || surface.kind === 'glued') &&
+      this.restorePosition !== null
+    ) {
+      surface.element.style.position = this.restorePosition
     }
   }
 }

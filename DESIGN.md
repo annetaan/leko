@@ -703,12 +703,94 @@ and writes the layers, **at step boundaries, never per frame**.
   in another scroller, or fixed where the first is in the flow, is cut where it
   stood and drifts when the two move apart. That is drawn rather than refused:
   an application's chrome is fixed where the application put it, and a step
-  that shows a toolbar beside the panel it opens is a step worth writing.
-- **A sticky target is not a fixed one, and is not handled.** It rides the
-  scroll until it pins, and from then on is held the way a fixed element is,
-  until its containing block ends. A hole cut where it stood is right until
-  the pin and wrong after it. Two states with a layer for each is the shape
-  that fits here, and it is not built.
+  that shows a toolbar beside the panel it opens is a step worth writing. A
+  sticky region in the other state from the first one is the same rule again,
+  and takes the same answer.
+- **A sticky target is drawn in the state it is in, and there are two.** A
+  `position: sticky` element rides the scroll until it pins, is then held
+  against its scrollport's edge while everything under it moves, and rides
+  again once its containing block runs out. Riding, it is an in-flow element
+  and the layers it already had are exactly right. Pinned, it is held by the
+  scrollport rather than by the content, so its layer is held there too: the
+  document's scrollport is the viewport, which is the layer a fixed target
+  already gets, and a panel's is a layer glued to that panel. Which of the two
+  is read once, at the draw, from the boxes the draw is reading anyway, and
+  never again while the viewer scrolls. The chain outside the innermost layer
+  is untouched, because a glued layer still lives in its panel and the page
+  scrolling still carries the panel.
+- **Pinned is read from the inset, never from `offsetTop`.** The obvious test
+  — the element's box against where `offsetTop` says the flow put it — says
+  nothing at all: `offsetTop` reports the stuck position and grows with the
+  scroll for the whole pinned range, so the difference is zero in every state
+  and every engine. The exact-looking one — write `position: static`, read the
+  box again, put the style back — answers a different question, displacement
+  rather than held, and calls an element riding past the end of its containing
+  block pinned; it also writes to an element the application owns and flushes
+  layout to do it. What is asked instead is the element's box against its
+  scrollport's edge, less the used inset: zero when pinned, and right in every
+  state in Chromium, Firefox, WebKit and Safari
+  ([`spike/a-sticky-target-pinning/`](spike/a-sticky-target-pinning/)). It is
+  one `getBoundingClientRect`, one `getComputedStyle` and the scrollport's own
+  box, all three read at the draw already. `stickySlack` in
+  `packages/spotlight/src/geometry.ts` is the arithmetic, and it answers the
+  signed distance rather than a flag, because that distance is also the scroll
+  left before the element pins.
+- **A layer glued to a scrollport is what `position: fixed` cannot say.** There
+  is no way to hold a box against a scroller's port the way a fixed box is held
+  against the viewport, so the layer is made of two: an absolutely positioned
+  wrapper the size of the scroller's content, holding a `position: sticky`
+  child the size of the scrollport. Asked for at `top: 0; left: 0`, in a
+  scroller with no padding, that pair sits exactly on the padding box at every
+  offset on both axes, including both far corners, and adds nothing to the
+  scrollable area it is mounted in, in all four engines — table 3 of
+  [`spike/a-sticky-target-pinning/`](spike/a-sticky-target-pinning/). The
+  three layers inside it are written in the port's coordinates and none of them
+  moves on a scroll, so scroll tracking still runs no JS. Both halves of the
+  pair carry the stacking level, because a sticky element establishes a
+  stacking context whatever its `z-index` and would otherwise trap the layers'
+  own inside it. And both this layer and the reading above have to take the
+  scroller's padding off: a sticky element is held within the scrollport *less
+  that padding*, so a child asking for `top: 0` comes to rest 11px inside the
+  padding box of a panel with `padding: 11px` — which leaves that padding
+  undimmed, and makes a reading taken against the padding box call a pinned
+  header riding by exactly the same amount. So the reading compares against the
+  content box, and the glued child asks the padding back as a negative inset,
+  which puts it on the padding box at both ends of both axes. Those insets are
+  what Leko writes, so the spelling above is table 3's rather than the shipped
+  one: table 6 of the same page is what measured this one, in the same four
+  engines. For a target in the page this shape is not needed: the document's
+  scrollport is the viewport, and that is the fixed layer, saying the same
+  thing more cheaply.
+- **The hole is wrong only on the other side of the pin from where the step was
+  drawn.** That is the drift the two states buy, and it is named rather than
+  hidden. A header at the top of the document with `top: 0` has the same
+  position pinned and unpinned, so it is right at every offset. A bar under a
+  hero is right from the pin onwards and drifts only if the viewer scrolls back
+  above it. At the instant of the pin itself an element sitting exactly on its
+  inset is one pixel of scroll from pinning and is read as pinned; either
+  answer is right at that offset and wrong on one side of it. An element sticky
+  on two axes with only one of them held is drawn glued, and the free axis
+  drifts. Only the start edges are read — `top` and `left` — so an element
+  given both insets on an axis and held against its `bottom` or `right` reads
+  as riding. And the reading is taken against the innermost surface of the
+  chain, which is the innermost scroller that actually scrolls: an element
+  sticky against an ancestor that is not one — `overflow: hidden`, or
+  `overflow: auto` with nothing overflowing — is measured against the port
+  outside it instead, which is usually the viewport, so it reads as pinned only
+  where it happens to be sitting on that port's edge. `sticky-header.ts` is the
+  case, and it shows the drift rather than avoiding it.
+- **The exact answer is `animation-timeline: scroll()`, and it is not built.**
+  A scroll-driven animation would let the hole follow the whole piecewise-linear
+  path — flow position, then the inset, then flat again — with no JS per frame.
+  Four things stand in the way and none of them is settled: the support floor
+  it would need is not the one under **Browser support**; it runs on the
+  compositor, which is where [`spike/waapi-clip-path/`](spike/waapi-clip-path/)
+  found Chrome rasterising a clip path at the wrong scale; it would drive the
+  same inline `mask-position` the morph writes frame by frame, so the two would
+  need a handover; and the blocking rectangles, the halo and the anchor marker
+  would each need to follow as well. Two states are cheap, and the drift they
+  leave is a scroll back past a pin. If that stops being enough it wants a page
+  in `spike/` of its own.
 - **Every layer paints and catches nothing. Plain rectangles in the gaps
   between the open cutouts do the blocking.** A mask has no effect on
   hit-testing at all, so a masked scrim asking to be hit is a solid sheet over
@@ -1000,9 +1082,25 @@ tour is for.
   then whatever is left of the screen: a box that does not fit cannot be given
   clearance on its far side.
 - **A `position: fixed` target is not scrolled.** Its chain is the viewport
-  alone, which has nowhere to go. A sticky one is a different destination —
-  past the point where it pins rather than on screen — and belongs with the
-  rest of sticky, which is not built.
+  alone, which has nowhere to go. A sticky target that has pinned skips its own
+  port for the same reason — scrolling the port it is held against does not
+  move it — and is brought in by whatever ports are outside that one. One still
+  riding is brought in like anything else in the flow, and a trip that carries
+  it past its pin is drawn pinned, because the state is read after the page has
+  stopped rather than before it started: DESIGN.md, **Only an arrival scrolls**,
+  and the resolve and the measure both happen when the glide lands.
+- **"Past the pin" is not a second destination.** It is the obvious way to make
+  the state a step is drawn in the state it will stay in, and it is not built.
+  The movement that carries an element past its pin is a scroll of the very
+  port a pinned target skips, so the destination would need an exception saying
+  a surface that is not scrolled is scrolled after all. It is not always
+  reachable either — the containing block ends, the content ends — so riding
+  would still have to be drawn. And a trip to the middle of the port that
+  happens to cross the pin already lands pinned without it, while one that does
+  not cross it would have to be pushed past the target to get there, against
+  both **The middle of the port, not the nearest edge** and **A port that
+  already holds the cutout is not touched**. The arithmetic is `stickySlack`'s
+  and is already written down, so this stays cheap to add if it is ever wanted.
 - **Only an arrival scrolls.** The call sits in `arrive` in `presenter.ts`,
   which `show` is, between the target resolving and anything being measured,
   and what it answered goes into the `show` event as a fact. Every redraw goes

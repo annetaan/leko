@@ -807,3 +807,75 @@ button:disabled {
   font-size: 12px;
   font-weight: 600;
 }
+
+/*
+ * `sticky-header.ts`. Everything above the bar, and tall enough that the page
+ * spends a real scroll getting past it — the bar rides while any of this is
+ * still on screen and is held against the top of the screen afterwards, which
+ * is the pair of states the case is about.
+ */
+.sticky-case .sticky-hero {
+  min-height: 420px;
+  max-width: 680px;
+  padding-top: 40px;
+}
+
+/*
+ * The bar itself. `top: 0` with no inset of its own, which is what a filter bar
+ * or a table head is, and the state the spike measured.
+ */
+.sticky-case .sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sticky-case .sticky-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sticky-case .sticky-bar button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * The second kind of pinned: a head held against a scrollport that is not the
+ * viewport. Short enough that a few rows scroll under it without the page
+ * moving at all.
+ */
+.sticky-case .sticky-panel {
+  height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sticky-case .sticky-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sticky-case .sticky-table th,
+.sticky-case .sticky-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.sticky-case .sticky-head th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}

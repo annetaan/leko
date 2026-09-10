@@ -739,7 +739,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private outerHoles(chain: Surface[]): (Cutout | undefined)[] {
     return this.layers.slice(1).map((layer, i) => {
       const nested = chain[i]
-      if (nested?.kind !== 'scroller') return undefined
+      // Either kind of layer inside a scroller: one riding its content, or one
+      // glued to its scrollport. Both live in that panel, and an outer layer
+      // that did not cut a hole for them would dim it twice over.
+      if (nested === undefined) return undefined
+      if (nested.kind !== 'scroller' && nested.kind !== 'glued') return undefined
       // Match the scroller's own rounding, or its corners show through the hole.
       const radius = parseFloat(getComputedStyle(nested.element).borderTopLeftRadius) || 0
       // Always interactive. This hole is where the scrim below it lives, and a

@@ -25,6 +25,7 @@ tell you what you are allowed to assume.
 | [`the-scrollbar-gutter/`](the-scrollbar-gutter/) | Can a fixed scrim cover the document scrollbar's gutter, and what notices the scrollbar coming and going? |
 | [`a-smooth-scroll-settling/`](a-smooth-scroll-settling/) | How long does a smooth scroll take, what says when it is over, does a panel below the fold scroll at all, and can a glide be stopped or replaced part-way? |
 | [`a-static-scroller-made-relative/`](a-static-scroller-made-relative/) | What moves when a static scroller is given `position: relative`, and does it then ride the scroller's scroll? |
+| [`a-sticky-target-pinning/`](a-sticky-target-pinning/) | When is a `position: sticky` element pinned, does it say so, and can a layer be glued to a scroller's scrollport? |
 
 ## Reading them
 

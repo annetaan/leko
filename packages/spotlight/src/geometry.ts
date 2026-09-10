@@ -282,6 +282,77 @@ export const glideDuration = (distance: number, duration: number): number =>
  */
 export const GLIDE_BEAT = 300
 
+/**
+ * What a `position: sticky` element asks to be held at, one number per side,
+ * with `null` for the `auto` that asks for nothing.
+ *
+ * The strings `getComputedStyle` hands back are the caller's to turn into
+ * these — `surface.ts` is the only one that reads a style, and nothing here
+ * touches the DOM.
+ */
+export interface StickyInsets {
+  top: number | null
+  right: number | null
+  bottom: number | null
+  left: number | null
+}
+
+/**
+ * How much scrolling an axis has left before it pins, and `null` on an axis
+ * that asks for nothing.
+ *
+ * Zero is pinned, positive is the scroll still to come before it pins, and
+ * negative is an element the end of its containing block has pushed back off
+ * its inset and which is riding again. `spike/a-sticky-target-pinning/` is what
+ * says the distance is exactly the scroll left to the pin, and what the three
+ * candidate tests scored against each other.
+ *
+ * An axis given both insets is read against the start edge — `top`, `left` —
+ * and nothing else. A sticky element given both is held against whichever the
+ * scroll ran it into, so one held at its `bottom` reads here as riding.
+ * DESIGN.md names that with the rest of the drift under **The hole is wrong
+ * only on the other side of the pin from where the step was drawn**.
+ */
+export function stickySlack(
+  box: Rect,
+  port: Rect,
+  insets: StickyInsets,
+): { x: number | null; y: number | null } {
+  return {
+    x:
+      insets.left !== null
+        ? box.x - port.x - insets.left
+        : insets.right !== null
+          ? port.x + port.width - (box.x + box.width) - insets.right
+          : null,
+    y:
+      insets.top !== null
+        ? box.y - port.y - insets.top
+        : insets.bottom !== null
+          ? port.y + port.height - (box.y + box.height) - insets.bottom
+          : null,
+  }
+}
+
+/**
+ * How near an inset counts as sitting on it, in px.
+ *
+ * Half a pixel: the inset test matched the ground truth to within a tenth of
+ * one in every state and every engine `spike/a-sticky-target-pinning/`
+ * measured, and half a pixel is less than the scroll that separates riding
+ * from pinned.
+ */
+export const STICKY_SLACK = 0.5
+
+/** Whether either axis of a sticky box is being held against its port. */
+export function heldAgainst(box: Rect, port: Rect, insets: StickyInsets): boolean {
+  const slack = stickySlack(box, port, insets)
+  return (
+    (slack.x !== null && Math.abs(slack.x) <= STICKY_SLACK) ||
+    (slack.y !== null && Math.abs(slack.y) <= STICKY_SLACK)
+  )
+}
+
 /** A rect collapsed to nothing at its own centre. */
 export function collapse(rect: Rect): Rect {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: 0, height: 0 }
