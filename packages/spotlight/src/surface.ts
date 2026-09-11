@@ -184,6 +184,23 @@ const asked = (value: string): number | null => {
 }
 
 /**
+ * The layout viewport, in the space `getBoundingClientRect` answers in.
+ *
+ * **`clientWidth` and `clientHeight` on the root, not `innerWidth` and
+ * `innerHeight`.** The initial containing block has the scrollbar gutter taken
+ * off it, and a box read off the page is in that same space, so a comparison
+ * against `innerWidth` puts everything a gutter too far out. `close.ts` and
+ * `presenter.ts` both place chrome from this, and `in-viewport-first` asks
+ * whether a match is in it — DESIGN.md, **Which of several matches a selector
+ * means**. Pinch zoom is no part of it: `visualViewport` is a different space
+ * from the boxes this is compared with.
+ */
+export function layoutViewport(): Rect {
+  const root = document.documentElement
+  return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+}
+
+/**
  * What a surface can be scrolled within, in viewport coordinates, or nothing
  * where it cannot be scrolled at all.
  *
@@ -194,10 +211,7 @@ const asked = (value: string): number | null => {
  */
 export function scrollportOf(surface: Surface): Rect | undefined {
   if (surface.kind === 'viewport' || surface.kind === 'glued') return undefined
-  if (surface.kind === 'document') {
-    const root = document.documentElement
-    return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
-  }
+  if (surface.kind === 'document') return layoutViewport()
   const el = surface.element
   const r = el.getBoundingClientRect()
   return {

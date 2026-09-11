@@ -380,6 +380,15 @@ export function hasArea(rect: Rect): boolean {
   return rect.width > 0 && rect.height > 0
 }
 
+/**
+ * Whether two rects share any area. Touching along an edge is not overlapping,
+ * the way a rect of no area is not a hole in {@link hasArea}: a match resting
+ * exactly on the fold has nothing of itself on screen.
+ */
+export function overlaps(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
 const round = (n: number): number => Math.round(n * 100) / 100
 
 /** `n` held between `0` and `max`. A `max` below zero is no room to move at all. */

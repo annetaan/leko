@@ -3,7 +3,9 @@
  * questions about the element a step points at — DESIGN.md, **A failed
  * attempt** — so a step with no `target` is a `LekoUntargetedStep`, where both
  * are `never` and fail to compile even when they arrive on an object built
- * somewhere else.
+ * somewhere else. `resolve` is refused there by the same mechanism, being a
+ * question about which element a target means — DESIGN.md, **Which of several
+ * matches a selector means**.
  */
 import type { LekoStep, LekoTargetedStep } from '@annetaan/leko'
 import { assertType, type Equal } from './assert.js'
@@ -42,6 +44,21 @@ export const wordless: LekoStep = {
   message: 'Check the totals before going on.',
   error: 'Not yet.',
 }
+
+export const chosen: LekoStep = { id: 'a', target: '.row', resolve: 'visible-first' }
+
+// @ts-expect-error — which of several matches needs something matching.
+export const unresolvable: LekoStep = {
+  id: 'confirm',
+  message: 'Check the totals before going on.',
+  resolve: 'visible-first',
+}
+
+// The same structural refusal as below, for `resolve?: never`.
+const chosenSomewhereElse = { id: 'confirm', resolve: 'visible-first' as const }
+// @ts-expect-error — a rule for several matches does not find a target by
+// travelling through a variable.
+export const structurallyUnresolvable: LekoStep = chosenSomewhereElse
 
 // Not a fresh literal, so no excess-property check applies: `validate?: never`
 // on the untargeted step is what refuses this one.

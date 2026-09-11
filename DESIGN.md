@@ -147,9 +147,65 @@ flag past the rule structurally.
     is asked; a hole over something invisible is the story's mistake rather
     than a target Leko failed to find.
   - A selector whose first match is hidden matches nothing, rather than moving
-    on to the next match. Which of several matches a selector means is a
-    separate question and is not answered here.
+    on to the next match — unless the step asked for a rule that skips it:
+    **Which of several matches a selector means**, below.
   - See `hidden-target.ts`.
+
+### Which of several matches a selector means
+
+A selector that matches several elements means its first match. A step can ask
+for something narrower with `resolve`, and the instance can ask for every step
+at once — **Settings, and where they are read from**.
+
+- **`resolve: 'first'` takes the first match, and is the default.** It is what
+  a selector has always meant, and the default does not move: changing it would
+  quietly point existing tours at a different element, which is a tour that
+  breaks with nothing in it edited.
+- **`'visible-first'` takes the first match the viewer could see.** The
+  question is `checkVisibility({ visibilityProperty: true, opacityProperty:
+  true })`, and both options are named because `checkVisibility()` on its own
+  reports only what **An element with no box is not found** already answers —
+  `visibility` and `opacity` are off by default. So a match hidden by either,
+  which keeps its box and is therefore a match, is passed over for the next one
+  along.
+- **`'in-viewport-first'` asks that, and then that some of the match is inside
+  the layout viewport.** The layout viewport, in the space
+  `getBoundingClientRect` answers in — `layoutViewport` in
+  `packages/spotlight/src/surface.ts` is the one place that is said. Pinch zoom
+  is no part of it.
+
+**The rule narrows the candidates and then takes the first**, so a selector, a
+function, one element and a region all mean the same thing: a function is one
+candidate, and the element it hands back is put to the same question rather
+than moved on from. It is the step's answer for every element the step names,
+and it says nothing about `hostChrome`, which is not a step's target — **A
+host's own chrome is named once, and every reader takes the boxes**.
+
+**Nothing that passes is nothing found.** That is the ordinary missing target,
+and it takes the ordinary path: the retry window, and `target-lost` if nothing
+turns up — **Target loss & recovery**.
+
+**The rule is applied where every other resolution happens, after `onEnter`
+returns** — **The target is resolved after `onEnter` returns**. That is what
+lets a step reveal the copy it wants and then ask for a visible one, and it is
+also why `'in-viewport-first'` cannot be the default: a page the application
+has not scrolled yet has every right to keep the match below the fold.
+
+Two limits are worth saying out loud rather than discovering.
+
+- **A match scrolled out of a nested panel still passes
+  `'in-viewport-first'`.** What is asked is the viewport, and a match inside a
+  scroller that has been scrolled away from is in the viewport's area all the
+  same. Asking every ancestor scrollport instead is a read per port per
+  candidate, and the rule exists to pick an element rather than to describe one.
+- **`'in-viewport-first'` and `scroll` do not combine.** The rule is asked
+  before the glide — it is what the glide is given something to move to — so a
+  match off screen is not found and the step waits for a target the scroll was
+  going to bring in. The types cannot say that; `resolve` on
+  `LekoTargetedStep` does.
+
+`which-match.ts` is the case, and it runs all three rules over the same three
+matches.
 
 ### The message anchors to a marker, never to the target
 
@@ -359,8 +415,9 @@ not know a tour is running.
 
 ## Settings, and where they are read from
 
-- `padding`, `radius` and `scroll` are read from the step, then from the
-  instance, then a built-in default. `duration`, `easing`, `nextLabel`,
+- `padding`, `radius`, `scroll` and `resolve` are read from the step, then from
+  the instance, then a built-in default — `first` for `resolve`, and **Which of
+  several matches a selector means** is why that one does not move. `duration`, `easing`, `nextLabel`,
   `closeLabel` and `hostChrome` are read from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.

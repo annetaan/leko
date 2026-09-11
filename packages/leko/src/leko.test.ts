@@ -139,6 +139,112 @@ test('a step whose target has no box draws nothing at all', () => {
   expect(centre(corner)).toBe(corner)
 })
 
+// --- which of several matches a step means
+//
+// DESIGN.md, **Which of several matches a selector means**. `target.test.ts`
+// holds the rules; these are about a step asking for one and the hole landing
+// on the match it named.
+
+/**
+ * Two elements one selector matches, the first faded out. `opacity: 0` rather
+ * than `visibility: hidden` because both keep their boxes and only the first is
+ * still hit-testable, so a test can say which of the two the hole opened on.
+ */
+const copies = (): [HTMLElement, HTMLElement] => {
+  const inset = { width: '120px', height: '40px', left: '100px' }
+  const faded = box('faded', { ...inset, top: '100px', opacity: '0' })
+  const seen = box('seen', { ...inset, top: '300px' })
+  faded.className = 'copy'
+  seen.className = 'copy'
+  return [faded, seen]
+}
+
+test('a step resolves the visible copy when it asks for one', () => {
+  const [faded, seen] = copies()
+
+  start([{ id: 'one', target: { elements: '.copy', interactive: true }, resolve: 'visible-first' }])
+
+  expect(holes()).toBe(1)
+  expect(centre(seen)).toBe(seen)
+  // The first match kept its box, so `first` would have cut the hole here.
+  expect(absorbed(faded)).toBe(true)
+})
+
+test('the instance default reaches every step and a step overrides it', () => {
+  const [faded, seen] = copies()
+
+  const leko = holding(
+    {
+      id: 'copies',
+      steps: [
+        { id: 'inherits', target: { elements: '.copy', interactive: true } },
+        { id: 'overrides', target: { elements: '.copy', interactive: true }, resolve: 'first' },
+      ],
+    },
+    { resolve: 'visible-first' },
+  )
+  begin(leko, 'copies')
+
+  expect(centre(seen)).toBe(seen)
+
+  press()
+
+  // Back to what a selector has always meant, on the step that said so.
+  expect(centre(faded)).toBe(faded)
+  expect(absorbed(seen)).toBe(true)
+})
+
+test("the host's own chrome keeps the first match, whatever a step asked for", () => {
+  // Two copies of the host's account menu, the first of them faded out. The
+  // instance asks every step for a visible match, and `hostChrome` is not a
+  // step's target — DESIGN.md, **Which of several matches a selector means**.
+  const faded = box('menu', {
+    right: '16px',
+    top: '16px',
+    left: 'auto',
+    width: '180px',
+    height: '56px',
+    opacity: '0',
+  })
+  const seen = box('other menu', { left: '16px', top: '16px', width: '180px', height: '56px' })
+  faded.className = 'chrome'
+  seen.className = 'chrome'
+  const target = box('target', { left: '100px', top: '300px', width: '160px', height: '48px' })
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
+    resolve: 'visible-first',
+    hostChrome: '.chrome',
+  })
+
+  // So the faded copy at the top right is the box the way out stays off, and
+  // the control goes left. The rule would have taken the copy on the left
+  // instead and sent it the other way.
+  expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
+})
+
+test('a step that reveals its copy in onEnter gets that copy', () => {
+  const [faded, seen] = copies()
+  seen.style.display = 'none'
+
+  // The rule is applied after `onEnter` returns — DESIGN.md, **The target is
+  // resolved after `onEnter` returns** — so the copy a step opens the panel for
+  // is a copy the rule can reach. Without the reveal there is nothing that
+  // passes: the faded one is skipped and this one has no box.
+  start([
+    {
+      id: 'one',
+      target: { elements: '.copy', interactive: true },
+      resolve: 'visible-first',
+      onEnter: () => {
+        seen.style.display = ''
+      },
+    },
+  ])
+
+  expect(centre(seen)).toBe(seen)
+  expect(absorbed(faded)).toBe(true)
+})
+
 test('a step that says nothing shows its target and does not hand it over', () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
 

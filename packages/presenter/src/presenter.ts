@@ -10,11 +10,13 @@ import {
   FocusRing,
   grow,
   inset,
+  layoutViewport,
   Message,
   type MessageContent,
   paddingBoxWithin,
   portsOf,
   type Rect,
+  type ResolveMode,
   resolveTarget,
   resolveTargets,
   sameSurface,
@@ -115,9 +117,9 @@ const openElements = (holes: readonly Hole[] | null): Element[] => {
  * regions not at all. DESIGN.md argues both under **Bringing a target into
  * view**, and `scrolls-into-view.ts` shows them.
  */
-const lit = (step: LekoStep, anchor: Element): [Element, ...Element[]] => {
+const lit = (step: LekoStep, anchor: Element, resolve: ResolveMode): [Element, ...Element[]] => {
   const [, ...rest] = regionsOf(step.target)[0]?.elements ?? []
-  return [anchor, ...resolveTargets(rest)]
+  return [anchor, ...resolveTargets(rest, resolve)]
 }
 
 /**
@@ -199,9 +201,17 @@ export class DomPresenter implements Presenter<LekoWorld> {
     return asked === true ? 'direct' : asked
   }
 
+  /**
+   * Which of several matches this step means. **`'first'` unless somebody
+   * asks** — DESIGN.md, **Which of several matches a selector means**.
+   */
+  private resolves(step: LekoStep): ResolveMode {
+    return step.resolve ?? this.options.resolve ?? 'first'
+  }
+
   resolve(step: LekoStep): Element | null {
     const action = actionTarget(step.target)
-    return action === undefined ? null : resolveTarget(action)
+    return action === undefined ? null : resolveTarget(action, this.resolves(step))
   }
 
   /**
@@ -226,11 +236,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // is one rectangle over everything. That is the whole of what a step that
     // waits looks like, so it is the empty list rather than the `null` below.
     if (regions.length === 0) return []
+    const resolve = this.resolves(step)
     const cut = regions.map((region, i) =>
       hole(
         i === 0 && anchor !== undefined
-          ? [...(anchor ? [anchor] : []), ...resolveTargets(region.elements.slice(1))]
-          : resolveTargets(region.elements),
+          ? [...(anchor ? [anchor] : []), ...resolveTargets(region.elements.slice(1), resolve)]
+          : resolveTargets(region.elements, resolve),
         region.interactive,
       ),
     )
@@ -273,17 +284,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /**
    * The part of the page left for what Leko draws.
    *
-   * **The layout viewport, not `innerWidth` and `innerHeight`.** Everything
-   * placed from this is `position: fixed`, so it is laid out against the
-   * initial containing block, which is `clientWidth` and `clientHeight` on the
-   * root with the scrollbar gutter taken off — and the boxes it is compared
-   * against came from `getBoundingClientRect`, which is in that same space. The
+   * The layout viewport, because everything placed from this is
+   * `position: fixed` and the boxes it is compared against came from
+   * `getBoundingClientRect` — `layoutViewport` is where that is argued. The
    * scrim goes the other way and is sized past it on purpose: DESIGN.md, **That
    * layer is sized past the layout viewport on purpose, gutter included**.
    */
   private static roomIn(chrome: readonly Rect[]): Rect {
-    const root = document.documentElement
-    const viewport = { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+    const viewport = layoutViewport()
     return inset(viewport, chromeInsets(viewport.width, viewport.height, chrome))
   }
 
@@ -321,7 +329,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const glide =
       anchor && mode
         ? bringIntoView(
-            lit(step, anchor),
+            lit(step, anchor, this.resolves(step)),
             this.setting(step, 'padding'),
             this.duration(),
             mode,

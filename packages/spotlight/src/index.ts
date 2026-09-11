@@ -23,7 +23,7 @@ export {
   type Side,
   union,
 } from './geometry.js'
-export { resolveTarget, resolveTargets } from './target.js'
+export { type ResolveMode, resolveTarget, resolveTargets } from './target.js'
 export { Close } from './close.js'
 export { FocusRing } from './focus.js'
 export { Message, type MessageContent } from './message.js'
@@ -31,6 +31,7 @@ export { type HaloMode, Scrim } from './scrim.js'
 export { bringIntoView, type Glide, type ScrollMode } from './glide.js'
 export {
   chainOf,
+  layoutViewport,
   paddingBoxWithin,
   portsOf,
   sameSurface,

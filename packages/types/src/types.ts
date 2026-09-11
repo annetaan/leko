@@ -7,9 +7,10 @@ type TargetFunction = () => Element | null
  * is also why there is no element form. DESIGN.md argues it under **A target
  * is a question**.
  *
- * A CSS selector is a question Leko runs, taking the **first** match — a
- * selector is never read as "every element that matches". A function is the
- * same question where the host runs it: return the element now, or `null` where
+ * A CSS selector is a question Leko runs, taking the first match — the first
+ * one that passes {@link LekoTargetedStep.resolve}, where a step asks for a
+ * rule, and a selector is never read as "every element that matches". A
+ * function is the same question where the host runs it: return the element now, or `null` where
  * there is not one yet. Reach for it when a selector cannot say what you mean —
  * a node inside a shadow root, which `document.querySelector` does not enter; a
  * framework ref; a row your own code picks out of a list.
@@ -21,10 +22,11 @@ type TargetFunction = () => Element | null
  *
  * **An element that is not rendered is not found.** `display: none` on it or on
  * anything it is inside, so a closed tab, a collapsed panel and a row a
- * framework is about to render all come to the same thing — and a selector
- * whose first match is hidden matches nothing rather than taking the next one
- * along. Open the panel in the step's `onEnter`, which runs before the target
- * is looked for. `visibility: hidden` and `opacity: 0` are not this: those keep
+ * framework is about to render all come to the same thing. A selector whose
+ * first match is one of those matches nothing rather than taking the next one
+ * along, unless the step asked for a rule that skips it —
+ * {@link LekoTargetedStep.resolve}. Open the panel in the step's `onEnter`,
+ * which runs before the target is looked for. `visibility: hidden` and `opacity: 0` are not this: those keep
  * a box, and a hole is cut at it. DESIGN.md argues all of it under **An element
  * with no box is not found**, and `hidden-target.ts` shows it.
  *
@@ -358,6 +360,43 @@ export interface LekoTargetedStep extends LekoStepBase {
   target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
 
   /**
+   * Which element this step means where a target matches several. Overrides
+   * {@link LekoOptions.resolve}, and is `'first'` unless one of the two asks.
+   *
+   * - `'first'` takes the first match, and is the default. What a selector has
+   *   always meant.
+   * - `'visible-first'` takes the first match the viewer could see: one hidden
+   *   by `visibility`, by `opacity: 0`, or by anything with no box at all is
+   *   passed over for the next one along.
+   * - `'in-viewport-first'` asks that as well, and then that some of the match
+   *   is inside the viewport.
+   *
+   * It is the step's answer for everything the step names: every element of
+   * every region, and a function target too — the answer a function hands back
+   * is put to the same rule, so one match or several, a selector or a function,
+   * all mean the same thing. It says nothing about
+   * {@link LekoOptions.hostChrome}, which is not a step's target.
+   *
+   * **The rule is applied after `onEnter` returns**, so a step may reveal the
+   * copy it wants first. That is also why `'in-viewport-first'` is not the
+   * default: a page the application has not scrolled yet has every right to
+   * have the match below the fold.
+   *
+   * **`'in-viewport-first'` and {@link LekoTargetedStep.scroll} do not
+   * combine.** The rule is
+   * asked before the glide, so a match that is off screen is not found, and
+   * there is nothing left for the scroll to bring in: the step waits and the
+   * tour ends with `target-lost`. Ask for one or the other.
+   *
+   * Nothing that passes is nothing found, and that is the ordinary missing
+   * target: the step waits its moment, resolving again, and ends the tour if
+   * nothing turns up. DESIGN.md argues the modes, and the limit around a match
+   * scrolled out of a nested panel, under **Which of several matches a selector
+   * means**; `which-match.ts` shows all three.
+   */
+  resolve?: 'first' | 'visible-first' | 'in-viewport-first'
+
+  /**
    * Called before advancing on the next control. Returning `false` blocks the
    * transition, shakes the cutout, and shows {@link error} where there is one.
    *
@@ -422,6 +461,11 @@ export interface LekoTargetedStep extends LekoStepBase {
 export interface LekoUntargetedStep extends LekoStepBase {
   /** Nothing to point at. What a `target` is, is {@link LekoTargetedStep.target}. */
   target?: never
+  /**
+   * Which of several matches is a question about a target, and there is none.
+   * See {@link LekoTargetedStep.resolve}.
+   */
+  resolve?: never
   /** A guard needs a target. See {@link LekoTargetedStep.validate}. */
   validate?: never
   /** The words for a failed guard, and there is no guard. See {@link LekoTargetedStep.error}. */
@@ -540,8 +584,8 @@ export interface LekoWorld {
 }
 
 /**
- * Defaults for every story on the instance. A step may override `padding` and
- * `radius`: the nearer of the two wins.
+ * Defaults for every story on the instance. A step may override `padding`,
+ * `radius`, `scroll` and `resolve`: the nearer of the two wins.
  *
  * **A story carries no settings** — DESIGN.md argues it under **Settings, and
  * where they are read from**.
@@ -564,6 +608,19 @@ export interface LekoOptions {
    * a target into view**.
    */
   scroll?: boolean | 'direct' | 'staged'
+
+  /**
+   * Which element every step means where a target matches several. Defaults to
+   * `'first'`, and a step may say either way.
+   *
+   * The whole of what it does is described on
+   * {@link LekoTargetedStep.resolve}. A host whose screens carry a hidden copy
+   * of the markup — a collapsed panel, a mobile layout beside a desktop one —
+   * asks for `'visible-first'` once, here. Why the default stays `'first'` is
+   * DESIGN.md's **Which of several matches a selector means**: changing it
+   * would quietly move what existing tours point at.
+   */
+  resolve?: 'first' | 'visible-first' | 'in-viewport-first'
 
   /**
    * How long a step-to-step morph runs, in ms. Defaults to `320`, and is

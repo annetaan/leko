@@ -25,6 +25,7 @@ import { styledTour } from './styled-tour.js'
 import { svgTarget } from './svg-target.js'
 import { targetNotThereYet } from './target-not-there-yet.js'
 import { twoStories } from './two-stories.js'
+import { whichMatch } from './which-match.js'
 
 // The plain one first, because it is the one to open while working on the
 // rendering — nothing to type before a step will move. After it, the order the
@@ -55,6 +56,7 @@ export const cases: Case[] = [
   hostChrome,
   targetNotThereYet,
   hiddenTarget,
+  whichMatch,
   insideShadowDom,
   svgTarget,
 ]

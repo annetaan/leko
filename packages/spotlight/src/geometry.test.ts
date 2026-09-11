@@ -17,6 +17,7 @@ import {
   clipToSurface,
   hasArea,
   heldAgainst,
+  overlaps,
   inset,
   holeImage,
   lerpCutouts,
@@ -355,6 +356,38 @@ test('hasArea tells a hole from a leftover', () => {
   expect(hasArea(rect(5, 5, 0, 10))).toBe(false)
 })
 
+test('overlaps is symmetric and answers no for two rects apart', () => {
+  const viewport = rect(0, 0, 100, 100)
+  const away = rect(200, 200, 40, 40)
+  expect(overlaps(viewport, away)).toBe(false)
+  expect(overlaps(away, viewport)).toBe(false)
+})
+
+test('overlaps says yes for a corner, a containment and either way round', () => {
+  const viewport = rect(0, 0, 100, 100)
+  for (const other of [rect(90, 90, 40, 40), rect(10, 10, 20, 20), rect(-50, -50, 400, 400)]) {
+    expect(overlaps(viewport, other)).toBe(true)
+    expect(overlaps(other, viewport)).toBe(true)
+  }
+})
+
+test('overlaps says no for two rects that only touch along an edge', () => {
+  // The same line hasArea draws: a match resting exactly on the fold has none
+  // of itself on screen.
+  const viewport = rect(0, 0, 100, 100)
+  expect(overlaps(viewport, rect(100, 0, 40, 40))).toBe(false)
+  expect(overlaps(viewport, rect(0, 100, 40, 40))).toBe(false)
+  expect(overlaps(viewport, rect(-40, 0, 40, 100))).toBe(false)
+})
+
+test('overlaps keeps a rect of no size that is inside all the same', () => {
+  // A rendered element of no size has a place on the page — `target.ts`'s
+  // `hasBox` is the same rule — so one inside the viewport is inside it. On the
+  // edge it is the case above, and is not.
+  expect(overlaps(rect(0, 0, 100, 100), rect(50, 50, 0, 0))).toBe(true)
+  expect(overlaps(rect(0, 0, 100, 100), rect(100, 50, 0, 0))).toBe(false)
+})
+
 test('lerpCutouts blends the geometry and takes the flag from the destination', () => {
   const from = [{ ...rect(0, 0, 100, 100), radius: 0, interactive: true }]
   const to = [{ ...rect(100, 200, 200, 300), radius: 16, interactive: false }]
@@ -492,16 +525,13 @@ test('a range with no room at all clamps to zero', () => {
   expect(clamp(-40, -100)).toBe(0)
 })
 
+const area = (rects: Rect[]): number =>
+  rects.reduce((sum, block) => sum + block.width * block.height, 0)
+
 // What the scrim blocks with. The property that matters is not the shape of the
 // answer but that no rectangle ever lands on a hole: that is what keeps a
 // scrollable target scrolling, and what makes constraint 1 true by construction
 // rather than by trusting a clip.
-const overlaps = (a: Rect, b: Rect): boolean =>
-  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
-
-const area = (rects: Rect[]): number =>
-  rects.reduce((sum, block) => sum + block.width * block.height, 0)
-
 test('the blocking rectangles never touch a hole, however the holes are placed', () => {
   const surfaces: Rect[][] = [
     [],

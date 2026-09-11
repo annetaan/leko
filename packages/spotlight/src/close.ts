@@ -1,4 +1,5 @@
 import { type Corner, cornerRect, freeCorner, type Rect } from './geometry.js'
+import { layoutViewport } from './surface.js'
 
 /** How far in from the viewport edges the control sits. */
 const GAP = 16
@@ -92,14 +93,12 @@ export class Close {
    * every time this is called, so it follows a step whose hole moved into the
    * corner this was in.
    *
-   * **The layout viewport, not `innerWidth` and `innerHeight`.** This box is
-   * `position: fixed`, so it is laid out against the initial containing block,
-   * and the boxes handed in came from `getBoundingClientRect`, which is in that
-   * same space. Measured against `innerWidth` the corner rect sits a scrollbar
-   * gutter too far out, and the one control that must always be pressable ends
-   * up under the scrollbar. The scrim goes the other way and is sized past the
-   * layout viewport on purpose: DESIGN.md, **That layer is sized past the
-   * layout viewport on purpose, gutter included**.
+   * Placed against {@link layoutViewport}, which is where the reason for that
+   * is written: this box is `position: fixed` and the boxes handed in came from
+   * `getBoundingClientRect`, so a gutter's worth of error would put the one
+   * control that must always be pressable under the scrollbar. The scrim goes
+   * the other way and is sized past that viewport on purpose: DESIGN.md, **That
+   * layer is sized past the layout viewport on purpose, gutter included**.
    */
   place(cutouts: readonly Rect[]): void {
     if (!this.element.isConnected) document.body.append(this.element)
@@ -112,8 +111,7 @@ export class Close {
     // Measured rather than assumed, because a host's own control is whatever
     // size it decided to be.
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
-    const root = document.documentElement
-    const [width, height] = [root.clientWidth, root.clientHeight]
+    const { width, height } = layoutViewport()
     this.corner = freeCorner(width, height, size, cutouts, GAP)
     const at = cornerRect(width, height, size, this.corner, GAP)
     Object.assign(this.element.style, {

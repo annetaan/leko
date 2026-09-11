@@ -6,6 +6,9 @@
  * where tests go**.
  */
 
+import { overlaps } from './geometry.js'
+import { layoutViewport } from './surface.js'
+
 /**
  * Anything the spotlight can be pointed at. Declared here rather than imported,
  * because the package this one is drawn for is the package that depends on it.
@@ -38,9 +41,50 @@ export type Target = string | (() => Element | null)
 export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
 
 /**
- * Ask a target where it is, now. Selectors take the first match; a selector is
- * never read as "all matches", because widening that later would silently
- * change what existing tours highlight.
+ * Whether an element is one the viewer can see, as far as style goes.
+ *
+ * Both options on, because `checkVisibility()` with no argument answers only
+ * the question {@link hasBox} already answers: `visibility` and `opacity` are
+ * off by default, so the bare call reports nothing about either.
+ *
+ * `true` where the method is missing, which degrades the rule to `'first'`
+ * rather than making every match invisible. `focus.ts`'s `reachable` stands the
+ * same way off the same method, and DESIGN.md's **Browser support** is why
+ * neither declares a floor.
+ */
+const shows = (el: Element): boolean => {
+  if (!el.checkVisibility) return true
+  return el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
+}
+
+/**
+ * Whether any of an element is inside the layout viewport.
+ *
+ * The box on screen against {@link layoutViewport}, which is the space that box
+ * is already in.
+ */
+const inViewport = (el: Element): boolean => {
+  const r = el.getBoundingClientRect()
+  return overlaps({ x: r.left, y: r.top, width: r.width, height: r.height }, layoutViewport())
+}
+
+/**
+ * Which of several matches a step means — DESIGN.md, **Which of several matches
+ * a selector means**, which is also where the known limits are.
+ */
+export type ResolveMode = 'first' | 'visible-first' | 'in-viewport-first'
+
+/** What a mode asks of a candidate on top of its having a box. */
+const passes = (el: Element, resolve: ResolveMode): boolean => {
+  if (resolve === 'first') return true
+  if (!shows(el)) return false
+  return resolve === 'visible-first' ? true : inViewport(el)
+}
+
+/**
+ * Ask a target where it is, now. A selector takes the first match that passes
+ * `resolve`; a selector is never read as "all matches", because widening that
+ * later would silently change what existing tours highlight.
  *
  * **Asked again every time anything needs the box** — DESIGN.md, **A target is
  * a question**. A function that hands back a node the document has let go of is
@@ -53,12 +97,35 @@ export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
  *
  * `isConnected` is asked first because it is free, and a node a framework has
  * replaced is the commonest no of the two.
+ *
+ * `'first'` keeps `querySelector`, which stops at the match it finds rather
+ * than building a list of every one. A function is one candidate whatever the
+ * mode, so the rule is applied to the element it hands back: candidates are
+ * narrowed and the first is taken, which is what makes a selector, a function,
+ * one element and a region all mean the same thing.
  */
-export function resolveTarget(target: Target): Element | null {
-  const el = typeof target === 'string' ? document.querySelector(target) : target()
-  return el?.isConnected && hasBox(el) ? el : null
+export function resolveTarget(target: Target, resolve: ResolveMode = 'first'): Element | null {
+  if (typeof target !== 'string') {
+    const el = target()
+    return el?.isConnected && hasBox(el) && passes(el, resolve) ? el : null
+  }
+  if (resolve === 'first') {
+    const el = document.querySelector(target)
+    return el?.isConnected && hasBox(el) ? el : null
+  }
+  for (const el of document.querySelectorAll(target)) {
+    if (el.isConnected && hasBox(el) && passes(el, resolve)) return el
+  }
+  return null
 }
 
-export function resolveTargets(targets: readonly Target[]): Element[] {
-  return targets.map(resolveTarget).filter((el): el is Element => el !== null)
+export function resolveTargets(
+  targets: readonly Target[],
+  resolve: ResolveMode = 'first',
+): Element[] {
+  // Spelled out rather than handed to `map`, which would pass the index along
+  // as the mode.
+  return targets
+    .map((target) => resolveTarget(target, resolve))
+    .filter((el): el is Element => el !== null)
 }

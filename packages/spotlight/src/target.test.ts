@@ -23,6 +23,20 @@ const planted = (style: string, id = 'planted'): Element => {
   return el
 }
 
+/**
+ * One of several matches: a `div` the same selector finds, in the order it was
+ * planted. `position: fixed` so that each is placed where the test says rather
+ * than after the last one, which is what lets one of them be off screen.
+ */
+const copy = (style: string): Element => {
+  const el = document.createElement('div')
+  el.className = 'copy'
+  el.setAttribute('style', `position: fixed; left: 0; width: 40px; height: 20px; ${style}`)
+  document.body.append(el)
+  mounted.push(el)
+  return el
+}
+
 /** A child of `parent`, which is how a hidden ancestor is put in the way. */
 const within = (parent: Element, style: string, id = 'inner'): Element => {
   const el = document.createElement('div')
@@ -100,4 +114,85 @@ test('a region drops the elements with no box and keeps the rest', () => {
   // the union reached from the origin of the viewport to the far edge of the
   // first.
   expect(resolveTargets(['#planted', '#hidden'])).toEqual([el])
+})
+
+// --- which of several matches a selector means
+//
+// The engine again: whether an element is one the viewer can see is
+// `checkVisibility` answering, and where its box falls is layout. DESIGN.md,
+// **Which of several matches a selector means**.
+
+test('a hidden first match is skipped for the next one under visible-first', () => {
+  const invisible = copy('top: 10px; visibility: hidden')
+  const faded = copy('top: 40px; opacity: 0')
+  const seen = copy('top: 70px')
+
+  // Both keep their boxes, so both are matches `hasBox` says yes to — the rule
+  // is what passes over them.
+  expect(hasBox(invisible)).toBe(true)
+  expect(hasBox(faded)).toBe(true)
+  expect(resolveTarget('.copy', 'visible-first')).toBe(seen)
+})
+
+test('the first match is still the answer under first', () => {
+  const invisible = copy('top: 10px; visibility: hidden')
+  copy('top: 40px')
+
+  // The default, unchanged: a selector means its first match, and asking for a
+  // rule is what changes that.
+  expect(resolveTarget('.copy')).toBe(invisible)
+  expect(resolveTarget('.copy', 'first')).toBe(invisible)
+})
+
+test('a match outside the viewport is skipped under in-viewport-first', () => {
+  const below = copy('top: 4000px')
+  const onScreen = copy('top: 40px')
+
+  expect(resolveTarget('.copy', 'in-viewport-first')).toBe(onScreen)
+  // Visible is not the same question: the one below the fold passes that one.
+  expect(resolveTarget('.copy', 'visible-first')).toBe(below)
+})
+
+test("a function's answer is filtered by the same rule", () => {
+  const invisible = copy('top: 10px; visibility: hidden')
+
+  // A function is one candidate, so the rule narrows it to none rather than
+  // moving on: the host decides which element it hands back.
+  expect(resolveTarget(() => invisible)).toBe(invisible)
+  expect(resolveTarget(() => invisible, 'visible-first')).toBeNull()
+})
+
+test('a region applies the rule to every element it names', () => {
+  const invisible = copy('top: 10px; visibility: hidden')
+  const seen = copy('top: 40px')
+  const other = planted('width: 40px; height: 20px', 'other')
+
+  // Each element of a region is asked the same question. It is also the
+  // regression for handing `resolveTarget` to `map`, which would pass the
+  // index along as the mode.
+  expect(resolveTargets(['.copy', '#other'], 'visible-first')).toEqual([seen, other])
+  expect(resolveTargets(['.copy', '#other'])).toEqual([invisible, other])
+})
+
+test('nothing passing the rule is nothing found', () => {
+  copy('top: 10px; visibility: hidden')
+  copy('top: 40px; opacity: 0')
+
+  // Which is the ordinary missing target: the caller waits and gives up, the
+  // same way it does for a selector that matches nothing at all.
+  expect(resolveTarget('.copy', 'visible-first')).toBeNull()
+  expect(resolveTarget('.copy', 'in-viewport-first')).toBeNull()
+})
+
+test('visible-first is first where checkVisibility is missing', () => {
+  const invisible = copy('top: 10px; visibility: hidden')
+  const seen = copy('top: 40px')
+  for (const el of [invisible, seen]) {
+    Object.defineProperty(el, 'checkVisibility', { configurable: true, value: undefined })
+  }
+
+  // The rule degrades to `first` rather than to nothing at all, the way
+  // `focus.ts`'s `reachable` stands off the same method — DESIGN.md, **Browser
+  // support**.
+  expect(resolveTarget('.copy', 'visible-first')).toBe(invisible)
 })
