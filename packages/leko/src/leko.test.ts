@@ -1613,3 +1613,43 @@ test("the way out avoids the corner the host's chrome owns", () => {
 
   expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
 })
+
+// --- a step that waits for a URL
+//
+// DESIGN.md, **A URL is a signal the page reports**. Which pattern a change is
+// tested against, and whether a route pushed from `onEnter` is caught by the
+// gate, is `machine.test.ts`; `wiring.test.ts` covers a pushed route with the
+// Navigation API always present, being chromium only. What belongs here is a
+// claim an engine could answer differently: whether back/forward — later in
+// every engine tested, spike/a-same-document-navigation/ — still reach a step
+// waiting for one.
+
+test('going back to a URL the step waits for advances it', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  history.pushState({}, '', '/checkout')
+  history.pushState({}, '', '/other')
+
+  const leko = start([
+    { id: 'first', target: () => target, awaits: { url: /^\/checkout(?:[/?#]|$)/ } },
+    { id: 'second', target: () => target },
+  ])
+
+  history.back()
+
+  await within(() => leko.step?.id === 'second', 60, 'back() never reached the waiting step')
+})
+
+test.skipIf(!('navigation' in window))(
+  'a route pushed advances the step where the engine has a Navigation API',
+  () => {
+    const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+    const leko = start([
+      { id: 'first', target: () => target, awaits: { url: /^\/checkout(?:[/?#]|$)/ } },
+      { id: 'second', target: () => target },
+    ])
+
+    history.pushState({}, '', '/checkout')
+
+    expect(leko.step?.id).toBe('second')
+  },
+)

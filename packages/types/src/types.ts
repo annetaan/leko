@@ -188,6 +188,30 @@ export type LekoKnownSignal = [Known] extends [never]
  */
 export type LekoSignal = [Known] extends [never] ? string : Known | (string & {})
 
+/**
+ * The other arm of {@link LekoTargetedStep.awaits}: a step that advances when
+ * the page's own URL changes to match `url`, with no call the application has
+ * to make. DESIGN.md argues the whole of it under **A URL is a signal the page
+ * reports**.
+ *
+ * `url` is tested against `location.pathname + location.search + location.hash`
+ * — everything after the origin — so a pattern may ask about the path, the
+ * query string, the hash, or any of them together. Anchor it: an unanchored
+ * pattern such as `/checkout/` means what it says, and also matches
+ * `/checkout-history`.
+ *
+ * `g` and `y` are ignored: the machine tests a stateless copy of the pattern it
+ * was given, never the `RegExp` itself.
+ *
+ * ```ts
+ * awaits: { url: /^\/checkout(?:[/?#]|$)/ }
+ * awaits: { url: /^\/#\/checkout(?:[/?]|$)/ } // a hash router
+ * ```
+ */
+export interface LekoUrlAwait {
+  url: RegExp
+}
+
 /** What every step has, whichever member of {@link LekoStep} it is. */
 interface LekoStepBase {
   /**
@@ -269,8 +293,12 @@ interface LekoStepBase {
    *
    * Any string, until the project has a vocabulary. See
    * {@link LekoKnownSignal}.
+   *
+   * `{ url }` is the other shape this takes — {@link LekoUrlAwait} — and
+   * advances the step on a matching change to the page's own URL rather than on
+   * a name the application reports.
    */
-  awaits?: LekoKnownSignal
+  awaits?: LekoKnownSignal | LekoUrlAwait
 
   /**
    * Build the state this step assumes, before anything about it is measured.
@@ -822,6 +850,11 @@ export type LekoProblem =
    * is to call `reached()` from inside an `onEnter` or an `onLeave`, on the very
    * step that awaits the name. The fix is to make the call after the handler
    * returns. DESIGN.md, **One gate, and what it refuses**.
+   *
+   * On a step that awaits `{ url }` rather than a name, this is a URL change
+   * that landed the same way — from a router that navigates out of the step's
+   * own `onEnter` — and `name` is the pattern as written, flags included:
+   * `String(pattern)`.
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**

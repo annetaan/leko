@@ -35,6 +35,9 @@ function machine(options: Options = {}) {
 
 const press = (tour: Machine<Fixture>): void => void drawnFor.get(tour)!.press()
 
+const navigate = (tour: Machine<Fixture>, url: string): void =>
+  void drawnFor.get(tour)!.navigate(url)
+
 const staged = new WeakMap<Machine<Fixture>, Map<string, Story>>()
 
 function hold(tour: Machine<Fixture>, story: Story): Story {
@@ -205,6 +208,117 @@ describe('a signal, and the step waiting for it', () => {
     tour.stop()
     begin(tour, 'returning')
     expect(tour.step?.id).toBe('save-again')
+  })
+})
+
+describe('a URL, and the step waiting for it', () => {
+  // DESIGN.md, **A URL is a signal the page reports**.
+
+  test('a step advances when the URL it waits for tests true', () => {
+    const tour = start([
+      { id: 'first', target: 'first', awaits: { url: /^\/checkout/ } },
+      { id: 'second', target: 'second' },
+    ])
+
+    navigate(tour, '/checkout')
+
+    expect(tour.step?.id).toBe('second')
+  })
+
+  test('what is tested is everything after the origin, so a pattern may ask about the path, the query or the hash', () => {
+    const path = start([
+      { id: 'first', target: 'first', awaits: { url: /^\/checkout/ } },
+      { id: 'second', target: 'second' },
+    ])
+    navigate(path, '/checkout?step=2#summary')
+    expect(path.step?.id).toBe('second')
+
+    const query = start([
+      { id: 'first', target: 'first', awaits: { url: /[?&]promo=1(?:&|$)/ } },
+      { id: 'second', target: 'second' },
+    ])
+    navigate(query, '/cart?promo=1')
+    expect(query.step?.id).toBe('second')
+
+    const hash = start([
+      { id: 'first', target: 'first', awaits: { url: /#summary$/ } },
+      { id: 'second', target: 'second' },
+    ])
+    navigate(hash, '/cart#summary')
+    expect(hash.step?.id).toBe('second')
+  })
+
+  test('a pattern that tests false moves nothing, however close the URL came', () => {
+    const tour = start([
+      { id: 'first', target: 'first', awaits: { url: /^\/checkout(?:[/?#]|$)/ } },
+      { id: 'second', target: 'second' },
+    ])
+
+    navigate(tour, '/checkout-history')
+
+    expect(tour.step?.id).toBe('first')
+  })
+
+  test('a navigation on a step awaiting a name moves nothing, and a name on a step awaiting a URL moves nothing', () => {
+    const named = start([
+      { id: 'first', target: 'first', awaits: 'order-saved' },
+      { id: 'second', target: 'second' },
+    ])
+    navigate(named, '/order-saved')
+    expect(named.step?.id).toBe('first')
+
+    const urled = start([
+      { id: 'first', target: 'first', awaits: { url: /^\/checkout/ } },
+      { id: 'second', target: 'second' },
+    ])
+    urled.reached('/checkout')
+    expect(urled.step?.id).toBe('first')
+  })
+
+  test('a press on a step that awaits a URL moves nothing', () => {
+    const tour = start([
+      { id: 'first', target: 'first', awaits: { url: /^\/checkout/ } },
+      { id: 'second', target: 'second' },
+    ])
+
+    // No control is derived for this step — DESIGN.md, **The next control**.
+    press(tour)
+
+    expect(tour.step?.id).toBe('first')
+    expect(tour.state).toBe('running')
+  })
+
+  test('a navigation matching the step, made from inside its own onEnter, is dropped and reported with the pattern as written', () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    const pattern = /^\/checkout/gi
+    const step: Step = {
+      id: 'b',
+      target: 'second',
+      awaits: { url: pattern },
+      onEnter: () => navigate(tour, '/checkout'),
+    }
+    tour = staging(
+      { id: 'story', steps: [{ id: 'a', target: 'first' }, step] },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+    press(tour)
+
+    // `String(pattern)` carries the flags along, exactly as the step wrote them.
+    expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step }])
+    expect(tour.step?.id).toBe('b')
+  })
+
+  test('a navigation while idle costs nothing and says nothing', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = machine({ onDiagnostic: (problem) => problems.push(problem) })
+
+    navigate(tour, '/checkout')
+
+    expect(tour.state).toBe('idle')
+    expect(problems).toEqual([])
   })
 })
 

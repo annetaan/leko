@@ -44,6 +44,23 @@ const DEFAULTS = { padding: 8, radius: 8, duration: 320, easing: ease } as const
 const NEXT_LABEL = 'Next'
 
 /**
+ * The Navigation API, absent from this repository's `lib.dom` — the two
+ * members {@link DomPresenter.watchNavigation} calls, nothing else.
+ *
+ * A local cast rather than a `declare global` augmentation of `Window`: a
+ * future `lib.dom` that adds `navigation` declares it non-optional, and a
+ * second, conflicting declaration of the same global property is a hard
+ * compile error (TS2717) rather than something narrowing here could absorb.
+ */
+interface NavigationApi {
+  addEventListener(type: 'currententrychange', listener: () => void): void
+  removeEventListener(type: 'currententrychange', listener: () => void): void
+}
+
+const navigationApi = (): NavigationApi | undefined =>
+  (window as { navigation?: NavigationApi }).navigation
+
+/**
  * How long a target that is not on the page is given to turn up — about six
  * frames. `onEnter` returns synchronously and a framework paints at least a
  * frame after that, so a target the application is rendering right now lands
@@ -157,6 +174,13 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private ring: FocusRing | undefined
   private onViewportChange: (() => void) | undefined
+  /** Set by {@link watchNavigation}, cleared by {@link stopNavigation}. */
+  private onNavigate: (() => void) | undefined
+  /**
+   * So the fallback's `popstate` and `hashchange`, both firing for one change
+   * per spike/a-same-document-navigation/'s table, are reported once.
+   */
+  private lastNavigatedUrl: string | undefined
   /**
    * The one observer this owns, and it hunts: armed only while a target the
    * tour is arriving at has not turned up, by effect, so no hunt can be left
@@ -298,6 +322,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
   // ---------------------------------------------------------- what the machine calls
 
   show(step: LekoStep, anchor: Element | null, animate: boolean): void {
+    // Armed here, not in `reveal` — {@link watchNavigation}.
+    this.watchNavigation()
     // An arrival is a fresh attempt at the step, so nothing is owed under the
     // instruction until a guard says otherwise.
     this.arrive(step, anchor, animate, undefined)
@@ -825,6 +851,52 @@ export class DomPresenter implements Presenter<LekoWorld> {
     window.addEventListener('resize', this.onViewportChange)
   }
 
+  /**
+   * Armed once per run, on the run's first arrival ({@link show}) rather than
+   * on {@link reveal}: that left a step drawn straight into `retrying` or
+   * `gliding` deaf to a URL changing under it, and `awaits: { url }` fires
+   * once — DESIGN.md, **A URL is a signal the page reports**. Taken down in
+   * {@link destroy}, not {@link destroyLayers}, so a hunt rebuilding the layer
+   * stack does not disarm it.
+   *
+   * `currententrychange` where the Navigation API exists, `popstate` and
+   * `hashchange` otherwise —
+   * [`spike/a-same-document-navigation/`](../../../spike/a-same-document-navigation/)
+   * is what a fallback engine still fires.
+   */
+  private watchNavigation(): void {
+    if (this.onNavigate) return
+    this.lastNavigatedUrl = location.pathname + location.search + location.hash
+    const report = () => {
+      const url = location.pathname + location.search + location.hash
+      if (url === this.lastNavigatedUrl) return
+      this.lastNavigatedUrl = url
+      this.host.navigated(url)
+    }
+    this.onNavigate = report
+    const nav = navigationApi()
+    if (nav) {
+      nav.addEventListener('currententrychange', report)
+    } else {
+      window.addEventListener('popstate', report)
+      window.addEventListener('hashchange', report)
+    }
+  }
+
+  private stopNavigation(): void {
+    const report = this.onNavigate
+    if (!report) return
+    const nav = navigationApi()
+    if (nav) {
+      nav.removeEventListener('currententrychange', report)
+    } else {
+      window.removeEventListener('popstate', report)
+      window.removeEventListener('hashchange', report)
+    }
+    this.onNavigate = undefined
+    this.lastNavigatedUrl = undefined
+  }
+
   // ------------------------------------------------------------------ taking down
 
   /**
@@ -844,6 +916,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /** Everything this put on the page. The hunt and the deadline went by effects of their own. */
   private destroy(): void {
     this.destroyLayers()
+    this.stopNavigation()
     this.message?.destroy()
     this.message = undefined
     this.close?.destroy()

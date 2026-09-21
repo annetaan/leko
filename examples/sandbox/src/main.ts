@@ -234,7 +234,12 @@ function show(next: Case): void {
     // exactly the thing a person reading a case wants to see.
     onDiagnostic: (found) => {
       if (found.kind === 'signal-dropped') {
-        problem = `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
+        // `awaits: { url }` has no `reached()` call to name — `found.name` is
+        // the pattern itself there (LekoProblem's `signal-dropped`).
+        problem =
+          typeof found.step.awaits === 'object'
+            ? `The URL changed to match ${found.name} while “${found.step.id}” was still being built, and was dropped.`
+            : `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
       } else if (found.kind === 'target-lost') {
         problem = `Target for “${found.story.id} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
       } else if (found.kind === 'call-refused') {
@@ -326,8 +331,17 @@ pick('.controls').addEventListener('click', (event) => {
 })
 
 function route(): void {
-  const id = location.hash.slice(1)
-  show(cases.find((item) => item.id === id) ?? cases[0]!)
+  // Only the first segment says which case to show. A case may own whatever
+  // comes after the slash as a hash of its own — `follow-a-link.ts`'s hash
+  // router does — without that being mistaken for an unknown case.
+  const id = location.hash.slice(1).split('/')[0]
+  const found = cases.find((item) => item.id === id)
+  // A hash change a case made of its own is not a request to switch cases,
+  // and re-showing the one already on screen would tear its tour down before
+  // anything inside the case finished hearing the change. Left alone here, it
+  // still reaches whatever inside the case is watching it.
+  if (found && found !== showing) show(found)
+  else if (!found) show(cases[0]!)
 }
 
 window.addEventListener('hashchange', route)

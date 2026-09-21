@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What says a same-document URL changed?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .yes { color: #0a7d32; font-weight: 700; }
+  .no { color: #c62828; font-weight: 700; }
+  .none { color: #888; font-weight: 400; }
+  @media (prefers-color-scheme: dark) { .yes { color: #6ee79b; } .no { color: #ff8a80; } }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>What says a same-document URL changed?</h1>
+<p>
+  This page runs eight actions once, on load, in order: <code>pushState</code>,
+  <code>pushState</code> again, <code>replaceState</code>, setting
+  <code>location.hash</code>, a click on an in-page <code>&lt;a href&gt;</code>,
+  then <code>history.back()</code> twice and <code>history.forward()</code> once
+  to walk back across the entries the earlier actions made. It draws its
+  measurement below as it runs; <code>node run.mjs</code> reads the same
+  <code>window.spikeNavigation.measure()</code> this page draws from, in more
+  than one engine.
+</p>
+<p><span id="env" class="readout"></span></p>
+
+<h2>What fires, and when</h2>
+<p>
+  One row per action. <strong>fired</strong> is every event that ran, each
+  marked <code>sync</code> if it ran while the triggering call was still on the
+  stack or <code>later</code> if it ran as a task after that call returned.
+  <strong>location matches</strong> is whether every fired event's handler read
+  <code>location</code> as the URL the action produced — the thing a step
+  waiting for a URL needs to be true regardless of timing.
+</p>
+<table id="fired-table"><thead><tr>
+  <th>action</th><th>before → after</th><th>fired</th><th>location matches</th>
+</tr></thead><tbody></tbody></table>
+
+<a id="link-b" href="#section-b">a link to a fragment on this page</a>
+<div id="section-b">section b</div>
+
+<script>
+;(async () => {
+  const log = []
+  // Set to the action's name for exactly the duration of the call that
+  // triggers it, synchronously. A handler that runs while this is still set
+  // fired inside that call; one that runs after it was cleared fired later,
+  // as a microtask or a task — this is the only way to tell which, since
+  // nothing else marks a boundary between them.
+  let inFlight = null
+
+  const locationNow = () => location.pathname + location.search + location.hash
+
+  const record = (source) => (event) => {
+    log.push({
+      source,
+      type: event.type,
+      when: inFlight ? 'sync' : 'later',
+      location: locationNow(),
+    })
+  }
+
+  window.addEventListener('popstate', record('window'))
+  window.addEventListener('hashchange', record('window'))
+  const hasNavigationApi = 'navigation' in window
+  if (hasNavigationApi) {
+    navigation.addEventListener('currententrychange', record('navigation'))
+    navigation.addEventListener('navigatesuccess', record('navigation'))
+  }
+
+  // A task boundary, not a microtask one: popstate and hashchange are
+  // specified to fire as tasks, so a `setTimeout` after the call is what
+  // catches them if they do not fire synchronously inside it. 300ms because
+  // `history.back()`/`forward()` measured slower than 50ms in Firefox, which
+  // otherwise leaked their events into the next action.
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
+
+  const act = async (name, fn) => {
+    const before = locationNow()
+    const from = log.length
+    inFlight = name
+    fn()
+    inFlight = null
+    await settle()
+    return { name, before, after: locationNow(), fired: log.slice(from) }
+  }
+
+  const results = []
+  results.push(await act('pushState to a new path', () => history.pushState(null, '', '/one')))
+  results.push(await act('pushState again', () => history.pushState(null, '', '/two')))
+  results.push(
+    await act('replaceState', () => history.replaceState(null, '', '/two-replaced')),
+  )
+  results.push(
+    await act('location.hash =', () => {
+      location.hash = 'section-a'
+    }),
+  )
+  results.push(await act('<a href> click', () => document.getElementById('link-b').click()))
+  results.push(await act('history.back()', () => history.back()))
+  results.push(await act('history.back() again', () => history.back()))
+  results.push(await act('history.forward()', () => history.forward()))
+
+  window.spikeNavigation = {
+    async measure() {
+      return { hasNavigationApi, results }
+    },
+  }
+
+  // Set before render(): run.mjs waits on this flag to read the measurement,
+  // and the measurement is already complete once it is set. A draw that
+  // throws must not withhold it — the table is a display of the result, not
+  // part of producing it.
+  window.spikeNavigationReady = true
+  render(hasNavigationApi, results)
+})()
+
+function describe(fired) {
+  return fired.length === 0
+    ? 'nothing'
+    : fired.map((f) => `${f.source}:${f.type} (${f.when})`).join('<br>')
+}
+
+function locationMatch(row) {
+  if (row.fired.length === 0) return null
+  return row.fired.every((f) => f.location === row.after)
+}
+
+// Action names include `<a href> click`, which is not markup: escaped so the
+// table shows it as text instead of an unclosed anchor tag swallowing the
+// rest of the cell.
+const escape = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+
+function render(hasNavigationApi, results) {
+  document.getElementById('env').textContent =
+    `${navigator.userAgent} — 'navigation' in window: ${hasNavigationApi}`
+
+  const rows = results
+    .map((row) => {
+      const matched = locationMatch(row)
+      const matchCell =
+        matched === null
+          ? '<td class="none">—</td>'
+          : matched
+            ? '<td class="yes">yes</td>'
+            : '<td class="no">MISMATCH</td>'
+      return (
+        `<tr><td>${escape(row.name)}</td><td>${escape(row.before)} → ${escape(row.after)}</td>` +
+        `<td>${describe(row.fired)}</td>${matchCell}</tr>`
+      )
+    })
+    .join('')
+  document.querySelector('#fired-table tbody').innerHTML = rows
+}
+</script>
+
+</body>
+</html>

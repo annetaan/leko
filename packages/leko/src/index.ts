@@ -16,4 +16,5 @@ export type {
   LekoTarget,
   LekoTargetedStep,
   LekoUntargetedStep,
+  LekoUrlAwait,
 } from '@annetaan/leko-types'

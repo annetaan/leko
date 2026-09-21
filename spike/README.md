@@ -26,6 +26,7 @@ tell you what you are allowed to assume.
 | [`a-smooth-scroll-settling/`](a-smooth-scroll-settling/) | How long does a smooth scroll take, what says when it is over, does a panel below the fold scroll at all, and can a glide be stopped or replaced part-way? |
 | [`a-static-scroller-made-relative/`](a-static-scroller-made-relative/) | What moves when a static scroller is given `position: relative`, and does it then ride the scroller's scroll? |
 | [`a-sticky-target-pinning/`](a-sticky-target-pinning/) | When is a `position: sticky` element pinned, does it say so, and can a layer be glued to a scroller's scrollport? |
+| [`a-same-document-navigation/`](a-same-document-navigation/) | What says a same-document URL changed, does it come before or after `location` has moved, and does it land inside the call that triggered it or later? |
 
 ## Reading them
 

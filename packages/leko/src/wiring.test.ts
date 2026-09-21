@@ -1669,15 +1669,17 @@ test('a resize while the page glides puts the holes back and says nothing', asyn
 /** A `DomPresenter` with a `Host` that records rather than a machine. */
 function watching(options = {}) {
   const lost: string[] = []
+  const navigated: string[] = []
   const presenter = new DomPresenter(
     { duration: 0, ...options },
     {
       lost: (step) => void lost.push(step.id),
       next: () => {},
       close: () => {},
+      navigated: (url) => void navigated.push(url),
     },
   )
-  return { presenter, lost }
+  return { presenter, lost, navigated }
 }
 
 test('a target missing on arrival hands the machine nothing, and says nothing yet', () => {
@@ -1713,4 +1715,111 @@ test('a target lost after the step was drawn is not a wait at all', async () => 
   expect(lost).toEqual([])
 
   presenter.teardown()
+})
+
+// --- a step that waits for a URL
+//
+// DESIGN.md, **A URL is a signal the page reports**. Chromium only: every
+// engine this suite reaches has the Navigation API, per
+// spike/a-same-document-navigation/, so what a fallback engine hears is not a
+// claim this file can make.
+
+test('a route pushed while the step shows advances it', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = start([
+    { id: 'first', target: () => target, awaits: { url: /^\/checkout(?:[/?#]|$)/ } },
+    { id: 'second', target: () => target },
+  ])
+
+  history.pushState({}, '', '/checkout')
+
+  expect(leko.step?.id).toBe('second')
+})
+
+test('a route pushed while the first step is still retrying for its target advances it', () => {
+  // Arming has to survive a step that never reaches `reveal`: this one's
+  // target is not there yet, so the presenter goes into `retrying` and hunts
+  // for it rather than drawing. Arming on `reveal` left this window deaf —
+  // the bug this test is against.
+  let late: HTMLElement | null = null
+  const leko = start([
+    { id: 'first', target: () => late, awaits: { url: /^\/checkout/ } },
+    { id: 'second', target: () => document.body },
+  ])
+
+  history.pushState({}, '', '/checkout')
+
+  expect(leko.step?.id).toBe('second')
+})
+
+test('the pattern sees the query and the hash, so a step may wait for either', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = start([
+    { id: 'query', target: () => target, awaits: { url: /[?&]promo=1(?:&|$)/ } },
+    { id: 'hash', target: () => target, awaits: { url: /#summary$/ } },
+    { id: 'done', target: () => target },
+  ])
+
+  history.pushState({}, '', '/?promo=1')
+  expect(leko.step?.id).toBe('hash')
+
+  history.pushState({}, '', '/?promo=1#summary')
+  expect(leko.step?.id).toBe('done')
+})
+
+/** The Navigation API, cast rather than declared global — the same reason `presenter.ts` casts. */
+interface NavigationApi {
+  addEventListener(type: 'currententrychange', listener: () => void): void
+  removeEventListener(type: 'currententrychange', listener: () => void): void
+}
+
+test('the listener goes with the tour, so a route pushed after stop moves nothing', () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const navigation = (window as unknown as { navigation: NavigationApi }).navigation
+  const added = vi.spyOn(navigation, 'addEventListener')
+  const removed = vi.spyOn(navigation, 'removeEventListener')
+  const leko = start([{ id: 'first', target: () => target, awaits: { url: /^\/checkout/ } }])
+
+  leko.stop()
+
+  // Not just "removed with some function": the one `add` armed, so a mismatched
+  // pair — the listener that stayed on is a different one from the one that
+  // came off — would not pass this.
+  expect(removed).toHaveBeenCalledWith('currententrychange', added.mock.calls[0]![1])
+
+  history.pushState({}, '', '/checkout')
+  expect(leko.step).toBeUndefined()
+})
+
+test('the fallback popstate and hashchange from one hash change report a URL once', async () => {
+  // This suite's Chromium has the Navigation API (`test.skipIf` above), so the
+  // fallback branch is forced by hiding it, the way spike/a-same-document-navigation/
+  // could not exercise it either. That table is also why this waits before
+  // asserting: `location.hash =` fires popstate synchronously and hashchange
+  // as a later task, so the duplicate this guards against has not landed by
+  // the time the assignment below returns — `frame()` gives it that later
+  // task. Asserting right away would pass whether or not the two were
+  // deduplicated, having only ever seen the synchronous one.
+  const original = Object.getOwnPropertyDescriptor(window, 'navigation')
+  Object.defineProperty(window, 'navigation', { value: undefined, configurable: true })
+  try {
+    const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+    target.id = 'anchor'
+    const { presenter, navigated } = watching()
+
+    presenter.show(
+      { id: 'first', target: { elements: '#anchor', interactive: true } },
+      target,
+      false,
+    )
+    location.hash = 'summary'
+    await frame()
+
+    expect(navigated).toEqual([location.pathname + location.search + '#summary'])
+
+    presenter.teardown()
+  } finally {
+    location.hash = ''
+    if (original) Object.defineProperty(window, 'navigation', original)
+  }
 })

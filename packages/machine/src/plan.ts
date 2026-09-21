@@ -69,6 +69,13 @@ export const stepOf = <W extends World>(core: Core<W>): W['step'] | undefined =>
 /** Whether `at` still names the step occurrence the tour is standing on. */
 const stillAt = <W extends World>(core: Core<W>, at: Position<W>): boolean => core.position === at
 
+/**
+ * Whether `url` matches `pattern`, tested from a copy with no `g` or `y` on it.
+ * DESIGN.md, **A URL is a signal the page reports**.
+ */
+export const arrivedAt = (pattern: RegExp, url: string): boolean =>
+  new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, '')).test(url)
+
 // ------------------------------------------------------------------- the calls
 
 /**
@@ -97,7 +104,7 @@ export type Effect<W extends World> =
   | { kind: 'rethrow'; reason: unknown }
 
 /**
- * Everything that happens to the machine, as data. The first five are calls a
+ * Everything that happens to the machine, as data. The first six are calls a
  * host or a presenter makes. The rest are the machine carrying on, one for every
  * window where a call into the application sits between two writes.
  */
@@ -108,6 +115,7 @@ export type Event<W extends World> =
   | { kind: 'stop' }
   | { kind: 'pressed' }
   | { kind: 'lost'; step: Step<W> }
+  | { kind: 'navigated'; url: string }
   // --- the machine carrying on, one per window it has to stop at
   /** The `onLeave` calls are done and the report is owed. */
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
@@ -297,6 +305,22 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
           problem: { kind: 'target-lost', step: event.step, story: here.story },
         },
       ])
+    }
+
+    case 'navigated': {
+      const step = stepOf(core)
+      // Every other step ignores this, the same as `reached` reads off `awaits`.
+      if (!step || typeof step.awaits !== 'object') return nothing(core)
+      const { awaits } = step
+      // This file holds no landing URL to compare against, so it cannot itself
+      // tell an arrival from a change — DESIGN.md, **A URL is a signal the page
+      // reports** says that distinction is made before a report ever reaches
+      // here.
+      if (!arrivedAt(awaits.url, event.url)) return nothing(core)
+      if (!accepting(core)) {
+        return diagnosing(core, { kind: 'signal-dropped', name: String(awaits.url), step })
+      }
+      return advance(core, step)
     }
 
     // --- the machine carrying on

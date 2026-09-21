@@ -97,6 +97,17 @@ DESIGN.md. Do not do any of them without reading that page first.
   that declares `awaits` cannot be returned to: the signal fired once and will
   not fire again, so the tour waits for ever. A story is atomic, and the answer
   to a tour somebody wants to redo is a shorter story. DESIGN.md argues it.
+- **Patching `history.pushState`/`replaceState` to watch for a route change.**
+  It is the obvious way to hear one, and it is exactly the reach into the
+  application's globals a URL-waiting step exists to avoid. What Leko listens
+  to instead, and what a fallback engine misses because of it, is DESIGN.md's
+  own account. DESIGN.md argues it under **A URL is a signal the page
+  reports**.
+- **Judging a URL-waiting step's arrival the moment it is drawn, instead of
+  only on the next change.** A step already at a matching URL when it appears
+  would advance from inside the very call that is still drawing it — the
+  reentrancy every other signal is barred from. DESIGN.md argues it under **A
+  URL is a signal the page reports**.
 
 ## Writing code here
 

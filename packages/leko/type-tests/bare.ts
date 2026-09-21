@@ -20,4 +20,18 @@ export const step: LekoStep = {
   awaits: 'order-saved',
 }
 
+export const url: LekoStep = {
+  id: 'checkout',
+  target: '#cart',
+  awaits: { url: /^\/checkout/ },
+}
+
+export const notAUrl: LekoStep = {
+  id: 'checkout',
+  target: '#cart',
+  // @ts-expect-error `awaits: { url }` takes a `RegExp` and nothing else —
+  // DESIGN.md, **A URL is a signal the page reports**.
+  awaits: { url: '/checkout' },
+}
+
 createLeko().reached('order-saved')

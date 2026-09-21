@@ -16,6 +16,10 @@ import type { LekoOptions, LekoStep, LekoStory } from '@annetaan/leko-types'
 const instances: ReturnType<typeof createLeko>[] = []
 const mounted: Element[] = []
 
+// Read once, before any test in the importing file has run — the URL to put
+// back, for a step that waits on one.
+const startUrl = location.pathname + location.search + location.hash
+
 // Registered once per importing file: Vitest gives each test file its own
 // module graph, so these arrays never hold another file's leftovers.
 afterEach(() => {
@@ -25,6 +29,10 @@ afterEach(() => {
   // A test that took the clock — {@link clocked} — hands it back even where it
   // threw before it could, so the next test's timers are the page's own.
   vi.useRealTimers()
+  // A test that routed the page, the same way. `replaceState` rather than
+  // `back()`: nothing here should fire another navigation for the next test to
+  // catch.
+  history.replaceState(null, '', startUrl)
 })
 
 /**

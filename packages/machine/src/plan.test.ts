@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import type { Fixture, Step, Story } from './fake.js'
 import {
   accepting,
+  arrivedAt,
   type Core,
   type Effect,
   type Event,
@@ -82,6 +83,29 @@ describe('reading the state', () => {
     expect(stepOf(running(1))).toBe(second)
     expect(stepOf(running(2))).toBeUndefined()
     expect(stepOf(nothing())).toBeUndefined()
+  })
+})
+
+describe('arrivedAt', () => {
+  // DESIGN.md, **A URL is a signal the page reports**.
+
+  test('a pattern written with g or y is tested without state, so the second arrival is seen too', () => {
+    for (const pattern of [/^\/checkout/g, /^\/checkout/y]) {
+      expect(arrivedAt(pattern, '/checkout')).toBe(true)
+      // A stateful `.test()` would have moved `lastIndex` past the first match
+      // here, so a naive second call would answer `false` — `y` more sharply
+      // than `g`, since a fixed start from a moved `lastIndex` changes what
+      // even that first call matches.
+      expect(arrivedAt(pattern, '/checkout')).toBe(true)
+    }
+  })
+
+  test("testing leaves the host's pattern untouched", () => {
+    for (const pattern of [/^\/checkout/g, /^\/checkout/y]) {
+      arrivedAt(pattern, '/checkout')
+
+      expect(pattern.lastIndex).toBe(0)
+    }
   })
 })
 

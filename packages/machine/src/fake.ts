@@ -85,4 +85,13 @@ export class Fake implements Presenter<Fixture> {
   press(): void {
     this.host.next()
   }
+
+  /**
+   * A same-document navigation the presenter would have reported. `press()`'s
+   * counterpart for a step awaiting `{ url }`: the machine has no method of its
+   * own for either, because both arrive through the presenter.
+   */
+  navigate(url: string): void {
+    this.host.navigated(url)
+  }
 }

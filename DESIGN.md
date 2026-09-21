@@ -47,6 +47,76 @@ Step advancement is driven solely by matching `awaits` against reported signals:
 - **Matched against the running story only:** A call site reports once, however
   many stories pass through that screen. See `two-stories.ts`.
 
+### A URL is a signal the page reports
+
+`awaits` also takes `{ url: RegExp }`, and a step declaring one advances when
+the page's own URL changes to match it, with no call the application has to
+make:
+
+```ts
+{ id: 'checkout', target: '#cart', awaits: { url: /^\/checkout(?:[/?#]|$)/ } }
+```
+
+- **Core supplies this one trigger because there is nowhere to put a
+  `reached()` call.** A button already has a handler a line of instrumentation
+  joins; an `<a href>` has none, and giving it one would add markup only the
+  tour needs — the third constraint, applied rather than restated. A click is
+  never what is matched, because a click is a DOM event and the second
+  constraint rules that out on either side of the seam; what is matched is the
+  URL the click, or `pushState`, or `history.back()`, left behind.
+- **A URL is where the page arrived, not what it did.** `pushState`,
+  `back()`/`forward()`, and a redirect the application's own router ran all
+  advance the same step a click would, and none of them is a call any handler
+  could have made. `{ url: … }` is right for "the user got to checkout" and
+  wrong for "the user finished checking out" — that is
+  `reached('checkout-finished')`, called after the order actually saved.
+- **Only a change is watched, never an arrival.** A step drawn at a URL its
+  pattern already matches does not advance on the draw; it advances on the
+  next URL that matches after that. A signal fired before the step existed
+  establishes nothing about the user, the same reasoning **Signal behavior**
+  gives for not buffering one, and judging the arrival instead would advance
+  the machine from inside the call that is still drawing the step it would be
+  leaving — the reentrancy **One gate, and what it refuses** closes off for
+  every other signal.
+- **Leko has no grammar for a URL.** `awaits: { url }` takes a `RegExp` and
+  nothing else: no string, which would need a second rule for whether it means
+  an exact match or an implicit `new RegExp`, and no glob or path template,
+  because a slash's meaning, a trailing one, and how `:id` binds are all
+  guesses about a host's router. The pattern is tested against
+  `location.pathname + location.search + location.hash` — everything after the
+  origin. The origin itself cannot change under a same-document navigation, so
+  it carries nothing a test needs. Testing `pathname` alone would throw away
+  `search` and `hash`, the two things a host reached for `RegExp` instead of a
+  string to keep, and an unanchored pattern such as `/checkout/` means what it
+  says: it matches `/checkout-history` too.
+- **A pattern with `g` or `y` is tested from a stateless copy.** Either flag
+  makes `.test()` advance `lastIndex` between calls, which would make whether a
+  step advances depend on how many times it had already been tested — state a
+  pure `plan.ts` cannot hold, and the host's own `RegExp` besides. The machine
+  builds `new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, ''))` once
+  per navigation instead; navigations are rare enough that the copy costs
+  nothing next to a state field that would exist for two flags alone.
+- **What is heard, and what is not, is
+  [`spike/a-same-document-navigation/`](spike/a-same-document-navigation/).**
+  In the three engines it reached, `pushState` and `replaceState` fire only the
+  Navigation API's `currententrychange`, synchronously — and assigning
+  `location.hash` fires `currententrychange` and `popstate` synchronously too,
+  in every engine tested, so a router that routes by writing the hash from
+  inside a step's own `onEnter` lands inside the gate exactly as one calling
+  `pushState` would, and is dropped as `signal-dropped`, the same as a
+  `reached()` would be — **Saying that a call did nothing**. Where the
+  Navigation API is missing, the fallback is `popstate` and `hashchange`, and
+  the spike never exercised a router's own `pushState` on such an engine —
+  that path is inaudible to it, by the same page's own account. What is left —
+  a link click, later in Firefox, and `back()`/`forward()`, later in every
+  engine tested — is no problem here either: what a step reacts to is a URL
+  that stopped matching becoming one that does, not the call that changed it,
+  so whichever task queue delivers the change is a change like any other.
+- **One document only.** A URL match observes the document the tour is running
+  in; a navigation that tears the document down and reloads it is a different
+  signal for a different mechanism, tracked as
+  [#103](https://github.com/annetaan/leko/issues/103), not this one.
+
 ## The next control
 
 Whether a step shows a "Next" button is derived strictly from `awaits`:
@@ -509,10 +579,10 @@ right can end up there.
 - A next press the gate turns down is reported nowhere: the control is a button
   Leko takes off the screen for the whole of an arrival, so there is no caller
   to tell.
-- A `reached()` that matched the showing step and was dropped is reported
-  (`signal-dropped`): the step now waits for something the application has
-  already been through, and silence there is a step hanging for no visible
-  reason.
+- A `reached()` that matched the showing step, or a URL change a step is
+  awaiting, dropped the same way, is reported (`signal-dropped`): the step now
+  waits for something the application has already been through, and silence
+  there is a step hanging for no visible reason.
 
 **Nothing is logged.** The core has no build-time environment to strip a
 development branch with, so anything written to the console is written in
@@ -1555,6 +1625,14 @@ fails: without it the message docks to the foot of the viewport, which is
 plainer than being beside the hole and never points at the wrong place.
 `@position-try` and `position-try-fallbacks` need Safari 26+, so neither may
 carry anything on its own.
+
+The Navigation API a URL-waiting step's fallback exists for is present on the
+top of Chrome, Firefox and Safari alike — `'navigation' in window` was `true`
+in Playwright's builds of all three
+([`spike/a-same-document-navigation/`](spike/a-same-document-navigation/)) —
+but that is a claim about the top only. The spike never touched the floor, and
+a Safari still on 18.x has none; **A URL is a signal the page reports** says
+what an engine without it hears instead.
 
 ## Where things are written down
 

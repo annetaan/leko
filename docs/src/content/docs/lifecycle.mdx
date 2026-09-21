@@ -49,6 +49,12 @@ What moves a step on is decided by one field:
   `leko.reached('action-name')` is the only mover. The signal is a statement of
   fact from your own code — after the API call resolved, not when the button
   was clicked.
+- **`awaits: { url: /^\/checkout(?:[/?#]|$)/ }`:** the step has no next
+  control, and a same-document change to the page's own URL that now matches
+  the pattern is the only mover. It advances on a change, never on an arrival,
+  so a URL that already matched when the step began waiting does nothing. No
+  `reached()` call moves it — a link has nowhere to put one — and DESIGN.md
+  argues the whole of it under **A URL is a signal the page reports**.
 
 Nothing else moves a step. Not a DOM event, not a timer, not a signal nobody is
 waiting for (free and silent, permanently), and not a signal reported before
@@ -59,7 +65,7 @@ user.
 One property holds the whole diagram together: **no hook hands anything back,
 and Leko waits for nothing.** The chain from one step's `onLeave` to the next
 step's `onStep` runs inside the single synchronous call that moved the tour —
-a press, a `reached()`, a `start()`. Work that must finish before the next
-step makes sense is not a slow `onEnter`; it is a step of its own, with no
-`target` and an `awaits`, started by its own `onEnter` and ended by your code
-reporting in.
+a press, a `reached()`, a `start()`, a URL change. Work that must finish
+before the next step makes sense is not a slow `onEnter`; it is a step of its
+own, with no `target` and an `awaits`, started by its own `onEnter` and ended
+by your code reporting in.

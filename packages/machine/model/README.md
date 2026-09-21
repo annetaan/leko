@@ -399,5 +399,8 @@ same boundary.
   from a handler. `machine.test.ts` carries those.
 - A step that names no target. The machine has no notion of one: `StepBase` has
   no `target`, and what a missing anchor means is a drawing question.
+- `navigated`. It falls to the same `advance` as `reached` once the URL
+  matches, so the model represents both with `reached` rather than giving
+  `navigated` an action of its own.
 - A misconception shared by the model and the code. Nothing can catch that. The
   model is small enough to read, and that is the whole of the defence.

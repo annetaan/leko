@@ -26,8 +26,12 @@ export interface World {
  */
 export interface StepBase<W extends World> {
   id: string
-  /** The signal this step waits for, or nothing where it advances on a control. */
-  awaits?: string
+  /**
+   * The signal this step waits for, or nothing where it advances on a control.
+   * A name, or `{ url }` for the step that advances on the page's own URL
+   * rather than a call — DESIGN.md, **A URL is a signal the page reports**.
+   */
+  awaits?: string | { url: RegExp }
   /**
    * Build what this step assumes, and hand nothing back. **Leko does not wait
    * for this.** A wait belongs to a step of its own, which declares `awaits`
@@ -157,4 +161,13 @@ export interface Host<W extends World> {
   next(): void
   /** The control that ends the tour was used. Means what `stop` means. */
   close(): void
+  /**
+   * The page's own URL, on a change — never the URL a step was drawn at, even
+   * one that already matches. Everything after the origin —
+   * `location.pathname + location.search + location.hash` — because the
+   * machine holds no `lib.dom` to read it with itself. Matched against a
+   * step's `awaits` only where that is `{ url }`; DESIGN.md, **A URL is a
+   * signal the page reports**.
+   */
+  navigated(url: string): void
 }

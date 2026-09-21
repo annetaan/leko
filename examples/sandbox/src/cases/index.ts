@@ -3,6 +3,7 @@ import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
 import { fixedChrome } from './fixed-chrome.js'
+import { followALink } from './follow-a-link.js'
 import { formValidation } from './form-validation.js'
 import { haloFollows } from './halo-follows.js'
 import { hiddenTarget } from './hidden-target.js'
@@ -39,6 +40,7 @@ export const cases: Case[] = [
   formValidation,
   nextControl,
   asyncCompletion,
+  followALink,
   stepSetup,
   storySetup,
   twoStories,

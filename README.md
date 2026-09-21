@@ -179,8 +179,8 @@ which calls those are.
 meant to stay in your source forever, including in builds where no tour runs,
 so a type error there would only talk you into deleting it.
 
-Skip all of it and nothing changes for you. `awaits` stays `string`, there is
-nothing to import, and nothing lands in your bundle.
+Skip all of it and nothing changes for you. A name in `awaits` stays any
+string, there is nothing to import, and nothing lands in your bundle.
 
 `target` is a list, and each element of it is one hole. Write an element as a
 list of its own and those elements are unioned into a single hole, so
@@ -232,7 +232,7 @@ dependencies. Framework wrappers will be additive, never required.
 | A next control on the message, on steps that await nothing | ✅ Working |
 | A control that ends the tour, on screen for as long as it runs | ✅ Working |
 | Following `state` from a host, with `watch` | ✅ Working |
-| Advancing on a URL change | 📋 Planned |
+| Advancing on a URL change | ✅ Working |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |
 
 ## Browser support
@@ -246,6 +246,12 @@ draw it.
 (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside
 its cutout and does nothing else. Where it is missing the message docks to the
 bottom of the viewport, so it degrades rather than fails.
+
+Where the Navigation API is missing, a URL-waiting step still hears a hash
+change and back/forward through the `popstate`/`hashchange` fallback; only a
+router's own `pushState` call goes unheard there.
+[DESIGN.md](DESIGN.md#a-url-is-a-signal-the-page-reports) says what carries
+and what does not.
 
 ## Looking further
 

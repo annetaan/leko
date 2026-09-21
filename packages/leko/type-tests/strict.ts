@@ -45,6 +45,16 @@ export const typo: LekoStep = {
 }
 
 /**
+ * `LekoStrict` narrows the string arm of `awaits`. `{ url }` is not that arm,
+ * so it compiles under a vocabulary the same as it does with none.
+ */
+export const url: LekoStep = {
+  id: 'checkout',
+  target: '#cart',
+  awaits: { url: /^\/checkout/ },
+}
+
+/**
  * Where a story is checked, now that `start` is handed one rather than a name.
  *
  * A story written as a plain `const` and passed to `start` later widens

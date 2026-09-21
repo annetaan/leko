@@ -35,6 +35,7 @@ export class Machine<W extends World> {
       lost: (step) => this.dispatch({ kind: 'lost', step }),
       next: () => this.dispatch({ kind: 'pressed' }),
       close: () => this.stop(),
+      navigated: (url) => this.dispatch({ kind: 'navigated', url }),
     })
   }
 
