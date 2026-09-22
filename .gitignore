@@ -33,3 +33,4 @@ docs/.astro/
 _apalache-out/
 
 *.code-workspace
+work-reports/
