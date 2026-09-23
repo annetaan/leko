@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What can a document being left still say?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>What can a document being left still say?</h1>
+<p>
+  This is the <em>leaving</em> page. On load it arms a listener for every
+  event a cross-document navigation might fire in this document —
+  <code>pagehide</code>, <code>beforeunload</code>, <code>unload</code>,
+  <code>visibilitychange</code>, <code>popstate</code>,
+  <code>hashchange</code>, and, where the Navigation API exists,
+  <code>navigate</code> and <code>currententrychange</code> — and appends
+  what each one saw to <code>sessionStorage</code>, because this document is
+  gone by the time anyone could read an in-memory log. <code>run.mjs</code>
+  drives it out two ways, a click on <a id="next-link" href="next.html">a
+  link to <code>next.html</code></a> and <code>location.assign()</code>, and
+  reads what <a href="next.html">next.html</a> finds waiting for it.
+</p>
+<p><span id="env" class="readout"></span></p>
+
+<h2>What this document recorded</h2>
+<p>
+  Empty until an event fires — nothing has left yet. Present only if this
+  document is shown again, restored from the back/forward cache, after
+  <code>run.mjs</code> calls <code>history.back()</code>; a reload clears it
+  first, the same as a fresh load does.
+  <strong>when</strong> is <code>sync</code> for an event that fired no later
+  than <code>pagehide</code>, <code>later</code> for one that fired only after
+  <code>pagehide</code> already had — the leaving document can still run a
+  task or two on its way out, and this says which events land in which half.
+</p>
+<table id="log-table"><thead><tr>
+  <th>source</th><th>type</th><th>when</th><th>location</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>What <code>pageshow</code> said about this load</h2>
+<p>
+  One row per time this document has been shown, including this one.
+  <strong>persisted</strong> is <code>event.persisted</code> — whether this
+  load is the back/forward cache handing back the same document rather than
+  a fresh parse.
+</p>
+<table id="pageshow-table"><thead><tr>
+  <th>persisted</th><th>location</th>
+</tr></thead><tbody></tbody></table>
+
+<script>
+;(() => {
+  const LOG_KEY = 'leko-spike-cross-doc-log'
+  const TOKEN_KEY = 'leko-spike-cross-doc-token'
+  const PAGESHOW_KEY = 'leko-spike-cross-doc-pageshow'
+  // A value nothing else on the origin would write, so next.html can tell
+  // "found this key" apart from "found a stale write of the same shape".
+  const TOKEN_VALUE = 'leko-spike-pagehide-token'
+
+  const locationNow = () => location.pathname + location.search + location.hash
+
+  // sessionStorage survives every navigation in this tab for the tab's whole
+  // life, not one document's, so a second run in the same tab would
+  // otherwise see the first run's entries too. A fresh load starts a fresh
+  // log; a document that comes back from the cache instead — the one case
+  // this must not clear — never re-runs this top-level script at all.
+  sessionStorage.removeItem(LOG_KEY)
+
+  const append = (key, entry) => {
+    try {
+      const existing = JSON.parse(sessionStorage.getItem(key) ?? '[]')
+      existing.push(entry)
+      sessionStorage.setItem(key, JSON.stringify(existing))
+    } catch {
+      // Storage can be disabled, full, or (in a private window) throw on
+      // every call. Nothing here can do anything about that; the record is
+      // simply missing from what the next document reads.
+    }
+  }
+
+  // pagehide is the one moment the design in issue #1 rests on. Every other
+  // listener says whether it ran no later than that moment ('sync') or only
+  // after ('later'), because the leaving document is not necessarily gone
+  // the instant pagehide returns.
+  let pagehideFired = false
+
+  const record = (source) => (event) => {
+    append(LOG_KEY, {
+      source,
+      type: event.type,
+      when: pagehideFired ? 'later' : 'sync',
+      location: locationNow(),
+    })
+  }
+
+  window.addEventListener('pagehide', (event) => {
+    record('window')(event)
+    pagehideFired = true
+    // The claim under test: is a write made here visible to the document
+    // that arrives next? A fixed token rather than the log, because the
+    // log's presence alone would only show pagehide fired, not that a write
+    // made inside it survives to be read.
+    try {
+      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ value: TOKEN_VALUE, when: Date.now() }))
+    } catch {
+      // ditto
+    }
+  })
+  window.addEventListener('beforeunload', record('window'))
+  window.addEventListener('unload', record('window'))
+  window.addEventListener('visibilitychange', record('window'))
+  window.addEventListener('popstate', record('window'))
+  window.addEventListener('hashchange', record('window'))
+  const hasNavigationApi = 'navigation' in window
+  if (hasNavigationApi) {
+    navigation.addEventListener('navigate', record('navigation'))
+    navigation.addEventListener('currententrychange', record('navigation'))
+  }
+
+  // Answers "did the back/forward cache hand this document back". The
+  // listener itself never stops existing across a bfcache freeze/resume —
+  // it is the same document, only paused — so this fires again on a restore
+  // exactly as it does on the first load.
+  window.addEventListener('pageshow', (event) => {
+    append(PAGESHOW_KEY, { persisted: event.persisted, location: locationNow() })
+    // A restore never re-runs this script, so the render() call below this
+    // listener's declaration never happens for it — this is the only redraw
+    // a restored document gets, and it is what run.mjs serve's human reader
+    // needs to see the persisted row for real.
+    render()
+  })
+
+  // The second way out run.mjs drives, called from outside via
+  // page.evaluate(). The first is the plain <a href> click above.
+  window.spikeLeave = {
+    viaAssign() {
+      location.assign('next.html?x')
+    },
+  }
+
+  const readLog = (key) => {
+    try {
+      return JSON.parse(sessionStorage.getItem(key) ?? '[]')
+    } catch {
+      return []
+    }
+  }
+
+  function render() {
+    document.getElementById('env').textContent =
+      `${navigator.userAgent} — 'navigation' in window: ${hasNavigationApi}`
+    document.querySelector('#log-table tbody').innerHTML = readLog(LOG_KEY)
+      .map((r) => `<tr><td>${r.source}</td><td>${r.type}</td><td>${r.when}</td><td>${r.location}</td></tr>`)
+      .join('')
+    document.querySelector('#pageshow-table tbody').innerHTML = readLog(PAGESHOW_KEY)
+      .map((r) => `<tr><td>${r.persisted}</td><td>${r.location}</td></tr>`)
+      .join('')
+  }
+  render()
+
+  // Set last: run.mjs polls this, and the render above must not withhold it
+  // — the table is a display of what was recorded, not part of recording it.
+  window.spikeReady = true
+})()
+</script>
+
+</body>
+</html>
