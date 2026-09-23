@@ -47,6 +47,45 @@ watches proves nothing about a library whose whole claim is that they do not.
 Behaviour a user would notice wants a case there, and each case says in one
 sentence what it proves.
 
+## The documentation site
+
+[`docs/`](docs/) is the site, built with Astro and Starlight as the workspace
+package `@leko-docs/site`.
+
+```bash
+pnpm --filter @leko-docs/site dev
+```
+
+It takes `@annetaan/leko` from the workspace: `astro dev` reads the source
+through the `development` export condition, and a build reads `dist/`. The
+stylesheet is exported from `dist/` alone, so build `packages/leko` before the
+first `dev`, and again after changing `leko.css`: the running site keeps the
+copy in `dist/` while the TypeScript it reads is the source.
+
+`pnpm build` builds the site after the packages it depends on, `pnpm typecheck`
+runs `astro check` in it, and `pnpm check:links` reads the pages the build left
+in `docs/dist` and fails on an internal link that does not land.
+[`docs/src/lib/href.ts`](docs/src/lib/href.ts) says which link is the one that
+goes wrong.
+
+Every pull request's CI run carries an artifact named `docs-site`, which is the
+`docs/dist` that run built. Download it from the run's summary page and unzip it
+into an empty `docs/dist`, or let `gh` do both. Empty it either way: unzipping
+over a local build keeps every page the pull request removed, and `gh` refuses
+to write a file that is already there.
+
+```bash
+rm -rf docs/dist
+gh run download <run-id> -n docs-site -D docs/dist
+pnpm --filter @leko-docs/site preview
+```
+
+Use `preview` rather than any static server. The site is built for the `/leko`
+base, and `astro preview` serves it under that base, so its links land. Served
+from the root, every one of them misses.
+
+The site is not published anywhere yet. Publishing waits for the release.
+
 ## Commands
 
 ```bash

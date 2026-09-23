@@ -25,6 +25,16 @@ jobs:
       # fallen behind the source it was gathered from.
       - run: pnpm build
       - run: git diff --exit-code
+      # The site has no public home until the release, so the build a pull
+      # request made is the only rendered copy anyone can open. It goes up
+      # before the checks that could fail, and CONTRIBUTING.md says how to open
+      # it under **The documentation site**.
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: docs-site
+          path: docs/dist
+          retention-days: 14
       # Every bare import in a published package has to be something npm will
       # install. A workspace link is not: it resolves here and nowhere a
       # consumer is, which is how `@annetaan/leko` came to ship imports of two
