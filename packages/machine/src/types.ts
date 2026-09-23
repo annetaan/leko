@@ -95,6 +95,17 @@ export interface MachineOptions<W extends World> {
 // --------------------------------------------------------- what draws the tour
 
 /**
+ * What one document leaves for the next — DESIGN.md, **A page load ends the
+ * story, and hands it on**. Plain data, because it crosses a document
+ * boundary as text and this package has no `lib.dom` to read a `RegExp` back
+ * with: `url` is the pattern's parts, `into` the successor's `id`.
+ */
+export interface Handoff {
+  url: { source: string; flags: string }
+  into: string
+}
+
+/**
  * What the machine is allowed to ask of whatever draws the tour.
  *
  * DESIGN.md, **The presenter never moves the tour**, and DESIGN.md's **No words

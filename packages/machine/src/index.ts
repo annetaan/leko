@@ -4,4 +4,4 @@
  * do too.
  */
 export { Machine } from './machine.js'
-export type { Host, Presenter, World } from './types.js'
+export type { Handoff, Host, Presenter, World } from './types.js'
