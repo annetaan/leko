@@ -1,4 +1,5 @@
 import type { Case } from '../case.js'
+import { acrossAPageLoad } from './across-a-page-load.js'
 import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
@@ -41,6 +42,7 @@ export const cases: Case[] = [
   nextControl,
   asyncCompletion,
   followALink,
+  acrossAPageLoad,
   stepSetup,
   storySetup,
   twoStories,

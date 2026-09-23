@@ -348,3 +348,12 @@ function route(): void {
 
 window.addEventListener('hashchange', route)
 route()
+
+// Once per document, after the first case is up — the line an application
+// writes at startup. Not in `show()`: a case switch is not a page load, and
+// a call there would log a pickUp() on every switch and every pace change.
+if (leko && showing) {
+  note('call', `pickUp([${showing.stories.map((s) => `'${s.id}'`).join(', ')}])`)
+  leko.pickUp(showing.stories)
+  report()
+}
