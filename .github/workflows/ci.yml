@@ -25,10 +25,10 @@ jobs:
       # fallen behind the source it was gathered from.
       - run: pnpm build
       - run: git diff --exit-code
-      # The site has no public home until the release, so the build a pull
-      # request made is the only rendered copy anyone can open. It goes up
-      # before the checks that could fail, and CONTRIBUTING.md says how to open
-      # it under **The documentation site**.
+      # A pull request's build is published nowhere else until it merges, so
+      # this is the only rendered copy of its pages anyone can open. It goes up
+      # once the build is known clean, so a later check failing leaves it there.
+      # CONTRIBUTING.md, **The documentation site** says how to open it.
       - uses: actions/upload-artifact@v7
         if: github.event_name == 'pull_request'
         with:
