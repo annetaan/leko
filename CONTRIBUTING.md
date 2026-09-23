@@ -217,6 +217,19 @@ page, not just the rule.
   name once and will not report it again, so the tour waits for ever. The answer
   to a tour somebody wants to redo is a shorter story.
   [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) argues it.
+- **Carrying more than a story id across a page load.** A step index, a
+  "resume at step 3", a promise to skip an `onEnter` that already ran. A step
+  that declares `awaits` cannot be returned to, and a page load does nothing to
+  change that: what crosses is one story id, taken once.
+  [DESIGN.md](DESIGN.md#a-page-load-ends-the-story-and-hands-it-on) argues it.
+- **Dropping the `pageshow` listener because no engine ever showed a
+  restore.** The spike never saw one and neither did Playwright, which makes
+  the listener look like dead code. It is not: a restore hands back a note
+  whose document was never left, and without `forget()` that note starts the
+  successor from an unrelated page load later in the same tab.
+  [DESIGN.md](DESIGN.md#a-page-load-ends-the-story-and-hands-it-on) argues it,
+  and says plainly that it rests on the specification's guarantee rather than a
+  measurement.
 
 ## Adding a spike
 

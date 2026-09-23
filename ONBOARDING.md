@@ -36,7 +36,7 @@ Node is pinned in `.node-version` and pnpm is pinned in `package.json`.
 the core from `src` through the `development` export condition, so there is no
 watch process and no stale `dist/` to debug.
 
-Fifteen cases sit in the left rail. Take them in this order on the first day.
+The cases sit in the left rail. Take them in this order on the first day.
 
 1. **stepping**. Six targets of different shapes and no validation in the way.
    Press the control on the message and watch the hole morph. This is the case
@@ -112,9 +112,10 @@ and CI runs it.
 | File | What it holds |
 | --- | --- |
 | `packages/types/src/types.ts` | Every public type, and most of the reasoning, in JSDoc |
-| `packages/leko/src/leko.ts` | The public class. Four getters and three methods |
+| `packages/leko/src/leko.ts` | The public class. Four getters and four methods |
 | `packages/presenter/src/plan.ts` | The presenter's mode, and what each event does to it. Pure |
 | `packages/presenter/src/presenter.ts` | `DomPresenter`: the two halves, wired. It performs the plan's effects and decides nothing |
+| `packages/presenter/src/handoff.ts` | The handoff note's shape, and how it is encoded and decoded |
 | `packages/machine/src/types.ts` | What a host brings (`World`, `StepBase`, `StoryBase`) and what a presenter owes (`Presenter`, `Host`) |
 | `packages/machine/src/plan.ts` | The state, and what each event does to it. Pure |
 | `packages/machine/src/machine.ts` | The class. It makes the calls and decides nothing |
@@ -197,7 +198,7 @@ those effects. Read `dispatch` and `perform` there the way you read them in
 
 **8. `packages/leko/src/leko.ts`**
 
-Four getters and three methods, each one delegating to the machine. It is thin
+Four getters and four methods, each one delegating to the machine. It is thin
 on purpose. Read the JSDoc and skip the bodies.
 
 **9. `packages/codegen/`** (optional)
@@ -231,14 +232,17 @@ survived being drawn. A progress readout that heard about a step while its
 `onEnter` was still running would be naming something the user cannot see. In
 `plan.ts` those are two events, so nothing can quietly put the report first.
 
-The other direction is three calls. `Host.lost` when a target a step arrived at
-never turned up, `Host.next` when the step's control is pressed, and
-`Host.close` when the one that ends the tour is. The machine hands the presenter
-three closures in its constructor, so the presenter cannot reach anything else
-on the machine.
+The other direction is the members of `Host`. `lost` when a target a step
+arrived at never turned up, `next` when the step's control is pressed, `close`
+when the one that ends the tour is, `navigated` on a URL change a `{ url }`
+step might be waiting for, and `unloading` at `pagehide`. The machine hands
+the presenter five closures in its constructor, so the presenter cannot reach
+anything else on the machine.
 
-Every one of them either ends the run or moves it on. A resize reaches the
-machine through none of them: the presenter draws the step it already has
+Every one of them either ends the run or moves it on, except `unloading`: it
+keeps a note and leaves the run standing rather than tearing anything down —
+DESIGN.md, **A page load ends the story, and hands it on**. A resize reaches
+the machine through none of them: the presenter draws the step it already has
 again, which is not a decision anybody has to be asked about. A node swapped
 for an identical one under a drawn step reaches nothing at all — the presenter
 is not watching, and the hole a replacement lands in is the one that was
@@ -323,10 +327,10 @@ after a window carries the position it was planned at, and `plan.ts` asks
 `stillAt` before acting on one. A `stop()` can have thrown that arrival away
 while the machine was gone.
 
-There are seven of those asks. Six are about a position an arrival began at, and
-the last one is a different job: a `refused` landing after a `validate` that
-called `stop()` from inside itself. All seven are what is left of a counter that
-used to be checked in thirteen places.
+There are eight of those asks. Seven are about a position an arrival or an ask
+of `next` began at, and the last one is a different job: a `refused` landing
+after a `validate` that called `stop()` from inside itself. All eight are what
+is left of a counter that used to be checked in thirteen places.
 
 ## The three constraints, and the line that keeps each
 
@@ -371,8 +375,9 @@ grep -rn "addEventListener\|new MutationObserver" \
   packages/presenter/src packages/spotlight/src packages/machine/src | grep -v "\.test\."
 ```
 
-Six lines come back. They are every listener the library installs, and none of
-them advances a step.
+They are every listener the library installs but one — the grep also catches
+the `NavigationApi` interface declaration, which installs nothing — and none
+of the listeners advances a step.
 
 | Where | Why |
 | --- | --- |
@@ -381,19 +386,25 @@ them advances a step.
 | `focus.ts` constructor | `keydown` and `focusin`, both capturing. They keep Tab inside the ring and move nothing |
 | `message.ts` `press` | A `click` on the next control. Reports `Host.next` |
 | `close.ts` `press` | A `click` on the control that ends the tour. Reports `Host.close` |
+| `presenter.ts` `watchNavigation` | `currententrychange`, or `popstate` and `hashchange` where the Navigation API is missing. Reports `Host.navigated` |
+| `presenter.ts` `watchNavigation` | `pagehide`, reporting `Host.unloading`, and `pageshow`, calling `forget()`. Neither moves a step — DESIGN.md, **A page load ends the story, and hands it on** |
+| `follow.ts` | A passive `scroll` per port, waking the frame loop that corrects a sticky target's hole. DESIGN.md, **A sticky target's hole is corrected on a frame loop, and that is the only exception to the ban** |
 
-**There is no scroll listener anywhere.** Scroll tracking runs no JavaScript at
-all. The scrim lives inside the thing that scrolls, so scrolling moves the scrim
-and the target together, and the message is anchor-positioned so the browser
-offsets it. If you find yourself adding a scroll listener, stop and read
+**The one scroll listener is the sticky target's, and it reads layout only
+while a port it named is moving.** Every other case moves the scrim and the
+target together for free: the scrim lives inside the thing that scrolls, and
+the message is anchor-positioned so the browser offsets it. If you find
+yourself adding another scroll listener, stop and read
 [Scrolling](DESIGN.md#scrolling) first.
 
 **3. Story logic stays in the story.**
 
-`Leko` publishes `start`, `reached`, `watch` and `stop`, and four getters.
-Nothing on it takes a step. `reached(name)` takes one string, and the matching
-against `awaits` happens inside the machine, so a call site cannot say which
-step should move even by accident.
+`Leko` publishes `start`, `pickUp`, `reached` and `stop`, and four getters.
+Nothing on it takes a step. `pickUp` takes a list of stories and matches a
+kept note against one of them by `id`, once, so nothing on it names a step
+either. `reached(name)` takes one string, and the matching against `awaits`
+happens inside the machine, so a call site cannot say which step should move
+even by accident.
 
 The conditions a story has are fields on the step. `awaits` names the report the
 step waits for. `validate` guards the control. `interactive` says what the user
@@ -421,7 +432,7 @@ whether a browser could get the answer wrong.
 mentioned the DOM and no engine could disagree about any of them. They moved to
 `leko-wiring` and the suite went from 265 runs to 225 without deleting a claim.
 
-`machine.test.ts` is grouped into 11 `describe` blocks, one per axis the machine
+`machine.test.ts` is grouped into one `describe` block per axis the machine
 is asked about. Read them as a table. A group with two tests in it is a column
 nobody has crossed with the others, and that is where the next bug is.
 DESIGN.md says so under
@@ -441,6 +452,7 @@ DESIGN.md says so under
 | Where the message goes | `spotlight/src/message.ts`, `chooseSide` and `place` |
 | What Tab may reach | `spotlight/src/focus.ts`, and `showRing` in `presenter/src/presenter.ts` |
 | What the machine may ask of the presenter | `machine/src/types.ts`, then both implementations |
+| How a tour crosses a page load | `machine/src/plan.ts`'s `unloading`, `pickUp`, `handingOn` and `taken` cases; `presenter/src/presenter.ts`'s `keep`, `take`, `forget` and `watchNavigation`; `presenter/src/handoff.ts` |
 | Anything a user would notice | A case in `examples/sandbox/src/cases/`, stating what it proves |
 | A new claim about browser behaviour | A page in `spike/`, dependency free and free of Leko |
 

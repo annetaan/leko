@@ -33,7 +33,7 @@ refuses a `start()` made from in there.
 `position` is replaced on every move and on nothing else. That is what makes its
 identity the step occurrence the tour is standing on. Every event that can land
 late carries the position it was planned at, and `plan.ts` asks `stillAt` before
-it acts on one. There are seven of those asks.
+it acts on one. There are eight of those asks.
 
 ## The phase machine
 
@@ -160,7 +160,7 @@ own chain of events.
 
 So every event the machine owes itself carries the `position` object it was
 planned at, and `plan.ts` compares that object with the current one before
-acting, at the seven places named above.
+acting, at the eight places named above.
 
 `validate` is the one that reads oddly. It answers in the turn it is asked, so
 nothing is left over to land later, and the `refused` event asks all the same,

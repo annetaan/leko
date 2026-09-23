@@ -93,9 +93,13 @@ this existed.
 - No runtime dependencies, no framework required.
 - Nothing of Leko's is ever placed over the target, not even a transparent
   element.
-- Scrolling a tour runs no JavaScript at all.
+- Scrolling a tour runs no JavaScript, with one exception: a sticky target's
+  hole is corrected on a frame loop — DESIGN.md, **A sticky target's hole is
+  corrected on a frame loop, and that is the only exception to the ban**.
 - One instance holds every story and shows one of them, so a call site reports
   what happened once and never learns how many stories exist.
+- A tour crosses a page load: the next document calls `pickUp` once and the
+  story that follows starts there.
 
 ## Browser support
 
