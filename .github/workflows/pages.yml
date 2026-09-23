@@ -1,0 +1,65 @@
+name: Pages
+
+# The site is not published before the release. Until then this runs only when
+# somebody starts it by hand, so nothing a push does publishes anything, and a
+# run started before Pages is turned on builds the site and then fails at
+# `deploy-pages` with nothing deployed.
+#
+# What the release does, in this order:
+#
+# 1. Settings → Pages → Build and deployment → Source: GitHub Actions. The
+#    repository is private today, and Pages on a private repository needs a
+#    paid plan, so this step presumes the repository is public by then.
+# 2. Run this workflow once from main: Actions → Pages → Run workflow.
+# 3. Replace `workflow_dispatch:` below with a push to main, and keep
+#    `workflow_dispatch:` beside it for a redeploy:
+#
+#      on:
+#        push:
+#          branches: [main]
+#        workflow_dispatch:
+#
+# 4. Delete this comment down to `on:`, which is all about the time before
+#    the release, and the closing paragraph under
+#    CONTRIBUTING.md, **The documentation site**, which points here.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A deployment already under way is left to finish, and of the runs queued
+# behind it only the latest starts.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # The one check that reads what is about to go up. The rest are CI's.
+      - run: pnpm check:links
+      # No `actions/configure-pages`: `site` and `base` are written into
+      # `docs/astro.config.mjs`, and `deploy-pages` does not need it. No
+      # `.nojekyll` either: Pages runs Jekyll only on a site published from a
+      # branch, so `_astro/` is served as it is.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/dist
+      - uses: actions/deploy-pages@v5
+        id: deployment

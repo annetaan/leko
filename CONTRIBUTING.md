@@ -85,6 +85,8 @@ base, and `astro preview` serves it under that base, so its links land. Served
 from the root, every one of them misses.
 
 The site is not published anywhere yet. Publishing waits for the release.
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) is the workflow
+that will publish it, and its header says what the release changes.
 
 ## Commands
 
