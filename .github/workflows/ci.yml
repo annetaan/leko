@@ -25,11 +25,25 @@ jobs:
       # fallen behind the source it was gathered from.
       - run: pnpm build
       - run: git diff --exit-code
+      # A pull request's build is published nowhere else until it merges, so
+      # this is the only rendered copy of its pages anyone can open. It goes up
+      # once the build is known clean, so a later check failing leaves it there.
+      # CONTRIBUTING.md, **The documentation site** says how to open it.
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: docs-site
+          path: docs/dist
+          retention-days: 14
       # Every bare import in a published package has to be something npm will
       # install. A workspace link is not: it resolves here and nowhere a
       # consumer is, which is how `@annetaan/leko` came to ship imports of two
       # packages that are not on the registry, with every other check green.
       - run: pnpm check:pack
+      # A link in the documentation site that does not land still builds, and
+      # nothing else here fails on it. `docs/src/lib/href.ts` says why a link
+      # written by hand is the one that goes wrong.
+      - run: pnpm check:links
       # A comment that cites a heading instead of re-arguing it is the trade
       # DESIGN.md asks for under **Comments are the last place a fact goes**,
       # and it only holds while the pointer lands. Renaming a heading is the one
