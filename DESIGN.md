@@ -147,15 +147,15 @@ successor, no `onEnter` skipped, no visual continuity across the boundary.
   never an arrival** whole across the boundary: what is matched is the URL the
   page arrived at, never the click that led there.
 - **The `from` check reaches the same rule across the boundary, by a
-  mechanism of its own.** `take()` drops a kept note whose URL equals the one
-  the arriving document is already at. A same-document arrival is ruled out a
-  different way — **Only a change is watched, never an arrival** never judges
-  the draw at all — but the outcome here is the one that rule protects: this
-  stops a reload of a page whose own URL matches the step's pattern from
-  starting the successor on the page the user never left. The step that
-  pattern belongs to was drawn in the previous document, so a matching
-  arrival has to be a URL that came after it, and no draw is in progress when
-  this is judged.
+  mechanism of its own.** `pickUp` drops a taken note whose URL equals the
+  one the arriving document is already at. A same-document arrival is ruled
+  out a different way — **Only a change is watched, never an arrival** never
+  judges the draw at all — but the outcome here is the one that rule
+  protects: this stops a reload of a page whose own URL matches the step's
+  pattern from starting the successor on the page the user never left. The
+  step that pattern belongs to was drawn in the previous document, so a
+  matching arrival has to be a URL that came after it, and no draw is in
+  progress when this is judged.
 - **The old document's tour is left standing.** `pagehide` runs no teardown:
   no `onLeave`, no `onStep(undefined)`. A document that is torn down has
   nothing to clean up; a document the back/forward cache hands back instead
@@ -165,6 +165,17 @@ successor, no `onEnter` skipped, no visual continuity across the boundary.
   armed a listener for exactly this and never saw a restore, in any engine it
   reached, so this rests on the guarantee rather than on that page's own
   numbers.
+- **A restore forgets the note it kept.** The tour left standing above is not
+  the only thing a restore hands back: the note `pagehide` kept is still in
+  `sessionStorage`, and nothing consumed it, because no new document ran. A
+  note says its document is being left; a restore means it was not, after
+  all — the same rule the `from` check reaches by a mechanism of its own, so
+  `pageshow` is armed alongside `pagehide`, and where `event.persisted` is
+  true the note is dropped. Left in place, it would start the successor from
+  an unrelated later page load in the same tab, the first time that page's
+  URL happens to match. `spike/a-cross-document-navigation/` never saw a
+  restore either, so this too rests on the specification's guarantee rather
+  than a measurement of one.
 - **A note kept is consumed by the first `pickUp`, matching or not.** A tour
   abandoned before its destination is over at the first Leko page that is not
   it. No timestamp bounds the note: any bound is a guess about how long a

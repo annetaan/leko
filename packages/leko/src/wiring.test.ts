@@ -1677,6 +1677,7 @@ function watching(options = {}) {
       next: () => {},
       close: () => {},
       navigated: (url) => void navigated.push(url),
+      unloading: () => {},
     },
   )
   return { presenter, lost, navigated }

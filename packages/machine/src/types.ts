@@ -86,6 +86,8 @@ export type Problem<W extends World> =
   /** `running` is the story this `start` left alone. */
   | { kind: 'tour-running'; story: W['story']; running: W['story'] }
   | { kind: 'target-lost'; step: W['step']; story: W['story'] }
+  /** A previous document handed on a story this one did not hand `pickUp`. */
+  | { kind: 'story-unknown'; id: string }
 
 export interface MachineOptions<W extends World> {
   onStep?(step: W['step'] | undefined, story: W['story']): void
@@ -145,11 +147,23 @@ export interface Presenter<W extends World> {
   reject(): void
   /** Everything this presenter put on the page goes. */
   teardown(): void
+  /**
+   * Keep `handoff` for the next document, stamped with the URL it is kept
+   * at — everything after the origin, which the machine cannot read itself.
+   */
+  keep(handoff: Handoff): void
+  /**
+   * What a previous document left, taken and removed whether or not it will
+   * be acted on: the note as kept, and `url`, where this document is now.
+   * Two URLs and no verdict — comparing them is the plan's. `undefined`
+   * where nothing was kept or the note did not read.
+   */
+  take(): { handoff: Handoff; from: string; url: string } | undefined
 }
 
 /**
- * What a presenter is allowed to tell the machine. Three things it noticed, and
- * nothing to ask.
+ * What a presenter is allowed to tell the machine — something it noticed, or
+ * that one of the page's own controls was used — and nothing to ask.
  *
  * The machine hands one of these to the factory that builds the presenter
  * rather than handing itself, because every member here would otherwise be part
@@ -181,4 +195,11 @@ export interface Host<W extends World> {
    * signal the page reports**.
    */
   navigated(url: string): void
+  /**
+   * `pagehide`: the document is being unloaded or put in the back/forward
+   * cache, and either way nothing in it runs again until it is shown again.
+   * Nothing is torn down for it — DESIGN.md, **A page load ends the story,
+   * and hands it on**.
+   */
+  unloading(): void
 }
