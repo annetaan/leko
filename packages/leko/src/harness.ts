@@ -33,6 +33,12 @@ afterEach(() => {
   // `back()`: nothing here should fire another navigation for the next test to
   // catch.
   history.replaceState(null, '', startUrl)
+  // A note a test kept must not reach the next test, and reaching
+  // `sessionStorage` at all can throw where site data is blocked — the same
+  // reason `keep`, `take` and `forget` in `presenter.ts` are wrapped.
+  try {
+    sessionStorage.clear()
+  } catch {}
 })
 
 /**

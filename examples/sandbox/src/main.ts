@@ -246,6 +246,8 @@ function show(next: Case): void {
         problem = 'start() arrived while Leko was inside the application, and was not acted on.'
       } else if (found.kind === 'tour-running') {
         problem = `start() was given “${found.story.id}” while “${found.running.id}” was running. Press stop() first: start() never ends a tour.`
+      } else if (found.kind === 'story-unknown') {
+        problem = `A previous page handed on “${found.id}”, and this page's pickUp() was not given that story.`
       } else {
         problem = `start() was given “${found.story.id}”, which has no steps in it.`
       }
@@ -346,3 +348,12 @@ function route(): void {
 
 window.addEventListener('hashchange', route)
 route()
+
+// Once per document, after the first case is up — the line an application
+// writes at startup. Not in `show()`: a case switch is not a page load, and
+// a call there would log a pickUp() on every switch and every pace change.
+if (leko && showing) {
+  note('call', `pickUp([${showing.stories.map((s) => `'${s.id}'`).join(', ')}])`)
+  leko.pickUp(showing.stories)
+  report()
+}

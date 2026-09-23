@@ -38,6 +38,13 @@ const press = (tour: Machine<Fixture>): void => void drawnFor.get(tour)!.press()
 const navigate = (tour: Machine<Fixture>, url: string): void =>
   void drawnFor.get(tour)!.navigate(url)
 
+const unload = (tour: Machine<Fixture>): void => void drawnFor.get(tour)!.unload()
+
+/** Where the fixture behind `tour` says its document is, without a navigation. */
+const land = (tour: Machine<Fixture>, url: string): void => {
+  drawnFor.get(tour)!.url = url
+}
+
 const staged = new WeakMap<Machine<Fixture>, Map<string, Story>>()
 
 function hold(tour: Machine<Fixture>, story: Story): Story {
@@ -319,6 +326,294 @@ describe('a URL, and the step waiting for it', () => {
 
     expect(tour.state).toBe('idle')
     expect(problems).toEqual([])
+  })
+})
+
+describe('a page load, and the story it hands on', () => {
+  // DESIGN.md, **A page load ends the story, and hands it on**.
+
+  const pattern = /^\/next/
+  const successor: Story = { id: 'successor', steps: [{ id: 's', target: 'third' }] }
+
+  test('a last step awaiting a URL, on a story with next, keeps the pattern and the successor id', () => {
+    const tour = staging({
+      id: 'leaving',
+      next: successor,
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', awaits: { url: pattern } },
+      ],
+    })
+    begin(tour, 'leaving')
+    press(tour)
+
+    unload(tour)
+
+    expect(drawnFor.get(tour)!.kept).toEqual({
+      handoff: { url: { source: pattern.source, flags: pattern.flags }, into: 'successor' },
+      from: '/',
+    })
+  })
+
+  test('a step that is not the last keeps nothing', () => {
+    const tour = staging({
+      id: 'leaving',
+      next: successor,
+      steps: [
+        { id: 'a', target: 'first', awaits: { url: pattern } },
+        { id: 'b', target: 'second' },
+      ],
+    })
+    begin(tour, 'leaving')
+
+    unload(tour)
+
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('a last step awaiting a name, or nothing, keeps nothing', () => {
+    const named = staging({
+      id: 'leaving',
+      next: successor,
+      steps: [{ id: 'a', target: 'first', awaits: 'saved' }],
+    })
+    begin(named, 'leaving')
+    unload(named)
+    expect(drawnFor.get(named)!.kept).toBeUndefined()
+
+    const bare = staging({
+      id: 'leaving',
+      next: successor,
+      steps: [{ id: 'a', target: 'first' }],
+    })
+    begin(bare, 'leaving')
+    unload(bare)
+    expect(drawnFor.get(bare)!.kept).toBeUndefined()
+  })
+
+  test('a story with no next keeps nothing', () => {
+    const tour = staging({
+      id: 'leaving',
+      steps: [{ id: 'a', target: 'first', awaits: { url: pattern } }],
+    })
+    begin(tour, 'leaving')
+
+    unload(tour)
+
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('a function next answering nothing keeps nothing', () => {
+    const tour = staging({
+      id: 'leaving',
+      next: () => undefined,
+      steps: [{ id: 'a', target: 'first', awaits: { url: pattern } }],
+    })
+    begin(tour, 'leaving')
+
+    unload(tour)
+
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('a next that called stop() from inside itself keeps nothing', () => {
+    let tour!: Machine<Fixture>
+    tour = staging({
+      id: 'leaving',
+      next: () => {
+        tour.stop()
+        return successor
+      },
+      steps: [{ id: 'a', target: 'first', awaits: { url: pattern } }],
+    })
+    begin(tour, 'leaving')
+
+    unload(tour)
+
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('unloading leaves the tour standing: no teardown, no onLeave, no report', () => {
+    const left: string[] = []
+    const { tour, seen } = watched({
+      id: 'leaving',
+      next: successor,
+      onLeave: () => void left.push('story'),
+      steps: [
+        { id: 'a', target: 'first' },
+        {
+          id: 'b',
+          target: 'second',
+          awaits: { url: pattern },
+          onLeave: () => void left.push('step'),
+        },
+      ],
+    })
+    begin(tour, 'leaving')
+    press(tour)
+    seen.length = 0
+
+    unload(tour)
+
+    expect(seen).toEqual([])
+    expect(left).toEqual([])
+    expect(drawing().torn).toBe(0)
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+  })
+
+  test('unloading while idle costs nothing and says nothing', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = machine({ onDiagnostic: (problem) => problems.push(problem) })
+
+    unload(tour)
+
+    expect(tour.state).toBe('idle')
+    expect(problems).toEqual([])
+  })
+
+  test('unloading from inside onEnter costs nothing and says nothing', () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    tour = staging(
+      {
+        id: 'leaving',
+        next: successor,
+        steps: [
+          { id: 'a', target: 'first' },
+          {
+            id: 'b',
+            target: 'second',
+            awaits: { url: pattern },
+            onEnter: () => unload(tour),
+          },
+        ],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    begin(tour, 'leaving')
+    press(tour)
+
+    expect(problems).toEqual([])
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('pickUp at a matching URL starts the successor from its first step', () => {
+    const tour = machine()
+
+    drawnFor.get(tour)!.keep({
+      url: { source: pattern.source, flags: pattern.flags },
+      into: 'successor',
+    })
+    land(tour, '/next')
+    tour.pickUp([successor])
+
+    expect(tour.story?.id).toBe('successor')
+    expect(tour.step?.id).toBe('s')
+    expect(drawing().shown).toEqual(['s'])
+  })
+
+  test('a URL that tests false against the pattern starts nothing, and the note is gone', () => {
+    const tour = machine()
+
+    drawnFor.get(tour)!.keep({
+      url: { source: pattern.source, flags: pattern.flags },
+      into: 'successor',
+    })
+    land(tour, '/elsewhere')
+    tour.pickUp([successor])
+
+    expect(tour.state).toBe('idle')
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('pickUp with nothing kept starts nothing', () => {
+    const tour = machine()
+
+    tour.pickUp([successor])
+
+    expect(tour.state).toBe('idle')
+  })
+
+  test('pickUp naming no story with the kept id reports story-unknown, with that id', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = machine({ onDiagnostic: (problem) => problems.push(problem) })
+
+    drawnFor.get(tour)!.keep({
+      url: { source: pattern.source, flags: pattern.flags },
+      into: 'successor',
+    })
+    land(tour, '/next')
+    tour.pickUp([])
+
+    expect(problems).toEqual([{ kind: 'story-unknown', id: 'successor' }])
+    expect(tour.state).toBe('idle')
+  })
+
+  test('pickUp while a tour runs reports tour-running, and the note is gone', () => {
+    const problems: Problem<Fixture>[] = []
+    const runningStory: Story = { id: 'running', steps: [{ id: 'a', target: 'first' }] }
+    const tour = staging(runningStory, { onDiagnostic: (problem) => problems.push(problem) })
+
+    drawnFor.get(tour)!.keep({
+      url: { source: pattern.source, flags: pattern.flags },
+      into: 'successor',
+    })
+    land(tour, '/next')
+    begin(tour, 'running')
+
+    tour.pickUp([successor])
+
+    expect(problems).toEqual([{ kind: 'tour-running', story: successor, running: runningStory }])
+    expect(drawnFor.get(tour)!.kept).toBeUndefined()
+  })
+
+  test('pickUp from inside onEnter is refused, and the note is left for the call that goes through', () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    tour = staging(
+      {
+        id: 'gate',
+        onEnter: () => tour.pickUp([successor]),
+        steps: [{ id: 'a', target: 'first' }],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    drawnFor.get(tour)!.keep({
+      url: { source: pattern.source, flags: pattern.flags },
+      into: 'successor',
+    })
+    land(tour, '/next')
+    begin(tour, 'gate')
+
+    expect(problems).toEqual([{ kind: 'call-refused' }])
+    expect(drawnFor.get(tour)!.kept).toBeDefined()
+  })
+
+  test('a pattern whose flags decide the verdict still carries them across the boundary', () => {
+    // `i` rather than `g`/`y`: a fresh `RegExp` is stateless on both sides of
+    // the boundary regardless of what the code does with `g`/`y`, so a
+    // pattern with either flag tests true whether or not it survived the
+    // trip. A case-insensitive match is the only kind that fails when the
+    // flags did not make it — through `handingOn`'s writing of the note or
+    // `taken`'s reading of it.
+    const flagged = /^\/NEXT/i
+    const leaving = staging({
+      id: 'leaving',
+      next: successor,
+      steps: [{ id: 'a', target: 'first', awaits: { url: flagged } }],
+    })
+    begin(leaving, 'leaving')
+    unload(leaving)
+
+    const arriving = machine()
+    drawnFor.get(arriving)!.keep(drawnFor.get(leaving)!.kept!.handoff)
+    land(arriving, '/next')
+    arriving.pickUp([successor])
+
+    expect(arriving.story?.id).toBe('successor')
   })
 })
 

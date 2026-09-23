@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What did the previous document leave?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p { color: #a8a8a8; } }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child, th:first-child { font-family: ui-monospace, monospace; }
+  .yes { color: #0a7d32; font-weight: 700; }
+  .no { color: #c62828; font-weight: 700; }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>What did the previous document leave?</h1>
+<p>
+  This is the <em>arriving</em> page. It reads what
+  <a href="index.html">index.html</a> recorded before it left, once, on load
+  — sessionStorage the previous document wrote is either here by the time
+  this script runs or it never will be, and no polling could tell the
+  difference.
+</p>
+<p><span id="env" class="readout"></span></p>
+
+<h2>The previous document's log</h2>
+<table id="log-table"><thead><tr>
+  <th>source</th><th>type</th><th>when</th><th>location</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>The <code>pagehide</code> token</h2>
+<p id="token" class="readout"></p>
+
+<script>
+;(() => {
+  const LOG_KEY = 'leko-spike-cross-doc-log'
+  const TOKEN_KEY = 'leko-spike-cross-doc-token'
+  const TOKEN_VALUE = 'leko-spike-pagehide-token'
+
+  // Taken once, here, and used for every age below. `measure()` is called by
+  // run.mjs after polling spikeArrivedReady and a page.evaluate round trip —
+  // a Date.now() taken there would measure that harness latency, not
+  // anything a browser did.
+  const readAt = Date.now()
+
+  const read = (key) => {
+    try {
+      return sessionStorage.getItem(key)
+    } catch {
+      return null
+    }
+  }
+  const remove = (key) => {
+    try {
+      sessionStorage.removeItem(key)
+    } catch {
+      // ditto
+    }
+  }
+
+  let log = []
+  try {
+    log = JSON.parse(read(LOG_KEY) ?? '[]')
+  } catch {
+    log = []
+  }
+
+  let token = null
+  try {
+    const raw = read(TOKEN_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    token = parsed && parsed.value === TOKEN_VALUE ? parsed : null
+  } catch {
+    token = null
+  }
+  // Taken once: a later visit to this page with no fresh pagehide behind it
+  // must not read a token an earlier visit already consumed.
+  remove(TOKEN_KEY)
+
+  const navEntry = performance.getEntriesByType('navigation')[0]
+  const navigationType = navEntry ? navEntry.type : undefined
+
+  window.spikeArrived = {
+    async measure() {
+      return {
+        log,
+        tokenPresent: token !== null,
+        tokenAge: token ? readAt - token.when : undefined,
+        navigationType,
+      }
+    },
+  }
+
+  function render() {
+    document.getElementById('env').textContent =
+      `${navigator.userAgent} — navigation type: ${navigationType}`
+    document.querySelector('#log-table tbody').innerHTML = log
+      .map((r) => `<tr><td>${r.source}</td><td>${r.type}</td><td>${r.when}</td><td>${r.location}</td></tr>`)
+      .join('')
+    document.getElementById('token').innerHTML = token
+      ? `<span class="yes">present</span>, written ${readAt - token.when}ms before this script read it`
+      : '<span class="no">absent</span>'
+  }
+  render()
+
+  // Set last, matching index.html's window.spikeReady: run.mjs polls this,
+  // and a draw that throws must not withhold it.
+  window.spikeArrivedReady = true
+})()
+</script>
+
+</body>
+</html>

@@ -402,5 +402,10 @@ same boundary.
 - `navigated`. It falls to the same `advance` as `reached` once the URL
   matches, so the model represents both with `reached` rather than giving
   `navigated` an action of its own.
+- `unloading` and `pickUp`. The first owes `handOn`, the same ask as `chain`
+  continued differently: the window it opens is one `chain`/`chained`
+  already give an action to, and the note `keep` writes afterward is not
+  state this model holds. The second falls to the same `start` once the note
+  matches. So neither gets an action of its own.
 - A misconception shared by the model and the code. Nothing can catch that. The
   model is small enough to read, and that is the whole of the defence.

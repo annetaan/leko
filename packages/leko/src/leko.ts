@@ -103,6 +103,35 @@ export class Leko {
   }
 
   /**
+   * Take up what a previous document handed on, if it handed on anything —
+   * DESIGN.md, **A page load ends the story, and hands it on**.
+   *
+   * **Call this once per document.** A call made from inside `onEnter`,
+   * `onLeave` or the ending `onStep` report is refused before the note is
+   * touched, and reported `call-refused`: the note is left exactly where it
+   * was, for the call that goes through a moment later — DESIGN.md, **Saying
+   * that a call did nothing**. Every other call takes the note and removes
+   * it, whatever it finds, so a second such call always finds nothing left
+   * to take:
+   *
+   * - Nothing kept, or a note this page's URL does not answer to — it does
+   *   not match the pattern, or it is the very URL the note was kept at —
+   *   is silence.
+   * - A note naming no story in `stories` reports `story-unknown`, with the
+   *   id it named.
+   * - A note that matches while a tour is already running never starts the
+   *   successor: `start` refuses it the same way a direct call would, and
+   *   reports `tour-running`.
+   * - A note that matches while idle starts the successor from its first
+   *   step, the way {@link start} would have started it, and never
+   *   part-way: this is not called `resume` for the reason DESIGN.md gives
+   *   under **A story is atomic, and stories are short**.
+   */
+  pickUp(stories: LekoStory[]): void {
+    this.machine.pickUp(stories)
+  }
+
+  /**
    * Report that something happened in the application.
    *
    * Advances the step that is waiting for this name, after `validate`, and does

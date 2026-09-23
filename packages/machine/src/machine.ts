@@ -26,8 +26,8 @@ export class Machine<W extends World> {
   /**
    * The presenter is built here rather than handed in, because it needs a
    * {@link Host} and only this object can answer one. What goes to the factory
-   * is three closures rather than `this`, so nothing else can reach the next
-   * control at all.
+   * is closures rather than `this`, so nothing else can reach the next control
+   * at all.
    */
   constructor(options: MachineOptions<W>, presenter: (host: Host<W>) => Presenter<W>) {
     this.options = options
@@ -36,6 +36,7 @@ export class Machine<W extends World> {
       next: () => this.dispatch({ kind: 'pressed' }),
       close: () => this.stop(),
       navigated: (url) => this.dispatch({ kind: 'navigated', url }),
+      unloading: () => this.dispatch({ kind: 'unloading' }),
     })
   }
 
@@ -73,6 +74,14 @@ export class Machine<W extends World> {
    */
   start(story: W['story']): void {
     this.dispatch({ kind: 'start', story })
+  }
+
+  /**
+   * What a previous document handed on, taken up once: DESIGN.md, **A page
+   * load ends the story, and hands it on**.
+   */
+  pickUp(stories: W['story'][]): void {
+    this.dispatch({ kind: 'pickUp', stories })
   }
 
   reached(name: string): void {
@@ -145,6 +154,23 @@ export class Machine<W extends World> {
         const { next } = effect.story
         const into = typeof next === 'function' ? next() : next
         return void this.dispatch({ kind: 'chained', at: effect.at, into })
+      }
+
+      case 'handOn': {
+        // Asked while the tour still stands on the last step, so a `stop()`
+        // made from in here is the ordinary one and `handingOn` finds the
+        // tour gone.
+        const { next } = effect.story
+        const into = typeof next === 'function' ? next() : next
+        return void this.dispatch({ kind: 'handingOn', at: effect.at, url: effect.url, into })
+      }
+
+      case 'keep':
+        return this.presenter.keep(effect.handoff)
+
+      case 'take': {
+        const found = this.presenter.take()
+        return void this.dispatch({ kind: 'taken', stories: effect.stories, found })
       }
 
       case 'callStoryEnter': {

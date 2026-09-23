@@ -27,6 +27,7 @@ tell you what you are allowed to assume.
 | [`a-static-scroller-made-relative/`](a-static-scroller-made-relative/) | What moves when a static scroller is given `position: relative`, and does it then ride the scroller's scroll? |
 | [`a-sticky-target-pinning/`](a-sticky-target-pinning/) | When is a `position: sticky` element pinned, does it say so, and can a layer be glued to a scroller's scrollport? |
 | [`a-same-document-navigation/`](a-same-document-navigation/) | What says a same-document URL changed, does it come before or after `location` has moved, and does it land inside the call that triggered it or later? |
+| [`a-cross-document-navigation/`](a-cross-document-navigation/) | What can a document being left still say — does `pagehide` fire before the next document's script runs, does a `sessionStorage` write made there survive to be read, and does the same-document mechanism ever fire for a navigation that leaves the document? |
 
 ## Reading them
 

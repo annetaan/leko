@@ -5,6 +5,7 @@ description: A product tour that cuts a hole in the overlay, so a step that asks
 
 import { LinkButton } from '@astrojs/starlight/components'
 import { href } from '../../lib/href.ts'
+import SiteTour from '../../components/SiteTour.astro'
 
 Leko highlights an element by cutting a hole in an overlay. Where a step asks
 the user to do something, the element under the hole is the real one. Clicks
@@ -41,6 +42,18 @@ A step names what it waits for.
 There is no click listener anywhere that moves a tour along. A step that waits
 for a signal has no next control either, because the control would be a way past
 the work that step exists to make somebody do.
+
+## It works across pages
+
+A static site is one document per page, and a tour that ends at the first
+link is not a tour of a site. Press the button, then open the link in the
+panel, and the demo page picks the tour up as it loads, because the step
+the button puts up waits for that URL and the story it belongs to names
+what follows. The two documents share no runtime at all — the stories live
+in one module both pages import, and nothing but the id reaches the story
+it starts.
+
+<SiteTour />
 
 ## This site is a work in progress
 

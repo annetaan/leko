@@ -367,3 +367,141 @@ describe('an arrival is a fresh position and nothing else', () => {
     expect(opened.core).toEqual({ ...outcome.core, phase: 'story' })
   })
 })
+
+describe('a page load, and the story it hands on', () => {
+  // DESIGN.md, **A page load ends the story, and hands it on**.
+
+  const urlPattern = /^\/next/
+  const successor: Story = { id: 'successor', steps: [{ id: 's', target: 'first' }] }
+  const handing: Story = {
+    id: 'handing',
+    next: successor,
+    steps: [first, { id: 'leave', target: 'second', awaits: { url: urlPattern } }],
+  }
+  const at2: Position<Fixture> = { story: handing, index: 1 }
+  const standing = (over: Partial<C> = {}): C => ({ ...nothing(), position: at2, ...over })
+
+  test('unloading owes handOn only from ready, on the last step of a story with next and { url }', () => {
+    const answers = Object.fromEntries(
+      PHASES.map((phase) => [phase, owed(put(standing({ phase }), { kind: 'unloading' }))]),
+    )
+
+    expect(answers).toEqual({
+      ready: ['handOn'],
+      story: [],
+      step: [],
+      ending: [],
+    })
+  })
+
+  test('unloading owes nothing where the story names no next, even from its last, URL-awaiting step', () => {
+    // `handingOn` would answer the same `into: undefined` either way, but
+    // this is the guard that keeps `handOn` — and the call it makes into
+    // `story.next` — from being owed in the first place.
+    const noNext: Story = {
+      id: 'no-next',
+      steps: [{ id: 'a', target: 'first', awaits: { url: urlPattern } }],
+    }
+    const core: C = { ...nothing(), position: { story: noNext, index: 0 } }
+
+    const outcome = put(core, { kind: 'unloading' })
+
+    expect(outcome.effects).toEqual([])
+  })
+
+  test('handingOn owes nothing where next answered nothing', () => {
+    const outcome = put(standing(), {
+      kind: 'handingOn',
+      at: at2,
+      url: urlPattern,
+      into: undefined,
+    })
+
+    expect(outcome.effects).toEqual([])
+  })
+
+  test('handingOn owes nothing where the tour has moved on since', () => {
+    const moved: C = { ...standing(), position: { story: handing, index: 0 } }
+
+    const outcome = put(moved, { kind: 'handingOn', at: at2, url: urlPattern, into: successor })
+
+    expect(outcome.effects).toEqual([])
+  })
+
+  test('handingOn owes keep, stamped with the pattern and the successor id, while the tour still stands where it was', () => {
+    const outcome = put(standing(), {
+      kind: 'handingOn',
+      at: at2,
+      url: urlPattern,
+      into: successor,
+    })
+
+    expect(outcome.effects).toEqual([
+      {
+        kind: 'keep',
+        handoff: { url: { source: urlPattern.source, flags: urlPattern.flags }, into: 'successor' },
+      },
+    ])
+  })
+
+  test('taken owes nothing where the url equals the one the note was kept at', () => {
+    const found = {
+      handoff: { url: { source: urlPattern.source, flags: urlPattern.flags }, into: 'successor' },
+      from: '/next',
+      url: '/next',
+    }
+
+    const outcome = put(nothing(), { kind: 'taken', stories: [successor], found })
+
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toBeUndefined()
+  })
+
+  test('taken owes nothing where the pattern does not match', () => {
+    const found = {
+      handoff: { url: { source: urlPattern.source, flags: urlPattern.flags }, into: 'successor' },
+      from: '/from',
+      url: '/elsewhere',
+    }
+
+    const outcome = put(nothing(), { kind: 'taken', stories: [successor], found })
+
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toBeUndefined()
+  })
+
+  test('taken names the id no held story answers to', () => {
+    const found = {
+      handoff: { url: { source: urlPattern.source, flags: urlPattern.flags }, into: 'successor' },
+      from: '/from',
+      url: '/next',
+    }
+
+    const outcome = put(nothing(), { kind: 'taken', stories: [], found })
+
+    expect(outcome.effects).toEqual([
+      { kind: 'diagnose', problem: { kind: 'story-unknown', id: 'successor' } },
+    ])
+  })
+
+  test('taken that matches continues into a start of the successor', () => {
+    const found = {
+      handoff: { url: { source: urlPattern.source, flags: urlPattern.flags }, into: 'successor' },
+      from: '/from',
+      url: '/next',
+    }
+
+    const outcome = put(nothing(), { kind: 'taken', stories: [successor], found })
+
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toEqual({ kind: 'start', story: successor })
+  })
+
+  test('pickUp from a closed phase owes diagnose and no take', () => {
+    const closed = standing({ phase: 'step' })
+
+    const outcome = put(closed, { kind: 'pickUp', stories: [successor] })
+
+    expect(owed(outcome)).toEqual(['diagnose'])
+  })
+})

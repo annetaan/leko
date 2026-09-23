@@ -40,7 +40,7 @@ Show  → user watches     Do  → user performs
 ## What it looks like
 
 Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds fifteen situations a
+`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds the situations a
 tour has to survive, and you drive each one yourself.
 
 Here is a story about ordering something.
@@ -218,6 +218,21 @@ runs.
 **Nothing else arrives with it.** The core is plain TypeScript with no runtime
 dependencies. Framework wrappers will be additive, never required.
 
+**It survives a page load.** A story's last step can wait for the URL the
+link on it goes to, and the story itself can name what follows with `next`.
+Together they are the whole of the opt-in. The next document calls
+`leko.pickUp(stories)` once, and it starts the successor from its first
+step, with no index carried across and no `onEnter` skipped.
+
+```ts
+leko.pickUp([checkout, receipt])
+```
+
+A page load is a page load whatever produced it, so a server-rendered or
+statically built site crosses the same way a plain multi-page one does. A
+framework router's own same-document navigation is a different signal, and
+*Browser support* below says what it takes.
+
 ## Status
 
 | Milestone | State |
@@ -231,8 +246,9 @@ dependencies. Framework wrappers will be additive, never required.
 | Signal names gathered from the call sites, offered on `awaits` | ✅ Working |
 | A next control on the message, on steps that await nothing | ✅ Working |
 | A control that ends the tour, on screen for as long as it runs | ✅ Working |
-| Following `state` from a host, with `watch` | ✅ Working |
+| Reading `state`, and every crossing of it on `onStep` | ✅ Working |
 | Advancing on a URL change | ✅ Working |
+| Carrying a tour across a page load, to the story the next document runs | ✅ Working |
 | `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |
 
 ## Browser support
@@ -251,7 +267,9 @@ Where the Navigation API is missing, a URL-waiting step still hears a hash
 change and back/forward through the `popstate`/`hashchange` fallback; only a
 router's own `pushState` call goes unheard there.
 [DESIGN.md](DESIGN.md#a-url-is-a-signal-the-page-reports) says what carries
-and what does not.
+and what does not. `pagehide` and `sessionStorage`, what carries a tour
+across a page load, are older than any floor this file would publish; the
+same fallback sentence about `pushState` bounds the same-document half.
 
 ## Looking further
 

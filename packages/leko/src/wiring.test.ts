@@ -12,6 +12,7 @@ import {
   frame,
   holding,
   holes,
+  instance,
   keep,
   observed,
   pair,
@@ -26,7 +27,7 @@ import {
 } from './harness.js'
 import { DomPresenter } from '@annetaan/leko-presenter'
 import type { Leko } from './leko.js'
-import type { LekoProblem, LekoStep } from '@annetaan/leko-types'
+import type { LekoProblem, LekoStep, LekoStory } from '@annetaan/leko-types'
 
 // The public API driven through the real `DomPresenter`, in one browser —
 // ONBOARDING.md, **Which Vitest project a new test belongs in**. Layout an
@@ -1677,6 +1678,7 @@ function watching(options = {}) {
       next: () => {},
       close: () => {},
       navigated: (url) => void navigated.push(url),
+      unloading: () => {},
     },
   )
   return { presenter, lost, navigated }
@@ -1822,4 +1824,186 @@ test('the fallback popstate and hashchange from one hash change report a URL onc
     location.hash = ''
     if (original) Object.defineProperty(window, 'navigation', original)
   }
+})
+
+// --- a story that hands on across a page load
+//
+// DESIGN.md, **A page load ends the story, and hands it on**. **No test
+// here leaves the document.** Every `pagehide` and `pageshow` below is
+// `window.dispatchEvent(new PageTransitionEvent(type, { persisted }))`, a
+// synthetic event on the same window the presenter armed, so what is held up
+// is the wiring from listener to storage to a second instance — that the
+// real events fire, in that order, and that the write outlives the document,
+// is `spike/a-cross-document-navigation/`'s claim and only its; that a
+// restore preserves the document is the specification's, as DESIGN.md says.
+// Every boundary test runs the real write path on one instance and the real
+// read path on another; nothing seeds storage by hand.
+
+/**
+ * The `checkout` story's target, mounted fresh by every {@link leaving} call
+ * rather than once here: the harness's `afterEach` removes whatever `box()`
+ * put on the page after every test in this file, so an element `box()` made
+ * at module scope would be gone long before this group runs.
+ */
+let checkoutTarget: HTMLElement
+
+/** A story of one step over the target {@link leaving} mounts, the successor `next` hands on to. */
+const checkout: LekoStory = {
+  id: 'checkout',
+  steps: [{ id: 'confirm', target: () => checkoutTarget }],
+}
+
+/** A tour standing on a URL-awaiting last step, whose story names {@link checkout} as `next`. */
+function leaving(): Leko {
+  const target = box('go', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  checkoutTarget = box('confirm', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = holding({
+    id: 'storefront',
+    steps: [{ id: 'go', target: () => target, awaits: { url: /^\/checkout(?:[/?#]|$)/ } }],
+    next: checkout,
+  })
+  begin(leko, 'storefront')
+  return leko
+}
+
+const hide = (): boolean =>
+  window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false }))
+const restore = (): boolean =>
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+const arriveAt = (url: string): void => void history.replaceState(null, '', url)
+
+test('a pagehide while the tour stands on a URL-awaiting last step keeps the note, and a fresh instance at a matching URL picks the successor up', () => {
+  const first = leaving()
+  hide()
+  // The old document's tour is left standing — DESIGN.md's bullet of that
+  // name. `pagehide` ran no teardown. Checked here, before the URL changes:
+  // this one window plays both documents, so `first`'s own still-armed
+  // listener would otherwise hear the very change `arriveAt` below makes for
+  // `second` and advance `first` too, same-document — a same-window artifact
+  // a real navigation's document teardown does not let happen.
+  expect(first.state).toBe('running')
+  expect(first.step?.id).toBe('go')
+
+  arriveAt('/checkout')
+  const second = instance()
+  second.pickUp([checkout])
+
+  expect(second.story).toBe(checkout)
+  expect(second.step?.id).toBe(checkout.steps[0]!.id)
+  // Not just the machine's position: the successor's step is actually drawn,
+  // with a hole cut for the target it names.
+  expect(holes()).toBe(1)
+})
+
+test('pickUp naming no story with the kept id reports story-unknown, with that id', () => {
+  leaving()
+  hide()
+  arriveAt('/checkout')
+
+  const problems: LekoProblem[] = []
+  const second = instance({ onDiagnostic: (problem) => problems.push(problem) })
+  second.pickUp([])
+
+  expect(problems).toEqual([{ kind: 'story-unknown', id: 'checkout' }])
+  expect(second.state).toBe('idle')
+})
+
+test('a fresh instance at the URL the note was kept at picks nothing up, and the note is gone', () => {
+  // The note is kept at a URL that already matches the pattern, so only the
+  // `from` check — not the pattern — can be what rules this document out.
+  // The tour has not started yet when this runs, so no URL listener is armed
+  // to hear it.
+  arriveAt('/checkout')
+  leaving()
+  hide()
+
+  const same = instance()
+  same.pickUp([checkout])
+  expect(same.state).toBe('idle')
+
+  // The note was consumed by that call regardless of whether it matched, so
+  // a later arrival at a URL that would otherwise match finds nothing
+  // either. Asserted behaviourally, through a third instance, rather than by
+  // reading the key.
+  arriveAt('/checkout/confirm')
+  const after = instance()
+  after.pickUp([checkout])
+  expect(after.state).toBe('idle')
+})
+
+test('the pagehide listener goes with the tour, so a pagehide after stop keeps nothing', () => {
+  const added = vi.spyOn(window, 'addEventListener')
+  const removed = vi.spyOn(window, 'removeEventListener')
+
+  const first = leaving()
+  first.stop()
+  hide()
+  arriveAt('/checkout')
+
+  const second = instance()
+  second.pickUp([checkout])
+  expect(second.state).toBe('idle')
+
+  // The removal pair: not just "removed with some function", but the very
+  // one `addEventListener` was given for `'pagehide'` — the `currententrychange`
+  // removal test's pattern.
+  const armed = added.mock.calls.find(([type]) => type === 'pagehide')
+  expect(armed).toBeDefined()
+  expect(removed).toHaveBeenCalledWith('pagehide', armed![1])
+})
+
+test('a storage that throws leaves the tour as it was', () => {
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new DOMException('blocked', 'SecurityError')
+  })
+
+  const first = leaving()
+  expect(() => hide()).not.toThrow()
+  expect(first.state).toBe('running')
+  expect(first.step?.id).toBe('go')
+
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new DOMException('blocked', 'SecurityError')
+  })
+  arriveAt('/checkout')
+
+  const problems: LekoProblem[] = []
+  const second = instance({ onDiagnostic: (problem) => problems.push(problem) })
+  expect(() => second.pickUp([checkout])).not.toThrow()
+  expect(second.state).toBe('idle')
+  expect(problems).toEqual([])
+})
+
+test('a restore forgets the note it kept', () => {
+  // `pageshow` with `persisted: true` is dispatched by hand: neither the
+  // spike nor Playwright produced a real restore in any engine it reached.
+  // What this proves is that the armed listener reaches `forget()` and the
+  // second instance finds nothing — not that the event happens this way.
+  const first = leaving()
+  hide()
+  restore()
+  // Checked here, before the URL changes, for the reason the first test in
+  // this group gives: one window plays both documents.
+  expect(first.state).toBe('running')
+
+  arriveAt('/checkout')
+  const second = instance()
+  second.pickUp([checkout])
+  expect(second.state).toBe('idle')
+})
+
+test('a pageshow after stop does not forget it', () => {
+  const first = leaving()
+  hide()
+  first.stop()
+  restore()
+  arriveAt('/checkout')
+
+  // The listener went with the tour, so a restore the tour is no longer part
+  // of touches nothing it kept.
+  const second = instance()
+  second.pickUp([checkout])
+  expect(second.story).toBe(checkout)
+  expect(second.step?.id).toBe(checkout.steps[0]!.id)
+  expect(holes()).toBe(1)
 })

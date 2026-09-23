@@ -31,6 +31,11 @@ exactly one thing moves it.
   last step advances — never on `stop()`, never on a failure — and the handoff
   is one operation: `onLeave` is told where the tour is going, and the tour is
   never idle in between.
+- **A page load ends the story where it stands.** A story that declares
+  `next`, whose last step waits for a URL, hands its successor on across the
+  load, and the next document's `pickUp(stories)` starts that story from its
+  first step — never part-way — DESIGN.md, **A page load ends the story, and
+  hands it on**.
 
 ## A step's lifecycle
 

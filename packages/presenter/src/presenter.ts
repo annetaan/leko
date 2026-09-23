@@ -1,4 +1,4 @@
-import type { Host, Presenter } from '@annetaan/leko-machine'
+import type { Handoff, Host, Presenter } from '@annetaan/leko-machine'
 import {
   bringIntoView,
   chainOf,
@@ -26,6 +26,7 @@ import {
   union,
   withinSurface,
 } from '@annetaan/leko-spotlight'
+import { decode, encode, HANDOFF_KEY } from './handoff.js'
 import {
   actionTarget,
   type Drawn,
@@ -176,6 +177,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private onViewportChange: (() => void) | undefined
   /** Set by {@link watchNavigation}, cleared by {@link stopNavigation}. */
   private onNavigate: (() => void) | undefined
+  /** Set by {@link watchNavigation}, cleared by {@link stopNavigation}. */
+  private onUnload: (() => void) | undefined
+  /** Set by {@link watchNavigation}, cleared by {@link stopNavigation}. */
+  private onRestore: ((event: PageTransitionEvent) => void) | undefined
   /**
    * So the fallback's `popstate` and `hashchange`, both firing for one change
    * per spike/a-same-document-navigation/'s table, are reported once.
@@ -380,6 +385,52 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
   teardown(): void {
     this.dispatch({ kind: 'teardown' })
+  }
+
+  /**
+   * Keep `handoff` for the next document. Reaching `sessionStorage` itself
+   * can throw where site data is blocked, not only `setItem` — DESIGN.md,
+   * **A page load ends the story, and hands it on**, for the rest.
+   */
+  keep(handoff: Handoff): void {
+    try {
+      sessionStorage.setItem(HANDOFF_KEY, encode({ handoff, from: this.urlNow() }))
+    } catch {
+      // A throw here means nothing was kept, the same as `take`'s below.
+    }
+  }
+
+  take(): { handoff: Handoff; from: string; url: string } | undefined {
+    try {
+      const raw = sessionStorage.getItem(HANDOFF_KEY)
+      sessionStorage.removeItem(HANDOFF_KEY)
+      const decoded = decode(raw)
+      return decoded && { ...decoded, url: this.urlNow() }
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * Drop a note this document kept, on a restore — {@link watchNavigation}'s
+   * `pageshow` listener. Wrapped the same way {@link keep} and {@link take}
+   * are.
+   */
+  private forget(): void {
+    try {
+      sessionStorage.removeItem(HANDOFF_KEY)
+    } catch {
+      // Nothing to remove where storage cannot be reached.
+    }
+  }
+
+  /**
+   * Everything after the origin — `location.pathname + location.search +
+   * location.hash` — the one spelling {@link watchNavigation}, {@link keep}
+   * and {@link take} all read.
+   */
+  private urlNow(): string {
+    return location.pathname + location.search + location.hash
   }
 
   // -------------------------------------------------------------------- the shell
@@ -863,12 +914,22 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * `hashchange` otherwise —
    * [`spike/a-same-document-navigation/`](../../../spike/a-same-document-navigation/)
    * is what a fallback engine still fires.
+   *
+   * `pagehide` is armed here for the same reason: it is the one reliable
+   * last moment every engine keeps —
+   * [`spike/a-cross-document-navigation/`](../../../spike/a-cross-document-navigation/).
+   *
+   * `pageshow` is armed alongside it: a note this document kept says the
+   * document is being left, and a restore — `event.persisted` — means it
+   * was not left after all, so the note is dropped. DESIGN.md, **A page
+   * load ends the story, and hands it on** (its *A restore forgets the
+   * note it kept* bullet).
    */
   private watchNavigation(): void {
     if (this.onNavigate) return
-    this.lastNavigatedUrl = location.pathname + location.search + location.hash
+    this.lastNavigatedUrl = this.urlNow()
     const report = () => {
-      const url = location.pathname + location.search + location.hash
+      const url = this.urlNow()
       if (url === this.lastNavigatedUrl) return
       this.lastNavigatedUrl = url
       this.host.navigated(url)
@@ -881,20 +942,37 @@ export class DomPresenter implements Presenter<LekoWorld> {
       window.addEventListener('popstate', report)
       window.addEventListener('hashchange', report)
     }
+    const unload = () => this.host.unloading()
+    this.onUnload = unload
+    window.addEventListener('pagehide', unload)
+    const restore = (event: PageTransitionEvent) => {
+      if (event.persisted) this.forget()
+    }
+    this.onRestore = restore
+    window.addEventListener('pageshow', restore)
   }
 
   private stopNavigation(): void {
     const report = this.onNavigate
-    if (!report) return
-    const nav = navigationApi()
-    if (nav) {
-      nav.removeEventListener('currententrychange', report)
-    } else {
-      window.removeEventListener('popstate', report)
-      window.removeEventListener('hashchange', report)
+    if (report) {
+      const nav = navigationApi()
+      if (nav) {
+        nav.removeEventListener('currententrychange', report)
+      } else {
+        window.removeEventListener('popstate', report)
+        window.removeEventListener('hashchange', report)
+      }
+      this.onNavigate = undefined
+      this.lastNavigatedUrl = undefined
     }
-    this.onNavigate = undefined
-    this.lastNavigatedUrl = undefined
+    if (this.onUnload) {
+      window.removeEventListener('pagehide', this.onUnload)
+      this.onUnload = undefined
+    }
+    if (this.onRestore) {
+      window.removeEventListener('pageshow', this.onRestore)
+      this.onRestore = undefined
+    }
   }
 
   // ------------------------------------------------------------------ taking down

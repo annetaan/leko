@@ -114,8 +114,94 @@ make:
   so whichever task queue delivers the change is a change like any other.
 - **One document only.** A URL match observes the document the tour is running
   in; a navigation that tears the document down and reloads it is a different
-  signal for a different mechanism, tracked as
-  [#103](https://github.com/annetaan/leko/issues/103), not this one.
+  signal, answered under **A page load ends the story, and hands it on**.
+
+## A page load ends the story, and hands it on
+
+A story's **last** step can declare `awaits: { url }`, and the story itself
+can declare `next`; together they are the whole of the opt-in, and nothing
+else about a step's shape changes for it. While the tour stands on that step
+and the document is being left — `pagehide` — Leko asks `next` for the
+successor and keeps a note in `sessionStorage`: the pattern, the successor's
+`id`, and the URL the note was kept at. The next document calls
+`leko.pickUp(stories)` once, with the stories it has:
+
+```ts
+leko.pickUp([firstStory, secondStory])
+```
+
+The note is taken and removed whether or not it matches. The successor starts
+from its first step — irising in the way any step 1 does — only if the
+document's URL is a change from the one the note was kept at and tests true
+against the kept pattern. Nothing else is carried: no index into the
+successor, no `onEnter` skipped, no visual continuity across the boundary.
+
+- **The old document writes, the new document judges.** The old document
+  cannot hear the URL it is going to: the Navigation API's `navigate` event
+  fires before a navigation that can still fail, so a note kept from it could
+  be kept for a navigation that never happens. `pagehide` is the one reliable
+  last moment
+  [`spike/a-cross-document-navigation/`](spike/a-cross-document-navigation/)
+  finds in every engine it reached, and the URL is judged only where it is a
+  fact — in the document that arrived. This keeps **Only a change is watched,
+  never an arrival** whole across the boundary: what is matched is the URL the
+  page arrived at, never the click that led there.
+- **The `from` check reaches the same rule across the boundary, by a
+  mechanism of its own.** `pickUp` drops a taken note whose URL equals the
+  one the arriving document is already at. A same-document arrival is ruled
+  out a different way — **Only a change is watched, never an arrival** never
+  judges the draw at all — but the outcome here is the one that rule
+  protects: this stops a reload of a page whose own URL matches the step's
+  pattern from starting the successor on the page the user never left. The
+  step that pattern belongs to was drawn in the previous document, so a
+  matching arrival has to be a URL that came after it, and no draw is in
+  progress when this is judged.
+- **The old document's tour is left standing.** `pagehide` runs no teardown:
+  no `onLeave`, no `onStep(undefined)`. A document that is torn down has
+  nothing to clean up; a document the back/forward cache hands back instead
+  comes back exactly as it was, on the step that asked the user to leave — the
+  right page to be on after `back()` — by the specification's own guarantee
+  for what a restore preserves. [`spike/a-cross-document-navigation/`](spike/a-cross-document-navigation/)
+  armed a listener for exactly this and never saw a restore, in any engine it
+  reached, so this rests on the guarantee rather than on that page's own
+  numbers.
+- **A restore forgets the note it kept.** The tour left standing above is not
+  the only thing a restore hands back: the note `pagehide` kept is still in
+  `sessionStorage`, and nothing consumed it, because no new document ran. A
+  note says its document is being left; a restore means it was not, after
+  all — the same rule the `from` check reaches by a mechanism of its own, so
+  `pageshow` is armed alongside `pagehide`, and where `event.persisted` is
+  true the note is dropped. Left in place, it would start the successor from
+  an unrelated later page load in the same tab, the first time that page's
+  URL happens to match. `spike/a-cross-document-navigation/` never saw a
+  restore either, so this too rests on the specification's guarantee rather
+  than a measurement of one.
+- **A note kept is consumed by the first `pickUp`, matching or not.** A tour
+  abandoned before its destination is over at the first Leko page that is not
+  it. No timestamp bounds the note: any bound is a guess about how long a
+  fetch takes, and a slow page load is the case this exists for. The
+  remaining failure mode is a page with no Leko on it between the two, which
+  leaves the note for a later page instead — a later visit to a matching URL
+  in the same tab would then start the successor. A limit this accepts, not
+  one it closes.
+- **One key, one origin.** The note lives under a single fixed
+  `sessionStorage` key, so two unrelated Leko projects served from the same
+  origin can consume each other's note; the pattern then fails to match and
+  nothing starts. A limit, not something a version of this could fix.
+- **`id` is matched in exactly one place.** `pickUp` matches the kept note's
+  successor `id` against the `id` of each story the arriving document hands
+  it in that same call, and nothing about that match persists afterward —
+  Leko still never uses `id` as an internal lookup key anywhere else. `next`
+  stays a story object or a function returning one for the reason it always
+  has: a same-document chain could not resolve a string. A story crossing the
+  boundary is shared through a module instead, the way the docs site's own
+  demo does.
+- **A URL-waiting step hands nothing on unless it is its story's last step.**
+  A page load ends the story, so a step that leads across one is the last
+  step of its story by definition; what the next document runs is that
+  story's `next`, never a later step of the same one.
+
+`across-a-page-load.ts` is the case.
 
 ## The next control
 
@@ -347,6 +433,10 @@ reports the event via `reached()`.
   story again gets a refusal rather than a tour silently reset to step 1.
   Active tours must be explicitly ended with `stop()`.
 - `id` is diagnostic: `id` is required for logging and external reporting, but Leko never uses it as an internal lookup key.
+  `pickUp` is the one exception, and it is narrow: it matches a kept note's
+  successor `id` against the `id` of each story handed to that call, and
+  nothing about the match outlives it. **A page load ends the story, and hands
+  it on** has the rest.
 - Chaining with next: A story can declare `next` (a story object or a function
   returning one) to transition automatically upon completion. The function form
   is where a branch goes; see `branching.ts`.
@@ -614,7 +704,9 @@ what the existing fields already say.
   window of a call into the application it is inside. Neither is a list of
   stories: `start` is handed the one it runs, so nothing is looked up and
   nothing persists between runs. `packages/machine/model/machine.qnt` has the
-  same two.
+  same two. The note a page load hands on is no exception: it lives in the
+  page's own storage, written and taken by the presenter, and the machine
+  keeps nothing of it — see **A page load ends the story, and hands it on**.
 - **Nothing here is about what is on screen.** Whatever draws is the thing that
   has to put the same page back on a resize or a re-render, so it is the thing
   that remembers — the words of the last failed attempt included. Neither asks
@@ -1633,6 +1725,10 @@ in Playwright's builds of all three
 but that is a claim about the top only. The spike never touched the floor, and
 a Safari still on 18.x has none; **A URL is a signal the page reports** says
 what an engine without it hears instead.
+
+`sessionStorage` and `pagehide`, which **A page load ends the story, and
+hands it on** relies on, predate every other floor this file would quote and
+add no constraint of their own.
 
 ## Where things are written down
 

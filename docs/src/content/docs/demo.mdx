@@ -7,7 +7,9 @@ import PageTour from '../../components/PageTour.astro'
 
 Everything below is this page. The tour points at the sidebar on the left, at
 the code block further down, and at a field you type into while the overlay is
-up. Nothing is in an iframe and nothing is a screenshot.
+up. Nothing is in an iframe and nothing is a screenshot. There are two ways
+in — the button below, or the front page's own tour, which hands this one on
+across the page load.
 
 <PageTour />
 
@@ -35,7 +37,9 @@ const thisPage = {
   ],
 } satisfies LekoStory
 
-leko.start(thisPage)
+button.addEventListener('click', () => leko.start(thisPage))
+
+leko.pickUp([thisPage]) // once, as the page loads — it takes what the front page handed on, or nothing
 ```
 
 </div>
@@ -51,3 +55,10 @@ input.addEventListener('input', () => {
 
 Delete that line and the tour stops at the third step for ever. That is the
 point of it. The tour moves because the application said something was true.
+
+What `pagehide` keeps in `sessionStorage` is the pattern, the successor's
+id, and the URL it was kept at. The next document reads all three once: the
+pattern and the kept URL decide whether to start at all, and the id says
+what to start — nothing but the id reaches the story it starts. A reload of
+this page starts nothing, because this story's last step waits for no URL,
+so `pagehide` keeps nothing to hand on.

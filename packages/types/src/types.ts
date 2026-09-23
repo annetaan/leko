@@ -207,6 +207,11 @@ export type LekoSignal = [Known] extends [never] ? string : Known | (string & {}
  * awaits: { url: /^\/checkout(?:[/?#]|$)/ }
  * awaits: { url: /^\/#\/checkout(?:[/?]|$)/ } // a hash router
  * ```
+ *
+ * A navigation that loads a new document is not heard by this mechanism —
+ * nothing here survives a page load. On the story's **last** step, `{ url }`
+ * instead hands the tour on to {@link LekoStory.next} in the document that
+ * loads next. DESIGN.md, **A page load ends the story, and hands it on**.
  */
 export interface LekoUrlAwait {
   url: RegExp
@@ -552,6 +557,12 @@ export interface LekoStory {
    *
    * {@link onLeave} is told which story this answered with, so a panel two
    * chapters share can stay open across the join.
+   *
+   * Across a page load, this is what the arriving document runs — provided
+   * this story's **last** step declares `awaits: { url }` and the document is
+   * being left while the tour stands on it. The object is shared through a
+   * module rather than resolved by an `id`, the way it is within one
+   * document. DESIGN.md, **A page load ends the story, and hands it on**.
    */
   next?: LekoStory | (() => LekoStory | undefined)
 
@@ -893,6 +904,16 @@ export type LekoProblem =
    * to hand the guard its element and gets no grace at all.
    */
   | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
+  /**
+   * A previous document handed a story on — DESIGN.md, **A page load ends the
+   * story, and hands it on** — and the {@link Leko.pickUp} in this document
+   * was not given the story `id` names. The fix is to hand `pickUp` that
+   * story, or to anchor the pattern the previous document's step waited on so
+   * it does not match this page. Told apart from silence for the reason
+   * DESIGN.md gives under **Saying that a call did nothing**: there is no
+   * other symptom, no tour starts, and nothing else says why.
+   */
+  | { kind: 'story-unknown'; id: string }
 
 /**
  * Whether a story is running.

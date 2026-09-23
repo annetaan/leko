@@ -1,4 +1,12 @@
-import type { Host, MachineOptions, Presenter, StepBase, StoryBase, World } from './types.js'
+import type {
+  Handoff,
+  Host,
+  MachineOptions,
+  Presenter,
+  StepBase,
+  StoryBase,
+  World,
+} from './types.js'
 
 // The world both `machine.test.ts` and `replay.test.ts` drive the machine
 // against. Shared rather than declared twice: a replay driving a presenter that
@@ -45,6 +53,9 @@ export class Fake implements Presenter<Fixture> {
   readonly retold: { step: string; reason: string }[] = []
   rejected = 0
   torn = 0
+  /** Where the fixture's document is. Settable by a test. */
+  url = '/'
+  kept: { handoff: Handoff; from: string } | undefined
 
   constructor(private readonly host: Host<Fixture>) {}
 
@@ -71,6 +82,16 @@ export class Fake implements Presenter<Fixture> {
     this.torn += 1
   }
 
+  keep(handoff: Handoff): void {
+    this.kept = { handoff, from: this.url }
+  }
+
+  take(): { handoff: Handoff; from: string; url: string } | undefined {
+    const kept = this.kept
+    this.kept = undefined
+    return kept && { ...kept, url: this.url }
+  }
+
   /** What the real presenter says once its retry has run out. */
   lose(step: Step): void {
     this.page.delete(step.target)
@@ -93,5 +114,14 @@ export class Fake implements Presenter<Fixture> {
    */
   navigate(url: string): void {
     this.host.navigated(url)
+  }
+
+  /**
+   * The `pagehide` the presenter would have reported. `navigate()`'s
+   * sibling: the machine has no method of its own for either, because both
+   * arrive through the presenter.
+   */
+  unload(): void {
+    this.host.unloading()
   }
 }

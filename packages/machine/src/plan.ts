@@ -1,4 +1,4 @@
-import type { MachineState, Problem, World } from './types.js'
+import type { Handoff, MachineState, Problem, World } from './types.js'
 
 // The whole of what the machine knows and what an event does to it. Pure, which
 // is what lets `packages/machine/model/machine.qnt` stand for it and a test
@@ -95,6 +95,11 @@ export type Effect<W extends World> =
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
   /** The story's `next`, asked while the tour still stands on its last step. */
   | { kind: 'chain'; at: Position<W>; story: Story<W> }
+  /**
+   * The story's `next`, asked while the document is being left — the same
+   * ask as `chain`, continued differently.
+   */
+  | { kind: 'handOn'; at: Position<W>; url: RegExp; story: Story<W> }
   | { kind: 'callStoryEnter'; at: Position<W> }
   | { kind: 'callStepEnter'; at: Position<W>; step: Step<W>; animate: boolean }
   | { kind: 'callStepLeave'; step: Step<W>; next: Step<W> | undefined }
@@ -102,6 +107,8 @@ export type Effect<W extends World> =
   | { kind: 'report'; story: Story<W>; step?: Step<W> }
   | { kind: 'diagnose'; problem: Problem<W> }
   | { kind: 'rethrow'; reason: unknown }
+  | { kind: 'keep'; handoff: Handoff }
+  | { kind: 'take'; stories: Story<W>[] }
 
 /**
  * Everything that happens to the machine, as data. The first six are calls a
@@ -116,6 +123,8 @@ export type Event<W extends World> =
   | { kind: 'pressed' }
   | { kind: 'lost'; step: Step<W> }
   | { kind: 'navigated'; url: string }
+  | { kind: 'unloading' }
+  | { kind: 'pickUp'; stories: Story<W>[] }
   // --- the machine carrying on, one per window it has to stop at
   /** The `onLeave` calls are done and the report is owed. */
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
@@ -136,6 +145,14 @@ export type Event<W extends World> =
   | { kind: 'refused'; at: Position<W>; reason: string | undefined }
   /** `next` answered, and `into` is the story that follows or nothing. */
   | { kind: 'chained'; at: Position<W>; into: Story<W> | undefined }
+  /** `next` answered while the document was being left. */
+  | { kind: 'handingOn'; at: Position<W>; url: RegExp; into: Story<W> | undefined }
+  /** What a previous document kept, and where this one is now. */
+  | {
+      kind: 'taken'
+      stories: Story<W>[]
+      found: { handoff: Handoff; from: string; url: string } | undefined
+    }
 
 /** `next` is the continuation, dispatched once `effects` have run. */
 export interface Outcome<W extends World> {
@@ -323,6 +340,30 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       return advance(core, step)
     }
 
+    case 'unloading': {
+      // DESIGN.md, **A page load ends the story, and hands it on**.
+      const here = core.position
+      const step = stepOf(core)
+      if (
+        !here ||
+        !step ||
+        !accepting(core) ||
+        here.index !== here.story.steps.length - 1 ||
+        typeof step.awaits !== 'object' ||
+        here.story.next === undefined
+      ) {
+        return nothing(core)
+      }
+      return owing(core, { kind: 'handOn', at: here, url: step.awaits.url, story: here.story })
+    }
+
+    case 'pickUp': {
+      // The refusal comes before the note is touched, so a `pickUp` from
+      // inside a handler leaves the note for the call that will go through.
+      if (!accepting(core)) return diagnosing(core, { kind: 'call-refused' })
+      return owing(core, { kind: 'take', stories: event.stories })
+    }
+
     // --- the machine carrying on
 
     case 'left':
@@ -396,6 +437,32 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       // inside itself, so where the tour got to is asked once more here.
       if (!stillAt(core, event.at)) return nothing(core)
       return ending(core, event.into, [])
+    }
+
+    case 'handingOn': {
+      // `next` is asked while the document is being left, so a `stop()` from
+      // in here leaves nothing standing for `keep` to be owed for.
+      if (!stillAt(core, event.at) || event.into === undefined) return nothing(core)
+      return owing(core, {
+        kind: 'keep',
+        handoff: { url: { source: event.url.source, flags: event.url.flags }, into: event.into.id },
+      })
+    }
+
+    case 'taken': {
+      const { found } = event
+      if (found === undefined) return nothing(core)
+      if (found.url === found.from) return nothing(core)
+      // The `from` check reaches the same rule as **Only a change is
+      // watched, never an arrival** across the boundary, by a mechanism of
+      // its own.
+      const pattern = new RegExp(found.handoff.url.source, found.handoff.url.flags)
+      if (!arrivedAt(pattern, found.url)) return nothing(core)
+      const story = event.stories.find((candidate) => candidate.id === found.handoff.into)
+      if (!story) return diagnosing(core, { kind: 'story-unknown', id: found.handoff.into })
+      // A continuation, the way `left` continues into `startInto`, so the
+      // `start` case is what judges it.
+      return { core, effects: [], next: { kind: 'start', story } }
     }
 
     case 'refused': {
