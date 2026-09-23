@@ -6,6 +6,20 @@
   --sl-font: ui-sans-serif, system-ui, sans-serif;
 }
 
+/* The panel around a demo's own controls. PageTour.astro and SiteTour.astro
+   both use it; Astro scopes a component's own <style>, so it lives here
+   instead of being copied into each. */
+.tour-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  background: var(--sl-color-gray-6);
+}
+
 /* The control that starts a demo. It is a real button on a real page, because
    that is what the tour points at. */
 .tour-start {

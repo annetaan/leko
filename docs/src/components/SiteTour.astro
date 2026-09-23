@@ -1,0 +1,35 @@
+---
+import { href } from '../lib/href.ts'
+
+/**
+ * The other end of the crossing PageTour.astro completes.
+ *
+ * The link below is what `fromIndex`'s one step targets — see stories.ts
+ * for why. The story itself names `next` — DESIGN.md, **A page load ends
+ * the story, and hands it on**.
+ */
+---
+
+<div class="tour-demo" data-site-tour-demo>
+  <button class="tour-start" type="button" data-site-tour-start
+    >Take the tour to the demo</button
+  >
+  <a href={href('demo/')} data-site-tour-link>A tour of this page</a>
+</div>
+
+<script>
+  import { createLeko } from '@annetaan/leko'
+  import '@annetaan/leko/leko.css'
+  import { fromIndex } from '../lib/stories.ts'
+
+  const leko = createLeko()
+
+  document
+    .querySelector('[data-site-tour-start]')!
+    .addEventListener('click', () => {
+      leko.start(fromIndex)
+    })
+
+  // Once per document: takes up a note naming from-index, or nothing.
+  leko.pickUp([fromIndex])
+</script>
