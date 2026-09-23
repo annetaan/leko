@@ -21,7 +21,8 @@
     "model": "node scripts/model-check.mjs",
     "model:traces": "node scripts/model-traces.mjs",
     "check:pack": "node scripts/check-pack.mjs",
-    "check:citations": "node scripts/check-citations.mjs"
+    "check:citations": "node scripts/check-citations.mjs",
+    "check:links": "node scripts/check-links.mjs"
   },
   "devDependencies": {
     "@informalsystems/quint": "0.32.0",

@@ -57,6 +57,7 @@ pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether it could
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
+pnpm check:links     # whether every internal link in the built site lands, after pnpm build
 pnpm test            # vitest: eight projects, three of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
 pnpm model:traces    # regenerate the traces those searches replay against
@@ -138,10 +139,10 @@ built.
 ## Before opening a pull request
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm model && pnpm test
+pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:links && pnpm model && pnpm test
 ```
 
-CI runs the same seven, with `format:check` in place of `format`.
+CI runs the same nine, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what
