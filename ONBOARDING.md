@@ -526,7 +526,7 @@ page under [`spike/`](spike/) that settled it. The pages have no build step and
 no dependencies, and there is no Leko in them. Open the file and watch the
 answer.
 
-There are three.
+Start with the three that settle the cutout:
 
 | Page | Question |
 | --- | --- |

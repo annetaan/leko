@@ -26,8 +26,8 @@ export class Machine<W extends World> {
   /**
    * The presenter is built here rather than handed in, because it needs a
    * {@link Host} and only this object can answer one. What goes to the factory
-   * is three closures rather than `this`, so nothing else can reach the next
-   * control at all.
+   * is closures rather than `this`, so nothing else can reach the next control
+   * at all.
    */
   constructor(options: MachineOptions<W>, presenter: (host: Host<W>) => Presenter<W>) {
     this.options = options

@@ -94,8 +94,7 @@ this existed.
 - Nothing of Leko's is ever placed over the target, not even a transparent
   element.
 - Scrolling a tour runs no JavaScript, with one exception: a sticky target's
-  hole is corrected on a frame loop — DESIGN.md, **A sticky target's hole is
-  corrected on a frame loop, and that is the only exception to the ban**.
+  hole is corrected on a frame loop.
 - One instance holds every story and shows one of them, so a call site reports
   what happened once and never learns how many stories exist.
 - A tour crosses a page load: the next document calls `pickUp` once and the
@@ -103,8 +102,8 @@ this existed.
 
 ## Browser support
 
-The cutout needs `clip-path: path()` and interpolation between two path values.
-The floor that implies has not been measured yet, so no version table is
+The cutout needs CSS masking with several layers and `mask-composite`. The
+floor that implies has not been measured yet, so no version table is
 published here — one will land with the first release rather than before it.
 
 CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the

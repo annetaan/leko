@@ -41,8 +41,8 @@ const checkout: LekoStory = {
       message:
         'The successor starts here, at its first step. Nothing crosses ' +
         'with it but its id — no index, no visual continuity with what ' +
-        'ran before it. The readout above says which of this page’s ' +
-        'two ways in actually ran it.',
+        'ran before it. The readout says which of this page’s two ways ' +
+        'in actually ran it.',
     },
     {
       id: 'back',
@@ -61,8 +61,9 @@ export const acrossAPageLoad: Case = {
   proves:
     'The link is a plain anchor and the page it lands on is a new document. ' +
     'The storefront’s last step waits for that URL and names ‘next’; ' +
-    'at pagehide Leko keeps the successor’s id, and the new document’s ' +
-    'one pickUp() call starts it from its first step, irising in like any ' +
+    'at pagehide Leko keeps the pattern, the successor’s id, and the URL ' +
+    'it was kept at, and the new document’s one pickUp() call starts it ' +
+    'from its first step, irising in like any ' +
     'step 1 — DESIGN.md, “A page load ends the story, and hands it on.”',
 
   // What this case cannot show:
@@ -82,21 +83,33 @@ export const acrossAPageLoad: Case = {
   mount(root) {
     const page = new URLSearchParams(location.search).get('page')
 
-    // `[data-arrived]`'s inline `min-height: 2lh` holds its box to two
+    // `[data-arrived]`'s inline `min-height: 3lh` holds its box to three
     // lines before `onStep` ever writes to it. The `summary` step's hole is
     // measured and drawn on `stepEntered`; `onStep` — which swaps this
-    // paragraph's one-line default for a two-line sentence — only runs on
-    // the following `drawn`. Sitting above the target, a box here that grew
-    // would push `[data-summary]` down after its hole was already
-    // measured, and nothing afterwards re-reads layout to correct it, so
-    // the hole would stay wrong for the whole step. A paragraph above a
-    // target must not change height.
+    // paragraph's one-line default for a longer sentence — only runs on the
+    // following `drawn`. Sitting above the target, a box here that grew
+    // would push `[data-summary]` down after its hole was already measured,
+    // and nothing afterwards re-reads layout to correct it, so the hole
+    // would stay wrong for the whole step. A paragraph above a target must
+    // not change height. Measured: three lines holds the footer-press
+    // branch's sentence down to about 660px; narrower than that it wraps to
+    // a fourth line and the hole is wrong again for the rest of the step.
+    //
+    // Reserving space here rather than moving the box below every target:
+    // measured at 1280 and 1000, the message anchored under `[data-summary]`
+    // reaches 153px past `[data-back-link]`'s own bottom, so a box placed
+    // right after that link would sit inside the message's reach too.
+    // Narrower still — the exact width moves with any edit to the message
+    // itself, so it is not named here — `chooseSide` runs out of room below
+    // the target altogether and flips the message above it instead,
+    // squarely onto whatever paragraph sits there. Both are why the
+    // `summary` step's own message no longer names a side for the readout.
     const panel =
       page === 'checkout'
         ? html(`
             <div class="panel">
               <h2>Checkout</h2>
-              <p class="hint" data-arrived style="min-height: 2lh">
+              <p class="hint" data-arrived style="min-height: 3lh">
                 Nothing to report yet — this fills in when “checkout” begins.
               </p>
               <p class="hint">Order summary</p>
@@ -163,8 +176,8 @@ export const acrossAPageLoad: Case = {
     readout.textContent =
       document.readyState === 'complete'
         ? `“checkout” began ${ms}ms after this document’s navigation ` +
-          'started, after it had already finished loading — a press of ' +
-          'start(‘checkout’) in the footer began it.'
+          'started, after it had already finished loading — the footer’s ' +
+          'start(‘checkout’) began it.'
         : `“checkout” began ${ms}ms after this document’s navigation ` +
           'started, before it had finished loading — pickUp() began it.'
   },

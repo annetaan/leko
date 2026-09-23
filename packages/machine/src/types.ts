@@ -30,6 +30,11 @@ export interface StepBase<W extends World> {
    * The signal this step waits for, or nothing where it advances on a control.
    * A name, or `{ url }` for the step that advances on the page's own URL
    * rather than a call — DESIGN.md, **A URL is a signal the page reports**.
+   *
+   * On a story's **last** step, `{ url }` also hands the tour on to
+   * {@link StoryBase.next} in the document that loads next — asked at
+   * `unloading`, not on a match here. DESIGN.md, **A page load ends the
+   * story, and hands it on**.
    */
   awaits?: string | { url: RegExp }
   /**
@@ -61,6 +66,12 @@ export interface StoryBase<W extends World> {
    * What the tour goes on to once this story runs out of steps. Asked when the
    * last step advances, never stored, and only for a story that ran to the end
    * — DESIGN.md, **Starting a story**.
+   *
+   * Also asked at `unloading`, while the tour still stands on the last step —
+   * which has not advanced and may never — provided that step declares
+   * `awaits: { url }`. The answer is not run in this document; it is kept as
+   * a handoff for the one that loads next. DESIGN.md, **A page load ends the
+   * story, and hands it on**.
    *
    * The function form takes nothing. Everything it could be handed is already in
    * the closure that wrote it, and a parameterless function has no argument

@@ -221,9 +221,8 @@ dependencies. Framework wrappers will be additive, never required.
 **It survives a page load.** A story's last step can wait for the URL the
 link on it goes to, and the story itself can name what follows with `next`.
 Together they are the whole of the opt-in. The next document calls
-`leko.pickUp(stories)` once, and the tour is running before that page has
-finished loading — the successor, from its first step, with no index carried
-across and no `onEnter` skipped.
+`leko.pickUp(stories)` once, and it starts the successor from its first
+step, with no index carried across and no `onEnter` skipped.
 
 ```ts
 leko.pickUp([checkout, receipt])
