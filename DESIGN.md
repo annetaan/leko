@@ -572,6 +572,12 @@ not know a tour is running.
   `branching.ts` is four of them: an intro, two branches, and the summary both
   branches name in `next`. Neither branch has to know how many steps came
   before it.
+- **A branch on the viewport's width is a branch like any other.** The
+  application chooses the story at `start()` or in `next`, and answers a width
+  crossed mid-story with `stop()` and a fresh `start()` of the story for the
+  new width, which is cheap because the story is short. The docs site's demo
+  does both: `docs/src/lib/stories.ts` chooses, and
+  `docs/src/components/PageTour.astro` answers the crossing.
 
 ## Settings, and where they are read from
 

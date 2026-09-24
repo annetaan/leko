@@ -1,13 +1,14 @@
 ---
 title: A tour of this page
-description: A Leko tour running over the documentation you are reading, pointing at the site's own sidebar and at a field you type into while the scrim is up.
+description: A Leko tour running over the documentation you are reading, pointing at the site's own sidebar or menu button and at a field you type into while the scrim is up.
 ---
 
 import PageTour from '../../components/PageTour.astro'
 
-Everything below is this page. The tour points at the sidebar on the left, at
-the code block further down, and at a field you type into while the overlay is
-up. Nothing is in an iframe and nothing is a screenshot. There are two ways
+Everything below is this page. The tour points at the sidebar on the left, or
+at the menu button that opens it when the window is too narrow to show it, then
+at the code block further down, and at a field you type into while the overlay
+is up. Nothing is in an iframe and nothing is a screenshot. There are two ways
 in — the button below, or the front page's own tour, which hands this one on
 across the page load.
 
@@ -15,9 +16,15 @@ across the page load.
 
 ## What the tour is doing
 
-Two of the four steps carry a next control. The third one does not, and there is
-no way to configure that: it declares `awaits`, so the only thing that moves it
-on is the page reporting that the field was filled in.
+Which story starts depends on the width of the window. Each intro is one step
+and names `thisPage` as `next`, so either way the tour goes on to the same three
+steps. Narrow or widen the window past the breakpoint while an intro is showing
+and the page stops it and starts the other one. Once the tour is past the intro
+it is left alone, because everything else it points at shows at both widths.
+
+Three of the four steps you see carry a next control. The name step does not,
+and there is no way to configure that: it declares `awaits`, so the only thing
+that moves it on is the page reporting that the field was filled in.
 
 <div data-tour-source>
 
@@ -25,7 +32,6 @@ on is the page reporting that the field was filled in.
 const thisPage = {
   id: 'this-page',
   steps: [
-    { id: 'sidebar', target: '#starlight__sidebar', message: '…' },
     { id: 'source', target: '[data-tour-source]', message: '…' },
     {
       id: 'name',
@@ -37,9 +43,23 @@ const thisPage = {
   ],
 } satisfies LekoStory
 
-button.addEventListener('click', () => leko.start(thisPage))
+const desktopIntro = {
+  id: 'desktop-intro',
+  steps: [{ id: 'sidebar', target: '#starlight__sidebar', message: '…' }],
+  next: thisPage,
+} satisfies LekoStory
 
-leko.pickUp([thisPage]) // once, as the page loads — it takes what the front page handed on, or nothing
+const mobileIntro = {
+  id: 'mobile-intro',
+  steps: [{ id: 'menu', target: 'starlight-menu-button button', message: '…' }],
+  next: thisPage,
+} satisfies LekoStory
+
+const introFor = () => (matchMedia('(min-width: 50rem)').matches ? desktopIntro : mobileIntro)
+
+button.addEventListener('click', () => leko.start(introFor()))
+
+leko.pickUp([desktopIntro, mobileIntro]) // once, as the page loads — it takes what the front page handed on, or nothing
 ```
 
 </div>
@@ -53,7 +73,7 @@ input.addEventListener('input', () => {
 })
 ```
 
-Delete that line and the tour stops at the third step for ever. That is the
+Delete that line and the tour stops at the name step for ever. That is the
 point of it. The tour moves because the application said something was true.
 
 What `pagehide` keeps in `sessionStorage` is the pattern, the successor's
