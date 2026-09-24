@@ -53,8 +53,8 @@ test('an element with no box is not found', () => {
   // the viewport and drags a region's hole there with it. There is nothing to
   // point at, so there is nothing to answer with.
   expect(hasBox(el)).toBe(false)
-  expect(resolveTarget('#planted')).toBeNull()
-  expect(resolveTarget(() => el)).toBeNull()
+  expect(resolveTarget('#planted', 'first')).toBeNull()
+  expect(resolveTarget(() => el, 'first')).toBeNull()
 })
 
 test('an element inside something hidden is not found either', () => {
@@ -63,7 +63,7 @@ test('an element inside something hidden is not found either', () => {
   // DESIGN.md, **An element with no box is not found**. Any hidden ancestor at
   // all comes to this.
   expect(hasBox(el)).toBe(false)
-  expect(resolveTarget('#inner')).toBeNull()
+  expect(resolveTarget('#inner', 'first')).toBeNull()
 })
 
 test('a wrapper that generates no box of its own is not found', () => {
@@ -74,7 +74,7 @@ test('a wrapper that generates no box of its own is not found', () => {
   // no box to cut a hole at even though everything inside it is on screen. A
   // step wanting that hole names what is inside the wrapper.
   expect(hasBox(el)).toBe(false)
-  expect(resolveTarget('#planted')).toBeNull()
+  expect(resolveTarget('#planted', 'first')).toBeNull()
 })
 
 test('a rendered element of no size is found all the same', () => {
@@ -85,16 +85,16 @@ test('a rendered element of no size is found all the same', () => {
   // cut at it is where the viewer is looking, whatever a padding of zero would
   // leave of it.
   expect(hasBox(el)).toBe(true)
-  expect(resolveTarget('#planted')).toBe(el)
+  expect(resolveTarget('#planted', 'first')).toBe(el)
 })
 
-test('an element hidden without losing its box is found', () => {
+test('an element hidden without losing its box has a box, and first still finds it', () => {
   const invisible = planted('width: 40px; height: 20px; visibility: hidden')
 
-  // `visibility: hidden` and `opacity: 0` keep the box, so the tour points at
-  // it — DESIGN.md, **An element with no box is not found**.
+  // `visibility: hidden` and `opacity: 0` keep the box — DESIGN.md, **An
+  // element with no box is not found**. Passing over it is the mode's job.
   expect(hasBox(invisible)).toBe(true)
-  expect(resolveTarget('#planted')).toBe(invisible)
+  expect(resolveTarget('#planted', 'first')).toBe(invisible)
 })
 
 test('a node the document has let go of is not found', () => {
@@ -102,7 +102,7 @@ test('a node the document has let go of is not found', () => {
   el.remove()
 
   // What a function holding a reference across a re-render hands back.
-  expect(resolveTarget(() => el)).toBeNull()
+  expect(resolveTarget(() => el, 'first')).toBeNull()
 })
 
 test('a region drops the elements with no box and keeps the rest', () => {
@@ -113,7 +113,7 @@ test('a region drops the elements with no box and keeps the rest', () => {
   // second is what dragged the hole to the corner: its rect is all zeros, so
   // the union reached from the origin of the viewport to the far edge of the
   // first.
-  expect(resolveTargets(['#planted', '#hidden'])).toEqual([el])
+  expect(resolveTargets(['#planted', '#hidden'], 'first')).toEqual([el])
 })
 
 // --- which of several matches a selector means
@@ -134,13 +134,10 @@ test('a hidden first match is skipped for the next one under visible-first', () 
   expect(resolveTarget('.copy', 'visible-first')).toBe(seen)
 })
 
-test('the first match is still the answer under first', () => {
+test('a caller that wants the first match says so', () => {
   const invisible = copy('top: 10px; visibility: hidden')
   copy('top: 40px')
 
-  // The default, unchanged: a selector means its first match, and asking for a
-  // rule is what changes that.
-  expect(resolveTarget('.copy')).toBe(invisible)
   expect(resolveTarget('.copy', 'first')).toBe(invisible)
 })
 
@@ -158,7 +155,7 @@ test("a function's answer is filtered by the same rule", () => {
 
   // A function is one candidate, so the rule narrows it to none rather than
   // moving on: the host decides which element it hands back.
-  expect(resolveTarget(() => invisible)).toBe(invisible)
+  expect(resolveTarget(() => invisible, 'first')).toBe(invisible)
   expect(resolveTarget(() => invisible, 'visible-first')).toBeNull()
 })
 
@@ -171,7 +168,7 @@ test('a region applies the rule to every element it names', () => {
   // regression for handing `resolveTarget` to `map`, which would pass the
   // index along as the mode.
   expect(resolveTargets(['.copy', '#other'], 'visible-first')).toEqual([seen, other])
-  expect(resolveTargets(['.copy', '#other'])).toEqual([invisible, other])
+  expect(resolveTargets(['.copy', '#other'], 'first')).toEqual([invisible, other])
 })
 
 test('nothing passing the rule is nothing found', () => {

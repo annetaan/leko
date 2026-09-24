@@ -7,13 +7,14 @@ type TargetFunction = () => Element | null
  * is also why there is no element form. DESIGN.md argues it under **A target
  * is a question**.
  *
- * A CSS selector is a question Leko runs, taking the first match — the first
- * one that passes {@link LekoTargetedStep.resolve}, where a step asks for a
- * rule, and a selector is never read as "every element that matches". A
- * function is the same question where the host runs it: return the element now, or `null` where
- * there is not one yet. Reach for it when a selector cannot say what you mean —
- * a node inside a shadow root, which `document.querySelector` does not enter; a
- * framework ref; a row your own code picks out of a list.
+ * A CSS selector is a question Leko runs, taking the first match that passes
+ * {@link LekoTargetedStep.resolve} — the first the viewer could see, unless
+ * somebody asks — and a selector is never read as "every element that
+ * matches". A function is the same question where the host runs it: return the
+ * element now, or `null` where there is not one yet. Reach for it when a
+ * selector cannot say what you mean — a node inside a shadow root, which
+ * `document.querySelector` does not enter; a framework ref; a row your own code
+ * picks out of a list.
  *
  * **A function must be cheap and must not have side effects**, and the element
  * it hands back is the answer for that moment only. One that closes over a live
@@ -23,12 +24,13 @@ type TargetFunction = () => Element | null
  * **An element that is not rendered is not found.** `display: none` on it or on
  * anything it is inside, so a closed tab, a collapsed panel and a row a
  * framework is about to render all come to the same thing. A selector whose
- * first match is one of those matches nothing rather than taking the next one
- * along, unless the step asked for a rule that skips it —
- * {@link LekoTargetedStep.resolve}. Open the panel in the step's `onEnter`,
- * which runs before the target is looked for. `visibility: hidden` and `opacity: 0` are not this: those keep
- * a box, and a hole is cut at it. DESIGN.md argues all of it under **An element
- * with no box is not found**, and `hidden-target.ts` shows it.
+ * first match is one of those moves on to the next one along, and matches
+ * nothing under `'first'` — {@link LekoTargetedStep.resolve}. Open the panel in
+ * the step's `onEnter`, which runs before the target is looked for.
+ * `visibility: hidden` and `opacity: 0` are not this: those keep a box, which
+ * the default passes over and `'first'` cuts a hole at. DESIGN.md argues all of
+ * it under **An element with no box is not found**, and `hidden-target.ts`
+ * shows it.
  *
  * **This is asked up to the moment the step is drawn, and not after it** — a
  * scroll excepted. DESIGN.md, **The page is measured when a step is drawn, and
@@ -394,15 +396,16 @@ export interface LekoTargetedStep extends LekoStepBase {
 
   /**
    * Which element this step means where a target matches several. Overrides
-   * {@link LekoOptions.resolve}, and is `'first'` unless one of the two asks.
+   * {@link LekoOptions.resolve}, and is `'visible-first'` unless one of the two
+   * asks.
    *
-   * - `'first'` takes the first match, and is the default. What a selector has
-   *   always meant.
-   * - `'visible-first'` takes the first match the viewer could see: one hidden
-   *   by `visibility`, by `opacity: 0`, or by anything with no box at all is
-   *   passed over for the next one along.
-   * - `'in-viewport-first'` asks that as well, and then that some of the match
-   *   is inside the viewport.
+   * - `'visible-first'` takes the first match the viewer could see, and is the
+   *   default: one hidden by `visibility`, by `opacity: 0`, or by anything with
+   *   no box at all is passed over for the next one along.
+   * - `'first'` takes the first match with a box, hidden or not. What a
+   *   selector has always meant, for a step that wants it.
+   * - `'in-viewport-first'` asks what `'visible-first'` asks, and then that
+   *   some of the match is inside the viewport.
    *
    * It is the step's answer for everything the step names: every element of
    * every region, and a function target too — the answer a function hands back
@@ -421,11 +424,21 @@ export interface LekoTargetedStep extends LekoStepBase {
    * there is nothing left for the scroll to bring in: the step waits and the
    * tour ends with `target-lost`. Ask for one or the other.
    *
+   * **`'visible-first'` is `'first'` where `Element.checkVisibility` is
+   * missing or does not know its `visibilityProperty` and `opacityProperty`
+   * options** — Chrome before 121, Firefox before 122, Safari before 17.4 —
+   * and nothing says so.
+   *
+   * **A match whose computed `opacity` is still `0` when the wait runs out is
+   * not found.** The wait hears nodes coming and going and nothing else, so a
+   * target fading in is seen at the one look taken as the wait ends, and only
+   * if the fade has begun by then.
+   *
    * Nothing that passes is nothing found, and that is the ordinary missing
    * target: the step waits its moment, resolving again, and ends the tour if
-   * nothing turns up. DESIGN.md argues the modes, and the limit around a match
-   * scrolled out of a nested panel, under **Which of several matches a selector
-   * means**; `which-match.ts` shows all three.
+   * nothing turns up. DESIGN.md argues the modes, and the limits above and the
+   * one around a match scrolled out of a nested panel, under **Which of several
+   * matches a selector means**; `which-match.ts` shows all three.
    */
   resolve?: 'first' | 'visible-first' | 'in-viewport-first'
 
@@ -650,14 +663,11 @@ export interface LekoOptions {
 
   /**
    * Which element every step means where a target matches several. Defaults to
-   * `'first'`, and a step may say either way.
+   * `'visible-first'`, and a step may say either way.
    *
    * The whole of what it does is described on
-   * {@link LekoTargetedStep.resolve}. A host whose screens carry a hidden copy
-   * of the markup — a collapsed panel, a mobile layout beside a desktop one —
-   * asks for `'visible-first'` once, here. Why the default stays `'first'` is
-   * DESIGN.md's **Which of several matches a selector means**: changing it
-   * would quietly move what existing tours point at.
+   * {@link LekoTargetedStep.resolve}. A host that wants a selector to mean its
+   * first match whatever is hidden says `'first'` once, here.
    */
   resolve?: 'first' | 'visible-first' | 'in-viewport-first'
 
