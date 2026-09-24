@@ -32,8 +32,9 @@ export type Target = string | (() => Element | null)
  * subtree a `content-visibility: hidden` is skipping — and a rendered element
  * answers with at least one however small it is.
  *
- * `visibility: hidden` and `opacity: 0` have boxes, so an element hidden either
- * way is one the tour still points at. DESIGN.md argues the rule this answers
+ * `visibility: hidden` and `opacity: 0` have boxes, so `hasBox` says yes to
+ * them; whether the step points at one is `resolve`'s question, and the default
+ * passes them over. DESIGN.md argues the rule this answers
  * under **An element with no box is not found**, and when it is asked — a
  * layout read, so only where layout is read already — under **An element with
  * no box is not found when the target is resolved**.
@@ -47,10 +48,14 @@ export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
  * the question {@link hasBox} already answers: `visibility` and `opacity` are
  * off by default, so the bare call reports nothing about either.
  *
- * `true` where the method is missing, which degrades the rule to `'first'`
- * rather than making every match invisible. `focus.ts`'s `reachable` stands the
- * same way off the same method, and DESIGN.md's **Browser support** is why
- * neither declares a floor.
+ * `true` where the method is missing, so the rule passes over only a match
+ * with no box rather than making every match invisible. `focus.ts`'s
+ * `reachable` stands the same way off the same method, and DESIGN.md's
+ * **Browser support** is why neither declares a floor. An engine whose method
+ * predates the two options — Chrome before 121, Firefox before 122 — ignores
+ * them and answers the bare question, which comes to the same. Both are known
+ * limits of the default, listed under **Which of several matches a selector
+ * means**.
  */
 const shows = (el: Element): boolean => {
   if (!el.checkVisibility) return true
@@ -104,7 +109,7 @@ const passes = (el: Element, resolve: ResolveMode): boolean => {
  * narrowed and the first is taken, which is what makes a selector, a function,
  * one element and a region all mean the same thing.
  */
-export function resolveTarget(target: Target, resolve: ResolveMode = 'first'): Element | null {
+export function resolveTarget(target: Target, resolve: ResolveMode): Element | null {
   if (typeof target !== 'string') {
     const el = target()
     return el?.isConnected && hasBox(el) && passes(el, resolve) ? el : null
@@ -119,10 +124,7 @@ export function resolveTarget(target: Target, resolve: ResolveMode = 'first'): E
   return null
 }
 
-export function resolveTargets(
-  targets: readonly Target[],
-  resolve: ResolveMode = 'first',
-): Element[] {
+export function resolveTargets(targets: readonly Target[], resolve: ResolveMode): Element[] {
   // Spelled out rather than handed to `map`, which would pass the index along
   // as the mode.
   return targets

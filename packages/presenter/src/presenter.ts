@@ -231,11 +231,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Which of several matches this step means. **`'first'` unless somebody
-   * asks** — DESIGN.md, **Which of several matches a selector means**.
+   * Which of several matches this step means. **`'visible-first'` unless
+   * somebody asks** — DESIGN.md, **Which of several matches a selector means**.
    */
   private resolves(step: LekoStep): ResolveMode {
-    return step.resolve ?? this.options.resolve ?? 'first'
+    return step.resolve ?? this.options.resolve ?? 'visible-first'
   }
 
   resolve(step: LekoStep): Element | null {
@@ -307,7 +307,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private chromeBoxes(): Rect[] {
     const named = this.options.hostChrome
     if (named === undefined) return []
-    return resolveTargets(Array.isArray(named) ? named : [named]).map(screenBox)
+    // Not a step's target, so the first match whatever a step asked for —
+    // DESIGN.md, **Which of several matches a selector means**.
+    return resolveTargets(Array.isArray(named) ? named : [named], 'first').map(screenBox)
   }
 
   /**

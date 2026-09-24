@@ -1,4 +1,5 @@
 import { userEvent } from '@vitest/browser/context'
+import type { LekoProblem } from '@annetaan/leko-types'
 import { expect, test, vi } from 'vitest'
 
 import {
@@ -159,6 +160,16 @@ const copies = (): [HTMLElement, HTMLElement] => {
   return [faded, seen]
 }
 
+test('a step resolves the visible copy by default', () => {
+  const [faded, seen] = copies()
+
+  start([{ id: 'one', target: { elements: '.copy', interactive: true } }])
+
+  expect(holes()).toBe(1)
+  expect(centre(seen)).toBe(seen)
+  expect(absorbed(faded)).toBe(true)
+})
+
 test('a step resolves the visible copy when it asks for one', () => {
   const [faded, seen] = copies()
 
@@ -170,7 +181,7 @@ test('a step resolves the visible copy when it asks for one', () => {
   expect(absorbed(faded)).toBe(true)
 })
 
-test('the instance default reaches every step and a step overrides it', () => {
+test('the instance setting reaches every step and a step overrides it', () => {
   const [faded, seen] = copies()
 
   const leko = holding(
@@ -178,20 +189,24 @@ test('the instance default reaches every step and a step overrides it', () => {
       id: 'copies',
       steps: [
         { id: 'inherits', target: { elements: '.copy', interactive: true } },
-        { id: 'overrides', target: { elements: '.copy', interactive: true }, resolve: 'first' },
+        {
+          id: 'overrides',
+          target: { elements: '.copy', interactive: true },
+          resolve: 'visible-first',
+        },
       ],
     },
-    { resolve: 'visible-first' },
+    { resolve: 'first' },
   )
   begin(leko, 'copies')
 
-  expect(centre(seen)).toBe(seen)
+  // `first` from the instance, which the built-in default would not have given.
+  expect(centre(faded)).toBe(faded)
 
   press()
 
-  // Back to what a selector has always meant, on the step that said so.
-  expect(centre(faded)).toBe(faded)
-  expect(absorbed(seen)).toBe(true)
+  expect(centre(seen)).toBe(seen)
+  expect(absorbed(faded)).toBe(true)
 })
 
 test("the host's own chrome keeps the first match, whatever a step asked for", () => {
@@ -243,6 +258,48 @@ test('a step that reveals its copy in onEnter gets that copy', () => {
 
   expect(centre(seen)).toBe(seen)
   expect(absorbed(faded)).toBe(true)
+})
+
+test('a target that fades in from opacity 0 is found when the grace runs out', async () => {
+  const target = box('target', {
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+    opacity: '0',
+    transition: 'opacity 50ms',
+  })
+  target.id = 'anchor'
+
+  start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+  target.style.opacity = '1'
+
+  // A style change is not a mutation the wait hears, so nothing is drawn until
+  // the one look taken as the grace runs out — DESIGN.md, **Which of several
+  // matches a selector means**.
+  expect(scrim()).toBeNull()
+  await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
+})
+
+test('a target still at opacity 0 when the grace runs out is lost', async () => {
+  const target = box('target', {
+    left: '100px',
+    top: '100px',
+    width: '120px',
+    height: '40px',
+    opacity: '0',
+  })
+  target.id = 'anchor'
+  const problems: LekoProblem[] = []
+
+  const leko = start([{ id: 'one', target: { elements: '#anchor', interactive: true } }], {
+    onDiagnostic: (problem) => problems.push(problem),
+  })
+
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+
+  expect(scrim()).toBeNull()
+  expect(problems).toEqual([expect.objectContaining({ kind: 'target-lost' })])
 })
 
 test('a step that says nothing shows its target and does not hand it over', () => {

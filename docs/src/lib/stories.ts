@@ -8,13 +8,6 @@ export const thisPage = {
   id: 'this-page',
   steps: [
     {
-      id: 'sidebar',
-      target: { elements: '#starlight__sidebar', interactive: true },
-      message:
-        'This is the site’s own sidebar, not a picture of one. Scroll it. ' +
-        'The hole hands over the wheel as well as clicks.',
-    },
-    {
       id: 'source',
       target: '[data-tour-source]',
       message: 'The story running right now is the one written here.',
@@ -36,6 +29,43 @@ export const thisPage = {
   ],
 } satisfies LekoStory
 
+// Starlight's own breakpoint, spelled as its stylesheet spells it. From here
+// up the sidebar pane is shown and the menu button has no box; below it the
+// pane is `visibility: hidden` and the menu button is the way to it.
+export const SIDEBAR_SHOWN = '(min-width: 50rem)'
+
+export const desktopIntro = {
+  id: 'desktop-intro',
+  steps: [
+    {
+      id: 'sidebar',
+      target: { elements: '#starlight__sidebar', interactive: true },
+      message:
+        'This is the site’s own sidebar, not a picture of one. Scroll it. ' +
+        'The hole hands over the wheel as well as clicks.',
+    },
+  ],
+  next: thisPage,
+} satisfies LekoStory
+
+export const mobileIntro = {
+  id: 'mobile-intro',
+  steps: [
+    {
+      id: 'menu',
+      target: 'starlight-menu-button button',
+      message:
+        'This is the site’s own menu button, not a picture of one. The ' +
+        'sidebar it opens is what a wider window points at instead.',
+    },
+  ],
+  next: thisPage,
+} satisfies LekoStory
+
+// A branch on width like any other — DESIGN.md, **A story is atomic, and
+// stories are short**. PageTour.astro answers a crossing mid-intro.
+export const introFor = () => (matchMedia(SIDEBAR_SHOWN).matches ? desktopIntro : mobileIntro)
+
 // A `/demo` segment closed by a slash, a query, a hash or the end. Astro
 // applies `base` in `astro dev` as well as in `astro build`, so this matches
 // `/leko/demo/` and `/demo/` alike; the optional slash is for GitHub Pages'
@@ -47,12 +77,7 @@ export const fromIndex = {
   steps: [
     {
       id: 'open-demo',
-      // Below Starlight's 50em breakpoint the sidebar pane is
-      // `visibility: hidden`, not removed, so a step that pointed at its
-      // own link kept a box on screen with nothing to click, and this
-      // step's `awaits: { url }` leaves it no next control to escape a hole
-      // drawn over it. The step targets a link SiteTour.astro renders
-      // itself instead, visible at every width; `href()` puts the base on.
+      // Not the sidebar's own link, which is hidden outside SIDEBAR_SHOWN.
       target: { elements: '[data-site-tour-link]', interactive: true },
       message:
         'Open “A tour of this page”. That is a full page load — this ' +
@@ -61,5 +86,5 @@ export const fromIndex = {
       awaits: { url: DEMO_URL },
     },
   ],
-  next: thisPage,
+  next: introFor,
 } satisfies LekoStory

@@ -3,9 +3,8 @@ import { type Case, html } from '../case.js'
 // Three elements, one selector. Which of them a step means is the step's to
 // say — DESIGN.md, **Which of several matches a selector means** — and the
 // three stories below are the three rules over the same three matches. The
-// default is the first of them and does not move: a host that upgraded and
-// found its tours pointing somewhere else would have nothing in its own code
-// to look at.
+// second asks for nothing, so it is the default, `visible-first`; the first
+// asks for `first` to show what taking the first match comes to.
 //
 // The rule is applied after `onEnter` returns, which the second story is
 // about: the copy it opens the panel for is a copy `visible-first` can then
@@ -16,13 +15,13 @@ export const whichMatch: Case = {
   id: 'which-match',
   title: 'Which of several matches a step means',
   proves:
-    'A selector that matches three elements means the first of them, and a ' +
-    'step can ask for something narrower instead: the first the viewer could ' +
-    'see, or the first inside the viewport. The default does not change — the ' +
-    'story that asks for nothing points at the copy in the collapsed panel and ' +
-    'ends with target-lost, exactly as it did before there was a rule to ask ' +
-    'for. And because the rule is applied after onEnter returns, a step that ' +
-    'opens the panel first gets the copy inside it.',
+    'The default is the first the viewer could see: the story that asks for ' +
+    'no rule passes over the copy in the collapsed panel for the button on ' +
+    'screen. The story that asks for first points at the collapsed copy ' +
+    'instead and ends with target-lost, and the one that asks for ' +
+    'in-viewport-first takes the first match inside the viewport. And because ' +
+    'the rule is applied after onEnter returns, a step that opens the panel ' +
+    'first gets the copy inside it.',
 
   mount(root) {
     const page = html(`
@@ -44,17 +43,18 @@ export const whichMatch: Case = {
           </p>
           <button type="button" data-save>Save</button>
           <p class="hint">
-            <strong><code>start('which-match-first')</code> asks for no rule.</strong>
-            So the selector means its first match, the compact one, and that one
-            is not rendered: nothing is drawn, and the tour ends with
-            <code>target-lost</code> after its moment of waiting. The console
-            below has it. That is what a selector has always meant, and it is
-            still the default.
+            <strong><code>start('which-match-first')</code> asks for
+            <code>first</code>.</strong> So the selector means its first match,
+            the compact one, and that one is not rendered: nothing is drawn, and
+            the tour ends with <code>target-lost</code> after its moment of
+            waiting. The console below has it. The default would have passed it
+            over.
           </p>
           <p class="hint">
-            <strong><code>start('which-match-visible')</code> asks for
-            <code>visible-first</code>.</strong> The compact copy has no box, so
-            the first step points at the button above. Then <strong>Next</strong>:
+            <strong><code>start('which-match-visible')</code> asks for no
+            rule, so it gets <code>visible-first</code>.</strong> The compact
+            copy has no box, so the first step points at the button above. Then
+            <strong>Next</strong>:
             the second step opens the compact layout in its <code>onEnter</code>,
             and the rule is applied after that returns, so the hole moves up
             into the panel. <code>onLeave</code> folds it away again.
@@ -103,11 +103,12 @@ export const whichMatch: Case = {
       id: 'which-match-first',
       steps: [
         {
-          // No `resolve`, so `first`: the compact copy, which has no box. A
-          // step whose target is not rendered is a step whose target is not
-          // there — `hidden-target.ts` is that half on its own.
+          // `first`, asked for: the compact copy, which has no box. A step
+          // whose target is not rendered is a step whose target is not there —
+          // `hidden-target.ts` is that half on its own.
           id: 'the-first-match',
           target: { elements: '[data-save]', interactive: true },
+          resolve: 'first',
           message: 'This step is never drawn: its first match is the copy in the compact layout.',
         },
       ],
@@ -118,15 +119,13 @@ export const whichMatch: Case = {
         {
           id: 'the-visible-match',
           target: { elements: '[data-save]', interactive: true },
-          resolve: 'visible-first',
           message:
-            'The compact copy has no box, so the rule passed over it and the ' +
+            'The compact copy has no box, so the default passed over it and the ' +
             'hole is around the button on screen. Next opens the compact layout.',
         },
         {
           id: 'the-revealed-match',
           target: { elements: '[data-save]', interactive: true },
-          resolve: 'visible-first',
           message:
             'The compact layout was opened in this step’s onEnter, so by the ' +
             'time the rule was applied its copy was the first one showing.',

@@ -298,34 +298,41 @@ flag past the rule structurally.
   - The question is `getClientRects().length`, not the rect. A rect cannot tell
     an element that is not rendered from a rendered one of no size, and the
     second has a place on the page that a step may legitimately point at.
-  - `visibility: hidden` and `opacity: 0` keep their boxes and are therefore
-    still pointed at. They have a place on the page, which is the whole of what
-    is asked; a hole over something invisible is the story's mistake rather
-    than a target Leko failed to find.
-  - A selector whose first match is hidden matches nothing, rather than moving
-    on to the next match — unless the step asked for a rule that skips it:
-    **Which of several matches a selector means**, below.
+  - `visibility: hidden` and `opacity: 0` keep their boxes, so `hasBox` finds
+    them, and whether the step points at one is `resolve`'s question: passed
+    over by default, taken under `'first'` — **Which of several matches a
+    selector means**, below.
+  - A selector whose first match has no box matches nothing under `'first'`,
+    rather than moving on to the next match; the default moves on.
   - See `hidden-target.ts`.
 
 ### Which of several matches a selector means
 
-A selector that matches several elements means its first match. A step can ask
-for something narrower with `resolve`, and the instance can ask for every step
-at once — **Settings, and where they are read from**.
+A selector that matches several elements means the first of them the viewer
+could see. A step can ask for something else with `resolve`, and the instance
+can ask for every step at once — **Settings, and where they are read from**.
 
-- **`resolve: 'first'` takes the first match, and is the default.** It is what
-  a selector has always meant, and the default does not move: changing it would
-  quietly point existing tours at a different element, which is a tour that
-  breaks with nothing in it edited.
-- **`'visible-first'` takes the first match the viewer could see.** The
-  question is `checkVisibility({ visibilityProperty: true, opacityProperty:
-  true })`, and both options are named because `checkVisibility()` on its own
-  reports only what **An element with no box is not found** already answers —
-  `visibility` and `opacity` are off by default. So a match hidden by either,
-  which keeps its box and is therefore a match, is passed over for the next one
-  along.
-- **`'in-viewport-first'` asks that, and then that some of the match is inside
-  the layout viewport.** The layout viewport, in the space
+- **`resolve: 'visible-first'` takes the first match the viewer could see, and
+  is the default.** The question is `checkVisibility({ visibilityProperty:
+  true, opacityProperty: true })`, and both options are named because
+  `checkVisibility()` on its own reports only what **An element with no box is
+  not found** already answers — `visibility` and `opacity` are off by default.
+  So a match hidden by either, which keeps its box and is therefore a match, is
+  passed over for the next one along.
+  - It is the default because of what `'first'` does wrong: a first match that
+    is hidden but keeps its box gets a hole over something nobody can see, the
+    step is drawn, and nothing reports it. The same step under
+    `'visible-first'` finds the copy that is showing, or finds nothing, waits,
+    and ends with `target-lost`, which names the step.
+  - Moving a default points existing tours at a different element with nothing
+    in them edited, so it is settled before anything is published, and does
+    not move after.
+- **`'first'` takes the first match, hidden or not, and finds nothing where
+  that one has no box.** It is what a selector has always meant, for a step or
+  a host that wants it, and it keeps `querySelector`, which stops at the match
+  it finds rather than building a list.
+- **`'in-viewport-first'` asks what `'visible-first'` asks, and then that some
+  of the match is inside the layout viewport.** The layout viewport, in the space
   `getBoundingClientRect` answers in — `layoutViewport` in
   `packages/spotlight/src/surface.ts` is the one place that is said. Pinch zoom
   is no part of it.
@@ -347,8 +354,24 @@ lets a step reveal the copy it wants and then ask for a visible one, and it is
 also why `'in-viewport-first'` cannot be the default: a page the application
 has not scrolled yet has every right to keep the match below the fold.
 
-Two limits are worth saying out loud rather than discovering.
+Four limits are worth saying out loud rather than discovering.
 
+- **`'visible-first'` passes over only a match with no box where
+  `Element.checkVisibility` is missing or does not know the two options** —
+  Chrome before 121, Firefox before 122, Safari before 17.4 — and nothing says
+  so. It still moves on past a match with no box, which `'first'` does not,
+  and it takes a match hidden by `visibility` or `opacity: 0`, which is the
+  hole the default exists to keep out. An engine with the method and without
+  the options ignores them and answers the bare question, which is **An
+  element with no box is not found** again. An engine without the method is
+  taken to show every match, because refusing every match there would lose
+  every target, and **Browser support** quotes no floor that would rule those
+  engines out.
+- **A match whose computed `opacity` is still `0` when the retry window runs
+  out is not found.** The wait hears nodes coming and going and nothing else,
+  so a target fading in is seen only at the one look taken as the window
+  closes. A step whose target is still arriving belongs after the animation —
+  **The page is measured when a step is drawn, and not again**.
 - **A match scrolled out of a nested panel still passes
   `'in-viewport-first'`.** What is asked is the viewport, and a match inside a
   scroller that has been scrolled away from is in the viewport's area all the
@@ -572,12 +595,18 @@ not know a tour is running.
   `branching.ts` is four of them: an intro, two branches, and the summary both
   branches name in `next`. Neither branch has to know how many steps came
   before it.
+- **A branch on the viewport's width is a branch like any other.** The
+  application chooses the story at `start()` or in `next`, and answers a width
+  crossed mid-story with `stop()` and a fresh `start()` of the story for the
+  new width, which is cheap because the story is short. The docs site's demo
+  does both: `docs/src/lib/stories.ts` chooses, and
+  `docs/src/components/PageTour.astro` answers the crossing.
 
 ## Settings, and where they are read from
 
 - `padding`, `radius`, `scroll` and `resolve` are read from the step, then from
-  the instance, then a built-in default — `first` for `resolve`, and **Which of
-  several matches a selector means** is why that one does not move. `duration`, `easing`, `nextLabel`,
+  the instance, then a built-in default — `visible-first` for `resolve`, argued
+  under **Which of several matches a selector means**. `duration`, `easing`, `nextLabel`,
   `closeLabel` and `hostChrome` are read from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.
