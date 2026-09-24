@@ -181,15 +181,17 @@ test('nothing passing the rule is nothing found', () => {
   expect(resolveTarget('.copy', 'in-viewport-first')).toBeNull()
 })
 
-test('visible-first is first where checkVisibility is missing', () => {
+test('visible-first passes over only a match with no box where checkVisibility is missing', () => {
+  const boxless = copy('top: 0; display: none')
   const invisible = copy('top: 10px; visibility: hidden')
   const seen = copy('top: 40px')
-  for (const el of [invisible, seen]) {
+  for (const el of [boxless, invisible, seen]) {
     Object.defineProperty(el, 'checkVisibility', { configurable: true, value: undefined })
   }
 
-  // The rule degrades to `first` rather than to nothing at all, the way
-  // `focus.ts`'s `reachable` stands off the same method — DESIGN.md, **Browser
-  // support**.
+  // Every match is taken to show rather than none, the way `focus.ts`'s
+  // `reachable` stands off the same method — DESIGN.md, **Browser support**.
+  // It is not `first`, which stops at the boxless one.
   expect(resolveTarget('.copy', 'visible-first')).toBe(invisible)
+  expect(resolveTarget('.copy', 'first')).toBeNull()
 })

@@ -402,8 +402,9 @@ export interface LekoTargetedStep extends LekoStepBase {
    * - `'visible-first'` takes the first match the viewer could see, and is the
    *   default: one hidden by `visibility`, by `opacity: 0`, or by anything with
    *   no box at all is passed over for the next one along.
-   * - `'first'` takes the first match with a box, hidden or not. What a
-   *   selector has always meant, for a step that wants it.
+   * - `'first'` takes the first match, hidden or not, and finds nothing where
+   *   that one has no box. What a selector has always meant, for a step that
+   *   wants it.
    * - `'in-viewport-first'` asks what `'visible-first'` asks, and then that
    *   some of the match is inside the viewport.
    *
@@ -424,10 +425,11 @@ export interface LekoTargetedStep extends LekoStepBase {
    * there is nothing left for the scroll to bring in: the step waits and the
    * tour ends with `target-lost`. Ask for one or the other.
    *
-   * **`'visible-first'` is `'first'` where `Element.checkVisibility` is
-   * missing or does not know its `visibilityProperty` and `opacityProperty`
-   * options** — Chrome before 121, Firefox before 122, Safari before 17.4 —
-   * and nothing says so.
+   * **`'visible-first'` passes over only a match with no box where
+   * `Element.checkVisibility` is missing or does not know its
+   * `visibilityProperty` and `opacityProperty` options** — Chrome before 121,
+   * Firefox before 122, Safari before 17.4 — and nothing says so: a match
+   * hidden by `visibility` or `opacity: 0` is taken there.
    *
    * **A match whose computed `opacity` is still `0` when the wait runs out is
    * not found.** The wait hears nodes coming and going and nothing else, so a

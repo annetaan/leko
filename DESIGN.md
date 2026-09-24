@@ -327,10 +327,10 @@ can ask for every step at once — **Settings, and where they are read from**.
   - Moving a default points existing tours at a different element with nothing
     in them edited, so it is settled before anything is published, and does
     not move after.
-- **`'first'` takes the first match with a box, hidden or not.** It is what a
-  selector has always meant, for a step or a host that wants it, and it keeps
-  `querySelector`, which stops at the match it finds rather than building a
-  list.
+- **`'first'` takes the first match, hidden or not, and finds nothing where
+  that one has no box.** It is what a selector has always meant, for a step or
+  a host that wants it, and it keeps `querySelector`, which stops at the match
+  it finds rather than building a list.
 - **`'in-viewport-first'` asks what `'visible-first'` asks, and then that some
   of the match is inside the layout viewport.** The layout viewport, in the space
   `getBoundingClientRect` answers in — `layoutViewport` in
@@ -356,12 +356,15 @@ has not scrolled yet has every right to keep the match below the fold.
 
 Four limits are worth saying out loud rather than discovering.
 
-- **`'visible-first'` is `'first'` where `Element.checkVisibility` is missing
-  or does not know the two options** — Chrome before 121, Firefox before 122,
-  Safari before 17.4 — and nothing says so. An engine with the method and
-  without the options ignores them and answers the bare question, which is
-  **An element with no box is not found** again. An engine without the method
-  is taken to show every match, because refusing every match there would lose
+- **`'visible-first'` passes over only a match with no box where
+  `Element.checkVisibility` is missing or does not know the two options** —
+  Chrome before 121, Firefox before 122, Safari before 17.4 — and nothing says
+  so. It still moves on past a match with no box, which `'first'` does not,
+  and it takes a match hidden by `visibility` or `opacity: 0`, which is the
+  hole the default exists to keep out. An engine with the method and without
+  the options ignores them and answers the bare question, which is **An
+  element with no box is not found** again. An engine without the method is
+  taken to show every match, because refusing every match there would lose
   every target, and **Browser support** quotes no floor that would rule those
   engines out.
 - **A match whose computed `opacity` is still `0` when the retry window runs

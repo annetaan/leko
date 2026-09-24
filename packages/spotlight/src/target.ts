@@ -48,13 +48,14 @@ export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
  * the question {@link hasBox} already answers: `visibility` and `opacity` are
  * off by default, so the bare call reports nothing about either.
  *
- * `true` where the method is missing, which degrades the rule to `'first'`
- * rather than making every match invisible. `focus.ts`'s `reachable` stands the
- * same way off the same method, and DESIGN.md's **Browser support** is why
- * neither declares a floor. An engine whose method predates the two options —
- * Chrome before 121, Firefox before 122 — ignores them and answers the bare
- * question, which degrades the rule the same way. Both are known limits of the
- * default, listed under **Which of several matches a selector means**.
+ * `true` where the method is missing, so the rule passes over only a match
+ * with no box rather than making every match invisible. `focus.ts`'s
+ * `reachable` stands the same way off the same method, and DESIGN.md's
+ * **Browser support** is why neither declares a floor. An engine whose method
+ * predates the two options — Chrome before 121, Firefox before 122 — ignores
+ * them and answers the bare question, which comes to the same. Both are known
+ * limits of the default, listed under **Which of several matches a selector
+ * means**.
  */
 const shows = (el: Element): boolean => {
   if (!el.checkVisibility) return true

@@ -3,8 +3,8 @@ import { type Case, html } from '../case.js'
 // Three elements, one selector. Which of them a step means is the step's to
 // say — DESIGN.md, **Which of several matches a selector means** — and the
 // three stories below are the three rules over the same three matches. The
-// default is `visible-first`, and the first story asks for `first` to show
-// what taking the first match comes to.
+// second asks for nothing, so it is the default, `visible-first`; the first
+// asks for `first` to show what taking the first match comes to.
 //
 // The rule is applied after `onEnter` returns, which the second story is
 // about: the copy it opens the panel for is a copy `visible-first` can then
@@ -15,11 +15,13 @@ export const whichMatch: Case = {
   id: 'which-match',
   title: 'Which of several matches a step means',
   proves:
-    'The default is the first the viewer could see. The story that asks for ' +
-    'first instead points at the copy in the collapsed panel and ends with ' +
-    'target-lost, and the one that asks for in-viewport-first takes the first ' +
-    'match inside the viewport. And because the rule is applied after onEnter ' +
-    'returns, a step that opens the panel first gets the copy inside it.',
+    'The default is the first the viewer could see: the story that asks for ' +
+    'no rule passes over the copy in the collapsed panel for the button on ' +
+    'screen. The story that asks for first points at the collapsed copy ' +
+    'instead and ends with target-lost, and the one that asks for ' +
+    'in-viewport-first takes the first match inside the viewport. And because ' +
+    'the rule is applied after onEnter returns, a step that opens the panel ' +
+    'first gets the copy inside it.',
 
   mount(root) {
     const page = html(`
@@ -49,9 +51,10 @@ export const whichMatch: Case = {
             over.
           </p>
           <p class="hint">
-            <strong><code>start('which-match-visible')</code> asks for
-            <code>visible-first</code>.</strong> The compact copy has no box, so
-            the first step points at the button above. Then <strong>Next</strong>:
+            <strong><code>start('which-match-visible')</code> asks for no
+            rule, so it gets <code>visible-first</code>.</strong> The compact
+            copy has no box, so the first step points at the button above. Then
+            <strong>Next</strong>:
             the second step opens the compact layout in its <code>onEnter</code>,
             and the rule is applied after that returns, so the hole moves up
             into the panel. <code>onLeave</code> folds it away again.
@@ -116,15 +119,13 @@ export const whichMatch: Case = {
         {
           id: 'the-visible-match',
           target: { elements: '[data-save]', interactive: true },
-          resolve: 'visible-first',
           message:
-            'The compact copy has no box, so the rule passed over it and the ' +
+            'The compact copy has no box, so the default passed over it and the ' +
             'hole is around the button on screen. Next opens the compact layout.',
         },
         {
           id: 'the-revealed-match',
           target: { elements: '[data-save]', interactive: true },
-          resolve: 'visible-first',
           message:
             'The compact layout was opened in this step’s onEnter, so by the ' +
             'time the rule was applied its copy was the first one showing.',
