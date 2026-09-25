@@ -41,13 +41,13 @@ can decide which goes first.
 ```ts
 createScroll({
   targets: [{ target, message?, side?, padding?, radius? }],
-  line, fade, spacing, padding, radius, onChange,
+  line?, fade?, spacing?, padding?, radius?, onChange?,
 }) // → { measure(), destroy() }
 ```
 
-- `targets` is the list of what gets lit, in the order it gets lit. Each entry
-  names a `target`, and may add a `message`, a `side`, a `padding` and a
-  `radius`.
+- `targets` is the list of what gets lit, in the order it gets lit, and the one
+  option that has to be given. Each entry names a `target`, and may add a
+  `message`, a `side`, a `padding` and a `radius`.
 - `target` is a selector string or an `Element`.
 - `message` is `{ title, body }`, and `side` is where it goes —
   [The message](#the-message).
@@ -58,9 +58,10 @@ createScroll({
 - `spacing` is the least scroll between two switches, in pixels. The default is
   150.
 - `padding` and `radius` are the hole's, for every target that does not say its
-  own.
+  own. Both default to 8px — [Padding and radius](#padding-and-radius).
 - `onChange` is the one notice, and [The whole page stays
-  usable](#the-whole-page-stays-usable) says when it fires.
+  usable](#the-whole-page-stays-usable) says when it fires. It may be left out:
+  a page that only wants its targets lit has nothing to listen for.
 
 **It runs from the moment it is created.** There is no `start` and no `stop`,
 and `destroy()` ends it. There is nothing to begin and nothing to finish: the
@@ -99,8 +100,9 @@ nothing takes focus away from the page.
 - It fires with `undefined` when nothing is lit at creation, and when a fade
   reaches zero after an `index` was announced. A fade reaching zero fires
   `undefined` only to answer an `index`: a converge cut off before its arrival
-  announced nothing, so it fires nothing at all, and a morph cut off fires
-  `undefined` for the target it left.
+  announced nothing, so it fires nothing at all, turned to another target on
+  the way or not, and a morph cut off fires `undefined` for the target it
+  left.
 - The fade itself fires nothing on its way to zero. Until the light is out, the
   target is still the lit one.
 
@@ -115,9 +117,19 @@ document's scroll ([The scrim rides the page](#the-scrim-rides-the-page)), and
 none of those does: a hole cut where such a target stood would be carried off
 by the first scroll while the target stayed, or stay while it moved.
 
+**A selector that matches several elements means the first of them in document
+order that has a box**, and the rest are passed over with no warning. A landing
+page often carries a section twice, one copy for a wide screen and one for a
+narrow, with the other hidden by `display: none`. The copy that is showing is
+the one meant, and a hidden one has no box to cut a hole around, so the rule
+picks the right copy without the author saying which, and a warning would fire
+on every such page for nothing. The match is chosen again each time the page is
+measured, so a resize that swaps the copies moves the hole to the one showing.
+
 **A target that is not found is skipped with a `console.warn`, and the rest
-runs.** Not found means the selector matches nothing, or the element has no box
-— an element that is not rendered has nowhere to cut a hole around. A warning
+runs.** Not found means the selector matches nothing that has a box, or the
+`Element` given has none — an element that is not rendered has nowhere to cut
+a hole around. A warning
 is the right loudness: the author named something that is not there, which is
 theirs to fix, and it is no reason to leave the rest of the page unlit. The
 target is looked for again the next time the page is measured.
@@ -268,6 +280,8 @@ follows from that one bit.
   `onChange` fires with its `index`. If the fade reaches zero first, the
   animation is cut off and the light is out: a morph cut off fires `undefined`,
   since the target it left was announced, and a converge cut off fires nothing.
+  A converge a switch turned is still a converge here ([A fast scroll skips the
+  middle](#a-fast-scroll-skips-the-middle)).
 - **Fading, and the line comes back into the range:** the opacity climbs back
   to 1, and the light is on the target that position calls for. If that is the
   target that was lit, nothing converges and `onChange` does not fire, because
@@ -294,10 +308,18 @@ morph to the latest target.** The hole leaves for wherever it has got to, and
 the targets in between are never drawn. Lighting each of them in turn would be
 a queue of morphs the reader has already scrolled past.
 
+**A switch position crossed during a converge turns the converge to the latest
+target, and it stays a converge.** The dark goes on closing in from wherever it
+has got to, on the latest target now. It does not become a morph, because a
+morph moves the light from a target that was lit, and during a converge none
+has been. So a turned converge that the fade cuts off fires nothing, as any
+converge cut off does: no `index` was announced for an `undefined` to answer.
+
 - Only the last arrival's message appears. The halo follows the turned morph
-  to the latest target, as it follows every morph.
-- `onChange` fires only for the arrival. A target the morph was turned away
-  from never arrived, so it never fires.
+  to the latest target, as it follows every morph, and after a turned converge
+  it appears on the arrival, as after every converge.
+- `onChange` fires only for the arrival. A target the morph or the converge
+  was turned away from never arrived, so it never fires.
 
 ## Starting part-way down
 
@@ -384,8 +406,8 @@ measured Safari's cost.
   unreadable in flight, and one that stayed would point at a target the light
   has left.
 - **It dims with the scrim during the leaving fade.**
-- **After a turned morph only the last arrival's message shows** — [A fast
-  scroll skips the middle](#a-fast-scroll-skips-the-middle).
+- **After a turned morph or converge only the last arrival's message shows**
+  — [A fast scroll skips the middle](#a-fast-scroll-skips-the-middle).
 - **It catches no pointer events**, which is `pointer-events: none`. The page
   under it stays usable, and the price is plain: its text cannot be selected,
   and a link in it cannot be pressed. A message is something to read beside
@@ -418,6 +440,15 @@ default is `bottom`.**
 **`padding` and `radius` are set for every target at the top level and for one
 target on its entry, and the target's own wins.** A page that wants one target
 drawn apart from the rest says so on that target and nowhere else.
+
+**The hole is measured from the target's border box**, and `padding` is how far
+out from it the hole's edge sits. A hole cut flush therefore contains the
+border.
+
+**Where neither sets them, both are 8px.** A hole cut flush leaves what the
+target paints outside its border box, a focus outline or a `box-shadow`, under
+the scrim, and square corners on a rounded card read as a mistake. 8px clears
+both and still reads as belonging to the target.
 
 ## Reduced motion
 
