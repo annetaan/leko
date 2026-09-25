@@ -762,9 +762,10 @@ export function segmentAt(count: number, progress: number): { index: number; loc
 /**
  * A curve from a fraction of the time to a fraction of the way.
  *
- * `LekoOptions.easing` in `packages/types` writes this shape out again rather
- * than importing it, the way `Target` and `MachineState` are written twice:
- * DESIGN.md, **The packages, and the seam between them**.
+ * `LekoOptions.easing` and a step's `easing` in `packages/types` write this
+ * shape out again rather than importing it, the way `Target` and
+ * `MachineState` are written twice: DESIGN.md, **The packages, and the seam
+ * between them**.
  */
 export type Easing = (t: number) => number
 

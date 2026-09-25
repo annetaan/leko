@@ -244,6 +244,28 @@ interface LekoStepBase {
   radius?: number
 
   /**
+   * How long the movement into this step runs, in ms. Overrides
+   * {@link LekoOptions.duration}.
+   *
+   * It is how long the morph from the step before runs, or the opening where
+   * this is the first step, and the least a glide bringing its target in runs
+   * for — the least each stage runs for, where the step asked for stages.
+   * `0` sets all of it outright, and a step writing `0` beats an instance
+   * writing a number — DESIGN.md, **Settings, and where they are read from**.
+   */
+  duration?: number
+
+  /**
+   * The curve the movement into this step follows. Overrides
+   * {@link LekoOptions.easing}, and the shake a refused step gives keeps Leko's
+   * own curve either way.
+   *
+   * **A glide wants a curve that stays inside `[0, 1]`**, and
+   * {@link LekoOptions.easing} says why.
+   */
+  easing?: (t: number) => number
+
+  /**
    * Whether this step brings its target into view before drawing it.
    * Overrides {@link LekoOptions.scroll}, and is off unless one of the two
    * asks.
@@ -269,7 +291,8 @@ interface LekoStepBase {
    * **`scroll: 'staged'` moves one port at a time, outermost first**.
    *
    * Whichever is asked for, the glide grows with the distance by its cube root
-   * and runs for at least {@link LekoOptions.duration}, and a viewer who
+   * and runs for at least the step's {@link duration}, or the instance's
+   * {@link LekoOptions.duration} where the step says none, and a viewer who
    * scrolls takes it over. `duration: 0` and reduced motion set every port
    * outright instead, with no beat and nothing to wait for.
    * `scroll-margin` on the target is honoured, and how far is DESIGN.md's
@@ -639,7 +662,8 @@ export interface LekoWorld {
 
 /**
  * Defaults for every story on the instance. A step may override `padding`,
- * `radius`, `scroll` and `resolve`: the nearer of the two wins.
+ * `radius`, `scroll`, `resolve`, `duration` and `easing`: the nearer of the two
+ * wins.
  *
  * **A story carries no settings** — DESIGN.md argues it under **Settings, and
  * where they are read from**.
@@ -681,6 +705,9 @@ export interface LekoOptions {
    * stage of one runs for, where the step asked for stages. A glide grows with
    * how far the page has to go — {@link LekoTargetedStep.scroll} says why — and
    * this is the floor under a short one. `0` turns both off together.
+   *
+   * This is the house rule, and a step may say its own —
+   * {@link LekoTargetedStep.duration}. A step that says nothing follows this.
    */
   duration?: number
 
@@ -689,10 +716,9 @@ export interface LekoOptions {
    * fraction of the way. Defaults to Material 3's standard easing,
    * `cubic-bezier(0.2, 0, 0, 1)`, which `cubicBezier` here will build for you.
    *
-   * A house rule, so there is no per-step version of it, for the reason
-   * {@link LekoOptions.duration} has none — DESIGN.md, **Settings, and where
-   * they are read from**. The shake a refused step gives keeps Leko's own
-   * curve either way: it is a gesture of refusal rather than an arrival.
+   * A step may bring its own — {@link LekoTargetedStep.easing} — and the shake
+   * a refused step gives keeps Leko's own curve either way: it is a gesture of
+   * refusal rather than an arrival.
    *
    * `f(1)` need not be exactly `1` — the last frame writes the destination
    * itself — and a morph that overshoots and comes back does no harm. **A

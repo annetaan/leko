@@ -1,5 +1,5 @@
-import type { Glide } from '@annetaan/leko-spotlight'
-import type { LekoStep, LekoTarget } from '@annetaan/leko-types'
+import type { Easing, Glide } from '@annetaan/leko-spotlight'
+import type { LekoOptions, LekoStep, LekoTarget } from '@annetaan/leko-types'
 
 // Which mode the presenter is in between calls, and what an event does to it.
 // Pure, so `plan.test.ts` drives it in Node one `(mode, event)` pair at a time,
@@ -48,6 +48,22 @@ export const actionTarget = (target: LekoStep['target']): LekoTarget | undefined
 
 /** Whether this step has anything to point at. A step that has not is a wait. */
 export const pointsAt = (step: LekoStep): boolean => actionTarget(step.target) !== undefined
+
+/** How long a movement runs and the curve it follows. */
+export interface Motion {
+  readonly duration: number
+  readonly easing: Easing
+}
+
+/**
+ * The motion of the movement into this step — the glide that brings its target
+ * in, and the morph or the opening that draws it. Step, then instance, then
+ * `fallback`: DESIGN.md, **Settings, and where they are read from**.
+ */
+export const motionOf = (step: LekoStep, options: LekoOptions, fallback: Motion): Motion => ({
+  duration: step.duration ?? options.duration ?? fallback.duration,
+  easing: step.easing ?? options.easing ?? fallback.easing,
+})
 
 // ---------------------------------------------------------------------- the mode
 

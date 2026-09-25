@@ -6,7 +6,6 @@ import {
   Close,
   type Cutout,
   ease,
-  type Easing,
   FocusRing,
   grow,
   inset,
@@ -34,6 +33,8 @@ import {
   type Event,
   idle,
   type Mode,
+  type Motion,
+  motionOf,
   reduce,
   regionsOf,
   type Reentrant,
@@ -210,14 +211,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
     return step[key] ?? this.options[key] ?? DEFAULTS[key]
   }
 
-  /** How long a morph runs. The scroll before it follows the same number. */
-  private duration(): number {
-    return this.options.duration ?? DEFAULTS.duration
-  }
-
-  /** The curve a morph and the scroll before it are both eased by. */
-  private easing(): Easing {
-    return this.options.easing ?? DEFAULTS.easing
+  /** The movement into this step, falling back on {@link DEFAULTS} — {@link motionOf}. */
+  private motion(step: LekoStep): Motion {
+    return motionOf(step, this.options, DEFAULTS)
   }
 
   /**
@@ -359,14 +355,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     error: string | undefined,
   ): void {
     const mode = this.scrolls(step)
+    const { duration, easing } = this.motion(step)
     const glide =
       anchor && mode
         ? bringIntoView(
             lit(step, anchor, this.resolves(step)),
             this.setting(step, 'padding'),
-            this.duration(),
+            duration,
             mode,
-            this.easing(),
+            easing,
           )
         : undefined
     if (glide) {
@@ -630,7 +627,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // The message went when the last step did, and comes back once the cutout
     // has arrived. The side with room is a fact about where the hole ends up,
     // so there is nowhere honest to put it while one is on its way.
-    const morphing = inner.morph(resolved, this.duration(), this.easing())
+    const { duration, easing } = this.motion(step)
+    const morphing = inner.morph(resolved, duration, easing)
     if (!morphing) return this.dispatch({ kind: 'morphed', step })
     void morphing.then((finished) => {
       if (finished) this.dispatch({ kind: 'morphed', step })

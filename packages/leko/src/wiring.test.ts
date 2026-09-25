@@ -2,6 +2,7 @@ import { expect, test, vi } from 'vitest'
 
 import {
   absorbed,
+  advance,
   begin,
   box,
   centre,
@@ -1578,6 +1579,73 @@ test('an easing given on the options is the curve the morph and the glide both f
   expect(centre(far)).toBe(far)
   leko.stop()
   window.scrollTo(0, 0)
+})
+
+test("a step's easing is the curve the morph and the glide into it both follow", async () => {
+  clocked()
+  const [near, far] = farApart()
+
+  // The curve of the test above, on the far step alone. The instance names a
+  // duration, because the harness would otherwise snap, and no curve.
+  const leko = start(
+    [
+      { id: 'near', target: { elements: () => near, interactive: true } },
+      {
+        id: 'far',
+        target: { elements: () => far, interactive: true },
+        scroll: true,
+        easing: () => 0,
+      },
+    ],
+    { duration: 320 },
+  )
+  await until(said, 30, 'the first step never said its words')
+
+  press()
+  const flight: { scrollY: number; mask: string }[] = []
+  await until(
+    () => {
+      flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
+      return said()
+    },
+    300,
+    'the far step never said its words',
+  )
+
+  expect(new Set(flight.map((f) => f.scrollY)).size).toBe(2)
+  expect(flight[flight.length - 1]!.scrollY).toBeGreaterThan(0)
+  const masks = flight.map((f) => f.mask)
+  expect(masks.filter((mask, i) => i > 0 && mask !== masks[i - 1]!).length).toBeLessThanOrEqual(2)
+
+  expect(centre(far)).toBe(far)
+  leko.stop()
+  window.scrollTo(0, 0)
+})
+
+test("a step's duration of 0 snaps where the instance animates", async () => {
+  clocked()
+  const [first, second] = pair()
+  const leko = start(
+    [
+      { id: 'first', target: { elements: () => first, interactive: true } },
+      { id: 'second', target: { elements: () => second, interactive: true }, duration: 0 },
+    ],
+    { duration: 320 },
+  )
+  await until(said, 30, 'the first step never said its words')
+
+  press()
+  await Promise.resolve()
+
+  // No frame has run, and the step is already up: its message is back, which
+  // it is only once the morph has arrived.
+  expect(leko.step?.id).toBe('second')
+  expect(said()).toBe(true)
+  // And the mask is where it ends up: frames from here on move nothing.
+  const mask = scrim()!.style.maskPosition
+  for (let n = 0; n < 30; n++) await advance()
+  expect(scrim()!.style.maskPosition).toBe(mask)
+  expect(centre(second)).toBe(second)
 })
 
 test("a refused step shakes on Leko's own curve, whatever the host asked for", async () => {
