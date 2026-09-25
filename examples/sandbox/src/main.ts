@@ -1,4 +1,4 @@
-import { createLeko, type Leko, type LekoStep } from '@annetaan/leko'
+import { createLeko, type Leko, type LekoStep, type LekoStory } from '@annetaan/leko'
 
 import { type Case, html } from './case.js'
 import { cases } from './cases/index.js'
@@ -105,12 +105,14 @@ labelTheme()
 
 // Slow motion, for watching the drawing itself: a 160ms fade inside a 320ms
 // morph is over before an eye can settle on it. The pace stretches the morph
-// and the halo fade by the same factor, so what is watched slowed down is the
-// same choreography rather than a different one. A scroll a step asks for is
+// and the halo fade by the same factor, and a step's own `duration` too — see
+// `paced` — so what is watched slowed down is the same choreography rather
+// than a different one, `step-motion.ts` included. A scroll a step asks for is
 // mostly not in it: a glide grows with the distance, slowly enough to take in
-// what passes, and `duration` is only the floor under a short one — so a slowed pace
-// is much the same glide followed by a slower morph. Kept across reloads the
-// way the theme is.
+// what passes, and `duration` is only the floor under a short one — so a slowed
+// pace is mostly the same glide followed by a slower morph. A step with a long
+// `duration` of its own is the exception: the floor stretches with it, and so
+// does its glide. Kept across reloads the way the theme is.
 const PACES = [1, 4, 10]
 const speedPick = pick<HTMLSelectElement>('[data-speed]')
 const keptPace = Number(localStorage.getItem('leko-sandbox-pace'))
@@ -119,9 +121,9 @@ let pace = PACES.includes(keptPace) ? keptPace : 1
 function applyPace(): void {
   speedPick.value = String(pace)
   // Inline on the root, so it outbids the default wherever that is declared.
-  // The morph half of the pace cannot be applied from here: `duration` is an
-  // option, fixed when the instance is made, so picking a pace re-shows the
-  // case — see `show`, which reads `pace` for every instance it makes.
+  // The durations are fixed when the instance is made and the stories are
+  // handed over — the instance's on `createLeko`, a step's in `paced` — so
+  // picking a pace re-shows the case, and `show` reads `pace` for both.
   if (pace === 1) document.documentElement.style.removeProperty('--leko-halo-fade')
   else document.documentElement.style.setProperty('--leko-halo-fade', `${160 * pace}ms`)
 }
@@ -171,8 +173,13 @@ function note(kind: 'call' | 'state' | 'step' | 'problem', text: string): void {
 let teardown: (() => void) | undefined
 let leko: Leko | undefined
 let problem: string | undefined
-/** The case on screen, which is where the footer's start buttons find a story. */
+/** The case on screen. */
 let showing: Case | undefined
+/**
+ * The showing case's stories at the footer's pace, which is where the start
+ * buttons and `pickUp()` find a story.
+ */
+let running: LekoStory[] = []
 /** The showing case's own step handler, if it asked for one. */
 let caseStep: ReturnType<NonNullable<Case['onStep']>> | undefined
 
@@ -221,7 +228,8 @@ function show(next: Case): void {
     // The case's own options first, so the sandbox's hooks below stay its own.
     ...next.options,
     // The footer's pace stretches whatever the case asked for. At ×1 this
-    // writes the same number the defaults would have landed on.
+    // writes the same number the defaults would have landed on. A step's own
+    // is `paced`'s.
     duration: (next.options?.duration ?? 320) * pace,
     // The sandbox is a host with chrome of its own: the footer console is
     // sticky and sits above the scrim, so a message that measured the whole
@@ -282,12 +290,40 @@ function show(next: Case): void {
 
   starts.replaceChildren()
   showing = next
-  for (const story of next.stories) {
+  const seen = new Map<LekoStory, LekoStory>()
+  running = next.stories.map((story) => paced(story, seen))
+  for (const story of running) {
     starts.append(
       html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),
     )
   }
   report()
+}
+
+/**
+ * `story` with every `duration` its steps carry stretched by `pace`, and its
+ * `next` answering the same for the story that follows. `seen` is one per
+ * `show`, so a story reached twice — `summary` from both branches in
+ * `branching.ts`, `checkout` from a `next` and from the case's own list — is
+ * one paced object. Sandbox-only: nothing in Leko knows a pace.
+ */
+function paced(story: LekoStory, seen: Map<LekoStory, LekoStory>): LekoStory {
+  const known = seen.get(story)
+  if (known) return known
+  const steps = story.steps.map((step) =>
+    step.duration === undefined ? step : { ...step, duration: step.duration * pace },
+  )
+  const out: LekoStory = { ...story, steps }
+  // Written before `next` is mapped, so a story that leads back to itself ends.
+  seen.set(story, out)
+  const { next } = story
+  if (typeof next === 'function') {
+    out.next = () => {
+      const into = next()
+      return into && paced(into, seen)
+    }
+  } else if (next) out.next = paced(next, seen)
+  return out
 }
 
 for (const item of cases) {
@@ -314,7 +350,7 @@ const actions: Record<string, () => void> = {
 pick('.controls').addEventListener('click', (event) => {
   const el = event.target as HTMLElement
   const id = el.closest<HTMLElement>('[data-start]')?.dataset['start']
-  const story = showing?.stories.find((one) => one.id === id)
+  const story = running.find((one) => one.id === id)
   if (story) {
     problem = undefined
     // Logged before the call rather than after, so the diagnostic a refused
@@ -353,7 +389,7 @@ route()
 // writes at startup. Not in `show()`: a case switch is not a page load, and
 // a call there would log a pickUp() on every switch and every pace change.
 if (leko && showing) {
-  note('call', `pickUp([${showing.stories.map((s) => `'${s.id}'`).join(', ')}])`)
-  leko.pickUp(showing.stories)
+  note('call', `pickUp([${running.map((s) => `'${s.id}'`).join(', ')}])`)
+  leko.pickUp(running)
   report()
 }

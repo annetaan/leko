@@ -2,12 +2,13 @@ import { cubicBezier } from '@annetaan/leko'
 
 import { type Case, html } from '../case.js'
 
-// The one case where the motion is not Leko's. `easing` is an instance
-// setting, the way `duration` is — DESIGN.md, **Settings, and where they are
-// read from** — so the curve here is on the whole tour, and the hole and the
-// page follow the same one. That is the thing to watch: they are two frame
-// loops, and a curve that reached only one of them would show as a hole
-// arriving on a different rhythm from the page under it.
+// A tour whose motion is not Leko's. The curve here is on the
+// instance, so it is the house rule every step of the tour follows —
+// DESIGN.md, **Settings, and where they are read from**; `step-motion.ts` is
+// the step that says its own. The hole and the page follow the same one, and
+// that is the thing to watch: they are two frame loops, and a curve that
+// reached only one of them would show as a hole arriving on a different rhythm
+// from the page under it.
 //
 // `cubic-bezier(0.83, 0, 0.17, 1)` is symmetric and slow at both ends, which
 // is what Leko's own curve is deliberately not — DESIGN.md, **The morph**,
