@@ -50,6 +50,22 @@ jobs:
       # edit that breaks every citation of it at once, silently, in files
       # nobody opened.
       - run: pnpm check:citations
+      # Quint's own download of its evaluator goes without a token, and a shared
+      # runner's address is past the anonymous limit often enough to fail a run
+      # on that alone (`packages/machine/model/README.md`, **Running it**). This
+      # puts the evaluator where Quint looks for it first, downloaded with this
+      # run's token.
+      - name: Fetch the Quint evaluator
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('@informalsystems/quint/dist/src/rust/binaryManager.js').QUINT_EVALUATOR_VERSION")
+          dir="$HOME/.quint/rust-evaluator-$version"
+          mkdir -p "$dir"
+          gh release download "evaluator/$version" --repo informalsystems/quint \
+            --pattern quint_evaluator-x86_64-unknown-linux-gnu.tar.gz --output - \
+            | tar -xz -C "$dir"
       # A search over the two Quint models — `packages/machine/model/machine.qnt`
       # and `packages/presenter/model/plan.qnt` — for a state that breaks one of
       # their invariants. The seeds are fresh every run, so a failure here is

@@ -30,7 +30,9 @@ Both commands cover the presenter's model as well; see
 below is about this one.
 
 `pnpm model` takes about 10 seconds here and runs in CI. It needs no JVM.
-Quint's Rust backend is the default and comes with the npm package, and only
+Quint's Rust backend is the default. It is not in the npm package: Quint
+downloads it from GitHub's API on first use, into `~/.quint` or `QUINT_HOME`,
+and CI fetches it beforehand because that download goes without a token. Only
 `quint verify` wants Apalache and a Java runtime.
 
 ## Verifying it
