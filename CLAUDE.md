@@ -11,6 +11,15 @@ behaviour that forced it, citing the page under [`spike/`](spike/) that settled
 each one. Read the cited
 page before overruling a rule; do not restate a rule here that belongs there.
 
+`packages/scroll/` is Leko Scroll, a second product: a scroll-driven spotlight
+for a long page, with no story and no steps. The root DESIGN.md, the three
+constraints below, **What looks like an improvement and is not** and **Writing
+code here** are the tour's and do not apply there, by analogy or as a citation;
+**Working in this repository** does. Its instructions are in
+[packages/scroll/CLAUDE.md](packages/scroll/CLAUDE.md) and its design in
+[packages/scroll/DESIGN.md](packages/scroll/DESIGN.md), and `packages/spotlight`
+is never changed for its sake.
+
 [CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the commands and what CI runs.
 
 ## The three constraints

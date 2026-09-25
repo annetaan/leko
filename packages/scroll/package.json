@@ -1,0 +1,26 @@
+{
+  "name": "@annetaan/leko-scroll",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The scroll-driven spotlight for a long page. A second product in the same repository as Leko.",
+  "homepage": "https://github.com/annetaan/leko",
+  "bugs": "https://github.com/annetaan/leko/issues",
+  "license": "MIT",
+  "author": "Annetaan Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/annetaan/leko.git",
+    "directory": "packages/scroll"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}
