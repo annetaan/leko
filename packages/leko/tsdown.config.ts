@@ -1,11 +1,11 @@
 import { defineConfig } from 'tsdown'
 
 /*
- * A bundler rather than `tsc`, because the two packages this one is made of are
- * not published — CONTRIBUTING.md, **What `@annetaan/leko` ships**.
+ * A bundler rather than `tsc`, because the workspace packages this one is made
+ * of are not published — CONTRIBUTING.md, **What `@annetaan/leko` ships**.
  */
 export default defineConfig({
-  entry: 'src/index.ts',
+  entry: { index: 'src/index.ts', scroll: 'src/scroll.ts' },
   format: 'esm',
   dts: true,
   sourcemap: true,
@@ -16,10 +16,11 @@ export default defineConfig({
   // tool.
   outExtensions: () => ({ js: '.js', dts: '.d.ts' }),
   deps: {
-    // The four workspace packages this one is made of are `devDependencies`,
-    // so all four are bundled rather than left as imports for npm to resolve. CLAUDE.md, **Adding a third-party
-    // runtime dependency to `packages/leko`**, is why there is nothing else here
-    // for this to reach.
+    // The five workspace packages this one is made of are `devDependencies`, so
+    // all five are bundled rather than left as imports for npm to resolve;
+    // `@annetaan/leko-scroll` is the one behind `./scroll`. CLAUDE.md, **Adding
+    // a third-party runtime dependency to `packages/leko`**, is why there is
+    // nothing else here for this to reach.
     alwaysBundle: [/^@annetaan\//],
   },
   clean: true,

@@ -91,6 +91,9 @@ importers:
       '@annetaan/leko-presenter':
         specifier: workspace:*
         version: link:../presenter
+      '@annetaan/leko-scroll':
+        specifier: workspace:*
+        version: link:../scroll
       '@annetaan/leko-spotlight':
         specifier: workspace:*
         version: link:../spotlight

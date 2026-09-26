@@ -1647,8 +1647,9 @@ vocabulary names `Element`, and the machine's `lib` is `ES2023` alone, so it
 cannot import the package; `World` narrows `LekoWorld` the same way, with
 `anchor: unknown` where the vocabulary says `Element`. `Target` is written
 twice as well, in `packages/types` and in `packages/spotlight`, and the JSDoc
-on `Target` in `spotlight/src/target.ts` says why. The four workspace packages
-are private, and `@annetaan/leko` bundles all of them in with `tsdown`, so a
+on `Target` in `spotlight/src/target.ts` says why. The tour's four workspace
+packages are private, and so is `packages/scroll`. `@annetaan/leko` bundles
+all five in with `tsdown`, `packages/scroll` behind `@annetaan/leko/scroll`, so a
 consumer installs one package with no runtime dependencies and a `.d.ts` that
 names none of them. **`pnpm check:pack` reads what `npm pack` would send and
 fails on a bare import the manifest does not depend on.**

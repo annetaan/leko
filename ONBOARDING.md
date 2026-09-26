@@ -71,7 +71,7 @@ It takes well under a minute on a laptop once the browsers are installed.
 
 ## The shape of the code
 
-Six packages. One of them publishes.
+Seven packages. One of them publishes.
 
 ```
                     @annetaan/leko          the only published package
@@ -99,12 +99,15 @@ The two halves never import each other. They meet in
 `packages/presenter/src/presenter.ts`, and what each may ask of the other is
 written down in `Presenter` and `Host`, in `packages/machine/src/types.ts`.
 
+`@annetaan/leko/scroll` is a second entry point of the same package, bundling
+`packages/scroll`, whose own DESIGN.md and CLAUDE.md apply there.
+
 `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in that
 package is a compile error. That is what lets its tests run in Node against a
 fake presenter the test file writes, in a fraction of a second, instead of three
 times in three browser engines.
 
-`packages/leko` is built by `tsdown`, which bundles the other four in. All four
+`packages/leko` is built by `tsdown`, which bundles the other five in. All five
 are `private: true` and none is on npm, so an import of any of them left in
 `dist/` is a package a consumer cannot install. `pnpm check:pack` catches that
 and CI runs it.

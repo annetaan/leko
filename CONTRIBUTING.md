@@ -150,8 +150,8 @@ carries the names alone, so an edit that moves a line changes nothing in it.
 ## What `@annetaan/leko` ships
 
 `packages/leko` is the only package here that publishes. `packages/types`,
-`packages/machine`, `packages/presenter` and `packages/spotlight` are
-`private: true` and stay that way.
+`packages/machine`, `packages/presenter`, `packages/spotlight` and
+`packages/scroll` are `private: true` and stay that way.
 
 That means `packages/leko` cannot import them the way a package normally imports
 a dependency. It did, for a while. `tsc` emits one file per source file and
@@ -167,8 +167,9 @@ packages and everything resolves, so the build passed, the typecheck passed, and
 265 tests passed in three browsers. Every check the repository has was asking
 about the workspace rather than about the tarball.
 
-So `packages/leko` is built by `tsdown`, which bundles the four into one
-`dist/index.js` and one `dist/index.d.ts`. All four are workspace
+So `packages/leko` is built by `tsdown`, which bundles the five into
+`dist/index.js` and `dist/scroll.js`, each with its `.d.ts`; `packages/scroll`
+is the one behind `@annetaan/leko/scroll`. All five are workspace
 `devDependencies` now. What a consumer installs is a single package with no
 runtime dependencies, which is what `packages/leko` promised in the first place.
 
@@ -236,8 +237,9 @@ page, not just the rule.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none on
   purpose: a dependency there is a licensing and bundle-size liability for every
   consumer. `@annetaan/leko-types`, `@annetaan/leko-machine`,
-  `@annetaan/leko-presenter` and `@annetaan/leko-spotlight` come from this
-  repository under the same licence and are not what the rule is about.
+  `@annetaan/leko-presenter`, `@annetaan/leko-spotlight` and
+  `@annetaan/leko-scroll` come from this repository under the same licence and
+  are not what the rule is about.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design. The vocabulary is gathered *from* those calls, so an error there fires
   only between typing a new name and the generator running, and a `reached()`
