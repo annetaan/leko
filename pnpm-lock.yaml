@@ -123,7 +123,11 @@ importers:
         specifier: ^24.13.3
         version: 24.13.3
 
-  packages/scroll: {}
+  packages/scroll:
+    dependencies:
+      '@annetaan/leko-spotlight':
+        specifier: workspace:*
+        version: link:../spotlight
 
   packages/spotlight: {}
 

@@ -427,6 +427,11 @@ default is `bottom`.**
 - **A `left` or `right` that does not fit the viewport's width goes to
   `bottom`.** Scrolling cannot change the width, so that choice never flickers.
 
+The clearance between the hole and the box is `--leko-scroll-message-gap`,
+12px by default. What sticks out of the page is clipped rather than growing
+it, so a box beside a target at the page's edge never adds a scroll the page
+did not have.
+
 ## The halo
 
 **The halo is a frame on the hole that a page opts into through the
@@ -434,7 +439,8 @@ default is `bottom`.**
 
 - **It follows the hole**, moving with it through a morph. There is no mode to
   choose.
-- **It is absent during a converge** and appears after the arrival.
+- **It is absent during a converge** and appears after the arrival, fading in
+  over `--leko-scroll-halo-fade`, 160ms by default.
 - **It dims with the scrim during a fade.**
 
 ## Padding and radius

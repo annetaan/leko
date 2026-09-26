@@ -26,5 +26,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@annetaan/leko-spotlight": "workspace:*"
   }
 }

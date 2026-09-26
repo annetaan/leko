@@ -99,7 +99,7 @@ pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether it could
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
-pnpm test            # vitest: nine projects, three of them in browsers
+pnpm test            # vitest: ten projects, four of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
 pnpm model:traces    # regenerate the traces those searches replay against
 ```
@@ -127,9 +127,9 @@ over fake effects. The seeds are fixed so a diff means something. They are not
 portable across Quint versions, which is why regenerating is a command somebody
 runs rather than something CI checks.
 
-`pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
-`leko-wiring` in Chromium alone, and `presenter`, `machine`, `codegen` and
-`scripts` in Node. `presenter` is the presenter's plan twice over:
+`pnpm test` runs `spotlight`, `leko` and `scroll` in Chromium, Firefox and
+WebKit, `leko-wiring` in Chromium alone, and `presenter`, `machine`, `codegen`,
+`scroll-core` and `scripts` in Node. `presenter` is the presenter's plan twice over:
 `plan.test.ts` one `(mode, event)` pair at a time, and `replay.test.ts` over the
 corpus the search harvested.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in

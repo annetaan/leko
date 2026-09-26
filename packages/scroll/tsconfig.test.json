@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    // For the reason packages/leko/tsconfig.test.json gives.
+    "customConditions": ["development"]
   },
   "include": ["src/**/*"],
   "exclude": []

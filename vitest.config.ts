@@ -1,12 +1,15 @@
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
-// Nine projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
-// project a new test belongs in**. The three browser projects are never jsdom
-// for the reason DESIGN.md gives under **How to write here, and where tests
-// go**, and `presenter` is what DESIGN.md argues under **Where a class has to
-// wait on more than one thing, its mode is one union and a pure function says
-// what an event does to it**.
+// Ten projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
+// project a new test belongs in**. The tour's three browser projects are never
+// jsdom for the reason DESIGN.md gives under **How to write here, and where
+// tests go**, and `presenter` is what DESIGN.md argues under **Where a class
+// has to wait on more than one thing, its mode is one union and a pure function
+// says what an event does to it**. The fourth, `scroll`, is Leko Scroll's
+// shell, in browsers for the reason
+// [The core and the shell](packages/scroll/DESIGN.md#the-core-and-the-shell)
+// gives.
 //
 // One project per package rather than one shared glob, so a project can move to
 // another environment without dragging the rest with it.
@@ -94,6 +97,22 @@ export default defineConfig({
           // Nothing about the program explains it. It grew from 10 files to 17
           // when the core split, and that costs 9ms on this machine.
           testTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: 'scroll',
+          include: ['packages/scroll/src/**/*.test.ts'],
+          // The core's three run in Node, under `scroll-core`.
+          exclude: [
+            'packages/scroll/src/geometry.test.ts',
+            'packages/scroll/src/mask.test.ts',
+            'packages/scroll/src/plan.test.ts',
+          ],
+          browser: browsers(),
+          // Every test here waits on a frame loop, and this suite puts three
+          // browsers on a two-core runner — the reason the `leko` project gives.
+          testTimeout: 20_000,
         },
       },
       {
