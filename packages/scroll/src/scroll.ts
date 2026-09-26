@@ -85,9 +85,13 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
           scrim.opacity(effect.value)
           break
         case 'converge':
+          // Read here, because `page.scrollX` is only as fresh as the last
+          // measure and a sideways scroll since would start the converge off
+          // the screen. An offset, not layout, and read only when a converge
+          // starts, never on every scroll.
           scrim.converge(holes[effect.to]!, {
-            x: page.scrollX,
-            y: page.scrollY,
+            x: window.scrollX,
+            y: window.scrollY,
             width: viewportWidth,
             height: viewportHeight,
           })

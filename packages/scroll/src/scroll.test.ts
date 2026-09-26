@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 
 import { holeOf } from './geometry.js'
 import { maskLayers } from './mask.js'
+import { Scrim } from './scrim.js'
 import { createScroll } from './scroll.js'
 import type { LekoScroll, LekoScrollOptions } from './types.js'
 
@@ -91,11 +92,11 @@ function start(options: Partial<LekoScrollOptions> = {}): {
 /** The scroll offset that puts the line, at the default of half the viewport, at `y`. */
 const lineAt = (y: number): number => Math.round(y - document.documentElement.clientHeight / 2)
 
-const scrolled = (y: number): Promise<void> => {
-  if (window.scrollY === y) throw new Error(`already at ${y}`)
+const scrolled = (y: number, x = 0): Promise<void> => {
+  if (window.scrollY === y && window.scrollX === x) throw new Error(`already at ${x}, ${y}`)
   return new Promise((done) => {
     window.addEventListener('scroll', () => done(), { once: true })
-    window.scrollTo(0, y)
+    window.scrollTo(x, y)
   })
 }
 
@@ -222,6 +223,34 @@ test('a fade to zero fires undefined, and coming back converges again', async ()
   expect(root().style.opacity).toBe('1')
   expect(await next()).toBe(3)
   expect(mask()).toBe(maskOn(targets[3]))
+})
+
+test('a converge after a sideways scroll starts from the viewport as it is now', async () => {
+  const { page } = build()
+  page.style.width = '2000px'
+  await scrolled(lineAt(D + 50))
+  const converge = vi.spyOn(Scrim.prototype, 'converge')
+  const { changes, next } = start()
+  expect(await next()).toBe(3)
+
+  const lower = D + 150
+  await scrolled(lineAt(lower + 350))
+  expect(changes).toEqual([3, undefined])
+  // No measure after this, so only the scroll offset says where the screen is.
+  await scrolled(lineAt(lower + 350), 500)
+  expect(window.scrollX).toBeGreaterThan(0)
+
+  converge.mockClear()
+  await scrolled(lineAt(D + 50), window.scrollX)
+  expect(converge).toHaveBeenCalledOnce()
+  const doc = document.documentElement
+  expect(converge.mock.calls[0]?.[1]).toEqual({
+    x: window.scrollX,
+    y: window.scrollY,
+    width: doc.clientWidth,
+    height: doc.clientHeight,
+  })
+  expect(await next()).toBe(3)
 })
 
 test('an off entry puts the light out between two targets and the next converges', async () => {

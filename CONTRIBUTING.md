@@ -134,8 +134,8 @@ portable across Quint versions, which is why regenerating is a command somebody
 runs rather than something CI checks.
 
 `pnpm test` runs `spotlight`, `leko` and `scroll` in Chromium, Firefox and
-WebKit, `leko-wiring` in Chromium alone, and `presenter`, `machine`, `codegen`,
-`scroll-core` and `scripts` in Node. `presenter` is the presenter's plan twice over:
+WebKit, `leko-wiring` in Chromium alone, and `presenter`, `spotlight-geometry`,
+`machine`, `codegen`, `scroll-core` and `scripts` in Node. `presenter` is the presenter's plan twice over:
 `plan.test.ts` one `(mode, event)` pair at a time, and `replay.test.ts` over the
 corpus the search harvested.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in
