@@ -4,7 +4,7 @@ Leko Scroll is the scroll-driven spotlight for a long page. A second product in
 the same repository as Leko.
 
 This file holds the rules, each with the reason it holds. Situations Leko Scroll
-meets are shown on one page under `examples/scroll/`, once it exists. The tour's
+meets are shown on one page under `examples/scroll/`. The tour's
 documents are not this product's, and nothing in them is a reason for anything
 here. How the code got here is in the commits.
 

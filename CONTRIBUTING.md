@@ -47,6 +47,11 @@ watches proves nothing about a library whose whole claim is that they do not.
 Behaviour a user would notice wants a case there, and each case says in one
 sentence what it proves.
 
+`pnpm dev:scroll` serves [`examples/scroll/`](examples/scroll/), Leko Scroll's
+one long page, resolved from source the same way. It is a page to scroll rather
+than a set of cases, and [The example
+page](packages/scroll/DESIGN.md#the-example-page) says why.
+
 ## The documentation site
 
 [`docs/`](docs/) is the site, built with Astro and Starlight as the workspace
@@ -92,6 +97,7 @@ that will publish it, and its header says what the release changes.
 
 ```bash
 pnpm dev             # the sandbox, resolving the core from source
+pnpm dev:scroll      # Leko Scroll's example page, the same way
 pnpm typecheck       # tsc --noEmit across workspace packages, and the type tests
 pnpm lint            # oxlint
 pnpm format          # oxfmt --write

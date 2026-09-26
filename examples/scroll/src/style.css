@@ -1,0 +1,362 @@
+/* The page's own look, and the Leko Scroll tokens it sets —
+   [Styling](../../../packages/scroll/DESIGN.md#styling). The heights are set
+   so that at 1280 by 800 each caption is true of what the page does; a caption
+   names the rule, and the heights are what make the rule fire. */
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --surface: #fffdf8;
+  --ink: #1d1b16;
+  --muted: #6b665c;
+  --line: #ddd6c8;
+  --accent: #2d6a4f;
+  --note: #8a5a00;
+
+  --leko-scroll-scrim-color: rgb(20 24 20 / 0.6);
+  --leko-scroll-halo-outline: 2px solid #f2c14e;
+  --leko-scroll-halo-offset: 3px;
+  --leko-scroll-message-max-width: min(240px, calc(100vw - 32px));
+
+  /* A page that runs the tour as well writes the bridge once —
+     [Styling](../../../packages/scroll/DESIGN.md#styling):
+  --leko-scroll-scrim-color: var(--leko-scrim-color);
+  */
+
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Positioned on purpose, and centred, so the root's containing block starts
+   40px in from the page's left at 1280 wide —
+   [The scrim rides the page](../../../packages/scroll/DESIGN.md#the-scrim-rides-the-page). */
+body {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 52px;
+}
+
+h2 {
+  font-size: 32px;
+}
+
+h3 {
+  font-size: 20px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--accent);
+}
+
+button {
+  font: inherit;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+section {
+  padding: 0 24px;
+}
+
+.caption {
+  max-width: 720px;
+  margin: 0 0 16px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--note);
+  background: #fff4dc;
+  color: var(--note);
+  font:
+    13px/1.45 ui-monospace,
+    monospace;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 20px;
+}
+
+/* 120 to 640: the line starts at 400, and 120 is less than 400 + 300. */
+.hero {
+  height: 520px;
+  margin: 56px 24px 0;
+  padding: 32px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.lede {
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin: 28px 0 12px;
+}
+
+.pressed {
+  color: var(--muted);
+}
+
+/* 640 to 1160, with the cards' tops level at 900. */
+.features {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 520px;
+}
+
+/* Narrow enough to end left of the middle card's message, and of the hero's
+   above it, both of which sit over the middle of the page. */
+.features .caption {
+  max-width: 440px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 220px);
+  justify-content: center;
+  gap: 24px;
+}
+
+.card {
+  height: 260px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+/* 1160 to 1800. */
+.how {
+  height: 640px;
+  padding-top: 120px;
+}
+
+.steps {
+  display: grid;
+  gap: 16px;
+  max-width: 560px;
+  padding-left: 20px;
+  font-size: 18px;
+}
+
+/* 1800 to 2600, with the plans from 1920 to 2400 and their message just below. */
+.pricing {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 800px;
+  padding-bottom: 200px;
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  height: 480px;
+}
+
+.plans-narrow {
+  display: none;
+}
+
+.plan {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.price {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* 2600 to 3500: an off stretch 900px deep, so both 300px bands are whole and
+   300px of the page alone lies between them. */
+.testimonials {
+  height: 900px;
+  padding-top: 24px;
+}
+
+.jump {
+  max-width: 640px;
+}
+
+blockquote {
+  max-width: 640px;
+  margin: 32px 0;
+  padding: 16px 20px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+}
+
+blockquote footer {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* From 3500, and as tall as its open answers make it. */
+.faq {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.question {
+  max-width: 640px;
+  border-top: 1px solid var(--line);
+}
+
+.question button {
+  width: 100%;
+  padding: 14px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-weight: 600;
+}
+
+.answer {
+  padding-bottom: 12px;
+  color: var(--muted);
+}
+
+/* The last 400px of the page, where its top is below where the line can reach. */
+.closing {
+  height: 300px;
+  margin: 150px 24px 0;
+  padding: 32px;
+  border-radius: 16px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.closing button.primary {
+  border-color: #fff;
+  background: #fff;
+  color: var(--accent);
+}
+
+.foot {
+  height: 80px;
+  padding: 28px 24px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* The page's own chrome, over the scrim so it can be read, and catching no
+   pointer events apart from the toggle. */
+.hairline {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed #e0457b;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.hairline[hidden] {
+  display: none;
+}
+
+.readout {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1d1b16;
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+.readout .count {
+  margin-left: 8px;
+  color: #b9b3a6;
+}
+
+.readout button {
+  padding: 4px 10px;
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: 36px;
+  }
+
+  .cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .plans-wide {
+    display: none;
+  }
+
+  .plans-narrow {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

@@ -12,6 +12,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @annetaan/leko-codegen build && pnpm --filter @leko-examples/sandbox dev",
+    "dev:scroll": "pnpm --filter @leko-examples/scroll dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint",

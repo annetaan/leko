@@ -68,6 +68,16 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@24.13.3)(esbuild@0.28.2)(yaml@2.9.0)
 
+  examples/scroll:
+    dependencies:
+      '@annetaan/leko':
+        specifier: workspace:*
+        version: link:../../packages/leko
+    devDependencies:
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.0(@types/node@24.13.3)(esbuild@0.28.2)(yaml@2.9.0)
+
   packages/codegen:
     devDependencies:
       '@annetaan/leko':
