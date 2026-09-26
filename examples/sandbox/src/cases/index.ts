@@ -19,6 +19,7 @@ import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
 import { scrollsIntoView } from './scrolls-into-view.js'
 import { stagedScroll } from './staged-scroll.js'
+import { stepMotion } from './step-motion.js'
 import { stepping } from './stepping.js'
 import { stepSetup } from './step-setup.js'
 import { stickyHeader } from './sticky-header.js'
@@ -54,6 +55,7 @@ export const cases: Case[] = [
   scrollsIntoView,
   stagedScroll,
   hostEasing,
+  stepMotion,
   fixedChrome,
   stickyHeader,
   messageSides,

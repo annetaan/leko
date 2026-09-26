@@ -604,12 +604,26 @@ not know a tour is running.
 
 ## Settings, and where they are read from
 
-- `padding`, `radius`, `scroll` and `resolve` are read from the step, then from
-  the instance, then a built-in default — `visible-first` for `resolve`, argued
-  under **Which of several matches a selector means**. `duration`, `easing`, `nextLabel`,
-  `closeLabel` and `hostChrome` are read from the instance alone.
+- `padding`, `radius`, `scroll`, `resolve`, `duration` and `easing` are read
+  from the step, then from the instance, then a built-in default —
+  `visible-first` for `resolve`, argued under **Which of several matches a
+  selector means**. `nextLabel`, `closeLabel`, `halo` and `hostChrome` are read
+  from the instance alone.
 - The nearer tier that says anything wins, and `??` does the reading rather
   than `||` — a step writing `0` beats an instance writing a number.
+- **A step may say how long its movement takes, and how it moves.** The
+  instance's `duration` and `easing` stay the house rule and the default, and a
+  step that says nothing keeps them. But how long a movement takes is also a
+  fact about what the step shows — the darkening that opens a tour, a target
+  meant to be taken in — so a step may override it the way it overrides
+  `padding`. A step's value governs the movement into it — the glide, then the
+  opening or the morph — and nothing about leaving it.
+  - `GLIDE_PACE`, `GLIDE_BEAT` and the shake's length and curve stay fixed:
+    each would be a second setting about the same movement — **A beat of 300ms
+    between stages, and it is not a setting**.
+  - The halo's fade stays `--leko-halo-fade` in CSS. It is a transition on the
+    browser's clock, paint rather than a movement Leko runs frame by frame —
+    **The halo**.
 - **A story carries no settings.** A per-story value is a `.map()` over `steps`
   in code the host already owns, and that version can vary the value inside the
   story as well. A story tier would also push `story` through the seam into the
@@ -1165,7 +1179,8 @@ tour is for.
   frame, and nothing is decided about it until it stops.
 - **The glide is Leko's own animation, the way the morph is.** A
   `requestAnimationFrame` loop in `glide.ts`, eased with the morph's curve —
-  **The morph** argues its shape, and a host may bring its own as `easing` —
+  **The morph** argues its shape, and a host may bring its own as `easing`, on
+  the instance or on the step —
   writing one instant `scrollTo` per frame from numbers it
   computed before the first one, the exact destination on the last frame, and
   ending on its own clock. Nothing then has to be inferred about when an
@@ -1287,9 +1302,9 @@ tour is for.
   screens down about 2.5. `duration` is the floor under it, so a short move
   glides for as long as the morph that follows rather than snapping, and `0`
   turns both off together. It is a distance term on the option a host already
-  has, not a second setting, and the sandbox's pace control does not slow it —
-  a reading speed is not a drawing speed. The root is its own ceiling: eight
-  times the way is twice the wait.
+  has, not a second setting, and the sandbox's pace control stretches the floor
+  and not the term — a reading speed is not a drawing speed. The root is its
+  own ceiling: eight times the way is twice the wait.
 - **What it costs.** The frames run on the main thread, as the morph's do,
   where an engine runs its own smooth scroll off it, so under main-thread load
   this glide stutters where the browser's would not. On a machine that produces

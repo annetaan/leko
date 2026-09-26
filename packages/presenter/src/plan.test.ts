@@ -7,6 +7,8 @@ import {
   type Event,
   idle,
   type Mode,
+  type Motion,
+  motionOf,
   type Outcome,
   type Pending,
   pointsAt,
@@ -36,6 +38,11 @@ const replacement = { id: 'replacement' } as unknown as Element
 
 /** A glide that never lands, which is as much of one as the plan looks at. */
 const glide = (): Glide => ({ settled: new Promise(() => {}), abandon: () => {} })
+
+/** The built-in motion `motionOf` falls back on, and two curves told apart by identity. */
+const fallback: Motion = { duration: 320, easing: (t) => t }
+const instant = (): number => 1
+const own = (): number => 0
 
 type Performed = Effect | Reentrant
 
@@ -119,6 +126,28 @@ describe('reading a step', () => {
     expect(regionsOf(undefined)).toEqual([])
     expect(pointsAt(waiting)).toBe(false)
     expect(pointsAt(step)).toBe(true)
+  })
+
+  test("a step's duration and easing beat the instance's", () => {
+    const motion = motionOf(
+      { ...step, duration: 900, easing: own },
+      { duration: 100, easing: instant },
+      fallback,
+    )
+
+    expect(motion).toEqual({ duration: 900, easing: own })
+  })
+
+  test("a step's duration of 0 beats an instance number", () => {
+    expect(motionOf({ ...step, duration: 0 }, { duration: 100 }, fallback).duration).toBe(0)
+  })
+
+  test("a step that says nothing takes the instance's, and then the built-in", () => {
+    expect(motionOf(step, { duration: 100, easing: instant }, fallback)).toEqual({
+      duration: 100,
+      easing: instant,
+    })
+    expect(motionOf(step, {}, fallback)).toEqual(fallback)
   })
 })
 
