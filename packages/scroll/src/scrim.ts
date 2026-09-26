@@ -93,11 +93,20 @@ export class Scrim {
     this.paint(undefined)
   }
 
-  /** The page's size. The hole on screen is painted again against it. */
-  resize(width: number, height: number): void {
+  /**
+   * The page's size, and where the root goes from the origin of its containing
+   * block so that it sits at the page's top left. The hole on screen is painted
+   * again against the size.
+   */
+  resize(width: number, height: number, left = 0, top = 0): void {
     this.width = width
     this.height = height
-    Object.assign(this.root.style, { width: `${width}px`, height: `${height}px` })
+    Object.assign(this.root.style, {
+      width: `${width}px`,
+      height: `${height}px`,
+      left: `${left}px`,
+      top: `${top}px`,
+    })
     this.paint(this.hole)
   }
 

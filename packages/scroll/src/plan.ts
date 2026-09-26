@@ -53,6 +53,11 @@ export type Effect =
   | { effect: 'reveal'; on: number }
   /** Take everything off the page, and stop whatever is running. */
   | { effect: 'out' }
+  /**
+   * Always the last effect of an outcome, so the application is called once
+   * the rest is carried out, and a `measure()` or a `destroy()` it makes from
+   * inside the call finds nothing of this outcome left to do.
+   */
   | { effect: 'notify'; index: number | undefined }
 
 export interface Outcome {
@@ -92,8 +97,8 @@ export function reduce(state: State, event: Event): Outcome {
     return {
       state: { ...state, mode: { kind: 'lit', on: mode.to } },
       effects: [
-        { effect: 'notify', index: mode.to },
         { effect: 'reveal', on: mode.to },
+        { effect: 'notify', index: mode.to },
       ],
     }
   }

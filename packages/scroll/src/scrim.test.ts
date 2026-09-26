@@ -320,6 +320,16 @@ test('resize repaints the hole against the new size', () => {
   expect(serialised(750, 2000, wide)).not.toBe(serialised(WIDTH, HEIGHT, wide))
 })
 
+test('resize moves the root by the offset it is given, and back to the origin without one', () => {
+  const { scrim } = mount()
+  scrim.resize(WIDTH, HEIGHT, -30, -60)
+  expect(scrim.root.style.left).toBe('-30px')
+  expect(scrim.root.style.top).toBe('-60px')
+  scrim.resize(WIDTH, HEIGHT)
+  expect(scrim.root.style.left).toBe('0px')
+  expect(scrim.root.style.top).toBe('0px')
+})
+
 test('destroy removes the root', () => {
   const { scrim } = mount()
   expect(scrim.root.isConnected).toBe(true)

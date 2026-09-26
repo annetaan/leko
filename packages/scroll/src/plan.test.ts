@@ -53,8 +53,8 @@ describe('creating', () => {
       { effect: 'converge', to: 1 },
     ])
     expect(reduce(outcome.state, arrived).effects).toEqual([
-      { effect: 'notify', index: 1 },
       { effect: 'reveal', on: 1 },
+      { effect: 'notify', index: 1 },
     ])
   })
 
@@ -74,8 +74,8 @@ describe('arriving and being overtaken', () => {
     expect(band!.effects).toEqual([{ effect: 'opacity', value: 0.5 }])
     expect(arrival!.state.mode).toEqual({ kind: 'lit', on: 3 })
     expect(arrival!.effects).toEqual([
-      { effect: 'notify', index: 3 },
       { effect: 'reveal', on: 3 },
+      { effect: 'notify', index: 3 },
     ])
   })
 
@@ -129,8 +129,8 @@ describe('fading and coming back', () => {
         { effect: 'morph', to: 1 },
       ],
       [
-        { effect: 'notify', index: 1 },
         { effect: 'reveal', on: 1 },
+        { effect: 'notify', index: 1 },
       ],
     ])
   })
@@ -237,4 +237,29 @@ describe('measuring', () => {
     expect(outcome!.effects).toEqual([])
     expect(outcome!.state.mode).toEqual({ kind: 'lit', on: 1 })
   })
+})
+
+test('notify is the last effect of every outcome that has one', () => {
+  const outcomes = [
+    created(850),
+    ...run(
+      created(2500),
+      arrived,
+      scroll(3100),
+      arrived,
+      scroll(4350),
+      scroll(4600),
+      scroll(3500),
+      arrived,
+      scroll(3100),
+      scroll(4600),
+      scroll(3500),
+      measured(3500, [1000, 2000, undefined, 4000]),
+      arrived,
+      measured(4350, [1000, 2000, 3000, undefined]),
+    ),
+  ]
+  const notifying = outcomes.filter((o) => o.effects.some((e) => e.effect === 'notify'))
+  expect(notifying.length).toBeGreaterThanOrEqual(5)
+  for (const outcome of notifying) expect(outcome.effects.at(-1)?.effect).toBe('notify')
 })

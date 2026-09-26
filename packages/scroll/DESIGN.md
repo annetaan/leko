@@ -348,6 +348,19 @@ viewport's height and the page's size, and kept.** While the reader scrolls
 nothing is measured again: the switch positions, the edges and the opacity are
 all functions of those numbers and the scroll offset.
 
+**The viewport is the root element's client area, `clientWidth` by
+`clientHeight`, and never `innerWidth` by `innerHeight`.** The client area
+leaves a layout scrollbar out, and the inner size counts it in. A scrim as wide
+as `innerWidth` sticks out under a vertical scrollbar and adds a horizontal
+scroll the page did not have. Under a horizontal scrollbar `innerHeight` puts
+`reach` above where the line gets at the foot, so the last switch comes before
+the bottom of the page rather than at it. The one height serves the
+line, `reach`, the box a converge closes in from and the page's own size. It
+also holds still while a mobile browser's toolbars show and hide, where
+`innerHeight` follows them and would move the line under a reader who has not
+scrolled. No page under `spike/` measures that, and it is stated here as
+unmeasured.
+
 **The page is measured at creation, on a window resize, on `load` and once
 `document.fonts.ready` settles.** Those are what move a static page: a new
 viewport size, the images and stylesheets that arrive after the first paint,
@@ -380,6 +393,11 @@ scrolled, so a scrim fixed to the viewport and redrawn from the event shows the
 hole lagging behind its target, and under iOS inertial scrolling most of all.
 No page under `spike/` measures that lag. It is the reason all the same, and
 the claim is stated here as unmeasured.
+
+The root is placed from its containing block's origin, which a positioned
+`body` or `html` moves off the page's top left. So each measure reads where
+that origin is and moves the root back by it, and the root covers the whole
+page, margins included. The holes stay in page coordinates, as the core does.
 
 **The scroll listener is passive and reads the scroll offset alone.** Nothing
 else is read while the reader scrolls, and JS writes to the page in two places
