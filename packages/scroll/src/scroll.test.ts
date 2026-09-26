@@ -224,6 +224,31 @@ test('a fade to zero fires undefined, and coming back converges again', async ()
   expect(mask()).toBe(maskOn(targets[3]))
 })
 
+test('an off entry puts the light out between two targets and the next converges', async () => {
+  const { targets } = build([A, B, D])
+  const { changes, next } = start({
+    targets: [{ target: '#t0' }, { target: '#t1', off: true }, { target: '#t2' }],
+  })
+  expect(await next()).toBe(0)
+  const lit = mask()
+
+  // The marker at B switches the light off, through a band as deep as fade.
+  await scrolled(lineAt(B + 150))
+  expect(Number(root().style.opacity)).toBeCloseTo(0.5, 2)
+  expect(mask()).toBe(lit)
+  await scrolled(lineAt(B + 400))
+  expect(changes).toEqual([0, undefined])
+  expect(root().style.opacity).toBe('0')
+  expect(mask()).toBe(maskOn(undefined))
+
+  await scrolled(lineAt(D + 50))
+  expect(root().style.opacity).toBe('1')
+  expect(await next()).toBe(2)
+  expect(mask()).toBe(maskOn(targets[2]))
+  await pause(400)
+  expect(changes).toEqual([0, undefined, 2])
+})
+
 test('a target that is not found is warned about once and the rest is lit', async () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
   const { targets } = build([A, B])

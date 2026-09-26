@@ -13,6 +13,7 @@ const layout = (tops: (number | undefined)[] = [1000, 2000, 3000, 4000]): Layout
   viewportHeight: 800,
   pageHeight: 6000,
   boxes: tops.map((top) => (top === undefined ? undefined : at(top))),
+  off: tops.map(() => false),
 })
 
 /** Every position below is where the line is on the page, not the scroll offset. */
@@ -135,6 +136,23 @@ describe('fading and coming back', () => {
     ])
   })
 
+  test("a jump from a middle target into the last target's band goes out and fires undefined", () => {
+    // The hole does not stay on the second target, off screen by now, while
+    // the dark climbs back: the line passed the last target on its way.
+    const outcomes = run(lit(2500), scroll(4350), scroll(4100), arrived)
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'out' }, { effect: 'notify', index: undefined }],
+      [
+        { effect: 'opacity', value: 1 },
+        { effect: 'converge', to: 3 },
+      ],
+      [
+        { effect: 'reveal', on: 3 },
+        { effect: 'notify', index: 3 },
+      ],
+    ])
+  })
+
   test('out in a band draws nothing', () => {
     const outcomes = run(lit(4100), scroll(4600), scroll(4350))
     expect(outcomes[1]!.effects).toEqual([])
@@ -198,16 +216,24 @@ describe('measuring', () => {
     expect(reduce(already, scroll(2500))).toEqual(outcome)
   })
 
-  test('a measure that leaves the lit target in a band places its hole there and dims it', () => {
-    // Content opened above moves every target down, so the line is now 150px
-    // into the upper band, where the position calls for the first target. The
-    // light stays on the one it was on, as a scroll into the band would leave it.
-    const [outcome] = run(lit(4150), measured(4150, [4300, 4400, 4500, 4600]))
+  test('a measure that leaves the lit target in its band places its hole there and dims it', () => {
+    // Content closed above moves every target up, so the line is now 150px
+    // into the lit target's lower band.
+    const [outcome] = run(lit(4150), measured(4150, [800, 1800, 2800, 3800]))
     expect(outcome!.effects).toEqual([
       { effect: 'opacity', value: 0.5 },
       { effect: 'place', on: 3 },
     ])
     expect(outcome!.state.mode).toEqual({ kind: 'lit', on: 3 })
+  })
+
+  test("a measure that leaves the line in another target's band goes out and fires undefined", () => {
+    // Content opened above moves every target down, so the line is now 150px
+    // into the upper band, which is the first target's: as a scroll there
+    // would, it puts the light out.
+    const [outcome] = run(lit(4150), measured(4150, [4300, 4400, 4500, 4600]))
+    expect(outcome!.effects).toEqual([{ effect: 'out' }, { effect: 'notify', index: undefined }])
+    expect(outcome!.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })
   })
 
   test('a lit target that is no longer found while in a band goes out and fires undefined', () => {
@@ -236,6 +262,122 @@ describe('measuring', () => {
     const [outcome] = run(lit(2500), scroll(2600))
     expect(outcome!.effects).toEqual([])
     expect(outcome!.state.mode).toEqual({ kind: 'lit', on: 1 })
+  })
+})
+
+describe('an off stretch', () => {
+  /**
+   * A target switching at 1000, an off entry at 2000 and a target at 3000.
+   * The first target's band runs from 2000 to 2300 and the second's from 2700
+   * to 3000, with the light off between.
+   */
+  const withOff: Layout = {
+    viewportHeight: 800,
+    pageHeight: 6000,
+    boxes: [at(1000), at(2000), at(3000)],
+    off: [false, true, false],
+  }
+  const createdOff = (lineY: number): Outcome => create(tuning, withOff, offset(lineY))
+  const litOff = (lineY: number): Outcome => reduce(createdOff(lineY).state, arrived)
+
+  test('lit, scrolling into an off stretch fades and goes out with undefined', () => {
+    const down = run(litOff(1500), scroll(2150), scroll(2300))
+    expect(effects(down)).toEqual([
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'out' }, { effect: 'notify', index: undefined }],
+    ])
+    expect(down.at(-1)!.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })
+    // From below, the target after the stretch fades the same way.
+    const up = run(litOff(3100), scroll(2850), scroll(2700))
+    expect(effects(up)).toEqual([
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'out' }, { effect: 'notify', index: undefined }],
+    ])
+  })
+
+  test('out inside an off stretch, reaching the next switch converges', () => {
+    const outcomes = run(createdOff(2500), scroll(2850), scroll(3000), arrived)
+    expect(effects(outcomes)).toEqual([
+      [],
+      [
+        { effect: 'opacity', value: 1 },
+        { effect: 'converge', to: 2 },
+      ],
+      [
+        { effect: 'reveal', on: 2 },
+        { effect: 'notify', index: 2 },
+      ],
+    ])
+  })
+
+  test('fading into an off stretch and turning back climbs without firing', () => {
+    const outcomes = run(litOff(1500), scroll(2150), scroll(1900))
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'opacity', value: 1 }],
+    ])
+    expect(outcomes.at(-1)!.state.mode).toEqual({ kind: 'lit', on: 0 })
+  })
+
+  test('a jump across an off stretch while lit morphs', () => {
+    const outcomes = run(litOff(1500), scroll(3100), arrived)
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'morph', to: 2 }],
+      [
+        { effect: 'reveal', on: 2 },
+        { effect: 'notify', index: 2 },
+      ],
+    ])
+    expect(outcomes[0]!.state.mode).toEqual({ kind: 'morphing', from: 0, to: 2 })
+  })
+
+  test('lit, crossing the middle of an off stretch in one scroll goes out and fires undefined', () => {
+    const outcomes = run(litOff(1500), scroll(2150), scroll(2850), scroll(3000))
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'out' }, { effect: 'notify', index: undefined }],
+      [
+        { effect: 'opacity', value: 1 },
+        { effect: 'converge', to: 2 },
+      ],
+    ])
+    expect(outcomes[1]!.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })
+  })
+
+  test('converging, crossing the middle of an off stretch in one scroll goes out and fires nothing', () => {
+    const outcomes = run(createdOff(1500), scroll(2150), scroll(2850), arrived)
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'out' }],
+      [],
+    ])
+    expect(outcomes.at(-1)!.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })
+  })
+
+  test('morphing, crossing the middle of an off stretch in one scroll goes out and fires undefined', () => {
+    // A second target at 1500, so a morph from the first to it runs into the stretch.
+    const four: Layout = {
+      ...withOff,
+      boxes: [at(1000), at(1500), at(2000), at(3000)],
+      off: [false, false, true, false],
+    }
+    const from = reduce(create(tuning, four, offset(1200)).state, arrived)
+    const outcomes = run(from, scroll(1600), scroll(2150), scroll(2850), arrived)
+    expect(effects(outcomes)).toEqual([
+      [{ effect: 'morph', to: 1 }],
+      [{ effect: 'opacity', value: 0.5 }],
+      [{ effect: 'out' }, { effect: 'notify', index: undefined }],
+      [],
+    ])
+    expect(outcomes[1]!.state.mode).toEqual({ kind: 'morphing', from: 0, to: 1 })
+  })
+
+  test('created inside an off stretch is out and fires undefined', () => {
+    for (const lineY of [2150, 2500, 2850]) {
+      const outcome = createdOff(lineY)
+      expect(outcome.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })
+      expect(outcome.effects).toEqual([{ effect: 'notify', index: undefined }])
+    }
   })
 })
 

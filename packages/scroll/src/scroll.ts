@@ -50,12 +50,15 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
     })
     holes = targets.map((entry, index) => {
       const box = boxes[index]
-      return box && holeOf(box, paddingOf(entry, options), radiusOf(entry, options))
+      return box && entry.off !== true
+        ? holeOf(box, paddingOf(entry, options), radiusOf(entry, options))
+        : undefined
     })
     const layout: Layout = {
       viewportHeight: page.viewportHeight,
       pageHeight: page.pageHeight,
       boxes,
+      off: targets.map((entry) => entry.off === true),
     }
     // [The scrim rides the page](../DESIGN.md#the-scrim-rides-the-page) says
     // why the root is moved by the origin.
@@ -74,8 +77,8 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
   function perform(outcome: Outcome): void {
     state = outcome.state
     const { viewportWidth, viewportHeight } = page
-    // The plan never names an index with no box, so every `holes[…]!` below
-    // has one.
+    // The plan never names an index with no box, nor an off entry's, so every
+    // `holes[…]!` below has one, and every entry revealed is a lit one.
     for (const effect of outcome.effects) {
       switch (effect.effect) {
         case 'opacity':
@@ -96,8 +99,8 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
           scrim.place(holes[effect.on]!, viewportWidth)
           break
         case 'reveal': {
-          const { message, side } = targets[effect.on]!
-          scrim.reveal(message, side ?? 'bottom', viewportWidth)
+          const entry = targets[effect.on]!
+          if (entry.off !== true) scrim.reveal(entry.message, entry.side ?? 'bottom', viewportWidth)
           break
         }
         case 'out':

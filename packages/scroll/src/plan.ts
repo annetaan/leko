@@ -1,12 +1,4 @@
-import {
-  edgesOf,
-  type Layout,
-  lineAt,
-  type Position,
-  positionAt,
-  triggers,
-  type Tuning,
-} from './geometry.js'
+import { type Layout, lineAt, type Position, positionAt, rangeOf, type Tuning } from './geometry.js'
 
 // The state, and what an event does to it. Pure, so `plan.test.ts` drives it
 // in Node, and the shell is a `switch` over the effects —
@@ -65,10 +57,8 @@ export interface Outcome {
   readonly effects: Effect[]
 }
 
-const positionOf = (tuning: Tuning, layout: Layout, scrollY: number): Position => {
-  const switches = triggers(tuning, layout)
-  return positionAt(lineAt(scrollY, tuning, layout), switches, edgesOf(tuning, layout, switches))
-}
+const positionOf = (tuning: Tuning, layout: Layout, scrollY: number): Position =>
+  positionAt(lineAt(scrollY, tuning, layout), rangeOf(tuning, layout))
 
 /** Created with the line inside the range, it converges; anywhere else it is out. */
 export function create(tuning: Tuning, layout: Layout, scrollY: number): Outcome {
@@ -119,8 +109,12 @@ export function reduce(state: State, event: Event): Outcome {
       }
     }
 
+    // A band of a target that is neither the one lit nor the one on its way
+    // means the line got there past where the light is out, in the three
+    // cases below — [What was seen before decides what is
+    // drawn](../DESIGN.md#what-was-seen-before-decides-what-is-drawn).
     case 'converging': {
-      if (pos.zone === 'gone') {
+      if (pos.zone === 'gone' || (pos.zone === 'band' && pos.target !== mode.to)) {
         return {
           state: { ...moved, opacity: 0, mode: { kind: 'out' } },
           effects: [{ effect: 'out' }],
@@ -135,10 +129,9 @@ export function reduce(state: State, event: Event): Outcome {
     }
 
     case 'lit': {
-      // A band keeps the light on `on`, and a measure can leave `on` with no
-      // box to keep it on — [Measuring](../DESIGN.md#measuring).
-      const lost = pos.zone === 'band' && layout.boxes[mode.on] === undefined
-      if (pos.zone === 'gone' || lost) {
+      // A band names only a found target, so a measure that leaves `on` with
+      // no box lands here too — [Measuring](../DESIGN.md#measuring).
+      if (pos.zone === 'gone' || (pos.zone === 'band' && pos.target !== mode.on)) {
         return {
           state: { ...moved, opacity: 0, mode: { kind: 'out' } },
           effects: [{ effect: 'out' }, { effect: 'notify', index: undefined }],
@@ -154,8 +147,8 @@ export function reduce(state: State, event: Event): Outcome {
           effects: [...opacity, { effect: 'morph', to: pos.target }],
         }
       }
-      // Still lit on `on`, in a band as much as inside, so a measure puts its
-      // hole back where it now is — [Measuring](../DESIGN.md#measuring).
+      // Still lit on `on`, in its band as much as inside, so a measure puts
+      // its hole back where it now is — [Measuring](../DESIGN.md#measuring).
       return {
         state: { ...moved, opacity: pos.opacity },
         effects: measured ? [...opacity, { effect: 'place', on: mode.on }] : opacity,
@@ -163,7 +156,10 @@ export function reduce(state: State, event: Event): Outcome {
     }
 
     case 'morphing': {
-      if (pos.zone === 'gone') {
+      if (
+        pos.zone === 'gone' ||
+        (pos.zone === 'band' && pos.target !== mode.from && pos.target !== mode.to)
+      ) {
         return {
           state: { ...moved, opacity: 0, mode: { kind: 'out' } },
           effects: [{ effect: 'out' }, { effect: 'notify', index: undefined }],
