@@ -1302,9 +1302,9 @@ tour is for.
   screens down about 2.5. `duration` is the floor under it, so a short move
   glides for as long as the morph that follows rather than snapping, and `0`
   turns both off together. It is a distance term on the option a host already
-  has, not a second setting, and the sandbox's pace control does not slow it —
-  a reading speed is not a drawing speed. The root is its own ceiling: eight
-  times the way is twice the wait.
+  has, not a second setting, and the sandbox's pace control stretches the floor
+  and not the term — a reading speed is not a drawing speed. The root is its
+  own ceiling: eight times the way is twice the wait.
 - **What it costs.** The frames run on the main thread, as the morph's do,
   where an engine runs its own smooth scroll off it, so under main-thread load
   this glide stutters where the browser's would not. On a machine that produces

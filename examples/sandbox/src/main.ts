@@ -107,12 +107,13 @@ labelTheme()
 // morph is over before an eye can settle on it. The pace stretches the morph
 // and the halo fade by the same factor, and a step's own `duration` too — see
 // `paced` — so what is watched slowed down is the same choreography rather
-// than a different one, `step-motion.ts` included. A scroll a step asks for is
-// mostly not in it: a glide grows with the distance, slowly enough to take in
-// what passes, and `duration` is only the floor under a short one — so a slowed
-// pace is mostly the same glide followed by a slower morph. A step with a long
-// `duration` of its own is the exception: the floor stretches with it, and so
-// does its glide. Kept across reloads the way the theme is.
+// than a different one, `step-motion.ts` included. A glide is only partly in
+// it: the pace stretches the floor under a glide, which is the paced `duration`
+// whether the instance or the step gives it, and not the distance term —
+// DESIGN.md, **A glide grows with the distance, and is much slower than the
+// morph**. So any glide shorter than the paced floor runs for the floor, which
+// at the higher paces is most of them, and a step with a long `duration` of its
+// own gets there sooner. Kept across reloads the way the theme is.
 const PACES = [1, 4, 10]
 const speedPick = pick<HTMLSelectElement>('[data-speed]')
 const keptPace = Number(localStorage.getItem('leko-sandbox-pace'))
