@@ -1,7 +1,7 @@
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
-// Eight projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
+// Nine projects, and what puts a test in each — ONBOARDING.md, **Which Vitest
 // project a new test belongs in**. The three browser projects are never jsdom
 // for the reason DESIGN.md gives under **How to write here, and where tests
 // go**, and `presenter` is what DESIGN.md argues under **Where a class has to
@@ -94,6 +94,17 @@ export default defineConfig({
           // Nothing about the program explains it. It grew from 10 files to 17
           // when the core split, and that costs 9ms on this machine.
           testTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: 'scroll-core',
+          include: [
+            'packages/scroll/src/geometry.test.ts',
+            'packages/scroll/src/mask.test.ts',
+            'packages/scroll/src/plan.test.ts',
+          ],
+          environment: 'node',
         },
       },
       {

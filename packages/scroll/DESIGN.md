@@ -368,6 +368,8 @@ loaded a section — says so, and Leko Scroll measures again.
 - The lit target changed, or the line entered or left the range: it is treated
   as a scroll to the same position would be — a morph, a converge, or a fade
   band's opacity.
+- The lit target is no longer found, and the line is in a fade band or nothing
+  is found at all: the light goes out, and `onChange` fires with `undefined`.
 
 ## The scrim rides the page
 
