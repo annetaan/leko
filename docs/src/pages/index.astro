@@ -254,6 +254,8 @@ createScroll({
       import { createScroll } from '@annetaan/leko/scroll'
 
       createScroll({
+        padding: 16,
+        radius: 16,
         targets: [
           { target: '#why-copy' },
           {
@@ -289,7 +291,7 @@ createScroll({
             target: '#scroll-code',
             message: { title: 'Leko Scroll', body: 'From @annetaan/leko/scroll.' },
           },
-          { target: '#closing', padding: 0, radius: 24 },
+          { target: '#closing', padding: 8, radius: 32 },
         ],
       })
 
@@ -348,7 +350,6 @@ createScroll({
 
     --leko-scroll-scrim-color: rgb(14 16 22 / 0.55);
     --leko-scroll-halo-outline: 2px solid var(--accent);
-    --leko-scroll-halo-offset: 4px;
     --leko-scroll-message-bg: var(--bg-raised);
     --leko-scroll-message-color: var(--ink);
     --leko-scroll-message-radius: 12px;
