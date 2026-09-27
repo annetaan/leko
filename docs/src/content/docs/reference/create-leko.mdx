@@ -151,8 +151,10 @@ thinks to look again.
 
 `step` is where the tour is now, and is `undefined` once there is nowhere to be:
 past the last step, or after `stop()`. `story` is the one that moved, so a
-handler that cares about one story asks `story.id`. It only ever names a step
-that was drawn, and a step whose `onEnter` threw on the way in never reaches it.
+handler that cares about one story asks `story.id`. It names a step once the
+step is handed to be drawn, which is before a glide lands or a late target turns
+up, so a step whose target never turns up is named and then followed by the
+ending. A step whose `onEnter` threw on the way in never reaches it.
 The return value is never read.
 
 ```ts

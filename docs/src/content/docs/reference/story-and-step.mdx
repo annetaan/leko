@@ -1,0 +1,550 @@
+---
+title: Story and step
+description: The shape of a story and of the two kinds of step, what a step points at and waits for, and the order a story's and a step's hooks run in.
+---
+
+import { href } from '../../../lib/href.ts'
+
+A story is one route through the application, start to finish, and a list of
+steps. An application hands one to [`start`](../leko/#start) and the tour shows
+its steps in order, one at a time. A step is one of two shapes, told apart by
+whether it names a `target`: one that cuts a hole around something on the page,
+and one that covers the page and points at nothing.
+
+## LekoStory
+
+```ts
+interface LekoStory {
+  id: string
+  steps: LekoStep[]
+  next?: LekoStory | (() => LekoStory | undefined)
+  onEnter?: (story: LekoStory) => void
+  onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
+}
+```
+
+An application registers as many stories as it has, and only one of them ever
+runs at a time.
+
+| Field     | Type                    | Required |
+| --------- | ----------------------- | -------- |
+| `id`      | `string`                | yes      |
+| `steps`   | `LekoStep[]`            | yes      |
+| `next`    | story or function       | no       |
+| `onEnter` | `(story) => void`       | no       |
+| `onLeave` | `(story, next) => void` | no       |
+
+### id
+
+The name the story goes by outside Leko: in a `LekoProblem` a diagnostic hands
+over, and in whatever `onStep` reports to. Leko never reads it to run a story,
+so a fresh object with the same `id` is a fresh story. The one place it is
+matched is `pickUp`, which compares the `id` a previous document kept against
+the stories it is handed —
+[Starting a story](https://github.com/annetaan/leko/blob/main/DESIGN.md#starting-a-story).
+
+A handler that cares about one story in particular can compare the object
+instead: it is the one that was passed to `start`, and the compiler checks
+that where it cannot check a string.
+
+### steps
+
+The steps, in the order they are shown. A story with none is refused by
+`start` with `story-empty`.
+
+### next
+
+The story the tour goes on to when this one runs out of steps: a story, or a
+function that answers with one or with `undefined`.
+
+```ts
+next: summary
+next: () => (order.needsReview ? review : summary)
+```
+
+Only a story that ran to the end is followed. `stop()`, the close control, a
+target that never turned up and a handler that threw all end the tour where it
+stands, and `next` is not asked.
+
+Nothing is stored. The function is asked when the last step advances, and
+answering `undefined` ends the tour; running the same story again asks again.
+It must be cheap and have no side effects, and where it is a branch, what it
+reads is the application's own state.
+
+Across a page load, `next` is what the arriving document runs, but only when
+this story's last step declares `awaits: { url }` and the document is left
+while the tour stands on that step. The arriving document takes it up with
+[`pickUp`](../leko/#pickup) —
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+### onEnter
+
+```ts
+onEnter?: (story: LekoStory) => void
+```
+
+Builds the state the whole story assumes, before its first step is entered: a
+screen to be on, a record to run against, fixtures standing in for data the
+user has not got yet. A step's own `onEnter` is the same job one level down.
+
+Whatever it hands back is dropped, so an `async` handler runs its first line
+here and the rest once the first step is up. A story whose setup has to finish
+before anything is measured starts the work here and puts a step that waits at
+the top of `steps`. A throw ends the tour, and `onLeave` still runs.
+
+### onLeave
+
+```ts
+onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
+```
+
+Undoes what `onEnter` set up. It is called once for every call to `onEnter`,
+when the story stops being the one that runs, whichever way that happens.
+`next` is the story `next` answered with, and `undefined` when the tour is
+simply over, so teardown the next story would only have to rebuild can be
+skipped.
+
+A promise it hands back is not waited for.
+
+## LekoStep
+
+```ts
+type LekoStep = LekoTargetedStep | LekoUntargetedStep
+```
+
+One step of a story: a [`LekoTargetedStep`](#lekotargetedstep) when it names a
+`target`, a [`LekoUntargetedStep`](#lekountargetedstep) when it does not.
+`step.target !== undefined` narrows to the first.
+
+Every step has the fields below, whichever shape it is. Where the last column
+names an option, the instance sets the same thing for every step, and the step
+wins where it says anything, so a step writing `0` beats an instance writing a
+number —
+[`LekoOptions`](../create-leko/#lekooptions).
+
+| Field      | Type                              | Overrides  |
+| ---------- | --------------------------------- | ---------- |
+| `id`       | `string`                          | —          |
+| `message`  | `string`                          | —          |
+| `padding`  | `number`                          | `padding`  |
+| `radius`   | `number`                          | `radius`   |
+| `duration` | `number`                          | `duration` |
+| `easing`   | `(t: number) => number`           | `easing`   |
+| `scroll`   | `boolean \| 'direct' \| 'staged'` | `scroll`   |
+| `awaits`   | `LekoKnownSignal \| LekoUrlAwait` | —          |
+| `onEnter`  | `(step) => void`                  | —          |
+| `onLeave`  | `(step, next) => void`            | —          |
+
+### id
+
+Required. The name the step goes by outside Leko: in a `LekoProblem`, in
+whatever counts steps from `onStep`, and as the key for anything an
+application wants to hang on a step, a chapter included. Leko never reads it.
+
+### message
+
+The words shown beside the cutout, or docked at the foot of the viewport on a
+step with no target.
+
+### padding
+
+The space between the target's border box and the edge of its cutout, in px.
+
+### radius
+
+The corner radius of the cutout, in px.
+
+### duration
+
+How long the movement into this step runs, in ms, and the least a glide
+bringing its target in runs for —
+[`duration`](../create-leko/#duration).
+
+### easing
+
+The curve the movement into this step follows —
+[`easing`](../create-leko/#easing).
+
+### scroll
+
+Whether this step brings its target into view before drawing it. `true` is
+`'direct'`: every scrollport carrying the target moves in one movement, and the
+step is drawn once the page has stopped. `'staged'` moves one scrollport at a
+time, outermost first, for a target several scrollers deep. `false` leaves the
+page where it is.
+
+It is the step's first region that is centred, the hole around every element
+that region names, and later regions stay where they are. A step with no
+target, or a `position: fixed` one, is never scrolled —
+[Bringing a target into view](https://github.com/annetaan/leko/blob/main/DESIGN.md#bringing-a-target-into-view).
+
+### awaits
+
+What this step waits for, in one of two shapes.
+
+- A name, which `reached(name)` reports from the application. The step moves on
+  when the call names the same string, and a call naming anything else does
+  nothing at all.
+- `{ url }`, a [`LekoUrlAwait`](#lekourlawait): the step moves on when the
+  page's own URL changes to match, with no call to make.
+
+The call site names what happened in the application and never which step
+should move, so steps can be inserted or reordered and the call still fires at
+the moment it always meant —
+[Signals and steps](https://github.com/annetaan/leko/blob/main/DESIGN.md#signals-and-steps).
+
+A step that declares nothing here gets the next control, and a step that
+declares either shape does not. That is the only thing deciding whether the
+control appears —
+[The next control](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-next-control).
+
+### onEnter
+
+```ts
+onEnter?: (step: LekoStep) => void
+```
+
+Builds the state this step assumes, before anything about it is measured: a
+record exists, a panel is open. It is not where the step is decorated, because
+nothing has been drawn yet.
+
+Whatever it hands back is dropped. Work that has to finish before the step is
+drawn goes on a step of its own, with no `target` and an `awaits`, started
+here —
+[A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+
+A throw ends the tour, and `onLeave` still runs, because a handler that failed
+halfway may already have set something up.
+
+### onLeave
+
+```ts
+onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
+```
+
+Undoes what `onEnter` set up. It is called once for every arrival at this step,
+when it stops being the current one, also where `onEnter` threw halfway and on
+a step with no `onEnter` at all.
+
+`next` is the step the tour moves to, and `undefined` when the tour is ending:
+past the last step, after `stop()`, and when `next` hands the tour on to another
+story, whose steps this one knows nothing about. A panel that two steps use in
+turn can stay open when `next` is the other one.
+
+## LekoTargetedStep
+
+```ts
+interface LekoTargetedStep {
+  target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
+  resolve?: 'first' | 'visible-first' | 'in-viewport-first'
+  validate?: (targetEl: Element) => boolean
+  error?: string | ((targetEl: Element) => string)
+}
+```
+
+A step that points at something. It has every field of
+[`LekoStep`](#lekostep), and these four besides. Only this kind of step may
+declare `validate` and `error`, because both are questions about the element
+`target` names.
+
+| Field      | Type                       | Required |
+| ---------- | -------------------------- | -------- |
+| `target`   | see below                  | yes      |
+| `resolve`  | string union               | no       |
+| `validate` | `(el: Element) => boolean` | no       |
+| `error`    | `string \| (el) => string` | no       |
+
+### target
+
+What the step cuts holes in the page for. Each entry of the list is one cutout:
+a [`LekoRegion`](#lekoregion), where several elements become one hole by being
+named together, or a bare [`LekoTarget`](#lekotarget), which is the region of
+one element. A list never nests.
+
+```ts
+const steps: LekoStep[] = [
+  // one hole
+  { id: 'save', target: '#save' },
+  // one hole around both
+  { id: 'quantity', target: { elements: ['#qty-label', '#qty'] } },
+  // two holes, three elements
+  { id: 'total', target: ['#save', { elements: ['#tax', '#total'] }] },
+  // two holes, and the first is open
+  { id: 'terms', target: [{ elements: '#terms', interactive: true }, '#summary'] },
+]
+```
+
+The first region is the one the step is about, and it is the only one that may
+open. Its first element is what `validate` is handed, what the message sits
+beside, and the one Leko looks for. A later region that resolves to nothing is
+a hole this step does not cut, and nothing else happens —
+[A target is a question](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-target-is-a-question).
+
+If that element is not on the page when the step arrives, it is waited for a
+moment, even where the rest of the region is there, and if it does not turn up
+the tour ends with `target-lost` —
+[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+
+### resolve
+
+Which element this step means where its target matches several. It overrides
+the instance's [`resolve`](../create-leko/#resolve) and takes the same three
+values.
+
+- `'visible-first'` takes the first match the visitor could see, and is the
+  default.
+- `'first'` takes the first match, hidden or not.
+- `'in-viewport-first'` asks what `'visible-first'` asks, and then that some of
+  the match is inside the viewport.
+
+It applies to every element of every region, a function target's answer
+included. `'in-viewport-first'` and `scroll` do not combine: the rule is asked
+before the glide, so a match off screen is never found. Ask for one or the
+other —
+[Which of several matches a selector means](https://github.com/annetaan/leko/blob/main/DESIGN.md#which-of-several-matches-a-selector-means).
+
+### validate
+
+```ts
+validate?: (targetEl: Element) => boolean
+```
+
+A guard on the next control, and on nothing else. It is called when the
+control is pressed, and answering `false` keeps the tour where it is. On a step
+that declares `awaits` it is ignored: that step has no control, and it moves on
+because the application said the thing happened.
+
+It is handed the first element of the first region, looked for afresh on the
+press. A target gone by then ends the tour with `target-lost`, with no moment
+to wait for it —
+[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+
+A refusal is never silent. The cutout shakes whether or not the step has an
+`error` to show —
+[A failed attempt](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-failed-attempt).
+
+### error
+
+```ts
+error?: string | ((targetEl: Element) => string)
+```
+
+What to say when `validate` answers `false`. It is shown under `message` and
+never replaces it, so a user told they were wrong can still read what they
+were asked for.
+
+```ts
+error: 'That does not look like an email address yet.'
+error: (el) => `${(el as HTMLInputElement).value} is already taken.`
+```
+
+It is asked once per failed attempt, and the words are held from there until
+the next attempt succeeds or the step changes. A function is handed the same
+element `validate` was, and must be cheap and have no side effects.
+
+## LekoUntargetedStep
+
+```ts
+interface LekoUntargetedStep {
+  target?: never
+  resolve?: never
+  validate?: never
+  error?: never
+}
+```
+
+A step that points at nothing. It has every field of [`LekoStep`](#lekostep),
+and the four that are about a target are `never`. The page is covered with no
+hole in it, and the message docks at the foot of the viewport.
+
+It is the step to write for a wait: give it `awaits`, start the work in
+`onEnter`, and the tour stands there with the page held until the application
+reports the name.
+
+```ts
+const waitForDraft: LekoUntargetedStep = {
+  id: 'load-draft',
+  message: 'Loading the draft order…',
+  onEnter: () => void loadDraft(),
+  awaits: 'draft-loaded',
+}
+```
+
+Nothing bounds the wait, so an application whose work can fail catches the
+failure and calls `stop()` —
+[A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+A step with no `target` and no `awaits` is a full-page message with a next
+control.
+
+## LekoTarget
+
+```ts
+type LekoTarget = string | (() => Element | null)
+```
+
+Anything a step can point at: a CSS selector, or a function that hands back the
+element now, or `null` where there is none yet.
+
+```ts
+target: '#order-form'
+target: () => panel.shadowRoot?.querySelector('.send') ?? null
+target: () => sendRef.current
+```
+
+Both forms are a question, asked every time the box is needed and never held
+on to, which is why there is no element form. Reach for a function where a
+selector cannot say what you mean: a node inside a shadow root, a framework
+ref, a row your own code picks out of a list. It must be cheap and have no side
+effects, and what it hands back is the answer for that moment only —
+[A target is a question](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-target-is-a-question).
+
+An element that is not rendered is not found: `display: none` on it or on
+anything it is inside, so a closed tab and a collapsed panel come to the same
+thing. Open the panel in the step's `onEnter`, which runs before the target is
+looked for. `visibility: hidden` and `opacity: 0` keep a box, and whether the
+step takes one is [`resolve`](#resolve)'s question.
+
+The page is measured when the step is drawn, and whether the target is still
+there is not watched after that. The target is asked again only when the next
+control is pressed, for `validate`, and on a resize, which puts the holes back —
+[What Leko does not do](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-leko-does-not-do).
+
+An element inside an `<svg>` is a target like any other, `viewBox` scaling and
+transforms included —
+[Resolution & custom functions](https://github.com/annetaan/leko/blob/main/DESIGN.md#resolution--custom-functions).
+
+## LekoRegion
+
+```ts
+interface LekoRegion {
+  elements: LekoTarget | LekoTarget[]
+  interactive?: boolean
+}
+```
+
+One cutout, and whether the step opens it. A bare `LekoTarget` anywhere a
+region is wanted reads as `{ elements: target }`: one element, one hole, not
+opened.
+
+```ts
+const save: LekoRegion = { elements: '#save', interactive: true }
+const quantity: LekoRegion = { elements: ['#quantity-label', '#quantity'] }
+```
+
+| Field         | Type                         | Default |
+| ------------- | ---------------------------- | ------- |
+| `elements`    | `LekoTarget \| LekoTarget[]` | —       |
+| `interactive` | `boolean`                    | `false` |
+
+### elements
+
+One target, or several made into one hole. The hole is the bounding box of
+everything named, and whatever sits between the elements is inside it too, so
+name elements that are next to each other: a label and its input, two
+neighbouring columns, the first and last row of a table.
+
+### interactive
+
+Whether the user may operate what is under the hole. It is off by default: a
+cutout shows what is under it either way, and this decides whether the page
+also takes the pointer or a blocking rectangle sits over it. Only the first
+region of a step may declare it —
+[A hole, and whether it is open](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-hole-and-whether-it-is-open).
+
+Tab is held to the same answer. Focus walks a ring of what the step opened and
+the controls Leko drew, so a hole that is only shown cannot be reached with the
+keyboard either —
+[The ring focus cannot leave](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-ring-focus-cannot-leave).
+
+## LekoShownRegion
+
+```ts
+interface LekoShownRegion {
+  elements: LekoTarget | LekoTarget[]
+  interactive?: never
+}
+```
+
+Every region after a step's first. It is shown and blocked: the hole shows what
+is under it, and a blocking rectangle keeps it from taking a click. These are
+there to be looked at, such as a summary figure beside the row it was worked
+out from. `interactive` is `never`, so the flag does not compile here, even on
+an object built somewhere else.
+
+## LekoUrlAwait
+
+```ts
+interface LekoUrlAwait {
+  url: RegExp
+}
+```
+
+The other shape of [`awaits`](#awaits): the step moves on when the page's own
+URL changes to match `url`, with no call the application has to make.
+
+```ts
+const checkout: LekoUrlAwait = { url: /^\/checkout(?:[/?#]|$)/ }
+const hashRouted: LekoUrlAwait = { url: /^\/#\/checkout(?:[/?]|$)/ } // a hash router
+```
+
+The pattern is tested against everything after the origin:
+`pathname + search + hash` of `location`. Anchor it: an unanchored
+`/checkout/` also matches `/checkout-history`. `g` and `y` are ignored.
+
+The step moves on a change, never on an arrival: a URL that already matches
+when the step is drawn does nothing, and the next URL that matches after that
+moves it —
+[A URL is a signal the page reports](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-url-is-a-signal-the-page-reports).
+
+A navigation that loads a new document is not heard this way. On a story's
+last step, `{ url }` instead hands the tour on to the story's `next` in the
+document that loads —
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+## The order the hooks run in
+
+<a href={href('lifecycle/#a-steps-lifecycle')}>A step's lifecycle</a> draws this. What follows is
+the order a handler can rely on.
+
+A story is entered outermost first: the story's `onEnter`, then the first
+step's `onEnter`, then the target is resolved and the step handed over to be
+drawn, then `onStep` reports it. All of that runs inside the one call that
+moved the tour. It is not the same as the step being on screen: a step that
+glides into view, or whose target is not on the page yet, is drawn after
+`onStep` and outside the call, and one whose target never turns up is reported
+and then followed by the report of the ending.
+
+On a move to the next step, the tour's position changes before any handler
+runs. So while the leaving step's `onLeave` and the arriving step's `onEnter`
+run, `step` and `index` on the instance already name the arriving step. The
+leaving step's `onLeave` runs first, then the arriving step's `onEnter`.
+`onLeave(step, next)` is handed both, so a handler reads those rather than the
+getters.
+
+An ending runs innermost first. The tour is emptied before any of it, so
+`state` reads `'idle'` inside every `onLeave` of a teardown. Then the step's
+`onLeave` runs with `next` as `undefined`, then the story's `onLeave` with
+`next` as the story it hands on to or `undefined`, then `onStep` reports the
+ending with `step` as `undefined`. The step's `onLeave` is skipped only when
+the story's own `onEnter` never got as far as entering a step.
+
+A story that hands on through `next` ends that way: the step's `onLeave` gets
+`undefined`, the story's `onLeave` gets the story it hands on to, and that
+story's `onEnter` runs in the same call.
+
+A throw from an `onEnter` ends the tour where it stands, and the `onLeave`
+that pairs with it still runs. The reason is thrown again once the ending has
+been reported, and `onStep` never names the step whose `onEnter` threw.
+
+`validate` runs only when the next control is pressed, and only on a step with
+no `awaits`. A `reached()` that matches an `awaits` step moves the tour on
+straight away. A refusal shakes the cutout, shows `error` where there is one,
+and the tour stays put.
+
+From inside `onEnter` or `onLeave`, `start` and `pickUp` are refused and a
+`reached()` that matches the step being entered is dropped. `stop()` is the one
+call that goes through —
+[`Leko`](../leko/) and
+[One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
+
+What `onEnter` and `onLeave` hand back is dropped, and nothing is awaited.

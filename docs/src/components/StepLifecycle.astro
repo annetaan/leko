@@ -9,7 +9,7 @@
 ---
 
 <figure class="lifecycle">
-  <svg viewBox="0 0 760 650" role="img" aria-label="A step's lifecycle: onEnter runs, the target is resolved and the hole is drawn, onStep reports, and the step rests on screen until the next control is pressed or the declared signal is reached; every path out runs through onLeave, looping to the next step's onEnter or ending the run.">
+  <svg viewBox="0 0 760 650" role="img" aria-label="A step's lifecycle: onEnter runs, the target is resolved and the step handed over to be drawn, onStep reports, which can be before a glide or a late target lands, and the step rests on screen until the next control is pressed or the declared signal is reached; every path out runs through onLeave, looping to the next step's onEnter or ending the run.">
     <defs>
       <marker id="step-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
@@ -29,14 +29,14 @@
 
     <!-- resolve and draw -->
     <rect x="210" y="134" width="280" height="56" rx="8" class="box"></rect>
-    <text x="350" y="158" text-anchor="middle" class="label">the target is resolved, the hole is drawn</text>
-    <text x="350" y="176" text-anchor="middle" class="label quiet">missing? retried for 100ms, drawing nothing</text>
+    <text x="350" y="158" text-anchor="middle" class="label">the target resolved, the step handed over</text>
+    <text x="350" y="176" text-anchor="middle" class="label quiet">missing? given 100ms to turn up</text>
     <line x1="350" y1="190" x2="350" y2="210" class="edge" marker-end="url(#step-arrow)"></line>
 
     <!-- onStep -->
     <rect x="210" y="210" width="280" height="56" rx="8" class="box open"></rect>
     <text x="350" y="234" text-anchor="middle" class="label mono">onStep(step, story)</text>
-    <text x="350" y="252" text-anchor="middle" class="label quiet">the report — only once it is on screen</text>
+    <text x="350" y="252" text-anchor="middle" class="label quiet">the report — may come before it is on screen</text>
     <line x1="350" y1="266" x2="350" y2="286" class="edge" marker-end="url(#step-arrow)"></line>
 
     <!-- resting -->
@@ -87,8 +87,8 @@
     Leko inside your own handler, where every call but <code>stop()</code> is
     refused. The whole chain from <code>onLeave</code> to the next
     <code>onStep</code> runs inside the one call that moved the tour — an
-    <code>async onEnter</code> runs its first line there and the rest after the
-    step is already on screen.
+    <code>async onEnter</code> runs its first line there and the rest after that
+    call has returned.
   </figcaption>
 </figure>
 

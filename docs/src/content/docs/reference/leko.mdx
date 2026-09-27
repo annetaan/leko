@@ -36,14 +36,15 @@ to move it. There is nothing else on the instance.
 | `index` | `number \| undefined`    | `undefined` |
 
 All four are snapshots, and there is nothing to subscribe to. `onStep` reports
-every step once it has been drawn, and every ending, so a host that draws its
-own progress listens there and sees each position the tour settles on —
+every step once it has been handed to be drawn, and every ending, so a host
+that draws its own progress listens there and sees each position the tour
+settles on —
 [There is nothing to subscribe to](https://github.com/annetaan/leko/blob/main/DESIGN.md#there-is-nothing-to-subscribe-to).
 
 The getters change earlier than that. `step` and `index` name a step from the
 moment it begins to be entered, and `state` reads `'running'` before the
-story's own `onEnter` runs, so a step whose `onEnter` throws or whose target is
-never found is read here and never reported.
+story's own `onEnter` runs, so a step whose `onEnter` throws is read here and
+never reported.
 
 ### state
 
@@ -117,9 +118,11 @@ A story that leads into another when it finishes says so itself, with `next`,
 rather than through this call. The switch cuts rather than morphs.
 
 Every way this call comes to nothing is reported through `onDiagnostic`, with
-one exception: when the story's own `onEnter` throws, the error is thrown again
-from `start` instead. `id` is not read, so a fresh object with the same `id` is
-a fresh story —
+one exception: when the story's own `onEnter`, or the first step's, throws. The
+tour ends where it stands and `start` returns as usual; the error is thrown
+again once the ending has been reported, from a microtask of its own rather than
+from this call. `id` is not read, so a fresh object with the same `id` is a
+fresh story —
 [Starting a story](https://github.com/annetaan/leko/blob/main/DESIGN.md#starting-a-story).
 
 ### pickUp

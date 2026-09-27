@@ -510,12 +510,14 @@ its clear-up at the same level instead of splitting across two.
 - **Entry runs outermost first, and the ending mirrors it, innermost first:**
 
   ```text
-  story onEnter → step onEnter → resolve the target → draw → onStep
+  story onEnter → step onEnter → resolve the target → show → onStep
   ```
 
   The report goes last because a progress readout hearing about a step whose
   `onEnter` still runs is naming something the user cannot see. The whole of it
-  happens inside the call that moved the tour.
+  happens inside the call that moved the tour. `show` hands the step over and
+  returns, so a step that glides into view or waits a moment for its target is
+  reported before it is on screen, and drawn after the call.
 - **The story's `onLeave` runs when the run ends, after the last step's.**
   Clear-up put on the first step's `onLeave` instead fires the moment the tour
   reaches step 2, with the rest of the story still standing on what it took

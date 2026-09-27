@@ -23,6 +23,7 @@ export default defineConfig({
           items: [
             { label: 'createLeko and options', slug: 'reference/create-leko' },
             { label: 'Leko', slug: 'reference/leko' },
+            { label: 'Story and step', slug: 'reference/story-and-step' },
           ],
         },
       ],
