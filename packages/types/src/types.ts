@@ -342,11 +342,11 @@ interface LekoStepBase {
    * scrim still holds the shape of the step being left while this runs.
    *
    * **Whatever it hands back is dropped.** An `async` handler runs its first
-   * line here and the rest of it once the step is up. Work that has to finish
-   * first goes on a step of its own: no {@link target}, the work started here,
-   * and {@link awaits} declared. DESIGN.md argues both under **A step that
-   * waits**, and what an application owes a wait that can fail under
-   * DESIGN.md's **Nothing bounds the wait**.
+   * line here and the rest of it after the call that moved the tour has
+   * returned. Work that has to finish first goes on a step of its own: no
+   * {@link target}, the work started here, and {@link awaits} declared.
+   * DESIGN.md argues both under **A step that waits**, and what an application
+   * owes a wait that can fail under DESIGN.md's **Nothing bounds the wait**.
    *
    * **A throw stops the tour**, and the reason is thrown again rather than
    * swallowed — DESIGN.md, **A throw stops the tour, and the reason is thrown
@@ -366,10 +366,11 @@ interface LekoStepBase {
    * **Every `onEnter` gets its `onLeave`**.
    *
    * `next` is where the tour is going, and is `undefined` when it is ending:
-   * past the last step, after `stop()`, and when another story is started,
-   * since the step the tour lands on then belongs to a story this one knows
-   * nothing about. Cleanup often depends on the destination — a panel that two
-   * steps use in turn is worth leaving open — which is why it is given one.
+   * past the last step, after `stop()`, and when {@link LekoStory.next} hands
+   * the tour on to another story, since the step the tour lands on then
+   * belongs to a story this one knows nothing about. Cleanup often depends on
+   * the destination — a panel that two steps use in turn is worth leaving
+   * open — which is why it is given one.
    *
    * A promise is not waited for here; the step is over. DESIGN.md, **Whatever a
    * handler hands back is dropped**.
@@ -560,8 +561,10 @@ export type LekoStep = LekoTargetedStep | LekoUntargetedStep
  */
 export interface LekoStory {
   /**
-   * Stable identifier. Leko never reads it, and it is required so that
-   * everything else can.
+   * Stable identifier. Leko never reads it to run a story, and it is required
+   * so that everything else can. The one place it is read is across a page
+   * load: the note a document keeps names the successor by it, and
+   * {@link Leko.pickUp} matches it against the stories it is handed.
    *
    * It is the name a story goes by outside Leko: in the {@link LekoProblem} a
    * diagnostic hands over, and in whatever {@link LekoOptions.onStep} reports
@@ -628,7 +631,7 @@ export interface LekoStory {
   /**
    * Undo what {@link onEnter} set up. Called once for every call to it, at the
    * moment this story stops being the one that is running: past the last step,
-   * after `stop()`, and when another story is started.
+   * after `stop()`, and when {@link next} hands the tour on to another story.
    *
    * It runs after the current step's {@link LekoTargetedStep.onLeave} — cleanup goes
    * innermost first, the mirror of entry — and before the ending is reported
@@ -968,9 +971,11 @@ export type LekoProblem =
  * Whether a story is running.
  *
  * `idle` — none is. `reached()` is a no-op, and so is `stop()`.
- * `running` — one is, from the moment `start()` accepts it until the ending is
- * reported. It says nothing about what the screen is doing — DESIGN.md, **It
- * says nothing about what the screen is doing**.
+ * `running` — one is, from the moment `start()` accepts it until its teardown
+ * begins, before any `onLeave` of the teardown runs — DESIGN.md, **A teardown
+ * says `idle` while it is still refusing calls**. It says nothing about what
+ * the screen is doing — DESIGN.md, **It says nothing about what the screen is
+ * doing**.
  *
  * {@link LekoOptions.onStep} reports the same fact, with the step that changed.
  * `onStep: (step) => setTourRunning(step !== undefined)` is the whole of what a

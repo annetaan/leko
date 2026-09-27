@@ -95,8 +95,8 @@ export class Leko {
    * {@link LekoOptions.onDiagnostic}**, which {@link LekoProblem} lists — and
    * that is the opposite of the silence {@link reached} keeps, for the reason
    * DESIGN.md gives under **Saying that a call did nothing**. The story's own
-   * `onEnter` throwing is the one way out with no problem reported: the reason
-   * is thrown again instead.
+   * `onEnter` or its first step's throwing is the one way out with no problem
+   * reported: the reason is thrown again instead.
    */
   start(story: LekoStory): void {
     this.machine.start(story)
@@ -107,12 +107,12 @@ export class Leko {
    * DESIGN.md, **A page load ends the story, and hands it on**.
    *
    * **Call this once per document.** A call made from inside `onEnter`,
-   * `onLeave` or the ending `onStep` report is refused before the note is
-   * touched, and reported `call-refused`: the note is left exactly where it
-   * was, for the call that goes through a moment later — DESIGN.md, **Saying
-   * that a call did nothing**. Every other call takes the note and removes
-   * it, whatever it finds, so a second such call always finds nothing left
-   * to take:
+   * `onLeave`, the ending `onStep` report or the `onDiagnostic` of a
+   * `target-lost` is refused before the note is touched, and reported
+   * `call-refused`: the note is left exactly where it was, for the call that
+   * goes through a moment later — DESIGN.md, **Saying that a call did
+   * nothing**. Every other call takes the note and removes it, whatever it
+   * finds, so a second such call always finds nothing left to take:
    *
    * - Nothing kept, or a note this page's URL does not answer to — it does
    *   not match the pattern, or it is the very URL the note was kept at —

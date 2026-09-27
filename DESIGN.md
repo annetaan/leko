@@ -526,10 +526,11 @@ its clear-up at the same level instead of splitting across two.
   away.
 - **The target is resolved after `onEnter` returns** — resolved first, the
   selector reads a page the step has not set up yet.
-- **Whatever a handler hands back is dropped.** The step is drawn the moment
-  the handler returns, so an `async` handler runs its first line here and the
-  rest after the step is on screen. Work that has to finish before anything is
-  measured is a waiting step, argued below.
+- **Whatever a handler hands back is dropped.** The step is handed over to be
+  drawn the moment the handler returns, so an `async` handler runs its first
+  line here and the rest after the call that moved the tour has returned.
+  Work that has to finish before anything is measured is a waiting step,
+  argued below.
 - **Every `onEnter` gets its `onLeave`** — also where the handler threw
   halfway, and where a `stop()` walked out of it, because a handler that set
   something up before failing is owed one. `onLeave` is told where the tour is
@@ -687,10 +688,12 @@ only once `onStep` has returned.
 - `stop()` is the exception. A handler that has decided the tour should not go
   on has nowhere else to go, and ending is the one thing that needs nothing of
   the arrival: it throws the arrival away rather than acting on it.
-- The machine does not know a morph is running. A step is on screen the moment
-  `show` returns; how long the drawing takes to settle is the presenter's
-  business. A next press during the morph goes through — dropping it would be
-  Leko deciding the user did not mean the button they pressed.
+- The machine does not know a morph is running. A step is shown as far as it
+  is concerned the moment `show` returns, whether or not it has reached the
+  screen yet; how long the drawing takes to arrive and settle is the
+  presenter's business. A next press during the morph goes through —
+  dropping it would be Leko deciding the user did not mean the button they
+  pressed.
 
 What the gate buys is that no callback has to ask afterwards whether the world
 moved while it ran — which is why the state core needs no run counter. Where

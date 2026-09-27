@@ -88,9 +88,10 @@ screen to be on, a record to run against, fixtures standing in for data the
 user has not got yet. A step's own `onEnter` is the same job one level down.
 
 Whatever it hands back is dropped, so an `async` handler runs its first line
-here and the rest once the first step is up. A story whose setup has to finish
-before anything is measured starts the work here and puts a step that waits at
-the top of `steps`. A throw ends the tour, and `onLeave` still runs.
+here and the rest after the call that moved the tour has returned. A story
+whose setup has to finish before anything is measured starts the work here and
+puts a step that waits at the top of `steps`. A throw ends the tour, and
+`onLeave` still runs.
 
 ### onLeave
 

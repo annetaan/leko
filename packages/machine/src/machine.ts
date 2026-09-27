@@ -69,8 +69,8 @@ export class Machine<W extends World> {
    * down, and DESIGN.md argues that under **Starting a story**.
    *
    * Every way this comes to nothing has a `Problem` of its own, except a story
-   * whose `onEnter` threw, where the reason is thrown again rather than
-   * reported. DESIGN.md, **Saying that a call did nothing**.
+   * whose `onEnter` or first step's `onEnter` threw, where the reason is thrown
+   * again rather than reported. DESIGN.md, **Saying that a call did nothing**.
    */
   start(story: W['story']): void {
     this.dispatch({ kind: 'start', story })

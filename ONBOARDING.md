@@ -321,8 +321,9 @@ nothing to check. The `reached`, `start` and `pressed` events all ask this
 first, in `plan.ts`.
 
 A morph is not one of those windows, and the machine is not told one is running.
-A step is on screen the moment `show` returns, so a call made while the drawing
-is still moving means what it says and goes through.
+A step is shown as far as the machine is concerned the moment `show` returns,
+on screen yet or not, so a call made while the drawing is still moving means
+what it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A handler that has decided
 the tour should not go on has nowhere else to go. So every event that can land

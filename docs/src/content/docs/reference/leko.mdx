@@ -223,7 +223,7 @@ the ending run, so a handler reading `state` there is told the truth, and a
 step's `onLeave` on a move to the next step runs while the story is
 `'running'`.
 
-`onStep` says the same once the first step is drawn, and
+`onStep` says the same once the first step is handed over to be drawn, and
 `onStep: (step) => setTourRunning(step !== undefined)` is all a host needs to
 stand back while a tour is up —
 [`state` is derived](https://github.com/annetaan/leko/blob/main/DESIGN.md#state-is-derived).
