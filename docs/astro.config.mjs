@@ -15,9 +15,9 @@ export default defineConfig({
         'A product tour that cuts a hole in the overlay, so the user works the real element underneath.',
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/annetaan/leko' }],
       sidebar: [
-        { label: 'Start here', items: [{ label: 'What Leko is', slug: 'index' }] },
+        { label: 'Start here', items: [{ label: 'What Leko is', slug: 'what-leko-is' }] },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
-        { label: 'Proving the ground', items: [{ label: 'A tour of this page', slug: 'demo' }] },
+        { label: 'Proving the ground', items: [{ label: 'Playground', slug: 'playground' }] },
       ],
       customCss: ['./src/styles/docs.css'],
       // The scrim covers the page and the message sits beside the cutout, so a

@@ -1,5 +1,5 @@
 ---
-title: A tour of this page
+title: Playground
 description: A Leko tour running over the documentation you are reading, pointing at the site's own sidebar or menu button and at a field you type into while the scrim is up.
 ---
 
@@ -9,7 +9,7 @@ Everything below is this page. The tour points at the sidebar on the left, or
 at the menu button that opens it when the window is too narrow to show it, then
 at the code block further down, and at a field you type into while the overlay
 is up. Nothing is in an iframe and nothing is a screenshot. There are two ways
-in — the button below, or the front page's own tour, which hands this one on
+in — the button below, or the tour on What Leko is, which hands this one on
 across the page load.
 
 <PageTour />
@@ -59,7 +59,7 @@ const introFor = () => (matchMedia('(min-width: 50rem)').matches ? desktopIntro 
 
 button.addEventListener('click', () => leko.start(introFor()))
 
-leko.pickUp([desktopIntro, mobileIntro]) // once, as the page loads — it takes what the front page handed on, or nothing
+leko.pickUp([desktopIntro, mobileIntro]) // once, as the page loads — it takes what What Leko is handed on, or nothing
 ```
 
 </div>

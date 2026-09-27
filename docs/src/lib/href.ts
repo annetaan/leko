@@ -3,7 +3,7 @@
  *
  * The site is served from `/leko` on GitHub Pages and from `/` nowhere yet, and
  * Starlight's own components do not put the base on an `href` you hand them —
- * `<LinkButton href="/demo/">` emits `/demo/` and breaks the moment the base is
+ * `<LinkButton href="/playground/">` emits `/playground/` and breaks the moment the base is
  * not empty. Sidebar entries built from a `slug` are fine, because Starlight
  * builds those itself. Everything a page writes by hand comes through here.
  *

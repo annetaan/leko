@@ -66,24 +66,24 @@ export const mobileIntro = {
 // stories are short**. PageTour.astro answers a crossing mid-intro.
 export const introFor = () => (matchMedia(SIDEBAR_SHOWN).matches ? desktopIntro : mobileIntro)
 
-// A `/demo` segment closed by a slash, a query, a hash or the end. Astro
+// A `/playground` segment closed by a slash, a query, a hash or the end. Astro
 // applies `base` in `astro dev` as well as in `astro build`, so this matches
-// `/leko/demo/` and `/demo/` alike; the optional slash is for GitHub Pages'
-// own redirect from `/leko/demo` to `/leko/demo/`.
-const DEMO_URL = /\/demo\/?(?:[?#]|$)/
+// `/leko/playground/` and `/playground/` alike; the optional slash is for GitHub Pages'
+// own redirect from `/leko/playground` to `/leko/playground/`.
+const PLAYGROUND_URL = /\/playground\/?(?:[?#]|$)/
 
 export const fromIndex = {
   id: 'from-index',
   steps: [
     {
-      id: 'open-demo',
+      id: 'open-playground',
       // Not the sidebar's own link, which is hidden outside SIDEBAR_SHOWN.
       target: { elements: '[data-site-tour-link]', interactive: true },
       message:
-        'Open “A tour of this page”. That is a full page load — this ' +
+        'Open “Playground”. That is a full page load — this ' +
         'document goes, and the next one picks the tour up where its own ' +
         'story starts.',
-      awaits: { url: DEMO_URL },
+      awaits: { url: PLAYGROUND_URL },
     },
   ],
   next: introFor,
