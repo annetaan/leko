@@ -1,0 +1,1048 @@
+---
+import { Code } from '@astrojs/starlight/components'
+import { href } from '../lib/href.ts'
+
+/**
+ * The front page, outside Starlight on purpose: a landing page wants the whole
+ * width and a header of its own, and the docs keep Starlight's.
+ *
+ * Leko Scroll is the only thing that runs here, and scrolling is the only
+ * thing it asks of a reader. Leko itself is shown, not run: the playground is
+ * where it is touched, and the page offers the way there at the top and at the
+ * foot so the reader decides when to go.
+ */
+
+const story = `const checkout = {
+  id: 'checkout',
+  steps: [
+    { id: 'cart', target: '#cart', message: 'Your cart.' },
+    {
+      id: 'pay',
+      target: { elements: '#pay', interactive: true },
+      message: 'Pay for real. The tour waits.',
+      awaits: 'order-saved',
+    },
+  ],
+} satisfies LekoStory`
+
+const reached = `await api.saveOrder(cart)
+leko.reached('order-saved')`
+
+const styling = `:root {
+  --leko-scrim-color: #000a;
+  --leko-halo-outline: 2px solid gold;
+  --leko-message-radius: 12px;
+}`
+
+const scroll = `import { createScroll } from '@annetaan/leko/scroll'
+
+createScroll({
+  targets: [
+    { target: '#why', message: { title: 'A hole' } },
+    { target: '#live' },
+    { target: '#signals' },
+  ],
+})`
+---
+
+<!doctype html>
+<!-- Expressive Code picks its theme from this attribute. The code cards are dark in both schemes. -->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leko — Light the way. Leave the door open.</title>
+    <meta
+      name="description"
+      content="A product tour that cuts a hole in the overlay, so the user works the real element underneath."
+    />
+  </head>
+  <body>
+    <header class="bar">
+      <a class="bar-brand" href={href('/')}>Leko</a>
+      <nav class="bar-links">
+        <a href={href('what-leko-is/')}>Docs</a>
+        <a href={href('playground/')}>Playground</a>
+        <a href="https://github.com/annetaan/leko">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <h1 class="wordmark">Leko</h1>
+          <p class="statement">Light the way.<br />Leave the door open.</p>
+          <p class="lede">
+            The spotlight you can click through. A product tour that cuts a hole in the overlay, so
+            your users work the real thing underneath.
+          </p>
+          <div class="actions">
+            <a class="button primary" href={href('what-leko-is/')}>Get started</a>
+            <a class="button" href={href('playground/')}>Try the playground</a>
+          </div>
+          <code class="install">pnpm add @annetaan/leko</code>
+        </div>
+
+        <figure class="hero-art" aria-hidden="true">
+          <div class="mock">
+            <div class="mock-bar"><span></span><span></span><span></span></div>
+            <div class="mock-body">
+              <div class="mock-line w60"></div>
+              <div class="mock-line w80"></div>
+              <div class="mock-field"></div>
+              <div class="mock-row">
+                <div class="mock-line w30"></div>
+                <div class="mock-button lit">Save</div>
+              </div>
+            </div>
+            <svg class="cursor" viewBox="0 0 24 24" width="28" height="28">
+              <path d="M4 2l16 10-7 1.5L9.5 21z" />
+            </svg>
+          </div>
+        </figure>
+
+        <p class="scroll-hint">Scroll, and follow the light</p>
+      </section>
+
+      <section class="chapter">
+        <div class="chapter-copy">
+          <p class="eyebrow">01 · Why another tour</p>
+          <h2>Every other tour puts glass over the button.</h2>
+          <p>
+            A highlight is usually a transparent layer. It looks like the button is right there, but
+            the click lands on the layer. So a tour can only point and say “click here”, and the
+            user watches.
+          </p>
+        </div>
+        <div class="compare" id="why">
+          <div class="compare-card">
+            <div class="pane glass">
+              <div class="pane-button">Save</div>
+              <div class="pane-glass"></div>
+            </div>
+            <p class="compare-label">A layer <span>the click hits the glass</span></p>
+          </div>
+          <div class="compare-card">
+            <div class="pane hole">
+              <div class="pane-button">Save</div>
+            </div>
+            <p class="compare-label">A hole <span>the click hits the button</span></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter flip">
+        <div class="chapter-copy">
+          <p class="eyebrow">02 · The real element</p>
+          <h2>Under the light, everything still works.</h2>
+          <p>
+            Clicks reach it, focus reaches it, the keyboard reaches it, and scrolling under the
+            pointer still scrolls. Nothing is placed over a target the step opened, not even
+            something transparent.
+          </p>
+        </div>
+        <form class="live" id="live" onsubmit="return false">
+          <label>
+            Your name
+            <input type="text" placeholder="Type here. It is a real field." />
+          </label>
+          <label class="check"><input type="checkbox" /> Tick me, too</label>
+        </form>
+      </section>
+
+      <section class="chapter">
+        <div class="chapter-copy">
+          <p class="eyebrow">03 · Signals</p>
+          <h2>A step ends when something really happened.</h2>
+          <p>
+            Steps never advance on clicks. Your app says what finished, and the step waiting for
+            it moves on. A step that waits has no next button, because that would be a way past
+            the work it asks for.
+          </p>
+        </div>
+        <div class="codes" id="signals">
+          <div class="code-card">
+            <p class="code-caption">The story</p>
+            <Code code={story} lang="ts" />
+          </div>
+          <div class="code-card">
+            <p class="code-caption">Your app, where the order really saved</p>
+            <Code code={reached} lang="ts" />
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter flip">
+        <div class="chapter-copy">
+          <p class="eyebrow">04 · Across pages</p>
+          <h2>The tour follows the user to the next page.</h2>
+          <p>
+            A step can wait for a URL. When the page loads, the next document picks up the story
+            that comes next. The two pages share no runtime, only the name of the story.
+          </p>
+        </div>
+        <div class="pages" id="pages" aria-hidden="true">
+          <div class="page-card">
+            <p class="page-url">/cart</p>
+            <div class="mock-line w80"></div>
+            <div class="mock-line w60"></div>
+            <div class="page-link">Checkout →</div>
+          </div>
+          <div class="page-arrow">
+            <span>page load</span>
+          </div>
+          <div class="page-card lit">
+            <p class="page-url">/checkout</p>
+            <div class="mock-line w60"></div>
+            <div class="mock-line w80"></div>
+            <div class="page-step">Step 1 of the next story</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter">
+        <div class="chapter-copy">
+          <p class="eyebrow">05 · Typed signals</p>
+          <h2>Typos are caught before anyone runs the tour.</h2>
+          <p>
+            <code>@annetaan/leko-codegen</code> collects every signal your app reports with <code
+              >reached()</code
+            > and turns them into a type. A step can only wait for one of them, so a misspelt signal
+            is a compile error, not a tour that waits forever.
+          </p>
+        </div>
+        <div class="typed" id="typed">
+          <pre><code>{'{ '}<span class="tok-key">id</span>: <span class="tok-str">'pay'</span>, <span class="tok-key">awaits</span>: <span class="tok-str squiggle">'ordr-saved'</span>{' }'}</code></pre>
+          <p class="typed-error">
+            <span class="typed-badge">TS2322</span>
+            Type <code>"ordr-saved"</code> is not assignable to type <code
+              >"order-saved" | "profile-filled"</code
+            >.
+          </p>
+        </div>
+      </section>
+
+      <section class="chapter flip">
+        <div class="chapter-copy">
+          <p class="eyebrow">06 · Yours to shape</p>
+          <h2>Styled with CSS. Shipped with nothing else.</h2>
+          <p>
+            Every colour, radius and shadow is a CSS custom property, so the tour looks like your
+            app. And Leko has no runtime dependencies at all.
+          </p>
+        </div>
+        <div class="tiles" id="tiles">
+          <div class="code-card">
+            <p class="code-caption">Your stylesheet</p>
+            <Code code={styling} lang="css" />
+          </div>
+          <div class="stat">
+            <p class="stat-number">0</p>
+            <p class="stat-label">runtime dependencies</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter reveal">
+        <div class="chapter-copy">
+          <p class="eyebrow">One more thing</p>
+          <h2>The light you followed down this page is Leko, too.</h2>
+          <p>
+            Leko Scroll is a spotlight for a long page. No story, no steps, nothing to click: the
+            light moves as the reader scrolls, and the page underneath stays fully usable. It
+            ships in the same package.
+          </p>
+        </div>
+        <div class="code-card" id="scroll-code">
+          <p class="code-caption">This page, more or less</p>
+          <Code code={scroll} lang="ts" />
+        </div>
+      </section>
+
+      <section class="closing" id="closing">
+        <h2>Now try it for real.</h2>
+        <p>The playground runs a Leko tour over a real page. Type, click, and watch it wait for you.</p>
+        <div class="actions">
+          <a class="button primary" href={href('playground/')}>Try the playground</a>
+          <a class="button" href={href('what-leko-is/')}>Get started</a>
+        </div>
+        <p class="notice">
+          Leko is not released yet. Nothing is published beyond a <code>0.0.0</code> placeholder,
+          and the API will change.
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Leko · MIT License</span>
+      <a href="https://github.com/annetaan/leko">GitHub</a>
+    </footer>
+
+    <script>
+      import { createScroll } from '@annetaan/leko/scroll'
+
+      createScroll({
+        targets: [
+          {
+            target: '#why',
+            message: {
+              title: 'A layer, or a hole',
+              body: 'Leko cuts the hole. Nothing sits between the user and the button.',
+            },
+          },
+          {
+            target: '#live',
+            message: {
+              title: 'Go ahead, type',
+              body: 'This light is paint and nothing else. The field under it is live.',
+            },
+          },
+          {
+            target: '#signals',
+            message: {
+              title: 'No click listener',
+              body: 'Nothing in Leko moves a step on a DOM event.',
+            },
+            side: 'top',
+          },
+          {
+            target: '#pages',
+            message: { body: 'Only the name of the next story crosses the page load.' },
+          },
+          {
+            target: '#typed',
+            message: {
+              title: 'Caught at compile time',
+              body: 'A step can only await a name your app reports.',
+            },
+          },
+          {
+            target: '#tiles',
+            message: { body: 'Every colour on this page’s light is a custom property, too.' },
+          },
+          {
+            target: '#scroll-code',
+            message: { title: 'Leko Scroll', body: 'From @annetaan/leko/scroll.' },
+            side: 'top',
+          },
+          { target: '#closing', padding: 0, radius: 24 },
+        ],
+      })
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #f7f5f0;
+    --bg-raised: #ffffff;
+    --ink: #16181d;
+    --ink-soft: #4a4f5c;
+    --ink-faint: #8a8f9c;
+    --line: #e3e0d8;
+    --accent: #e0a526;
+    --accent-ink: #1a1405;
+    --code-bg: #0d1117;
+    --radius: 16px;
+
+    --leko-scroll-scrim-color: rgb(14 16 22 / 0.55);
+    --leko-scroll-halo-outline: 2px solid var(--accent);
+    --leko-scroll-halo-offset: 4px;
+    --leko-scroll-message-bg: var(--bg-raised);
+    --leko-scroll-message-color: var(--ink);
+    --leko-scroll-message-radius: 12px;
+    --leko-scroll-message-max-width: min(300px, calc(100vw - 32px));
+
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --bg-raised: #1a1d24;
+      --ink: #eceae4;
+      --ink-soft: #b3b6bf;
+      --ink-faint: #7c808c;
+      --line: #2a2e37;
+      --accent: #f2c14e;
+      --leko-scroll-scrim-color: rgb(0 0 0 / 0.62);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--bg);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font:
+      17px/1.6 ui-sans-serif,
+      system-ui,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.88em;
+  }
+</style>
+
+<style>
+  /* The header ---------------------------------------------------------- */
+
+  .bar {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px clamp(16px, 4vw, 40px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  }
+
+  .bar-brand {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+    font-size: 20px;
+  }
+
+  .bar-links {
+    display: flex;
+    gap: clamp(14px, 3vw, 28px);
+    font-size: 15px;
+  }
+
+  .bar-links a {
+    text-decoration: none;
+    color: var(--ink-soft);
+  }
+
+  .bar-links a:hover {
+    color: var(--ink);
+  }
+
+  /* The hero ------------------------------------------------------------ */
+
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(32px, 6vw, 80px);
+    padding: 96px clamp(16px, 6vw, 96px) 72px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .wordmark {
+    margin: 0;
+    font-size: clamp(72px, 12vw, 152px);
+    line-height: 0.9;
+    font-weight: 850;
+    letter-spacing: -0.06em;
+  }
+
+  .statement {
+    margin: 20px 0 0;
+    font-family: ui-serif, 'Iowan Old Style', Georgia, serif;
+    font-style: italic;
+    font-size: clamp(28px, 3.6vw, 44px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  .lede {
+    margin: 24px 0 0;
+    max-width: 34em;
+    color: var(--ink-soft);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .button {
+    display: inline-block;
+    padding: 12px 22px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-raised);
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 120ms ease;
+  }
+
+  .button:hover {
+    transform: translateY(-1px);
+  }
+
+  .button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .install {
+    display: inline-block;
+    margin-top: 24px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+
+  .install::before {
+    content: '$ ';
+    color: var(--ink-faint);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    margin: 0;
+    transform: translateX(-50%);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .scroll-hint::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 32px;
+    margin: 10px auto 0;
+    background: linear-gradient(var(--ink-faint), transparent);
+  }
+
+  /* A drawing of the idea: a dimmed window with one clear hole. */
+
+  .hero-art {
+    margin: 0;
+  }
+
+  .mock {
+    position: relative;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.35);
+    overflow: hidden;
+  }
+
+  .mock-bar {
+    display: flex;
+    gap: 6px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mock-bar span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .mock-body {
+    display: grid;
+    gap: 14px;
+    padding: 28px;
+  }
+
+  .mock-line {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--line);
+  }
+
+  .w30 {
+    width: 30%;
+  }
+  .w60 {
+    width: 60%;
+  }
+  .w80 {
+    width: 80%;
+  }
+
+  .mock-field {
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .mock-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+
+  .mock-button {
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  /* The hole: the button's own shadow dims everything around it. */
+  .mock-button.lit {
+    position: relative;
+    z-index: 1;
+    box-shadow:
+      0 0 0 6px var(--bg-raised),
+      0 0 0 2000px rgb(14 16 22 / 0.62);
+  }
+
+  .cursor {
+    position: absolute;
+    z-index: 2;
+    right: 44px;
+    bottom: 12px;
+    fill: #fff;
+    stroke: #16181d;
+    stroke-width: 1.5;
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.4));
+  }
+
+  /* Chapters ------------------------------------------------------------ */
+
+  .chapter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    align-items: center;
+    gap: clamp(32px, 6vw, 88px);
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(96px, 16vh, 180px) clamp(16px, 6vw, 96px);
+  }
+
+  .chapter.flip .chapter-copy {
+    order: 2;
+  }
+
+  .eyebrow {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+
+  .chapter-copy p:not(.eyebrow) {
+    margin: 20px 0 0;
+    color: var(--ink-soft);
+  }
+
+  /* 01: a layer, or a hole. */
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .compare-card {
+    padding: 20px;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+  }
+
+  .pane {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 150px;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+      -45deg,
+      var(--bg),
+      var(--bg) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+    overflow: hidden;
+  }
+
+  .pane-button {
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+  }
+
+  .pane-glass {
+    position: absolute;
+    inset: 20px 30px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.55), rgb(180 200 230 / 0.35));
+    border: 1px solid rgb(255 255 255 / 0.8);
+    box-shadow: inset 0 0 0 1px rgb(120 140 170 / 0.25);
+  }
+
+  .compare-label {
+    margin: 14px 0 0;
+    font-weight: 700;
+  }
+
+  .compare-label span {
+    display: block;
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--ink-faint);
+  }
+
+  /* 02: a live form. */
+
+  .live {
+    display: grid;
+    gap: 18px;
+    padding: 32px;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    font-weight: 600;
+  }
+
+  .live label {
+    display: grid;
+    gap: 8px;
+  }
+
+  .live input[type='text'] {
+    font: inherit;
+    font-weight: 400;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .live input[type='text']:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .live .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+  }
+
+  .live .check input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+  }
+
+  /* Code ---------------------------------------------------------------- */
+
+  .codes,
+  .tiles {
+    display: grid;
+    gap: 16px;
+  }
+
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .code-card {
+    min-width: 0;
+    border-radius: var(--radius);
+    background: var(--code-bg);
+    overflow: hidden;
+  }
+
+  .code-caption {
+    margin: 0;
+    padding: 12px 18px 0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #7d8590;
+  }
+
+  .code-card :global(pre) {
+    margin: 0;
+    padding: 12px 18px 18px;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: auto;
+    background: transparent !important;
+  }
+
+  /* 04: two pages and a load between them. */
+
+  .pages {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .page-card {
+    display: grid;
+    gap: 12px;
+    padding: 20px;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+  }
+
+  .page-card.lit {
+    border-color: var(--accent);
+  }
+
+  .page-url {
+    margin: 0 0 4px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 13px;
+    color: var(--ink-faint);
+  }
+
+  .page-link {
+    margin-top: 8px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .page-step {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .page-arrow {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .page-arrow::after {
+    content: '→';
+    font-size: 28px;
+    line-height: 1;
+    color: var(--ink-soft);
+  }
+
+  /* 05: a compile error, drawn. */
+
+  .typed {
+    min-width: 0;
+    padding: 28px;
+    border-radius: var(--radius);
+    background: var(--code-bg);
+    color: #e6edf3;
+  }
+
+  .typed pre {
+    margin: 0;
+    font-size: 18px;
+    overflow-x: auto;
+  }
+
+  .tok-key {
+    color: #79c0ff;
+  }
+
+  .tok-str {
+    color: #a5d6ff;
+  }
+
+  .squiggle {
+    text-decoration: underline wavy #f85149;
+    text-underline-offset: 5px;
+  }
+
+  .typed-error {
+    margin: 20px 0 0;
+    padding: 14px 16px;
+    border-left: 3px solid #f85149;
+    border-radius: 0 8px 8px 0;
+    background: rgb(248 81 73 / 0.1);
+    font-size: 14px;
+    line-height: 1.55;
+    color: #ffb3ad;
+  }
+
+  .typed-error code {
+    color: #ffdcd7;
+  }
+
+  .typed-badge {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f85149;
+    color: #0d1117;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 06: the zero. */
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 28px;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+  }
+
+  .stat-number {
+    margin: 0;
+    font-size: 80px;
+    font-weight: 850;
+    line-height: 1;
+    letter-spacing: -0.06em;
+    color: var(--accent);
+  }
+
+  .stat-label {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+
+  /* The reveal and the close ------------------------------------------- */
+
+  .reveal .eyebrow {
+    color: var(--ink-faint);
+  }
+
+  .closing {
+    max-width: 880px;
+    margin: clamp(64px, 12vh, 140px) auto 0;
+    padding: clamp(48px, 8vw, 88px) clamp(20px, 6vw, 72px);
+    border-radius: 24px;
+    background: var(--ink);
+    color: var(--bg);
+    text-align: center;
+  }
+
+  .closing h2 {
+    font-family: ui-serif, 'Iowan Old Style', Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .closing > p {
+    margin: 16px auto 0;
+    max-width: 32em;
+    color: color-mix(in srgb, var(--bg) 75%, transparent);
+  }
+
+  .closing .actions {
+    justify-content: center;
+  }
+
+  .closing .button:not(.primary) {
+    background: transparent;
+    border-color: color-mix(in srgb, var(--bg) 35%, transparent);
+    color: var(--bg);
+  }
+
+  .closing .notice {
+    margin-top: 40px;
+    font-size: 14px;
+  }
+
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 48px clamp(16px, 6vw, 96px) 40px;
+    font-size: 14px;
+    color: var(--ink-faint);
+  }
+
+  /* Narrow screens ------------------------------------------------------ */
+
+  @media (max-width: 860px) {
+    .hero,
+    .chapter {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .hero {
+      padding-top: 104px;
+      padding-bottom: 120px;
+    }
+
+    .chapter.flip .chapter-copy {
+      order: 0;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .compare {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pages {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .page-arrow::after {
+      content: '↓';
+    }
+
+    .bar-links a[href^='https'] {
+      display: none;
+    }
+  }
+</style>
