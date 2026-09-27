@@ -800,8 +800,9 @@ declaration file augmenting two interfaces the core exports empty,
   shipped.**
 - The generator asks the compiler rather than the text, so a name kept in a
   constant counts from a file away. A name built at runtime cannot be gathered;
-  the generator prints every such call rather than passing over it, and a
-  project with any of them wants `--loose`.
+  the `leko-signals` command prints every such call rather than passing over
+  it — the Vite plugin does not — and a project with any of them wants
+  `--loose`.
 - **Strict on `awaits`, never on `reached()` — the asymmetry is the design.** A
   name in `awaits` missing from the vocabulary is a step waiting for a report
   nothing in the project makes. It advances for nobody, so it fails to compile,

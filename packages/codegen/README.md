@@ -80,7 +80,7 @@ declare module '@annetaan/leko' {
   }
 }
 
-export {}
+export type GeneratedByLekoCodegen = true
 ```
 
 ## What it reads
@@ -93,13 +93,15 @@ leko.reached('order-saved')          // ✓
 leko.reached(ORDER_SAVED)            // ✓  a const, in another file
 leko.reached(oneOfTwo)               // ✓  both arms, when the type is narrowed
 queue.reached('not-a-signal')        // ✗  a `reached` that is not Leko's
-leko.reached(`step-${i}`)            // ✗  reported to you instead
+leko.reached(`step-${i}`)            // ✗  listed by `leko-signals` instead
 ```
 
 The last line is the one to know about. A name built at runtime cannot be
-gathered, so the vocabulary is missing it. The generator prints every call it
-could not read. **A project with any of those wants `--loose`**, or a hand
-written block naming what they report.
+gathered, so the vocabulary is missing it. `leko-signals` prints every call it
+could not read, with its file and line. The Vite plugin does not, so a project
+on the plugin runs `leko-signals --check` with the plugin's `out` to see them.
+**A project with any of those wants `--loose`**, or a hand written block naming
+what they report.
 
 ```ts
 // Anywhere. Declarations merge, and this file is a module because of the export.

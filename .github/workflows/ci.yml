@@ -50,6 +50,11 @@ jobs:
       # edit that breaks every citation of it at once, silently, in files
       # nobody opened.
       - run: pnpm check:citations
+      # The reference is written by hand, so a name the entry point exports or a
+      # property `leko.css` declares after a page was written still builds with
+      # no page saying it exists, and so does a page documenting a renamed one.
+      # `scripts/check-reference.mjs` says what counts as documented.
+      - run: pnpm check:reference
       # Quint's own download of its evaluator goes without a token, and a shared
       # runner's address is past the anonymous limit often enough to fail a run
       # on that alone (`packages/machine/model/README.md`, **Running it**). This
