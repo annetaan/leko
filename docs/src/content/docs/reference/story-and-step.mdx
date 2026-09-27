@@ -34,7 +34,7 @@ runs at a time.
 | `onEnter` | `(story) => void`       | no       |
 | `onLeave` | `(story, next) => void` | no       |
 
-### id
+### story.id
 
 The name the story goes by outside Leko: in a `LekoProblem` a diagnostic hands
 over, and in whatever `onStep` reports to. Leko never reads it to run a story,
@@ -77,7 +77,7 @@ while the tour stands on that step. The arriving document takes it up with
 [`pickUp`](../leko/#pickup) —
 [A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
 
-### onEnter
+### story.onEnter
 
 ```ts
 onEnter?: (story: LekoStory) => void
@@ -93,7 +93,7 @@ whose setup has to finish before anything is measured starts the work here and
 puts a step that waits at the top of `steps`. A throw ends the tour, and
 `onLeave` still runs.
 
-### onLeave
+### story.onLeave
 
 ```ts
 onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
@@ -136,7 +136,7 @@ number —
 | `onEnter`  | `(step) => void`                  | —          |
 | `onLeave`  | `(step, next) => void`            | —          |
 
-### id
+### step.id
 
 Required. The name the step goes by outside Leko: in a `LekoProblem`, in
 whatever counts steps from `onStep`, and as the key for anything an
@@ -202,7 +202,7 @@ declares either shape does not. That is the only thing deciding whether the
 control appears —
 [The next control](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-next-control).
 
-### onEnter
+### step.onEnter
 
 ```ts
 onEnter?: (step: LekoStep) => void
@@ -220,7 +220,7 @@ here —
 A throw ends the tour, and `onLeave` still runs, because a handler that failed
 halfway may already have set something up.
 
-### onLeave
+### step.onLeave
 
 ```ts
 onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
