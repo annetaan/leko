@@ -16,6 +16,10 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/annetaan/leko' }],
       sidebar: [
         { label: 'Start here', items: [{ label: 'What Leko is', slug: 'what-leko-is' }] },
+        {
+          label: 'Guides',
+          items: [{ label: 'React, Vue and a plain script', slug: 'guides/frameworks' }],
+        },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
         { label: 'Proving the ground', items: [{ label: 'Playground', slug: 'playground' }] },
         {

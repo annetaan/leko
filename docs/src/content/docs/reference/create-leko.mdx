@@ -228,18 +228,27 @@ renderClose?: (root: HTMLElement, stop: () => void) => (() => void) | void
 ```
 
 Draw the control that ends the tour yourself. Leko puts `root` in a corner no
-cutout covers and leaves it empty. Fill it, wire whatever you draw to `stop`,
-and hand back a function that undoes what you did: it runs when the tour ends.
+cutout covers and leaves it empty, and places it again whenever what you draw
+changes size
+([The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out)).
+Fill it, wire whatever you draw to `stop`, and hand back a function that undoes
+what you did: it runs when the tour ends.
 
-```tsx
+```ts
 createLeko({
   renderClose: (root, stop) => {
-    const app = createRoot(root)
-    app.render(<SkipTour onClick={stop} />)
-    return () => app.unmount()
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = 'Skip the tour'
+    button.addEventListener('click', stop)
+    root.append(button)
+    return () => button.remove()
   },
 })
 ```
+
+To draw it with React or Vue, inside your app's providers, see
+[Drawing the close control inside your app](../../guides/frameworks/#drawing-the-close-control-inside-your-app).
 
 The function is handed `stop` rather than the instance, because ending the
 tour is the only thing this control may do. There is no option that draws
