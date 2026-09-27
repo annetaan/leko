@@ -108,7 +108,7 @@ pnpm typecheck       # tsc --noEmit across workspace packages, and the type test
 pnpm lint            # oxlint
 pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
-pnpm check:pack      # what a published package would import, and whether it could
+pnpm check:pack      # what a published package would import, and whether its manifest's paths are packed
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:reference # whether every name packages/leko/src/index.ts exports and --leko-* property is on a reference page
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
@@ -162,7 +162,7 @@ carries the names alone, so an edit that moves a line changes nothing in it.
 
 ## What `@annetaan/leko` ships
 
-`packages/leko` is the only package here that publishes. `packages/types`,
+`packages/leko` and `packages/codegen` are the packages here that publish. `packages/types`,
 `packages/machine`, `packages/presenter`, `packages/spotlight` and
 `packages/scroll` are `private: true` and stay that way.
 
@@ -186,10 +186,26 @@ is the one behind `@annetaan/leko/scroll`. All five are workspace
 `devDependencies` now. What a consumer installs is a single package with no
 runtime dependencies, which is what `packages/leko` promised in the first place.
 
-`pnpm check:pack` is the check. It reads what `npm pack` would send, finds every
-bare import in it, and fails if one names something the manifest does not depend
-on. Run it after anything that changes what a package imports or how it is
-built.
+The second time, the manifest was the problem. Each public package's `exports`
+gives every entry a `development` condition that points into `src/`, which is
+what lets Vitest, the sandbox and the docs site run the core from source. `files`
+leaves `src/` out, so the tarball named files it did not carry, and a consumer's
+Vite dev server, which resolves `development` by default, stopped at `Failed to
+resolve import "@annetaan/leko"`. `vite build` resolves the production entry and
+passed. Following Getting started in an empty Vite project is what found it.
+
+So each public package also has a `publishConfig.exports`, the same tree with
+`development` taken out, and that is the `exports` its tarball carries. pnpm
+writes it into the packed manifest and npm does not, so a package here is
+published with `pnpm publish`, and a `prepublishOnly` script refuses
+`npm publish`.
+
+`pnpm check:pack` is the check for both. It packs each public package with
+`pnpm pack` and reads the tarball. It fails on a bare import the packed
+manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
+names and the tarball does not carry, and on a `publishConfig.exports` that has
+drifted from `exports` with `development` taken out. Run it after anything that
+changes what a package imports, how it is built or what its manifest exports.
 
 ## Before opening a pull request
 

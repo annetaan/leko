@@ -41,9 +41,20 @@
     }
   },
   "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./vite": {
+        "types": "./dist/vite.d.ts",
+        "default": "./dist/vite.js"
+      }
+    },
     "access": "public"
   },
   "scripts": {
+    "prepublishOnly": "node ../../scripts/publish-with-pnpm.mjs",
     "build": "tsc",
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },

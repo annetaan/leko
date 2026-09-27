@@ -1,24 +1,27 @@
 /*
- * Every bare import in a published package has to be something npm will
- * install.
+ * What a published package's tarball carries has to work once it is
+ * installed.
  *
- * This exists because splitting the core broke publishing and nothing noticed.
- * `packages/leko` imported `@annetaan/leko-machine` and
- * `@annetaan/leko-spotlight`, both `private: true` and neither on the registry.
- * Inside the workspace they resolve through pnpm's links and every check
- * passed: the build, the typecheck, 265 tests, three browsers. The failure was
- * only ever visible to somebody who had installed the tarball, and nobody had.
+ * This packs each package the way a release does, with `pnpm pack`, unpacks it
+ * and reads the manifest inside, which is not the one in the workspace. It asks
+ * three questions the workspace cannot. Is every bare import declared as a
+ * dependency? Node builtins, relative paths and the package's own name are
+ * fine; anything else is a package a consumer would be asked to resolve and
+ * would not have. Is every path `main`, `types`, `bin` and `exports` name in
+ * the tarball? And is the packed `exports` the source's with `development`
+ * taken out, so `publishConfig.exports` has not drifted from the tree it
+ * copies? Each is reported per package, and the run fails at the end.
  *
- * So this reads what `npm pack` would actually send, and asks the one question
- * the workspace cannot: is each of these specifiers declared as a dependency?
- * Node builtins are fine, relative paths are fine, and self-references to the
- * package's own name are fine. Anything else is a package a consumer would be
- * asked to resolve and would not have.
+ * Why each question is asked is CONTRIBUTING.md, **What `@annetaan/leko`
+ * ships**. The findings are in `pack.mjs`; this is pnpm, tar and the report.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { builtinModules } from 'node:module'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
+import { unpacked, withoutCondition } from './pack.mjs'
 
 /** `from '…'`, `import '…'`, `import('…')` and `require('…')`, in that order. */
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g
@@ -41,56 +44,86 @@ const projects = JSON.parse(
   execFileSync('pnpm', ['list', '-r', '--depth', '-1', '--json'], { encoding: 'utf8' }),
 )
 
-let failures = 0
-
-for (const project of projects) {
-  const manifest = JSON.parse(readFileSync(join(project.path, 'package.json'), 'utf8'))
-  if (manifest.private) continue
-
-  // `--dry-run` still reports exactly what would go in, and writes nothing.
-  const [packed] = JSON.parse(
-    execFileSync('npm', ['pack', '--dry-run', '--json'], {
-      cwd: project.path,
+/** What `pnpm pack` sends: the packed manifest and every path in the tarball. */
+function pack(dir, into) {
+  const { filename } = JSON.parse(
+    execFileSync('pnpm', ['pack', '--pack-destination', into, '--json'], {
+      cwd: dir,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }),
   )
+  execFileSync('tar', ['-xzf', filename, '-C', into])
+  const root = join(into, 'package')
+  const files = readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name).slice(root.length + 1))
+  return { root, files, manifest: JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) }
+}
 
+/** Every bare import in the packed code that the packed manifest does not depend on. */
+function undeclared({ root, files, manifest }) {
   const declared = new Set([
     manifest.name,
     ...Object.keys(manifest.dependencies ?? {}),
     ...Object.keys(manifest.peerDependencies ?? {}),
     ...Object.keys(manifest.optionalDependencies ?? {}),
   ])
-
   const problems = []
-  for (const entry of packed.files) {
-    if (!CODE.test(entry.path)) continue
-    const file = join(project.path, entry.path)
-    if (!existsSync(file)) continue
-    const source = readFileSync(file, 'utf8')
+  for (const path of files) {
+    if (!CODE.test(path)) continue
+    const source = readFileSync(join(root, path), 'utf8')
     for (const [, specifier] of source.matchAll(SPECIFIER)) {
       if (specifier.startsWith('.') || specifier.startsWith('#')) continue
       if (builtins.has(specifier)) continue
-      const name = packageOf(specifier)
-      if (declared.has(name)) continue
-      problems.push(`${entry.path} imports ${specifier}`)
+      if (declared.has(packageOf(specifier))) continue
+      problems.push(`${path} imports ${specifier}`)
     }
   }
+  return [...new Set(problems)].toSorted()
+}
 
-  if (problems.length === 0) {
-    console.log(`ok  ${manifest.name} — ${packed.files.length} files, nothing undeclared`)
-    continue
+let failures = 0
+
+for (const project of projects) {
+  const source = JSON.parse(readFileSync(join(project.path, 'package.json'), 'utf8'))
+  if (source.private) continue
+
+  const into = mkdtempSync(join(tmpdir(), 'leko-pack-'))
+  try {
+    const packed = pack(project.path, into)
+    const imports = undeclared(packed)
+    const missing = unpacked(packed.manifest, new Set(packed.files))
+    const drifted = !isDeepStrictEqual(
+      packed.manifest.exports,
+      withoutCondition(source.exports, 'development'),
+    )
+
+    if (imports.length === 0 && missing.length === 0 && !drifted) {
+      console.log(
+        `ok  ${source.name} — ${packed.files.length} files, nothing undeclared or missing`,
+      )
+      continue
+    }
+    failures += 1
+    if (imports.length > 0) {
+      console.error(`FAIL ${source.name} would ship imports it does not depend on:`)
+      for (const problem of imports) console.error(`       ${problem}`)
+      console.error('     Declare the package as a dependency, or bundle it in. A workspace')
+      console.error('     link is not a dependency: it resolves here and nowhere a consumer is.')
+    }
+    if (missing.length > 0) {
+      console.error(`FAIL ${source.name} names paths its tarball does not carry:`)
+      for (const { field, target } of missing) console.error(`       ${field} → ${target}`)
+    }
+    if (drifted) {
+      console.error(
+        `FAIL ${source.name}: publishConfig.exports drifted from exports with development taken out`,
+      )
+    }
+  } finally {
+    rmSync(into, { recursive: true, force: true })
   }
-  failures += 1
-  console.error(`FAIL ${manifest.name} would ship imports it does not depend on:`)
-  for (const problem of [...new Set(problems)].toSorted()) console.error(`       ${problem}`)
 }
 
-if (failures > 0) {
-  console.error(
-    '\nEither declare the package as a dependency, or bundle it in. A workspace' +
-      '\nlink is not a dependency: it resolves here and nowhere a consumer is.',
-  )
-  process.exit(1)
-}
+if (failures > 0) process.exit(1)

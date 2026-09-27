@@ -42,9 +42,21 @@
     "./leko.css": "./dist/leko.css"
   },
   "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./scroll": {
+        "types": "./dist/scroll.d.ts",
+        "default": "./dist/scroll.js"
+      },
+      "./leko.css": "./dist/leko.css"
+    },
     "access": "public"
   },
   "scripts": {
+    "prepublishOnly": "node ../../scripts/publish-with-pnpm.mjs",
     "build": "tsdown && cp node_modules/@annetaan/leko-spotlight/src/leko.css dist/leko.css",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p type-tests/bare.tsconfig.json && tsc --noEmit -p type-tests/loose.tsconfig.json && tsc --noEmit -p type-tests/strict.tsconfig.json"
   },
