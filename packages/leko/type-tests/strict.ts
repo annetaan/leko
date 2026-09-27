@@ -58,10 +58,10 @@ export const url: LekoStep = {
  * Where a story is checked, now that `start` is handed one rather than a name.
  *
  * A story written as a plain `const` and passed to `start` later widens
- * `awaits` to `string` before anything looks at it, so the typo is still caught
- * but the error lands on the `start` call rather than on the line that has it.
- * `satisfies` is what keeps both: the literal survives, and the check happens
- * here. This is the form the README teaches, so it is the form that is pinned.
+ * `awaits` to `string` before anything looks at it, so the `start` call fails
+ * to compile whether the name is right or wrong: a correct name is refused the
+ * same way a typo is. `satisfies` is what keeps both: the literal survives, and
+ * the check happens here. This is the form the README teaches, so it is the form that is pinned.
  */
 export const story = {
   id: 'onboarding',

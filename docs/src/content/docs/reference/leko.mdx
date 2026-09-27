@@ -79,8 +79,9 @@ How far into the story the current step sits, counting from `0`, or
 
 What each call does depends on whether a tour is running, and on whether Leko
 is in flight: inside a call into the application, which is a story's or a
-step's `onEnter` or `onLeave`, or the `onStep` report of an ending. A name in
-code is the `LekoProblem` the call reports through `onDiagnostic`.
+step's `onEnter` or `onLeave`, or a report of an ending, meaning its `onStep`
+and the `onDiagnostic` of a `target-lost`. A name in code is the
+[`LekoProblem`](../problems/) the call reports through `onDiagnostic`.
 
 | Call      | Idle                     | Running                   | In flight                   |
 | --------- | ------------------------ | ------------------------- | --------------------------- |
@@ -88,6 +89,10 @@ code is the `LekoProblem` the call reports through `onDiagnostic`.
 | `pickUp`  | starts a matching note   | `tour-running` on a match | `call-refused`              |
 | `reached` | silent                   | advances if awaited       | `signal-dropped` if awaited |
 | `stop`    | nothing                  | ends the tour             | ends the tour               |
+
+In flight wins over the other two columns. An ending reads `'idle'` from its
+first `onLeave` on and stays in flight until its reports have returned, so a
+`start` from inside one is `call-refused`, not a start.
 
 Only `stop` goes through while Leko is in flight. Every other call made from
 inside a handler is dropped rather than saved for later —
@@ -164,8 +169,9 @@ diagnostic and no warning, however many unrelated calls are made. That is what
 lets a call stay in the source in builds where no tour runs —
 [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
 
-`name` is any string. The project's vocabulary is offered as completion and
-never enforced here —
+`name` is a [`LekoSignal`](../signal-types/#lekosignal), which takes any
+string. The project's vocabulary is offered as completion and never enforced
+here —
 [Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
 
 A step that awaits a name is not guarded by `validate`, so a match advances it

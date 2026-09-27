@@ -769,9 +769,12 @@ export interface LekoOptions {
    * story — DESIGN.md argues both under **Saying where the tour got to**.
    *
    * A host that wants the pair keeps the last `step` it was handed. That is a
-   * line of its own state, and it is right by construction: this hook only ever
-   * names a step that was drawn, so a step whose `onEnter` threw on the way in
-   * cannot end up in it.
+   * line of its own state, and it is right by construction: this hook names a
+   * step once it has been handed over to be drawn, and never before its
+   * `onEnter` has returned, so a step whose `onEnter` threw on the way in
+   * cannot end up in it. The last step kept may be one whose target never
+   * turned up. DESIGN.md, **Entry runs outermost first, and the ending mirrors
+   * it, innermost first**.
    *
    * {@link Leko.stop} from in here is never turned down; {@link Leko.start}
    * from in here never runs. DESIGN.md, **One gate, and what it refuses**.
@@ -888,7 +891,11 @@ export interface LekoOptions {
  * DESIGN.md draws the line under **Saying that a call did nothing**.
  */
 export type LekoProblem =
-  /** {@link Leko.start} was given a story with no steps in it, so there is nothing to show. */
+  /**
+   * {@link Leko.start} was given a story with no steps in it, so there is
+   * nothing to show — or a {@link Leko.pickUp} took a note naming a successor
+   * with none.
+   */
   | { kind: 'story-empty'; story: LekoStory }
   /**
    * A signal the step showing was waiting for, reported while that step was
@@ -896,27 +903,31 @@ export type LekoProblem =
    * goes on waiting for something the application has already been through.
    *
    * **The window is one synchronous call wide**, so the only way to land here
-   * is to call `reached()` from inside an `onEnter` or an `onLeave`, on the very
-   * step that awaits the name. The fix is to make the call after the handler
-   * returns. DESIGN.md, **One gate, and what it refuses**.
+   * is to call `reached()` from inside a handler of the arrival at the step
+   * that awaits the name: that step's own `onEnter`, the `onLeave` of the step
+   * before it, or, for a story's first step, the story's `onEnter`. The fix is
+   * to make the call after the handler returns. DESIGN.md, **One gate, and
+   * what it refuses**.
    *
    * On a step that awaits `{ url }` rather than a name, this is a URL change
-   * that landed the same way — from a router that navigates out of the step's
-   * own `onEnter` — and `name` is the pattern as written, flags included:
-   * `String(pattern)`.
+   * that landed the same way — from a router that navigates inside one of those
+   * handlers — and `name` is the pattern as written, flags included:
+   * `String(pattern)`. On a story's first step nothing listens for the URL
+   * until the step is handed over to be drawn, so a navigation before that is
+   * neither heard nor reported.
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
-   * A {@link Leko.start} that arrived while Leko was inside the application,
-   * which is a call made from inside an `onEnter`, an `onLeave`, or the
-   * {@link LekoOptions.onStep} report of an ending. Nothing of the step being
-   * built has been built, so there is nothing there to act on. DESIGN.md,
-   * **One gate, and what it refuses**.
+   * A {@link Leko.start} or a {@link Leko.pickUp} that arrived while Leko was
+   * inside the application, which is a call made from inside an `onEnter`, an
+   * `onLeave`, or a report of an ending: its {@link LekoOptions.onStep}, and
+   * the {@link LekoOptions.onDiagnostic} of a `target-lost`. Nothing of the
+   * step being built has been built, so there is nothing there to act on.
+   * DESIGN.md, **One gate, and what it refuses**.
    *
-   * `start` is the only call that lands here, which is why there is nothing
-   * else on this member to read. `stop()` is never here, and neither is the
-   * next control: a press is not a call a host made, so there is nobody to
-   * tell.
+   * A refused `pickUp` has not touched the note, so the call that goes through
+   * later finds it. `stop()` is never here, and neither is the next control: a
+   * press is not a call a host made, so there is nobody to tell.
    */
   | { kind: 'call-refused' }
   /**

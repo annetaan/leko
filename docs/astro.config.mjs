@@ -24,6 +24,8 @@ export default defineConfig({
             { label: 'createLeko and options', slug: 'reference/create-leko' },
             { label: 'Leko', slug: 'reference/leko' },
             { label: 'Story and step', slug: 'reference/story-and-step' },
+            { label: 'Problems', slug: 'reference/problems' },
+            { label: 'Signal types', slug: 'reference/signal-types' },
           ],
         },
       ],

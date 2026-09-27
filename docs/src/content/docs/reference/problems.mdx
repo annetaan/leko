@@ -1,0 +1,198 @@
+---
+title: Problems
+description: Every LekoProblem onDiagnostic reports — when it is reported, what the tour does next, and the fix.
+---
+
+A `LekoProblem` is what [`onDiagnostic`](../create-leko/#ondiagnostic) is
+handed when a call meant to do something and did not. It is off by default and
+nothing is logged, so a project hears about one only if it asks. The call table
+under [Methods](../leko/#methods) shows which call reports which kind —
+[Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+## LekoProblem
+
+```ts
+type LekoProblem =
+  | { kind: 'story-empty'; story: LekoStory }
+  | { kind: 'signal-dropped'; name: string; step: LekoStep }
+  | { kind: 'call-refused' }
+  | { kind: 'tour-running'; story: LekoStory; running: LekoStory }
+  | { kind: 'target-lost'; step: LekoStep; story: LekoStory }
+  | { kind: 'story-unknown'; id: string }
+```
+
+Six kinds, told apart by `kind`. Narrowing on it gives that kind's fields, so a
+handler asks for the kind it cares about and reads the rest from there.
+
+```ts
+const onDiagnostic = (problem: LekoProblem): void => {
+  if (problem.kind === 'target-lost') {
+    console.warn('[leko] not found:', problem.story.id, problem.step.id)
+  }
+}
+```
+
+| Kind             | Fields             | Reported by             |
+| ---------------- | ------------------ | ----------------------- |
+| `story-empty`    | `story`            | `start`, `pickUp`       |
+| `signal-dropped` | `name`, `step`     | `reached`, a URL change |
+| `call-refused`   | —                  | `start`, `pickUp`       |
+| `tour-running`   | `story`, `running` | `start`, `pickUp`       |
+| `target-lost`    | `step`, `story`    | an arrival, a press     |
+| `story-unknown`  | `id`               | `pickUp`                |
+
+### story-empty
+
+A `start(story)` whose `story.steps` is empty. A `pickUp` lands here too, when
+the note it takes names a successor with no steps. `story` is the story given,
+or the successor `pickUp` found. It is the last thing asked: a call made while
+Leko is inside the application is `call-refused`, and one made while a tour runs
+is `tour-running`, whatever the story holds.
+
+Nothing starts. No handler runs, and `onStep` is not called.
+
+Give the story a step, or do not start it —
+[Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+### signal-dropped
+
+A `reached(name)` naming what the step being entered awaits, made from inside a
+handler of that entry: the step's own `onEnter`, the `onLeave` of the step
+before it, or, for a story's first step, the story's `onEnter`. The tour already
+stands on the arriving step while those run, which is why the name matches it,
+and nothing of that step has been drawn. `name` is the name, and `step` is the
+step that awaits it. A `reached()` from the `onLeave` handlers of an ending is
+not dropped but silent: the tour stands nowhere by then, so nothing awaits it.
+
+A step that awaits `{ url }` lands here the same way, on a same-document
+navigation to a matching URL made from the `onLeave` of the step before it or
+from the step's own `onEnter`. `name` is then the pattern as written, flags
+included: `String(pattern)`. A story's first step is different. Nothing listens
+for the URL until that step is handed over to be drawn, and the URL found then
+is the one a change is measured from, so a navigation made before it, from the
+story's `onEnter` or the step's own, is neither heard nor reported.
+
+The step is drawn as usual and goes on waiting. The signal is dropped rather
+than saved, so a `reached(name)` made after the handler returns moves the step
+on, and without one it waits for ever. A step that awaits `{ url }` waits for
+the next change to a matching URL.
+
+Make the call, or the navigation, after the handler returns. Work that `onEnter`
+starts and that reports when it comes back is fine, because it cannot come back
+before the handler has returned —
+[One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
+
+### call-refused
+
+A `start` or a `pickUp` made while Leko is inside a call into the application:
+a story's `onEnter`, a step's `onEnter`, the `onLeave` of the step being left,
+the `onLeave` handlers of an ending, the `onStep` report of an ending, and the
+`onDiagnostic` report of a `target-lost`, which is part of the ending. An ending
+that hands on through `next` is no different: its report runs before the next
+story goes up. There are no fields.
+
+The call does nothing, and the arrival or the ending around it finishes as
+though it had not been made. A refused `pickUp` has not touched the note, so the
+call that goes through later finds it. `stop()` is never refused. A press on
+the next control in the same window is ignored and reported nowhere, because
+nobody made a call to be told.
+
+Make the call after the handler returns. To go from one story into another,
+give the first a `next`, or call `stop()` and then `start()` from outside any
+handler: `stop()` finishes the whole ending, report included, before it returns.
+Call `pickUp` once per document, outside any handler —
+[One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses)
+and
+[Saying where the tour got to](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-where-the-tour-got-to).
+
+### tour-running
+
+A `start` made while a story runs and Leko is not inside a call into the
+application. That includes the
+`onStep` report of a step, which runs once the arrival is over, and a
+`validate`, an `error` or a `next` function, which run while the tour stands on
+its step. A `pickUp` whose note matches while a story runs lands here too.
+`story` is the story given, and `running` is the one still showing.
+
+Nothing is torn down and no step moves: no `onLeave` runs, and `onStep` is not
+called. After a `pickUp`, the note is gone all the same.
+
+`start` never ends a tour, so call `stop()` and then `start()`. A component that
+builds its story and starts it on every render lands here, and that is the
+likeliest source —
+[Starting a story](https://github.com/annetaan/leko/blob/main/DESIGN.md#starting-a-story).
+
+### target-lost
+
+A step's target was not on the page when it was wanted, by one of two roads.
+`step` is that step, and `story` its story.
+
+- An arrival. The first element of the step's first region is looked for once
+  the step's `onEnter` has returned, and again where a glide into view stops.
+  An element with no box is not found, and neither is one the step's `resolve`
+  rule passes over. When nothing is found it is looked for again on every DOM
+  mutation for 100 ms, and once more as that time runs out, and then the tour
+  is given up.
+- A press on the next control of a step that declares `validate` and no
+  `awaits`. The target is looked for afresh to hand `validate` its element, and
+  a target gone by then ends the tour on the press, with no time to turn up.
+
+Only the step the tour stands on counts. A target given up for a step the tour
+has since left ends nothing.
+
+The tour has already ended by the time this is reported, in this order: the
+page is cleared, the step's `onLeave(step, undefined)` runs, then the story's
+`onLeave(story, undefined)`, then `onStep(undefined, story)`, then this report.
+`next` is not asked, because only a story that ran to the end is followed. On
+an arrival, `onStep` had already named the step, because it is called once the
+step is handed over to be drawn. The report is still part of the ending, so a
+`start` or a `pickUp` from inside it is `call-refused`.
+
+A target that goes away after its step is drawn is not watched, and ends
+nothing until a press on a guarded step asks for it again —
+[What Leko does not do](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-leko-does-not-do).
+
+Have the target rendered by the time the step's `onEnter` returns. A function
+target looks the element up every time it is called and never hands back one it
+held on to: a node that was replaced stays disconnected, and a step pointing at
+it cannot recover. Work that takes longer than a render goes on a waiting step
+in front of this one, with no `target` and an `awaits` —
+[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery)
+and
+[A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+
+### story-unknown
+
+A `pickUp(stories)` took a note this URL answers, and no story in `stories` has
+the `id` the note names. A URL answers when it is not the URL the note was kept
+at and it matches the pattern the step waited for. `id` is the `id` the note
+names. It is reported whether or not a tour is running.
+
+Nothing starts. The note is already gone, so a second `pickUp` finds nothing.
+
+Hand `pickUp` the successor, sharing the story through a module both documents
+import. Or anchor the pattern the previous document's step waited for, so it
+does not match this page —
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+## What is never reported
+
+Some calls do nothing and say nothing, on purpose.
+
+- A `reached()` naming something no step awaits, and any `reached()` while
+  idle. Instrumentation stays in the source, in builds where no tour runs, and
+  it cannot complain about being left there —
+  [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing)
+  and
+  [Signal behavior](https://github.com/annetaan/leko/blob/main/DESIGN.md#signal-behavior).
+- A press on the next control while Leko is inside the application. The control
+  is Leko's own, and no host made a call.
+- `stop()` while idle.
+- A `pickUp` that finds no note, or a note this URL does not answer.
+- A throw from an `onEnter`. The tour ends where it stands, and the error is
+  thrown again from a microtask once the ending has been reported, rather than
+  handed to `onDiagnostic` —
+  [What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
+- A target that goes away after its step is drawn, until a press on a guarded
+  step asks for it —
+  [What Leko does not do](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-leko-does-not-do).

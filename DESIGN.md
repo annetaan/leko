@@ -104,7 +104,9 @@ make:
   in every engine tested, so a router that routes by writing the hash from
   inside a step's own `onEnter` lands inside the gate exactly as one calling
   `pushState` would, and is dropped as `signal-dropped`, the same as a
-  `reached()` would be — **Saying that a call did nothing**. Where the
+  `reached()` would be — **Saying that a call did nothing**. A story's first
+  step is the exception: nothing listens until that step is handed over to be
+  drawn, so a change made before then is not heard at all. Where the
   Navigation API is missing, the fallback is `popstate` and `hashchange`, and
   the spike never exercised a router's own `pushState` on such an engine —
   that path is inaudible to it, by the same page's own account. What is left —

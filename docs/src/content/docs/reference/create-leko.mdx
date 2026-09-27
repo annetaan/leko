@@ -173,9 +173,9 @@ and
 onDiagnostic?: (problem: LekoProblem) => void
 ```
 
-Called when a call meant to do something and did not, with a `LekoProblem`
-saying which. It is off by default and nothing is logged, so a project that
-wants to hear about one says how here —
+Called when a call meant to do something and did not, with a
+[`LekoProblem`](../problems/) saying which. It is off by default and nothing is
+logged, so a project that wants to hear about one says how here —
 [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
 
 ```ts

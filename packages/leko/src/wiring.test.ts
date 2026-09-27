@@ -1822,6 +1822,32 @@ test('a route pushed while the first step is still retrying for its target advan
   expect(leko.step?.id).toBe('second')
 })
 
+test("a route pushed from inside the first step's onEnter is not heard, and nothing is reported", () => {
+  // A story's first step — DESIGN.md, **A URL is a signal the page reports**,
+  // and `DomPresenter.watchNavigation`. The same push from a later step is
+  // `signal-dropped`, which `machine.test.ts` pins.
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const problems: LekoProblem[] = []
+  const leko = start(
+    [
+      {
+        id: 'first',
+        target: () => target,
+        awaits: { url: /^\/checkout(?:[/?#]|$)/ },
+        onEnter: () => history.pushState({}, '', '/checkout'),
+      },
+      { id: 'second', target: () => target },
+    ],
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+
+  expect(leko.step?.id).toBe('first')
+  expect(problems).toEqual([])
+
+  history.pushState({}, '', '/checkout?again')
+  expect(leko.step?.id).toBe('second')
+})
+
 test('the pattern sees the query and the hash, so a step may wait for either', () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = start([

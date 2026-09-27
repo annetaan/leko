@@ -188,6 +188,9 @@ What this step waits for, in one of two shapes.
 - `{ url }`, a [`LekoUrlAwait`](#lekourlawait): the step moves on when the
   page's own URL changes to match, with no call to make.
 
+Which names compile is [`LekoKnownSignal`](../signal-types/#lekoknownsignal):
+any string until the project has a vocabulary.
+
 The call site names what happened in the application and never which step
 should move, so steps can be inserted or reordered and the call still fires at
 the moment it always meant —
@@ -282,7 +285,7 @@ a hole this step does not cut, and nothing else happens —
 
 If that element is not on the page when the step arrives, it is waited for a
 moment, even where the rest of the region is there, and if it does not turn up
-the tour ends with `target-lost` —
+the tour ends with [`target-lost`](../problems/#target-lost) —
 [Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
 
 ### resolve

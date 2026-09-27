@@ -1,0 +1,191 @@
+---
+title: Signal types
+description: The two interfaces a project fills with its signal names, the two types derived from them, and the generator that fills them from the reached() calls.
+---
+
+`reached(name)` reports a name and a step's `awaits` waits for one, and both
+are strings. A typo compiles on either side, and the step waits: a name nothing
+awaits is silent, so nothing says why. Leko exports two interfaces a project
+fills with its names, both empty on purpose, and two types derived from them,
+one for each side. `@annetaan/leko-codegen` fills the interfaces from the calls,
+so nobody keeps the list —
+[Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
+
+## Three states
+
+What the two interfaces hold decides what each side accepts. A name that is
+hinted is offered as completion, and nothing more.
+
+| State  | `LekoSignals` | `LekoStrict`   | `awaits` takes           | `reached()` takes        |
+| ------ | ------------- | -------------- | ------------------------ | ------------------------ |
+| bare   | empty         | anything       | any string               | any string               |
+| loose  | names         | empty          | any string, names hinted | any string, names hinted |
+| strict | names         | `strict: true` | the names only           | any string, names hinted |
+
+Bare is nothing augmented. It is where every project starts, and where one that
+never runs the generator stays, with nothing to import or configure. A
+generator run that read no name ends here too: the file still declares
+`LekoStrict`, but an empty `LekoSignals` is asked first.
+
+Loose is a vocabulary with no promise that it is complete.
+`leko-signals --loose` writes it, and so does `lekoSignals({ strict: false })`. A
+`LekoSignals` written by hand, with no `LekoStrict`, is loose too.
+
+Strict is what the generator writes unless it is told otherwise. A name in
+`awaits` that is not in `LekoSignals` stops compiling, and `reached()` is the
+same as under loose.
+
+## LekoSignals
+
+```ts
+interface LekoSignals {}
+```
+
+The signal names the project reports, as its keys. The generator writes it from
+the `reached()` calls. It can be augmented by hand as well, which is the way to
+name a signal built at runtime, one no scan can read:
+
+```ts
+declare module '@annetaan/leko' {
+  interface LekoSignals {
+    'step-1': true
+  }
+}
+
+export {}
+```
+
+Augment `@annetaan/leko`, the package name, and not a file inside it. A block
+written by hand merges with the generated one, and both apply. The value side
+is unused; `true` is the shortest thing to write.
+
+The file doing this has to be a module, with an `import` or an `export` of its
+own, and it has to be inside the tsconfig's `include`. Otherwise nothing
+applies, no completion appears, and nothing says why —
+[Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
+
+## LekoStrict
+
+```ts
+interface LekoStrict {}
+```
+
+Augment this and a name in `awaits` that `LekoSignals` does not hold stops
+compiling. It is empty on purpose, so nothing tightens by surprise. Any member
+at all turns it on, and the generator writes `strict: true`:
+
+```ts
+declare module '@annetaan/leko' {
+  interface LekoStrict {
+    strict: true
+  }
+}
+
+export {}
+```
+
+It does nothing while `LekoSignals` is empty, and it never reaches `reached()`.
+The generator writes it because its list came from the code, so a name missing
+from it is a name nothing reports. Turning it on over a list kept by hand makes
+that promise about the list rather than about the code —
+[Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
+
+## LekoKnownSignal
+
+```ts
+type LekoKnownSignal = [keyof LekoSignals] extends [never]
+  ? string
+  : [keyof LekoStrict] extends [never]
+    ? keyof LekoSignals | (string & {})
+    : keyof LekoSignals
+```
+
+What a step's [`awaits`](../story-and-step/#awaits) takes as a name: any string
+while `LekoSignals` is empty, the names and any other string while it is loose,
+and the names alone under `LekoStrict`. `(string & {})` is a string the
+compiler does not fold the names into, so an editor still offers them while any
+string passes. The `{ url }` shape of `awaits` is not a name, and `LekoStrict`
+leaves it alone.
+
+Under strict, write a story with `satisfies LekoStory`:
+
+```ts
+const story = {
+  id: 'onboarding',
+  steps: [{ id: 'save', target: 'button[type="submit"]', awaits: 'order-saved' }],
+} satisfies LekoStory
+```
+
+That keeps the literal, and checks each step where it is written. A story
+written as a plain `const` has `awaits` widened to `string` before anything
+checks it, and then it does not compile on the `start` call, whether the name
+is right or wrong. `satisfies LekoStory`, or an annotation such as
+`const save: LekoStep`, is what keeps the name a name.
+
+## LekoSignal
+
+```ts
+type LekoSignal = [keyof LekoSignals] extends [never] ? string : keyof LekoSignals | (string & {})
+```
+
+What [`reached()`](../leko/#reached) takes: every string, always, with the
+project's names offered. `LekoStrict` never reaches it. A `reached()` call is
+instrumentation that stays in the source, in builds where no tour runs, and a
+type error on it would talk somebody into deleting the call the vocabulary is
+gathered from —
+[Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
+
+## Gathering the names
+
+`@annetaan/leko-codegen` writes a declaration file that augments both
+interfaces. With Vite, its plugin writes the file before a build and keeps it
+current while the dev server runs:
+
+```ts
+import { lekoSignals } from '@annetaan/leko-codegen/vite'
+
+export default defineConfig({
+  plugins: [lekoSignals({ out: 'src/leko-signals.d.ts' })],
+})
+```
+
+Without Vite, the command does the same once:
+
+```sh
+leko-signals --out src/leko-signals.d.ts
+```
+
+It asks the TypeScript compiler what each argument can be, rather than reading
+the text. A name kept in a `const` counts, from another file too, and a value
+narrowed to a union of literals gives each of its arms. A `reached` on anything
+that is not Leko's is not counted. Anything whose type is plain `string` cannot
+be read: a `let`, a function parameter, a template with a hole in it.
+
+Only the command prints the calls it could not read, with the file and line of
+each; the Vite plugin does not. A project with any such call wants `--loose`,
+or a block written by hand naming what they report.
+
+What it writes, trimmed:
+
+```ts
+// Generated by @annetaan/leko-codegen. Do not edit.
+
+declare module '@annetaan/leko' {
+  interface LekoSignals {
+    'order-saved': true
+  }
+
+  interface LekoStrict {
+    strict: true
+  }
+}
+
+export type GeneratedByLekoCodegen = true
+```
+
+The export is what makes the file a module. Commit the file: it holds the names
+alone, sorted, so it changes only when a signal is added or removed, and a fresh
+clone type-checks before anybody has run anything. `leko-signals --check` writes
+nothing and exits 1 when the file is out of date, for CI. The rest of the
+options are in the
+[package's README](https://github.com/annetaan/leko/blob/main/packages/codegen/README.md).
