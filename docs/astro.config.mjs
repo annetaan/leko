@@ -18,6 +18,13 @@ export default defineConfig({
         { label: 'Start here', items: [{ label: 'What Leko is', slug: 'what-leko-is' }] },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
         { label: 'Proving the ground', items: [{ label: 'Playground', slug: 'playground' }] },
+        {
+          label: 'Reference',
+          items: [
+            { label: 'createLeko and options', slug: 'reference/create-leko' },
+            { label: 'Leko', slug: 'reference/leko' },
+          ],
+        },
       ],
       customCss: ['./src/styles/docs.css'],
       // The scrim covers the page and the message sits beside the cutout, so a

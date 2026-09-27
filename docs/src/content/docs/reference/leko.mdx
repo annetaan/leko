@@ -1,0 +1,220 @@
+---
+title: Leko
+description: The tour instance createLeko returns — the four getters that say where it is, the four methods an application calls on it, and the LekoState they report.
+---
+
+A `Leko` is the instance [`createLeko`](../create-leko/) returns. One instance
+holds every story an application has and shows one of them at a time. It is
+exported as a type only, so an application gets one from `createLeko` and never
+from `new`.
+
+## Leko
+
+```ts
+declare class Leko {
+  get state(): LekoState
+  get story(): LekoStory | undefined
+  get step(): LekoStep | undefined
+  get index(): number | undefined
+  start(story: LekoStory): void
+  pickUp(stories: LekoStory[]): void
+  reached(name: LekoSignal): void
+  stop(): void
+}
+```
+
+Four getters that say where the tour is, and four methods an application calls
+to move it. There is nothing else on the instance.
+
+## Getters
+
+| Getter  | Type                     | While idle  |
+| ------- | ------------------------ | ----------- |
+| `state` | `LekoState`              | `'idle'`    |
+| `story` | `LekoStory \| undefined` | `undefined` |
+| `step`  | `LekoStep \| undefined`  | `undefined` |
+| `index` | `number \| undefined`    | `undefined` |
+
+All four are snapshots, and there is nothing to subscribe to. `onStep` reports
+every step once it has been drawn, and every ending, so a host that draws its
+own progress listens there and sees each position the tour settles on —
+[There is nothing to subscribe to](https://github.com/annetaan/leko/blob/main/DESIGN.md#there-is-nothing-to-subscribe-to).
+
+The getters change earlier than that. `step` and `index` name a step from the
+moment it begins to be entered, and `state` reads `'running'` before the
+story's own `onEnter` runs, so a step whose `onEnter` throws or whose target is
+never found is read here and never reported.
+
+### state
+
+Whether a story is running, as a [`LekoState`](#lekostate).
+
+### story
+
+The story being shown, or `undefined` while idle. It is the object the
+application passed to `start`, not a copy, so `story.steps.length` is the total
+a progress readout counts against. Adding to or reordering `steps` while the
+story runs moves the ground under [`index`](#index).
+
+### step
+
+The step being shown, or `undefined` while idle.
+
+### index
+
+How far into the story the current step sits, counting from `0`, or
+`undefined` while idle. Read this rather than searching `story.steps` for
+`step`: a step is a plain object, a story may hold the same one twice, and
+`indexOf` would find the first of them.
+
+## Methods
+
+| Method    | Argument      | Returns |
+| --------- | ------------- | ------- |
+| `start`   | `LekoStory`   | `void`  |
+| `pickUp`  | `LekoStory[]` | `void`  |
+| `reached` | `LekoSignal`  | `void`  |
+| `stop`    | —             | `void`  |
+
+What each call does depends on whether a tour is running, and on whether Leko
+is in flight: inside a call into the application, which is a story's or a
+step's `onEnter` or `onLeave`, or the `onStep` report of an ending. A name in
+code is the `LekoProblem` the call reports through `onDiagnostic`.
+
+| Call      | Idle                     | Running                   | In flight                   |
+| --------- | ------------------------ | ------------------------- | --------------------------- |
+| `start`   | starts, or `story-empty` | `tour-running`            | `call-refused`              |
+| `pickUp`  | starts a matching note   | `tour-running` on a match | `call-refused`              |
+| `reached` | silent                   | advances if awaited       | `signal-dropped` if awaited |
+| `stop`    | nothing                  | ends the tour             | ends the tour               |
+
+Only `stop` goes through while Leko is in flight. Every other call made from
+inside a handler is dropped rather than saved for later —
+[One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
+
+### start
+
+```ts
+start(story: LekoStory): void
+```
+
+Shows `story` from its first step. There is no way to begin anywhere else, and
+no way back to a step already left: a tour somebody wants to redo part of is a
+shorter story —
+[A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+
+This never ends a tour. Called while one is running, it leaves that tour where
+it is and reports `tour-running`, naming the story it was given and the one
+still showing. Moving to another story is two calls, and the second goes
+through because `stop` finishes the whole ending before it returns:
+
+```ts
+leko.stop()
+leko.start(other)
+```
+
+A story that leads into another when it finishes says so itself, with `next`,
+rather than through this call. The switch cuts rather than morphs.
+
+Every way this call comes to nothing is reported through `onDiagnostic`, with
+one exception: when the story's own `onEnter` throws, the error is thrown again
+from `start` instead. `id` is not read, so a fresh object with the same `id` is
+a fresh story —
+[Starting a story](https://github.com/annetaan/leko/blob/main/DESIGN.md#starting-a-story).
+
+### pickUp
+
+```ts
+pickUp(stories: LekoStory[]): void
+```
+
+Takes up what a previous document handed on, if it handed on anything. A story
+whose last step waits for a URL and names a `next` leaves a note naming that
+successor as the page unloads, and this call in the next document reads it —
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+Call it once per document. A call Leko accepts takes the note and removes it,
+whatever it finds, so a second call finds nothing.
+
+- Nothing kept, or a note this page's URL does not answer to, is silence. A
+  URL answers when it matches the pattern the step waited for and is not the
+  URL the note was kept at.
+- A note naming no story in `stories` reports `story-unknown`, with the `id` it
+  named.
+- A note that matches while a tour is running starts nothing, and reports
+  `tour-running` the way `start` would.
+- A note that matches while idle starts the successor from its first step,
+  never part-way.
+
+A call made in flight reports `call-refused` before the note is touched, and
+the note stays for the call that goes through a moment later.
+
+### reached
+
+```ts
+reached(name: LekoSignal): void
+```
+
+Reports that something happened in the application. The step showing moves on
+if it awaits this `name`, and nothing happens otherwise: no error, no
+diagnostic and no warning, however many unrelated calls are made. That is what
+lets a call stay in the source in builds where no tour runs —
+[Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+`name` is any string. The project's vocabulary is offered as completion and
+never enforced here —
+[Gathering the vocabulary from the call sites](https://github.com/annetaan/leko/blob/main/DESIGN.md#gathering-the-vocabulary-from-the-call-sites).
+
+A step that awaits a name is not guarded by `validate`, so a match advances it
+straight away. A step that awaits a URL is never moved by this call.
+
+A match made while the awaiting step is being entered is dropped and reported
+as `signal-dropped`, and the step goes on waiting. That is a call from the
+step's own `onEnter`, from the `onLeave` of the step before it, or, for a first
+step, from the story's `onEnter`. Make the call after the handler returns.
+
+### stop
+
+```ts
+stop(): void
+```
+
+Ends the tour. The ending is reported through `onStep`, with `step` as
+`undefined`, before this call returns, so whatever draws the progress hears it
+even though the host that called `stop` already knows.
+
+While idle it does nothing, so the ending is reported once however many times
+this is called. It is the one call that goes through in flight: a `stop()` from
+inside `onEnter` ends the run inside the call that was entering the step. From
+inside the `onLeave` or the report of an ending there is nothing left to end.
+
+## LekoState
+
+```ts
+type LekoState = 'idle' | 'running'
+```
+
+What [`state`](#state) answers.
+
+| Value       | Meaning             |
+| ----------- | ------------------- |
+| `'idle'`    | no story is running |
+| `'running'` | one is              |
+
+A story is `'running'` from the moment `start` accepts it until its teardown
+begins, before any of the teardown's `onLeave` handlers run, and `story`,
+`step` and `index` are `undefined` exactly when `state` is `'idle'`. It says
+nothing about what the screen is doing: a step animating in, a target being
+looked for again and a step waiting for its signal all read `'running'`.
+
+So a teardown reads `'idle'` while it is still refusing calls. The tour is
+over by the time the teardown's `onLeave` handlers and the `onStep` report of
+the ending run, so a handler reading `state` there is told the truth, and a
+`start()` from inside one is still refused until that report has returned. A
+step's `onLeave` on a move to the next step runs while the story is
+`'running'`.
+
+`onStep` says the same once the first step is drawn, and
+`onStep: (step) => setTourRunning(step !== undefined)` is all a host needs to
+stand back while a tour is up —
+[`state` is derived](https://github.com/annetaan/leko/blob/main/DESIGN.md#state-is-derived).

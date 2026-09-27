@@ -134,8 +134,8 @@ export class Leko {
   /**
    * Report that something happened in the application.
    *
-   * Advances the step that is waiting for this name, after `validate`, and does
-   * nothing whatsoever otherwise — no error, and no warning on every unrelated
+   * Advances the step that is waiting for this name, which `validate` does not
+   * guard, and does nothing whatsoever otherwise — no error, and no warning on every unrelated
    * call. `name` is any string, always: the project's vocabulary is offered as
    * completion and never enforced here. DESIGN.md argues the silence under
    * **Saying that a call did nothing** and the asymmetry under **Gathering the
