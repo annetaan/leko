@@ -41,9 +41,9 @@ const scroll = `import { createScroll } from '@annetaan/leko/scroll'
 
 createScroll({
   targets: [
-    { target: '#why-chapter' },
+    { target: '#why-copy' },
     { target: '#why', message: { title: 'A layer, or a hole' } },
-    { target: '#signals-chapter' },
+    { target: '#signals-copy' },
     { target: '#signals', message: { title: 'No click listener' } },
   ],
 })`
@@ -109,8 +109,8 @@ createScroll({
       </section>
 
       <section class="chapter">
-        <div class="chapter-body" id="why-chapter">
-          <div class="chapter-copy">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="why-copy">
             <p class="eyebrow">01 · Why another tour</p>
             <h2>Every other tour puts glass over the button.</h2>
             <p>
@@ -137,9 +137,9 @@ createScroll({
         </div>
       </section>
 
-      <section class="chapter flip">
-        <div class="chapter-body" id="signals-chapter">
-          <div class="chapter-copy">
+      <section class="chapter">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="signals-copy">
             <p class="eyebrow">02 · Signals</p>
             <h2>A step ends when something really happened.</h2>
             <p>
@@ -162,8 +162,8 @@ createScroll({
       </section>
 
       <section class="chapter">
-        <div class="chapter-body" id="typed-chapter">
-          <div class="chapter-copy">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="typed-copy">
             <p class="eyebrow">03 · Typed signals</p>
             <h2>Typos are caught before anyone runs the tour.</h2>
             <p>
@@ -185,9 +185,9 @@ createScroll({
         </div>
       </section>
 
-      <section class="chapter flip">
-        <div class="chapter-body" id="tiles-chapter">
-          <div class="chapter-copy">
+      <section class="chapter">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="tiles-copy">
             <p class="eyebrow">04 · Yours to shape</p>
             <h2>Styled with CSS. Shipped with nothing else.</h2>
             <p>
@@ -209,8 +209,8 @@ createScroll({
       </section>
 
       <section class="chapter reveal">
-        <div class="chapter-body" id="scroll-chapter">
-          <div class="chapter-copy">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="scroll-copy">
             <p class="eyebrow">One more thing</p>
             <h2>The light you followed down this page is Leko, too.</h2>
             <p>
@@ -250,7 +250,7 @@ createScroll({
 
       createScroll({
         targets: [
-          { target: '#why-chapter' },
+          { target: '#why-copy' },
           {
             target: '#why',
             message: {
@@ -258,7 +258,7 @@ createScroll({
               body: 'Leko cuts the hole. Press Save: nothing sits between you and the button.',
             },
           },
-          { target: '#signals-chapter' },
+          { target: '#signals-copy' },
           {
             target: '#signals',
             message: {
@@ -266,7 +266,7 @@ createScroll({
               body: 'Nothing in Leko moves a step on a DOM event.',
             },
           },
-          { target: '#typed-chapter' },
+          { target: '#typed-copy' },
           {
             target: '#typed',
             message: {
@@ -274,12 +274,12 @@ createScroll({
               body: 'A step can only await a name your app reports.',
             },
           },
-          { target: '#tiles-chapter' },
+          { target: '#tiles-copy' },
           {
             target: '#tiles',
             message: { body: 'Every colour on this page’s light is a custom property, too.' },
           },
-          { target: '#scroll-chapter' },
+          { target: '#scroll-copy' },
           {
             target: '#scroll-code',
             message: { title: 'Leko Scroll', body: 'From @annetaan/leko/scroll.' },
@@ -638,12 +638,14 @@ createScroll({
   .chapter-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    align-items: center;
-    gap: clamp(32px, 6vw, 88px);
+    align-items: start;
+    column-gap: clamp(32px, 6vw, 88px);
+    row-gap: 32px;
   }
 
-  .chapter.flip .chapter-copy {
-    order: 2;
+  .chapter-body > :not(.chapter-copy) {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .eyebrow {
@@ -952,8 +954,9 @@ createScroll({
       padding-bottom: 120px;
     }
 
-    .chapter.flip .chapter-copy {
-      order: 0;
+    .chapter-body > :not(.chapter-copy) {
+      grid-column: auto;
+      grid-row: auto;
     }
   }
 
