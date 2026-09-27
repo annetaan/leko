@@ -1,7 +1,8 @@
 /*
  * Optional. Leko sets everything structural inline, so it renders correctly
  * without this file — these are the knobs, written out so they are findable.
- * Override them anywhere: on :root, on a container, per theme.
+ * Override them on :root or per theme, not on a container around the target,
+ * which does not reach the message or the close control.
  */
 :root {
   /*
@@ -63,9 +64,9 @@
   --leko-message-z: 10000;
   /*
    * How far above the foot of the room the message docks — the viewport, less
-   * whatever the host named as its own chrome. Only used where the browser
-   * cannot do anchor positioning, which is the one case the message is not
-   * beside its cutout at all.
+   * whatever the host named as its own chrome. The message docks where it has
+   * no cutout to sit beside: on a step with no target, and on every step where
+   * the browser cannot do anchor positioning.
    */
   --leko-message-dock: 24px;
 
@@ -80,6 +81,10 @@
   --leko-close-padding: 6px 14px;
   --leko-close-radius: 6px;
   --leko-close-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
-  /* Above the message, so a box landing on top still leaves the way out. */
+  /*
+   * Stacking order of the control, consulted only where the top layer is
+   * unavailable. Above the message's there, so a box landing on top still
+   * leaves the way out.
+   */
   --leko-close-z: 10001;
 }

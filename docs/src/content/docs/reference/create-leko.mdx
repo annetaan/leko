@@ -120,8 +120,9 @@ the glide stops there.
 
 What the halo does while a morph carries its hole somewhere else.
 
-- `'return'` fades the frames out in flight, over `--leko-halo-fade`, and back
-  in with the holes they frame.
+- `'return'` fades the frames out in flight, over
+  [`--leko-halo-fade`](../css-custom-properties/#the-halo), and back in with
+  the holes they frame.
 - `'follow'` keeps them on for the whole trip, and `data-open` flips as the
   morph starts.
 
@@ -216,8 +217,8 @@ did not open.
 The words on the control that ends the tour. There is always such a control
 and no way to turn it off, on every step, whatever the step `awaits`. What a
 host may change is what it says and what it looks like: restyle it with the
-`--leko-close-*` custom properties, or draw it yourself with
-[`renderClose`](#renderclose) —
+[`--leko-close-*` custom properties](../css-custom-properties/#the-way-out), or
+draw it yourself with [`renderClose`](#renderclose) —
 [The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
 
 ### renderClose

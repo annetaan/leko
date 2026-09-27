@@ -26,6 +26,7 @@ export default defineConfig({
             { label: 'Story and step', slug: 'reference/story-and-step' },
             { label: 'Problems', slug: 'reference/problems' },
             { label: 'Signal types', slug: 'reference/signal-types' },
+            { label: 'CSS custom properties', slug: 'reference/css-custom-properties' },
           ],
         },
       ],
