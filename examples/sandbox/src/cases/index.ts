@@ -3,6 +3,7 @@ import { acrossAPageLoad } from './across-a-page-load.js'
 import { adjacentColumns } from './adjacent-columns.js'
 import { asyncCompletion } from './async-completion.js'
 import { branching } from './branching.js'
+import { closeThroughAPortal } from './close-through-a-portal.js'
 import { fixedChrome } from './fixed-chrome.js'
 import { followALink } from './follow-a-link.js'
 import { formValidation } from './form-validation.js'
@@ -60,6 +61,7 @@ export const cases: Case[] = [
   stickyHeader,
   messageSides,
   hostChrome,
+  closeThroughAPortal,
   targetNotThereYet,
   hiddenTarget,
   whichMatch,
