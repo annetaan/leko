@@ -6,10 +6,13 @@ import { href } from '../lib/href.ts'
  * The front page, outside Starlight on purpose: a landing page wants the whole
  * width and a header of its own, and the docs keep Starlight's.
  *
- * Leko Scroll is the only thing that runs here, and scrolling is the only
- * thing it asks of a reader. Leko itself is shown, not run: the playground is
- * where it is touched, and the page offers the way there at the top and at the
- * foot so the reader decides when to go.
+ * Leko Scroll is the only part of Leko that runs here, and scrolling is the
+ * only thing it asks of a reader. The Save in 01's hole is a real button, and it
+ * answers a click while it is lit because the scrim is paint:
+ * [The whole page stays usable](../../../packages/scroll/DESIGN.md#the-whole-page-stays-usable).
+ * Leko itself is shown, not run: the playground is where it is touched, and the
+ * page offers the way there at the top and at the foot so the reader decides
+ * when to go.
  */
 
 const story = `const checkout = {
@@ -38,9 +41,10 @@ const scroll = `import { createScroll } from '@annetaan/leko/scroll'
 
 createScroll({
   targets: [
-    { target: '#why', message: { title: 'A hole' } },
-    { target: '#live' },
-    { target: '#signals' },
+    { target: '#why-copy' },
+    { target: '#why', message: { title: 'A layer, or a hole' } },
+    { target: '#signals-copy' },
+    { target: '#signals', message: { title: 'No click listener' } },
   ],
 })`
 ---
@@ -105,157 +109,120 @@ createScroll({
       </section>
 
       <section class="chapter">
-        <div class="chapter-copy">
-          <p class="eyebrow">01 · Why another tour</p>
-          <h2>Every other tour puts glass over the button.</h2>
-          <p>
-            A highlight is usually a transparent layer. It looks like the button is right there, but
-            the click lands on the layer. So a tour can only point and say “click here”, and the
-            user watches.
-          </p>
-        </div>
-        <div class="compare" id="why">
-          <div class="compare-card">
-            <div class="pane glass">
-              <div class="pane-button">Save</div>
-              <div class="pane-glass"></div>
+        <div class="chapter-body">
+          <div class="chapter-copy" id="why-copy">
+            <p class="eyebrow">01 · Why another tour</p>
+            <h2>Every other tour puts glass over the button.</h2>
+            <p>
+              A highlight is usually a transparent layer. It looks like the button is right there,
+              but the click lands on the layer. So a tour can only point and say “click here”, and
+              the user watches.
+            </p>
+          </div>
+          <div class="compare" id="why">
+            <div class="compare-card">
+              <div class="pane glass">
+                <div class="pane-button">Save</div>
+                <div class="pane-glass"></div>
+              </div>
+              <p class="compare-label">A layer <span>the click hits the glass</span></p>
             </div>
-            <p class="compare-label">A layer <span>the click hits the glass</span></p>
-          </div>
-          <div class="compare-card">
-            <div class="pane hole">
-              <div class="pane-button">Save</div>
+            <div class="compare-card">
+              <div class="pane hole">
+                <button type="button" class="pane-button" id="hole-button">Save</button>
+              </div>
+              <p class="compare-label">A hole <span>the click hits the button</span></p>
             </div>
-            <p class="compare-label">A hole <span>the click hits the button</span></p>
-          </div>
-        </div>
-      </section>
-
-      <section class="chapter flip">
-        <div class="chapter-copy">
-          <p class="eyebrow">02 · The real element</p>
-          <h2>Under the light, everything still works.</h2>
-          <p>
-            Clicks reach it, focus reaches it, the keyboard reaches it, and scrolling under the
-            pointer still scrolls. Nothing is placed over a target the step opened, not even
-            something transparent.
-          </p>
-        </div>
-        <form class="live" id="live" onsubmit="return false">
-          <label>
-            Your name
-            <input type="text" placeholder="Type here. It is a real field." />
-          </label>
-          <label class="check"><input type="checkbox" /> Tick me, too</label>
-        </form>
-      </section>
-
-      <section class="chapter">
-        <div class="chapter-copy">
-          <p class="eyebrow">03 · Signals</p>
-          <h2>A step ends when something really happened.</h2>
-          <p>
-            Steps never advance on clicks. Your app says what finished, and the step waiting for
-            it moves on. A step that waits has no next button, because that would be a way past
-            the work it asks for.
-          </p>
-        </div>
-        <div class="codes" id="signals">
-          <div class="code-card">
-            <p class="code-caption">The story</p>
-            <Code code={story} lang="ts" />
-          </div>
-          <div class="code-card">
-            <p class="code-caption">Your app, where the order really saved</p>
-            <Code code={reached} lang="ts" />
-          </div>
-        </div>
-      </section>
-
-      <section class="chapter flip">
-        <div class="chapter-copy">
-          <p class="eyebrow">04 · Across pages</p>
-          <h2>The tour follows the user to the next page.</h2>
-          <p>
-            A step can wait for a URL. When the page loads, the next document picks up the story
-            that comes next. The two pages share no runtime, only the name of the story.
-          </p>
-        </div>
-        <div class="pages" id="pages" aria-hidden="true">
-          <div class="page-card">
-            <p class="page-url">/cart</p>
-            <div class="mock-line w80"></div>
-            <div class="mock-line w60"></div>
-            <div class="page-link">Checkout →</div>
-          </div>
-          <div class="page-arrow">
-            <span>page load</span>
-          </div>
-          <div class="page-card lit">
-            <p class="page-url">/checkout</p>
-            <div class="mock-line w60"></div>
-            <div class="mock-line w80"></div>
-            <div class="page-step">Step 1 of the next story</div>
           </div>
         </div>
       </section>
 
       <section class="chapter">
-        <div class="chapter-copy">
-          <p class="eyebrow">05 · Typed signals</p>
-          <h2>Typos are caught before anyone runs the tour.</h2>
-          <p>
-            <code>@annetaan/leko-codegen</code> collects every signal your app reports with <code
-              >reached()</code
-            > and turns them into a type. A step can only wait for one of them, so a misspelt signal
-            is a compile error, not a tour that waits forever.
-          </p>
-        </div>
-        <div class="typed" id="typed">
-          <pre><code>{'{ '}<span class="tok-key">id</span>: <span class="tok-str">'pay'</span>, <span class="tok-key">awaits</span>: <span class="tok-str squiggle">'ordr-saved'</span>{' }'}</code></pre>
-          <p class="typed-error">
-            <span class="typed-badge">TS2322</span>
-            Type <code>"ordr-saved"</code> is not assignable to type <code
-              >"order-saved" | "profile-filled"</code
-            >.
-          </p>
+        <div class="chapter-body">
+          <div class="chapter-copy" id="signals-copy">
+            <p class="eyebrow">02 · Signals</p>
+            <h2>A step ends when something really happened.</h2>
+            <p>
+              Steps never advance on clicks. Your app says what finished, and the step waiting for
+              it moves on. A step that waits has no next button, because that would be a way past
+              the work it asks for.
+            </p>
+          </div>
+          <div class="codes" id="signals">
+            <div class="code-card">
+              <p class="code-caption">The story</p>
+              <Code code={story} lang="ts" />
+            </div>
+            <div class="code-card">
+              <p class="code-caption">Your app, where the order really saved</p>
+              <Code code={reached} lang="ts" />
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="chapter flip">
-        <div class="chapter-copy">
-          <p class="eyebrow">06 · Yours to shape</p>
-          <h2>Styled with CSS. Shipped with nothing else.</h2>
-          <p>
-            Every colour, radius and shadow is a CSS custom property, so the tour looks like your
-            app. And Leko has no runtime dependencies at all.
-          </p>
-        </div>
-        <div class="tiles" id="tiles">
-          <div class="code-card">
-            <p class="code-caption">Your stylesheet</p>
-            <Code code={styling} lang="css" />
+      <section class="chapter">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="typed-copy">
+            <p class="eyebrow">03 · Typed signals</p>
+            <h2>Typos are caught before anyone runs the tour.</h2>
+            <p>
+              <code>@annetaan/leko-codegen</code> collects every signal your app reports with <code
+                >reached()</code
+              > and turns them into a type. A step can only wait for one of them, so a misspelt signal
+              is a compile error, not a tour that waits forever.
+            </p>
           </div>
-          <div class="stat">
-            <p class="stat-number">0</p>
-            <p class="stat-label">runtime dependencies</p>
+          <div class="typed" id="typed">
+            <pre><code>{'{ '}<span class="tok-key">id</span>: <span class="tok-str">'pay'</span>, <span class="tok-key">awaits</span>: <span class="tok-str squiggle">'ordr-saved'</span>{' }'}</code></pre>
+            <p class="typed-error">
+              <span class="typed-badge">TS2322</span>
+              Type <code>"ordr-saved"</code> is not assignable to type <code
+                >"order-saved" | "profile-filled"</code
+              >.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter">
+        <div class="chapter-body">
+          <div class="chapter-copy" id="tiles-copy">
+            <p class="eyebrow">04 · Yours to shape</p>
+            <h2>Styled with CSS. Shipped with nothing else.</h2>
+            <p>
+              Every colour, radius and shadow is a CSS custom property, so the tour looks like your
+              app. And Leko has no runtime dependencies at all.
+            </p>
+          </div>
+          <div class="tiles" id="tiles">
+            <div class="code-card">
+              <p class="code-caption">Your stylesheet</p>
+              <Code code={styling} lang="css" />
+            </div>
+            <div class="stat">
+              <p class="stat-number">0</p>
+              <p class="stat-label">runtime dependencies</p>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="chapter reveal">
-        <div class="chapter-copy">
-          <p class="eyebrow">One more thing</p>
-          <h2>The light you followed down this page is Leko, too.</h2>
-          <p>
-            Leko Scroll is a spotlight for a long page. No story, no steps, nothing to click: the
-            light moves as the reader scrolls, and the page underneath stays fully usable. It
-            ships in the same package.
-          </p>
-        </div>
-        <div class="code-card" id="scroll-code">
-          <p class="code-caption">This page, more or less</p>
-          <Code code={scroll} lang="ts" />
+        <div class="chapter-body">
+          <div class="chapter-copy" id="scroll-copy">
+            <p class="eyebrow">One more thing</p>
+            <h2>The light you followed down this page is Leko, too.</h2>
+            <p>
+              Leko Scroll is a spotlight for a long page. No story, no steps, nothing to click: the
+              light moves as the reader scrolls, and the page underneath stays fully usable. It
+              ships in the same package.
+            </p>
+          </div>
+          <div class="code-card" id="scroll-code">
+            <p class="code-caption">This page, more or less</p>
+            <Code code={scroll} lang="ts" />
+          </div>
         </div>
       </section>
 
@@ -283,32 +250,23 @@ createScroll({
 
       createScroll({
         targets: [
+          { target: '#why-copy' },
           {
             target: '#why',
             message: {
               title: 'A layer, or a hole',
-              body: 'Leko cuts the hole. Nothing sits between the user and the button.',
+              body: 'Leko cuts the hole. Press Save: nothing sits between you and the button.',
             },
           },
-          {
-            target: '#live',
-            message: {
-              title: 'Go ahead, type',
-              body: 'This light is paint and nothing else. The field under it is live.',
-            },
-          },
+          { target: '#signals-copy' },
           {
             target: '#signals',
             message: {
               title: 'No click listener',
               body: 'Nothing in Leko moves a step on a DOM event.',
             },
-            side: 'top',
           },
-          {
-            target: '#pages',
-            message: { body: 'Only the name of the next story crosses the page load.' },
-          },
+          { target: '#typed-copy' },
           {
             target: '#typed',
             message: {
@@ -316,17 +274,55 @@ createScroll({
               body: 'A step can only await a name your app reports.',
             },
           },
+          { target: '#tiles-copy' },
           {
             target: '#tiles',
             message: { body: 'Every colour on this page’s light is a custom property, too.' },
           },
+          { target: '#scroll-copy' },
           {
             target: '#scroll-code',
             message: { title: 'Leko Scroll', body: 'From @annetaan/leko/scroll.' },
-            side: 'top',
           },
           { target: '#closing', padding: 0, radius: 24 },
         ],
+      })
+
+      const save = document.querySelector<HTMLButtonElement>('#hole-button')
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)')
+
+      save?.addEventListener('click', () => {
+        const pane = save.parentElement
+        if (!pane || reduced.matches) return
+        const x = save.offsetLeft + save.offsetWidth / 2
+        const y = save.offsetTop + save.offsetHeight / 2
+        // The pane is 150px tall and clips, so a spark flies no further than 80px.
+        for (let i = 0; i < 12; i++) {
+          const spark = document.createElement('span')
+          spark.className = 'spark'
+          spark.setAttribute('aria-hidden', 'true')
+          spark.textContent = i === 0 ? '✨' : '✦'
+          spark.style.left = `${x}px`
+          spark.style.top = `${y}px`
+          pane.append(spark)
+          const angle = Math.random() * 2 * Math.PI
+          const radius = 40 + Math.random() * 40
+          const dx = Math.cos(angle) * radius
+          const dy = Math.sin(angle) * radius
+          spark
+            .animate(
+              [
+                { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                { transform: `translate(${dx}px, ${dy}px) scale(0.2)`, opacity: 0 },
+              ],
+              {
+                duration: 500 + Math.random() * 200,
+                easing: 'cubic-bezier(.2, .7, .3, 1)',
+                fill: 'forwards',
+              },
+            )
+            .finished.then(() => spark.remove())
+        }
       })
     </script>
   </body>
@@ -634,17 +630,22 @@ createScroll({
   /* Chapters ------------------------------------------------------------ */
 
   .chapter {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    align-items: center;
-    gap: clamp(32px, 6vw, 88px);
     max-width: 1180px;
     margin: 0 auto;
     padding: clamp(96px, 16vh, 180px) clamp(16px, 6vw, 96px);
   }
 
-  .chapter.flip .chapter-copy {
-    order: 2;
+  .chapter-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    align-items: start;
+    column-gap: clamp(32px, 6vw, 88px);
+    row-gap: 32px;
+  }
+
+  .chapter-body > :not(.chapter-copy) {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .eyebrow {
@@ -701,10 +702,47 @@ createScroll({
 
   .pane-button {
     padding: 10px 22px;
+    border: 0;
     border-radius: 8px;
     background: var(--accent);
     color: var(--accent-ink);
+    font: inherit;
     font-weight: 700;
+    cursor: default;
+  }
+
+  .pane.hole .pane-button {
+    cursor: pointer;
+    transition:
+      background 120ms,
+      transform 120ms,
+      box-shadow 120ms;
+  }
+
+  .pane.hole .pane-button:hover {
+    background: color-mix(in srgb, var(--accent) 85%, white);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -6px var(--accent);
+  }
+
+  .pane.hole .pane-button:active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  .pane.hole .pane-button:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* A spark is made by the script, so it carries no scoped-style attribute. */
+  .pane :global(.spark) {
+    position: absolute;
+    pointer-events: none;
+    color: var(--accent);
+    font-size: 14px;
+    line-height: 1;
+    translate: -50% -50%;
+    will-change: transform, opacity;
   }
 
   .pane-glass {
@@ -726,51 +764,6 @@ createScroll({
     font-weight: 400;
     font-size: 14px;
     color: var(--ink-faint);
-  }
-
-  /* 02: a live form. */
-
-  .live {
-    display: grid;
-    gap: 18px;
-    padding: 32px;
-    border-radius: var(--radius);
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    font-weight: 600;
-  }
-
-  .live label {
-    display: grid;
-    gap: 8px;
-  }
-
-  .live input[type='text'] {
-    font: inherit;
-    font-weight: 400;
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg);
-    color: var(--ink);
-  }
-
-  .live input[type='text']:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-
-  .live .check {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 500;
-  }
-
-  .live .check input {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent);
   }
 
   /* Code ---------------------------------------------------------------- */
@@ -811,69 +804,7 @@ createScroll({
     background: transparent !important;
   }
 
-  /* 04: two pages and a load between them. */
-
-  .pages {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .page-card {
-    display: grid;
-    gap: 12px;
-    padding: 20px;
-    border-radius: var(--radius);
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-  }
-
-  .page-card.lit {
-    border-color: var(--accent);
-  }
-
-  .page-url {
-    margin: 0 0 4px;
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 13px;
-    color: var(--ink-faint);
-  }
-
-  .page-link {
-    margin-top: 8px;
-    font-weight: 700;
-    color: var(--accent);
-  }
-
-  .page-step {
-    margin-top: 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--ink);
-    color: var(--bg);
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .page-arrow {
-    display: grid;
-    justify-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--ink-faint);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .page-arrow::after {
-    content: '→';
-    font-size: 28px;
-    line-height: 1;
-    color: var(--ink-soft);
-  }
-
-  /* 05: a compile error, drawn. */
+  /* 03: a compile error, drawn. */
 
   .typed {
     min-width: 0;
@@ -928,7 +859,7 @@ createScroll({
     font-weight: 700;
   }
 
-  /* 06: the zero. */
+  /* 04: the zero. */
 
   .stat {
     display: flex;
@@ -1014,7 +945,7 @@ createScroll({
 
   @media (max-width: 860px) {
     .hero,
-    .chapter {
+    .chapter-body {
       grid-template-columns: minmax(0, 1fr);
     }
 
@@ -1023,22 +954,15 @@ createScroll({
       padding-bottom: 120px;
     }
 
-    .chapter.flip .chapter-copy {
-      order: 0;
+    .chapter-body > :not(.chapter-copy) {
+      grid-column: auto;
+      grid-row: auto;
     }
   }
 
   @media (max-width: 520px) {
     .compare {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .pages {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .page-arrow::after {
-      content: '↓';
     }
 
     .bar-links a[href^='https'] {
