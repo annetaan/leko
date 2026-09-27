@@ -19,7 +19,11 @@ name: Pages
 #          branches: [main]
 #        workflow_dispatch:
 #
-# 4. Delete this comment down to `on:`, which is all about the time before
+# 4. Replace the install section of docs/src/content/docs/getting-started.mdx,
+#    its Aside and its block, with `npm install @annetaan/leko` and
+#    `npm install -D @annetaan/leko-codegen`, and give the landing hero in
+#    docs/src/pages/index.astro its install line back.
+# 5. Delete this comment down to `on:`, which is all about the time before
 #    the release, and the closing paragraph under
 #    CONTRIBUTING.md, **The documentation site**, which points here.
 on:

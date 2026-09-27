@@ -15,7 +15,13 @@ export default defineConfig({
         'A product tour that cuts a hole in the overlay, so the user works the real element underneath.',
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/annetaan/leko' }],
       sidebar: [
-        { label: 'Start here', items: [{ label: 'What Leko is', slug: 'what-leko-is' }] },
+        {
+          label: 'Start here',
+          items: [
+            { label: 'What Leko is', slug: 'what-leko-is' },
+            { label: 'Getting started', slug: 'getting-started' },
+          ],
+        },
         {
           label: 'Guides',
           items: [{ label: 'React, Vue and a plain script', slug: 'guides/frameworks' }],

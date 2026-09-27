@@ -86,10 +86,9 @@ createScroll({
             your users work the real thing underneath.
           </p>
           <div class="actions">
-            <a class="button primary" href={href('what-leko-is/')}>Get started</a>
+            <a class="button primary" href={href('getting-started/')}>Get started</a>
             <a class="button" href={href('playground/')}>Try the playground</a>
           </div>
-          <code class="install">pnpm add @annetaan/leko</code>
         </div>
 
         <figure class="hero-art" aria-hidden="true">
@@ -236,7 +235,7 @@ createScroll({
         <p>The playground runs a Leko tour over a real page. Type, click, and watch it wait for you.</p>
         <div class="actions">
           <a class="button primary" href={href('playground/')}>Try the playground</a>
-          <a class="button" href={href('what-leko-is/')}>Get started</a>
+          <a class="button" href={href('getting-started/')}>Get started</a>
         </div>
         <p class="notice">
           Leko is not released yet. Nothing is published beyond a <code>0.0.0</code> placeholder,
@@ -532,21 +531,6 @@ createScroll({
     border-color: var(--accent);
     background: var(--accent);
     color: var(--accent-ink);
-  }
-
-  .install {
-    display: inline-block;
-    margin-top: 24px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    color: var(--ink-soft);
-  }
-
-  .install::before {
-    content: '$ ';
-    color: var(--ink-faint);
   }
 
   .scroll-hint {
