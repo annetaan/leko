@@ -13,6 +13,7 @@ declare module '@annetaan/leko' {
     'lines-checked': true
     'order-placed': true
     'order-sent': true
+    'palette-changed': true
     'path-chosen': true
     'project-renamed': true
     'test-sent': true

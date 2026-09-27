@@ -868,12 +868,15 @@ export interface LekoOptions {
    * has filled is the arrangement where neither half can produce a page with no
    * way out — DESIGN.md, **The way out**.
    *
-   * ```tsx
+   * ```ts
    * createLeko({
    *   renderClose: (root, stop) => {
-   *     const app = createRoot(root)
-   *     app.render(<SkipTour onClick={stop} />)
-   *     return () => app.unmount()
+   *     const button = document.createElement('button')
+   *     button.type = 'button'
+   *     button.textContent = 'Skip the tour'
+   *     button.addEventListener('click', stop)
+   *     root.append(button)
+   *     return () => button.remove()
    *   },
    * })
    * ```

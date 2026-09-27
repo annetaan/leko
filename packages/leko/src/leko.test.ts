@@ -22,6 +22,7 @@ import {
   shown,
   start,
   stopped,
+  TICK,
   until,
 } from './harness.js'
 
@@ -1669,6 +1670,63 @@ test("the way out avoids the corner the host's chrome owns", () => {
   })
 
   expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
+})
+
+// How far in from the right the way out sits, against the viewport it is placed
+// in: `clientWidth` rather than `innerWidth`, which `message.test.ts` says why.
+const inset = (): number =>
+  document.documentElement.clientWidth - closer()!.getBoundingClientRect().right
+
+// Wait until the way out is `width` wide and 16px in from the right. Real time
+// rather than frames or a taken clock: a fake clock does not drive a
+// ResizeObserver, and a frame can stall for the reason `TICK` records.
+async function placedAt(width: number, what: string, cap = 8000): Promise<void> {
+  const began = performance.now()
+  while (closer()!.offsetWidth !== width || Math.abs(inset() - 16) > 1) {
+    if (performance.now() - began > cap) {
+      throw new Error(`${what} — ${closer()!.offsetWidth}px wide, ${inset()}px in, after ${cap}ms`)
+    }
+    await pause(TICK)
+  }
+}
+
+test('the way out is placed at the size it has now when renderClose fills its root after returning', async () => {
+  const target = box('target', { left: '100px', top: '300px', width: '160px', height: '48px' })
+  const own = document.createElement('button')
+  own.textContent = 'Leave'
+  own.style.width = '200px'
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
+    renderClose: (root, stop) => {
+      own.addEventListener('click', stop)
+      queueMicrotask(() => root.append(own))
+      return () => own.remove()
+    },
+  })
+
+  await placedAt(200, 'never placed at the width it was filled to')
+  const at = closer()!.getBoundingClientRect()
+  expect(at.top).toBeCloseTo(16, 0)
+  expect(at.left).toBeGreaterThanOrEqual(0)
+})
+
+test('the way out is placed again when what renderClose drew changes size', async () => {
+  const target = box('target', { left: '100px', top: '300px', width: '160px', height: '48px' })
+  const own = document.createElement('button')
+  own.textContent = 'Leave'
+  own.style.width = '200px'
+
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
+    renderClose: (root, stop) => {
+      own.addEventListener('click', stop)
+      root.append(own)
+      return () => own.remove()
+    },
+  })
+
+  await placedAt(200, 'not placed at the width it was drawn at')
+  own.style.width = '120px'
+  await placedAt(120, 'not placed again when it narrowed')
 })
 
 // --- a step that waits for a URL

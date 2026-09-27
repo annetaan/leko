@@ -21,6 +21,12 @@ export class Close {
   private teardown: (() => void) | undefined
   private open = false
   private corner: Corner | undefined
+  private last: readonly Rect[] = []
+  // What a host draws can arrive after `render` returns and can change width
+  // mid-step: DESIGN.md, **The way out**.
+  private readonly watch = new ResizeObserver(() => {
+    if (this.open) this.place(this.last)
+  })
 
   /**
    * `stop` is called when the control is used. `render` replaces what goes
@@ -72,6 +78,7 @@ export class Close {
     }
 
     this.element = el
+    this.watch.observe(el, { box: 'border-box' })
   }
 
   /**
@@ -101,6 +108,7 @@ export class Close {
    * layer is sized past the layout viewport on purpose, gutter included**.
    */
   place(cutouts: readonly Rect[]): void {
+    this.last = cutouts
     if (!this.element.isConnected) document.body.append(this.element)
     if (!this.open) {
       // Absent where the top layer is not supported; the z-index carries the
@@ -128,6 +136,7 @@ export class Close {
   }
 
   destroy(): void {
+    this.watch.disconnect()
     this.teardown?.()
     this.teardown = undefined
     if (this.open) this.element.hidePopover?.()

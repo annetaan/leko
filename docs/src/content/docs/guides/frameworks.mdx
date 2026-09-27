@@ -1,0 +1,293 @@
+---
+title: React, Vue and a plain script
+description: Where each call to Leko goes in a React app, a Vue app and a page with no framework — the instance, reached(), start and pickUp, refs as targets, and the close control drawn inside your app.
+---
+
+Leko has no React or Vue wrapper, and none is planned. Nothing about calling it
+needs one:
+
+- **The instance is a module.** One `createLeko()` call, exported, is shared the
+  way any module is.
+- **A target can be a function**, and a function can read a ref.
+- **`start` and `pickUp` tolerate being called twice**, which is what a
+  development build does to an effect.
+
+What a reader needs is where each call goes, and that is this page.
+
+## One instance, in a module
+
+```ts
+// src/tour.ts
+import { createLeko } from '@annetaan/leko'
+
+export const leko = createLeko({/* options */})
+```
+
+Put the stories in the same module or in a sibling one. Every file that imports
+`leko` gets the same instance, so there is no Provider to wrap the app in and no
+Context to read it from.
+
+**Server rendering.** `createLeko()` touches no DOM, so the module is safe to
+import on the server. `start()` draws, so call it only in the browser: from an
+event handler, a `useEffect` or an `onMounted`.
+
+**Hot reload.** An edit that hot reload applies without a page load can run
+`tour.ts` again, and a second `createLeko()` with it. A tour the old instance
+was showing stays on the page, and the new instance knows nothing about it.
+Reload the page to clear it.
+
+## Where reached() goes
+
+Where the application knows the work finished: after the `await`, in a
+mutation's success path. A step waits on application state, never on a DOM
+event —
+[Signals and steps](https://github.com/annetaan/leko/blob/main/DESIGN.md#signals-and-steps)
+and the second of the
+[Three constraints that must not be broken](https://github.com/annetaan/leko/blob/main/DESIGN.md#three-constraints-that-must-not-be-broken).
+
+### React
+
+```tsx
+async function onSubmit(values: OrderForm) {
+  await saveOrder(values)
+  leko.reached('order-saved')
+}
+
+// or, with TanStack Query
+const save = useMutation({
+  mutationFn: saveOrder,
+  onSuccess: () => leko.reached('order-saved'),
+})
+```
+
+Never during render. A render can run twice and be thrown away, and a signal a
+step was waiting for runs the next step's `onEnter` on the same stack.
+
+Never in a `useEffect` that exists only to report a state change. That is a
+listener with no job outside the tour, which the third constraint keeps out of
+application code.
+
+### Vue
+
+The same line, in an async function in `<script setup>` or in a Pinia action,
+after the `await`. Not in a `watch` whose only job is the report, for the same
+reason as the effect above.
+
+### A plain script
+
+The page's own submit handler gains one line after its `await fetch(…)`.
+
+## Starting a story, and pickUp
+
+From a handler, `start` is one call:
+
+```tsx
+<button onClick={() => leko.start(welcome)}>Take the tour</button>
+```
+
+In Vue it is the same call on `@click`.
+
+Once on mount, it goes in an effect:
+
+```tsx
+useEffect(() => {
+  if (!seenWelcome()) leko.start(welcome)
+}, [])
+```
+
+In development, StrictMode runs that effect twice. The second `start` is turned
+down as [`tour-running`](../../reference/problems/#tour-running), reported
+through `onDiagnostic`, and the tour carries on. If the effect returns
+`() => leko.stop()`, development runs start, stop, start, and the story begins
+again from its first step. Either is fine; a `stop()` cleanup belongs only to a
+tour about that one screen —
+[Starting a story](https://github.com/annetaan/leko/blob/main/DESIGN.md#starting-a-story).
+
+[`pickUp(stories)`](../../reference/leko/#pickup) is called once per document,
+after the first render:
+
+- **React:** in a `useEffect` of the root component, with no cleanup. The
+  doubled call's second finds nothing and says nothing. A `stop()` cleanup
+  would end the story the first call started.
+- **Vue:** the line after `app.mount('#app')`, which renders synchronously.
+- **A plain script:** at the top level of a module script.
+
+Not before the first render: the successor's first target gets only a 100ms
+grace to turn up
+([Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery)),
+and a first step that waits on data is a step that waits
+([A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits)).
+What crosses the page load and what does not is
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+## Refs as targets
+
+A selector is the default target, and the right one wherever the element can be
+named —
+[Resolution & custom functions](https://github.com/annetaan/leko/blob/main/DESIGN.md#resolution--custom-functions).
+
+Otherwise, a function that reads the ref each time it is asked:
+`() => ref.current` in React, `() => el.value` in Vue. Never capture the
+element (`const el = ref.current; () => el`): once the framework replaces the
+node, the held one stays disconnected and the step cannot recover —
+[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+
+A story reaches the ref through a function that builds it:
+
+```tsx
+export const renameStory = (input: RefObject<HTMLInputElement | null>): LekoStory => ({
+  id: 'rename',
+  steps: [
+    {
+      id: 'name',
+      target: { elements: () => input.current, interactive: true },
+      awaits: 'project-renamed',
+    },
+  ],
+})
+
+// in the component that owns the ref
+<button onClick={() => leko.start(renameStory(inputRef))}>Show me</button>
+```
+
+In Vue, `const input = useTemplateRef<HTMLInputElement>('name')` gives
+`() => input.value`. A ref on a component rather than an element reads its root
+node: `() => panel.value?.$el ?? null`.
+
+## Drawing the close control inside your app
+
+[`renderClose`](../../reference/create-leko/#renderclose) hands you a root Leko
+positions, and that root is outside your app's tree. The obvious way to fill it,
+`createRoot(root)` or `createApp(…).mount(root)`, makes a second root or a
+second app, and the providers above `<App />` do not reach it: the theme, the
+translations, the router, whatever `app.use()` installed.
+
+Draw it from inside instead. A slot in the tour module is filled by
+`renderClose` and emptied by its teardown, and one component inside the
+providers portals into it.
+
+### React
+
+```ts
+// src/tour.ts
+type CloseSlot = { root: HTMLElement; stop: () => void }
+let held: CloseSlot | null = null
+const listeners = new Set<() => void>()
+const fill = (next: CloseSlot | null) => {
+  held = next
+  for (const l of listeners) l()
+}
+export const closeSlot = {
+  subscribe: (l: () => void) => {
+    listeners.add(l)
+    return () => {
+      listeners.delete(l)
+    }
+  },
+  current: () => held,
+}
+
+export const leko = createLeko({
+  renderClose: (root, stop) => {
+    fill({ root, stop })
+    return () => fill(null)
+  },
+})
+```
+
+```tsx
+// src/TourClose.tsx
+export function TourClose() {
+  const slot = useSyncExternalStore(closeSlot.subscribe, closeSlot.current, () => null)
+  return (
+    slot &&
+    createPortal(
+      <button type="button" onClick={slot.stop}>
+        Skip the tour
+      </button>,
+      slot.root,
+    )
+  )
+}
+```
+
+Render `<TourClose />` once, inside the providers, beside `<App />`.
+
+### Vue
+
+```ts
+// src/tour.ts
+export const closeSlot = shallowRef<{ root: HTMLElement; stop: () => void } | null>(null)
+
+export const leko = createLeko({
+  renderClose: (root, stop) => {
+    closeSlot.value = { root, stop }
+    return () => {
+      closeSlot.value = null
+    }
+  },
+})
+```
+
+```vue
+<!-- src/TourClose.vue, rendered once inside App.vue -->
+<script setup lang="ts">
+import { closeSlot } from './tour'
+</script>
+
+<template>
+  <Teleport v-if="closeSlot" :to="closeSlot.root">
+    <button type="button" @click="closeSlot.stop">Skip the tour</button>
+  </Teleport>
+</template>
+```
+
+An imported ref is unwrapped in a `<script setup>` template the way a local one
+is.
+
+### What the control is given
+
+`stop`, and nothing else: ending the tour is the one thing it may do. Nor does
+it need any help being placed, because Leko places the box again whenever what
+is drawn in it changes size —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+
+The component subscribes to where to draw, not to where the tour is, which is
+the line the next section draws. The sandbox case
+[close-through-a-portal.tsx](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/close-through-a-portal.tsx)
+runs the React recipe inside a palette provider, under StrictMode.
+
+## What not to build
+
+### Steps declared in JSX
+
+A `<TourStep awaits="…">` scattered across components leaves the story's order
+written nowhere, and a step that mounts with a render changes a story while it
+runs (see [`story`](../../reference/leko/#story)). Story logic stays in the
+story — the third of the
+[Three constraints that must not be broken](https://github.com/annetaan/leko/blob/main/DESIGN.md#three-constraints-that-must-not-be-broken).
+
+### A next-button component
+
+There is no call that moves to the next step on command. A step without
+`awaits` draws its own next control, and a step with one moves only on
+`reached()` —
+[The next control](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-next-control).
+
+### A hook that says which step is showing
+
+A `useLekoStep()` that components render against puts the knowledge of which
+step is showing into application code
+([Signals and steps](https://github.com/annetaan/leko/blob/main/DESIGN.md#signals-and-steps)).
+What a step needs set up belongs in its `onEnter` and `onLeave`
+([What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume)).
+
+A flag that says a tour is running, or a progress readout, is fine, and
+`onStep` feeds it:
+
+```ts
+createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
+```
+
+[There is nothing to subscribe to](https://github.com/annetaan/leko/blob/main/DESIGN.md#there-is-nothing-to-subscribe-to)
+says why that is the whole of it.

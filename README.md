@@ -217,7 +217,9 @@ free to stay in the source forever, including in the builds where no tour ever
 runs.
 
 **Nothing else arrives with it.** The core is plain TypeScript with no runtime
-dependencies. Framework wrappers will be additive, never required.
+dependencies. There are no framework wrappers and none are planned:
+[the guide](docs/src/content/docs/guides/frameworks.mdx) says where each call
+goes in React, Vue and a plain script.
 
 **It survives a page load.** A story's last step can wait for the URL the
 link on it goes to, and the story itself can name what follows with `next`.
@@ -250,7 +252,6 @@ framework router's own same-document navigation is a different signal, and
 | Reading `state`, and every crossing of it on `onStep` | ✅ Working |
 | Advancing on a URL change | ✅ Working |
 | Carrying a tour across a page load, to the story the next document runs | ✅ Working |
-| `@annetaan/leko/react` · `@annetaan/leko/vue` | 📋 Planned |
 
 ## Browser support
 
