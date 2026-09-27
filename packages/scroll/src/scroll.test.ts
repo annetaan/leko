@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 
 import { holeOf } from './geometry.js'
 import { maskLayers } from './mask.js'
-import { Scrim } from './scrim.js'
+import { DURATION, Scrim } from './scrim.js'
 import { createScroll } from './scroll.js'
 import type { LekoScroll, LekoScrollOptions } from './types.js'
 
@@ -210,8 +210,8 @@ const elapse = (ms: number): void => {
   for (let t = 0; t < ms; t += 16) vi.advanceTimersByTime(16)
 }
 
-/** Time enough for a 320ms converge or morph to reach its last frame. */
-const USUAL = 320 + 16
+/** Time enough for an ordinary converge or morph to reach its last frame. */
+const USUAL = DURATION + 16
 
 test('intro.duration slows the converge at creation and not the morph after it', async () => {
   const { targets } = build()

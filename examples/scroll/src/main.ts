@@ -91,7 +91,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('.question but
 
 // Off is destroy(), which fires nothing, so the readout is told here. On is a
 // fresh createScroll(), which lights whatever the line is at, and being a
-// creation runs the intro again —
+// creation runs the intro again when the line is in range —
 // [Entering converges, leaving fades](../../../packages/scroll/DESIGN.md#entering-converges-leaving-fades).
 const spotlight = byId('spotlight-toggle')
 spotlight.addEventListener('click', () => {

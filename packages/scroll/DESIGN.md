@@ -335,9 +335,9 @@ default. It is tied to the scroll, not to time, because it is the reader's own
 movement that is taking them out of the range, and reversing mid-fade gives the
 opacity back as it goes.
 
-**At zero the light is out**, and coming back converges again as it did the
-first time. A fade that has not reached zero is still reversible; one that has
-is over.
+**At zero the light is out**, and coming back converges again on the target, as
+an ordinary converge and never as the intro. A fade that has not reached zero
+is still reversible; one that has is over.
 
 ## What was seen before decides what is drawn
 
@@ -403,8 +403,9 @@ converge cut off does: no `index` was announced for an `undefined` to answer.
 ## Starting part-way down
 
 **Created with the line inside the range, it converges on the target that
-position calls for.** That is the same entry as scrolling into the range, from
-wherever the page already is.
+position calls for.** That is the same target as scrolling into the range, from
+wherever the page already is, and this converge is the intro ([Entering
+converges, leaving fades](#entering-converges-leaving-fades)).
 
 **A first target near the top of the page converges at load, before the reader
 scrolls.** Where its top is less than `line * viewportHeight + fade` from the
