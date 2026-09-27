@@ -78,8 +78,8 @@ DESIGN.md. Do not do any of them without reading that page first.
   on its own clock.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none,
   deliberately. `@annetaan/leko-types`, `@annetaan/leko-machine`,
-  `@annetaan/leko-presenter` and `@annetaan/leko-spotlight` are first-party and
-  are fine.
+  `@annetaan/leko-presenter`, `@annetaan/leko-spotlight` and
+  `@annetaan/leko-scroll` are first-party and are fine.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design: the vocabulary is gathered from those calls, and a `reached()` call
   has to stay compilable in builds where no tour runs. DESIGN.md argues it.
@@ -201,8 +201,9 @@ is the procedure.
   address without the id, so nothing breaks when a trailer drifts; it just
   stops being greppable, and the history was normalised once already.
 - `packages/leko` is built by `tsdown`, not `tsc`, because it bundles
-  `@annetaan/leko-types`, `@annetaan/leko-machine`, `@annetaan/leko-presenter`
-  and `@annetaan/leko-spotlight` in. All four are private and none is on the
+  `@annetaan/leko-types`, `@annetaan/leko-machine`, `@annetaan/leko-presenter`,
+  `@annetaan/leko-spotlight` and, behind `@annetaan/leko/scroll`,
+  `@annetaan/leko-scroll` in. All five are private and none is on the
   registry, so an import of any of them left in `dist/` is a package a consumer
   cannot install. `pnpm check:pack` is what catches that, and
   it runs in CI. Anything that changes what a package imports wants it run.

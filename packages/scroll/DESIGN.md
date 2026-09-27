@@ -4,7 +4,7 @@ Leko Scroll is the scroll-driven spotlight for a long page. A second product in
 the same repository as Leko.
 
 This file holds the rules, each with the reason it holds. Situations Leko Scroll
-meets are shown on one page under `examples/scroll/`, once it exists. The tour's
+meets are shown on one page under `examples/scroll/`. The tour's
 documents are not this product's, and nothing in them is a reason for anything
 here. How the code got here is in the commits.
 
@@ -40,14 +40,16 @@ can decide which goes first.
 
 ```ts
 createScroll({
-  targets: [{ target, message?, side?, padding?, radius? }],
+  targets: [{ target, message?, side?, padding?, radius? } | { target, off: true }],
   line?, fade?, spacing?, padding?, radius?, onChange?,
 }) // → { measure(), destroy() }
 ```
 
 - `targets` is the list of what gets lit, in the order it gets lit, and the one
   option that has to be given. Each entry names a `target`, and may add a
-  `message`, a `side`, a `padding` and a `radius`.
+  `message`, a `side`, a `padding` and a `radius`, or is
+  `{ target, off: true }`, a marker — [A stretch where the light is
+  off](#a-stretch-where-the-light-is-off).
 - `target` is a selector string or an `Element`.
 - `message` is `{ title, body }`, and `side` is where it goes —
   [The message](#the-message).
@@ -105,6 +107,9 @@ nothing takes focus away from the page.
   left.
 - The fade itself fires nothing on its way to zero. Until the light is out, the
   target is still the lit one.
+- An off entry's index is never announced: it is never lit, and the light
+  going out at it fires `undefined` —
+  [A stretch where the light is off](#a-stretch-where-the-light-is-off).
 
 ## What a target is
 
@@ -137,6 +142,9 @@ target is looked for again the next time the page is measured.
 **Indices are the array's, and are never compacted.** A skipped target keeps
 its place, so `onChange` names a target by the position the author wrote it at,
 whichever of the others were found.
+
+**An off entry is found, measured and skipped like any other, and is never
+lit** — [A stretch where the light is off](#a-stretch-where-the-light-is-off).
 
 ## The array is the order
 
@@ -207,6 +215,10 @@ the middle of the screen at scroll 0 is the same case with no pull-back in it.
 whichever target the line last passed, so there is never a moment inside the
 range where nothing is lit.
 
+**At an off entry's switch position the light goes out rather than moving**,
+and the entry is counted in `n` like any other found one — [A stretch where
+the light is off](#a-stretch-where-the-light-is-off).
+
 **A switch is a morph, and a morph runs on time rather than on scroll.** The
 hole moves from the one target to the next over a fixed duration, whatever the
 reader does with the page while it runs. A morph tied to the scroll would stop
@@ -214,7 +226,8 @@ halfway whenever the reader did, with the hole stretched between two targets.
 
 ## The two edges
 
-**The range has two edges, and both are alike.**
+**The range has two edges, one towards each end of the page, and both are
+alike.**
 
 - **The upper edge is `trigger_0`**, the first target's switch position: its
   top, unless the pull-back put it higher.
@@ -244,6 +257,44 @@ leaving the lit part of the page, and a reader at either end of the page is
 still on it. A fade that could only go part of the way would leave that end of
 the page half dimmed for as long as the reader stayed there, a leaving that
 never finishes.
+
+## A stretch where the light is off
+
+**An entry `{ target, off: true }` is a marker: from its switch position the
+light is off.** It takes nothing but a `target`, because nothing about it is
+drawn. It sits in `targets` because the array is where the order is said
+([The array is the order](#the-array-is-the-order)), and a part of the page
+left unlit is a place in that order.
+
+**The stretch's two edges are the marker's own switch position and the next lit
+entry's.** Above the first edge the light is on the target before the marker,
+and from the second the target after it is lit. Consecutive markers are one
+stretch, since at the second of them the light is already off. A marker that
+is first leaves the light off from the top of the page down to the first lit
+entry's switch position, and one that is last leaves it off from its switch
+position to the foot. Either takes the place of the page's edge at that end,
+and [The two edges](#the-two-edges) holds only at an end where a lit target is.
+
+**Each end of the stretch with a lit target beyond it has a fade band,
+`min(fade, room)` deep.** `room` is half the stretch where there is a lit target
+on each side, so the two bands meet and never overlap. Where the stretch is
+last it is the whole stretch, from the marker's switch position to `reach`.
+Where it is first it is the whole of the stretch the line can reach, from the
+marker's switch position or `line * viewportHeight`, whichever is lower, to the
+next lit entry's, and none where that is nothing. At the page's ends a band the
+reader cannot scroll all the way through is dropped, because that leaving never
+finishes. Inside an off stretch the band is kept to what the line can reach, so
+the reader can always go on past its far edge and the leaving finishes whatever
+its depth: the band shrinks to fit rather than going.
+
+**The stretch adds nothing to what is drawn or announced.** Scrolling into it
+is leaving, and scrolling out of it at either edge is coming back, both exactly
+as [What was seen before decides what is drawn](#what-was-seen-before-decides-what-is-drawn)
+says: the band fades with the scroll both ways, the light going out fires
+`undefined`, a scroll that crosses from one band to the other in a single step
+puts the light out as well, and with the light out, the line leaving the
+stretch at either edge converges on the target there. The marker's own index is
+never announced.
 
 ## Entering converges, leaving fades
 
@@ -282,6 +333,13 @@ follows from that one bit.
   since the target it left was announced, and a converge cut off fires nothing.
   A converge a switch turned is still a converge here ([A fast scroll skips the
   middle](#a-fast-scroll-skips-the-middle)).
+- **Lit, converging or morphing, and the line lands in the band of a target
+  that is neither the one lit nor the one on its way:** the light is out, and a
+  lit target or a morph fires `undefined` while a converge fires nothing. A
+  band is its own target's leaving, so one whose target never arrived is a
+  leaving nobody saw arrive, as at [Starting part-way
+  down](#starting-part-way-down), and drawing it would leave the hole on a
+  target the line has gone past while the dark climbs back.
 - **Fading, and the line comes back into the range:** the opacity climbs back
   to 1, and the light is on the target that position calls for. If that is the
   target that was lit, nothing converges and `onChange` does not fire, because
@@ -348,6 +406,19 @@ viewport's height and the page's size, and kept.** While the reader scrolls
 nothing is measured again: the switch positions, the edges and the opacity are
 all functions of those numbers and the scroll offset.
 
+**The viewport is the root element's client area, `clientWidth` by
+`clientHeight`, and never `innerWidth` by `innerHeight`.** The client area
+leaves a layout scrollbar out, and the inner size counts it in. A scrim as wide
+as `innerWidth` sticks out under a vertical scrollbar and adds a horizontal
+scroll the page did not have. Under a horizontal scrollbar `innerHeight` puts
+`reach` above where the line gets at the foot, so the last switch comes before
+the bottom of the page rather than at it. The one height serves the
+line, `reach`, the box a converge closes in from and the page's own size. It
+also holds still while a mobile browser's toolbars show and hide, where
+`innerHeight` follows them and would move the line under a reader who has not
+scrolled. No page under `spike/` measures that, and it is stated here as
+unmeasured.
+
 **The page is measured at creation, on a window resize, on `load` and once
 `document.fonts.ready` settles.** Those are what move a static page: a new
 viewport size, the images and stylesheets that arrive after the first paint,
@@ -368,6 +439,8 @@ loaded a section — says so, and Leko Scroll measures again.
 - The lit target changed, or the line entered or left the range: it is treated
   as a scroll to the same position would be — a morph, a converge, or a fade
   band's opacity.
+- The lit target is no longer found, and the line is in a fade band or nothing
+  is found at all: the light goes out, and `onChange` fires with `undefined`.
 
 ## The scrim rides the page
 
@@ -378,6 +451,11 @@ scrolled, so a scrim fixed to the viewport and redrawn from the event shows the
 hole lagging behind its target, and under iOS inertial scrolling most of all.
 No page under `spike/` measures that lag. It is the reason all the same, and
 the claim is stated here as unmeasured.
+
+The root is placed from its containing block's origin, which a positioned
+`body` or `html` moves off the page's top left. So each measure reads where
+that origin is and moves the root back by it, and the root covers the whole
+page, margins included. The holes stay in page coordinates, as the core does.
 
 **The scroll listener is passive and reads the scroll offset alone.** Nothing
 else is read while the reader scrolls, and JS writes to the page in two places
@@ -425,6 +503,11 @@ default is `bottom`.**
 - **A `left` or `right` that does not fit the viewport's width goes to
   `bottom`.** Scrolling cannot change the width, so that choice never flickers.
 
+The clearance between the hole and the box is `--leko-scroll-message-gap`,
+12px by default. What sticks out of the page is clipped rather than growing
+it, so a box beside a target at the page's edge never adds a scroll the page
+did not have.
+
 ## The halo
 
 **The halo is a frame on the hole that a page opts into through the
@@ -432,7 +515,8 @@ default is `bottom`.**
 
 - **It follows the hole**, moving with it through a morph. There is no mode to
   choose.
-- **It is absent during a converge** and appears after the arrival.
+- **It is absent during a converge** and appears after the arrival, fading in
+  over `--leko-scroll-halo-fade`, 160ms by default.
 - **It dims with the scrim during a fade.**
 
 ## Padding and radius

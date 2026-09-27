@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leko Scroll example</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand">Fernpost</span>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#questions">FAQ</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="hero" class="hero">
+        <p class="caption">
+          Lit on arrival: its top is less than the line plus the fade from the top of the page, so
+          there is no upper band. Press a button: the scrim catches no pointer events.
+        </p>
+        <h1>Notes that keep up with you.</h1>
+        <p class="lede">
+          Fernpost is a made-up notes app, here to give Leko Scroll a long page to light.
+        </p>
+        <div class="actions">
+          <button type="button" class="primary" data-press>Start free</button>
+          <button type="button" data-press>See a demo</button>
+        </div>
+        <p class="pressed" id="pressed" aria-live="polite">Nothing pressed yet.</p>
+      </section>
+
+      <section id="features" class="features">
+        <p class="caption">
+          Listed middle, left, right, with their tops level: the array is the order, and the spacing
+          holds their switches 150px apart. The left card has a padding and radius of its own.
+        </p>
+        <h2>Three reasons to switch</h2>
+        <div class="cards">
+          <article id="card-light" class="card">
+            <h3>Light</h3>
+            <p>Opens before you have finished reaching for it.</p>
+          </article>
+          <article id="card-speed" class="card">
+            <h3>Fast</h3>
+            <p>Search every note you ever wrote while you type.</p>
+          </article>
+          <article id="card-free" class="card">
+            <h3>Free</h3>
+            <p>No account and no trial. Your notes stay yours.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="how">
+        <p class="caption">Not a target. The right card stays lit across it, up to the plans.</p>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li><strong>Write.</strong> A note is a page. Start typing anywhere.</li>
+          <li><strong>Link.</strong> Put two notes side by side and join them.</li>
+          <li><strong>Find.</strong> Everything you wrote is one search away.</li>
+        </ol>
+      </section>
+
+      <section id="pricing" class="pricing">
+        <p class="caption">
+          Two copies, one hidden by a media query: the selector matches both, and the copy with a
+          box is lit. The next entry, #coming-soon, matches nothing: open the console.
+        </p>
+        <h2>Plans</h2>
+        <div class="plans plans-narrow">
+          <div class="plan">
+            <h3>Personal</h3>
+            <p class="price">Free</p>
+          </div>
+          <div class="plan">
+            <h3>Team</h3>
+            <p class="price">$4 a seat</p>
+          </div>
+        </div>
+        <div class="plans plans-wide">
+          <div class="plan">
+            <h3>Personal</h3>
+            <p class="price">Free</p>
+            <p>Every feature, on every device you own.</p>
+          </div>
+          <div class="plan">
+            <h3>Team</h3>
+            <p class="price">$4 a seat</p>
+            <p>Shared notebooks, and a history of who wrote what.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="testimonials" class="testimonials">
+        <p class="caption">
+          An off entry. Scrolling in fades the plans out, the middle is the page alone, and the
+          FAQ's band draws nothing until its switch converges.
+        </p>
+        <h2>What people say</h2>
+        <p class="jump">
+          <a href="#hero">Back to the top</a>: from the band, with the plans still showing, the hole
+          morphs to the hero. From the middle, it converges.
+        </p>
+        <blockquote>
+          <p>I stopped losing the thing I wrote down in the meeting.</p>
+          <footer>A reader, somewhere</footer>
+        </blockquote>
+        <blockquote>
+          <p>It is the first notes app I have not wanted to reorganise.</p>
+          <footer>Another reader</footer>
+        </blockquote>
+        <blockquote>
+          <p>Search is so fast that I stopped filing anything.</p>
+          <footer>A third reader</footer>
+        </blockquote>
+      </section>
+
+      <section id="faq" class="faq">
+        <p class="caption">
+          Opening a question calls measure(): the section below moves, and the hole is put back on
+          the FAQ at once, with no notice.
+        </p>
+        <h2 id="questions">Questions</h2>
+        <div class="question">
+          <button type="button" aria-expanded="false" aria-controls="answer-sync">
+            Does it sync?
+          </button>
+          <div id="answer-sync" class="answer" hidden>
+            <p>Across every device you sign in on, within a second or two of the last keystroke.</p>
+            <p>Offline edits wait on the device and go up the next time it is online.</p>
+          </div>
+        </div>
+        <div class="question">
+          <button type="button" aria-expanded="false" aria-controls="answer-export">
+            Can I take my notes with me?
+          </button>
+          <div id="answer-export" class="answer" hidden>
+            <p>Every note exports as plain Markdown, with its links kept.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="closing" class="closing">
+        <p class="caption">
+          The last entry, below where the line can reach: its switch is pulled back, so it is lit at
+          the foot, at full opacity down to the bottom.
+        </p>
+        <h2>Start writing today.</h2>
+        <button type="button" class="primary" data-press>Start free</button>
+      </section>
+    </main>
+
+    <footer class="foot">Fernpost is not a real product.</footer>
+
+    <div class="hairline" id="hairline" aria-hidden="true"></div>
+    <aside class="readout" aria-live="polite">
+      <div>
+        <code>onChange(<span id="readout-index">…</span>)</code>
+        <span id="readout-caption">no notice yet</span>
+        <span id="readout-count" class="count">0 notices</span>
+      </div>
+      <button type="button" id="spotlight-toggle" aria-pressed="true">Spotlight: on</button>
+      <button type="button" id="line-toggle">Hide the line</button>
+    </aside>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

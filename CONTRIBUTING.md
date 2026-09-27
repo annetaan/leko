@@ -47,6 +47,11 @@ watches proves nothing about a library whose whole claim is that they do not.
 Behaviour a user would notice wants a case there, and each case says in one
 sentence what it proves.
 
+`pnpm dev:scroll` serves [`examples/scroll/`](examples/scroll/), Leko Scroll's
+one long page, resolved from source the same way. It is a page to scroll rather
+than a set of cases, and [The example
+page](packages/scroll/DESIGN.md#the-example-page) says why.
+
 ## The documentation site
 
 [`docs/`](docs/) is the site, built with Astro and Starlight as the workspace
@@ -92,6 +97,7 @@ that will publish it, and its header says what the release changes.
 
 ```bash
 pnpm dev             # the sandbox, resolving the core from source
+pnpm dev:scroll      # Leko Scroll's example page, the same way
 pnpm typecheck       # tsc --noEmit across workspace packages, and the type tests
 pnpm lint            # oxlint
 pnpm format          # oxfmt --write
@@ -99,7 +105,7 @@ pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether it could
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
-pnpm test            # vitest: eight projects, three of them in browsers
+pnpm test            # vitest: ten projects, four of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
 pnpm model:traces    # regenerate the traces those searches replay against
 ```
@@ -127,9 +133,9 @@ over fake effects. The seeds are fixed so a diff means something. They are not
 portable across Quint versions, which is why regenerating is a command somebody
 runs rather than something CI checks.
 
-`pnpm test` runs `spotlight` and `leko` in Chromium, Firefox and WebKit,
-`leko-wiring` in Chromium alone, and `presenter`, `machine`, `codegen` and
-`scripts` in Node. `presenter` is the presenter's plan twice over:
+`pnpm test` runs `spotlight`, `leko` and `scroll` in Chromium, Firefox and
+WebKit, `leko-wiring` in Chromium alone, and `presenter`, `spotlight-geometry`,
+`machine`, `codegen`, `scroll-core` and `scripts` in Node. `presenter` is the presenter's plan twice over:
 `plan.test.ts` one `(mode, event)` pair at a time, and `replay.test.ts` over the
 corpus the search harvested.
 [DESIGN.md](DESIGN.md#how-to-write-here-and-where-tests-go) says what puts a test in
@@ -150,8 +156,8 @@ carries the names alone, so an edit that moves a line changes nothing in it.
 ## What `@annetaan/leko` ships
 
 `packages/leko` is the only package here that publishes. `packages/types`,
-`packages/machine`, `packages/presenter` and `packages/spotlight` are
-`private: true` and stay that way.
+`packages/machine`, `packages/presenter`, `packages/spotlight` and
+`packages/scroll` are `private: true` and stay that way.
 
 That means `packages/leko` cannot import them the way a package normally imports
 a dependency. It did, for a while. `tsc` emits one file per source file and
@@ -167,8 +173,9 @@ packages and everything resolves, so the build passed, the typecheck passed, and
 265 tests passed in three browsers. Every check the repository has was asking
 about the workspace rather than about the tarball.
 
-So `packages/leko` is built by `tsdown`, which bundles the four into one
-`dist/index.js` and one `dist/index.d.ts`. All four are workspace
+So `packages/leko` is built by `tsdown`, which bundles the five into
+`dist/index.js` and `dist/scroll.js`, each with its `.d.ts`; `packages/scroll`
+is the one behind `@annetaan/leko/scroll`. All five are workspace
 `devDependencies` now. What a consumer installs is a single package with no
 runtime dependencies, which is what `packages/leko` promised in the first place.
 
@@ -236,8 +243,9 @@ page, not just the rule.
 - **Adding a third-party runtime dependency to `packages/leko`.** It has none on
   purpose: a dependency there is a licensing and bundle-size liability for every
   consumer. `@annetaan/leko-types`, `@annetaan/leko-machine`,
-  `@annetaan/leko-presenter` and `@annetaan/leko-spotlight` come from this
-  repository under the same licence and are not what the rule is about.
+  `@annetaan/leko-presenter`, `@annetaan/leko-spotlight` and
+  `@annetaan/leko-scroll` come from this repository under the same licence and
+  are not what the rule is about.
 - **Tightening `reached()` the way `awaits` is tightened.** The asymmetry is the
   design. The vocabulary is gathered *from* those calls, so an error there fires
   only between typing a new name and the generator running, and a `reached()`

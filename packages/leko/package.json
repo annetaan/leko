@@ -34,6 +34,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./scroll": {
+      "development": "./src/scroll.ts",
+      "types": "./dist/scroll.d.ts",
+      "default": "./dist/scroll.js"
+    },
     "./leko.css": "./dist/leko.css"
   },
   "publishConfig": {
@@ -46,6 +51,7 @@
   "devDependencies": {
     "@annetaan/leko-machine": "workspace:*",
     "@annetaan/leko-presenter": "workspace:*",
+    "@annetaan/leko-scroll": "workspace:*",
     "@annetaan/leko-spotlight": "workspace:*",
     "@annetaan/leko-types": "workspace:*",
     "tsdown": "^0.22.14"

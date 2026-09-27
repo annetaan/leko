@@ -68,6 +68,16 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@24.13.3)(esbuild@0.28.2)(yaml@2.9.0)
 
+  examples/scroll:
+    dependencies:
+      '@annetaan/leko':
+        specifier: workspace:*
+        version: link:../../packages/leko
+    devDependencies:
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.0(@types/node@24.13.3)(esbuild@0.28.2)(yaml@2.9.0)
+
   packages/codegen:
     devDependencies:
       '@annetaan/leko':
@@ -91,6 +101,9 @@ importers:
       '@annetaan/leko-presenter':
         specifier: workspace:*
         version: link:../presenter
+      '@annetaan/leko-scroll':
+        specifier: workspace:*
+        version: link:../scroll
       '@annetaan/leko-spotlight':
         specifier: workspace:*
         version: link:../spotlight
@@ -123,7 +136,11 @@ importers:
         specifier: ^24.13.3
         version: 24.13.3
 
-  packages/scroll: {}
+  packages/scroll:
+    dependencies:
+      '@annetaan/leko-spotlight':
+        specifier: workspace:*
+        version: link:../spotlight
 
   packages/spotlight: {}
 

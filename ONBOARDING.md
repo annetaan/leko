@@ -67,11 +67,11 @@ pnpm test
 ```
 
 It takes well under a minute on a laptop once the browsers are installed.
-`vitest.config.ts` defines the projects, three of them in real browsers.
+`vitest.config.ts` defines the projects, four of them in real browsers.
 
 ## The shape of the code
 
-Six packages. One of them publishes.
+Seven packages. One of them publishes.
 
 ```
                     @annetaan/leko          the only published package
@@ -99,12 +99,15 @@ The two halves never import each other. They meet in
 `packages/presenter/src/presenter.ts`, and what each may ask of the other is
 written down in `Presenter` and `Host`, in `packages/machine/src/types.ts`.
 
+`@annetaan/leko/scroll` is a second entry point of the same package, bundling
+`packages/scroll`, whose own DESIGN.md and CLAUDE.md apply there.
+
 `packages/machine/tsconfig.json` sets `"lib": ["ES2023"]`. A `document` in that
 package is a compile error. That is what lets its tests run in Node against a
 fake presenter the test file writes, in a fraction of a second, instead of three
 times in three browser engines.
 
-`packages/leko` is built by `tsdown`, which bundles the other four in. All four
+`packages/leko` is built by `tsdown`, which bundles the other five in. All five
 are `private: true` and none is on npm, so an import of any of them left in
 `dist/` is a package a consumer cannot install. `pnpm check:pack` catches that
 and CI runs it.
@@ -414,7 +417,7 @@ a listener, written against a particular step and with no job outside the tour.
 
 ## Which Vitest project a new test belongs in
 
-Eight projects, defined in `vitest.config.ts`. The question that sorts them is
+Ten projects, defined in `vitest.config.ts`. The question that sorts them is
 whether a browser could get the answer wrong.
 
 | Project | Runs in | Take a test here when |
@@ -424,9 +427,11 @@ whether a browser could get the answer wrong.
 | `codegen` | Node | The claim is about reading TypeScript source or writing a file |
 | `scripts` | Node | The claim is about the text a repository check reads — a file's comments, a citation of a heading |
 | `spotlight-geometry` | Node | The claim is a property of the numbers `geometry.ts` returns |
+| `scroll-core` | Node | It is about Leko Scroll's pure core |
 | `spotlight` | Chromium, Firefox, WebKit | The claim is about what an engine does — with `clip-path`, with a box, with a popover |
 | `leko` | Chromium, Firefox, WebKit | An engine could answer differently. `elementFromPoint`, where a scrim mounted, a resize |
 | `leko-wiring` | Chromium only | It goes through the real `DomPresenter`, and no engine has an opinion about the answer |
+| `scroll` | Chromium, Firefox, WebKit | It is about Leko Scroll's shell |
 
 "Does the test mention the DOM" is the wrong question and it was tried. 20 tests
 mentioned the DOM and no engine could disagree about any of them. They moved to
