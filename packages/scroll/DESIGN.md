@@ -41,7 +41,7 @@ can decide which goes first.
 ```ts
 createScroll({
   targets: [{ target, message?, side?, padding?, radius? } | { target, off: true }],
-  line?, fade?, spacing?, padding?, radius?, onChange?,
+  line?, fade?, spacing?, padding?, radius?, intro?, onChange?,
 }) // → { measure(), destroy() }
 ```
 
@@ -61,6 +61,10 @@ createScroll({
   150.
 - `padding` and `radius` are the hole's, for every target that does not say its
   own. Both default to 8px — [Padding and radius](#padding-and-radius).
+- `intro` is the converge at creation, `{ duration }` in milliseconds, and may
+  be left out. Left out, or with no `duration`, it takes the 320ms every
+  converge takes — [Entering converges, leaving
+  fades](#entering-converges-leaving-fades).
 - `onChange` is the one notice, and [The whole page stays
   usable](#the-whole-page-stays-usable) says when it fires. It may be left out:
   a page that only wants its targets lit has nothing to listen for.
@@ -220,8 +224,8 @@ and the entry is counted in `n` like any other found one — [A stretch where
 the light is off](#a-stretch-where-the-light-is-off).
 
 **A switch is a morph, and a morph runs on time rather than on scroll.** The
-hole moves from the one target to the next over a fixed duration, whatever the
-reader does with the page while it runs. A morph tied to the scroll would stop
+hole moves from the one target to the next over 320ms, the same every time,
+whatever the reader does with the page while it runs. A morph tied to the scroll would stop
 halfway whenever the reader did, with the hole stretched between two targets.
 
 ## The two edges
@@ -299,9 +303,26 @@ never announced.
 ## Entering converges, leaving fades
 
 **Entering converges from the outside in, on time.** Nothing is dimmed at the
-first frame, and the dark closes in on the target over a fixed duration. An
-entry is the light arriving, and an arrival tied to the scroll would stop
-wherever the reader stopped, with the dark halfway in.
+first frame, and the dark closes in on the target over 320ms. An entry is the
+light arriving, and an arrival tied to the scroll would stop wherever the
+reader stopped, with the dark halfway in.
+
+**The converge `createScroll` starts is the one that may take longer, through
+`intro.duration`.** At load the reader has not scrolled, so the dark closing in
+is the page opening and answers no movement of theirs. Every later converge
+answers a scroll, and a long one would trail the reader's hand.
+
+- Created out of range, there is no intro. The converge a later scroll starts
+  is an ordinary one.
+- A switch crossed during the intro turns it into an ordinary converge. It goes
+  on from the hole on screen and takes 320ms ([A fast scroll skips the
+  middle](#a-fast-scroll-skips-the-middle)).
+- A fade reaching zero during the intro cuts it off, as it cuts off any
+  converge ([What was seen before decides what is
+  drawn](#what-was-seen-before-decides-what-is-drawn)).
+- A measure landing during the intro with the same target
+  ([Measuring](#measuring)) leaves it the intro. It goes on from the hole on
+  screen and takes the whole of `intro.duration` again.
 
 **Leaving fades with the scroll.** Past an edge the scrim's opacity is
 
@@ -314,9 +335,9 @@ default. It is tied to the scroll, not to time, because it is the reader's own
 movement that is taking them out of the range, and reversing mid-fade gives the
 opacity back as it goes.
 
-**At zero the light is out**, and coming back converges again as it did the
-first time. A fade that has not reached zero is still reversible; one that has
-is over.
+**At zero the light is out**, and coming back converges again on the target, as
+an ordinary converge and never as the intro. A fade that has not reached zero
+is still reversible; one that has is over.
 
 ## What was seen before decides what is drawn
 
@@ -382,8 +403,9 @@ converge cut off does: no `index` was announced for an `undefined` to answer.
 ## Starting part-way down
 
 **Created with the line inside the range, it converges on the target that
-position calls for.** That is the same entry as scrolling into the range, from
-wherever the page already is.
+position calls for.** That is the same target as scrolling into the range, from
+wherever the page already is, and this converge is the intro ([Entering
+converges, leaving fades](#entering-converges-leaving-fades)).
 
 **A first target near the top of the page converges at load, before the reader
 scrolls.** Where its top is less than `line * viewportHeight + fade` from the

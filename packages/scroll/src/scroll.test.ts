@@ -2,12 +2,13 @@ import { afterEach, expect, test, vi } from 'vitest'
 
 import { holeOf } from './geometry.js'
 import { maskLayers } from './mask.js'
-import { Scrim } from './scrim.js'
+import { DURATION, Scrim } from './scrim.js'
 import { createScroll } from './scroll.js'
 import type { LekoScroll, LekoScrollOptions } from './types.js'
 
 // `createScroll` against a real page, in real time: a converge or a morph takes
-// the scrim's own duration, and a scroll is `scrollTo` and the event after it.
+// the scrim's own duration unless it is an intro given one, and a scroll is
+// `scrollTo` and the event after it.
 // What the plan decides in each case is plan.test.ts's business; what is
 // pinned here is that the page's numbers reach it and its answers reach the
 // page.
@@ -22,6 +23,7 @@ afterEach(() => {
   document.body.style.cssText = bodyStyle
   window.scrollTo(0, 0)
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 /** Where each test's targets sit, in page coordinates. */
@@ -186,6 +188,65 @@ test('a fast scroll over several switch positions fires only the last', async ()
   expect(mask()).toBe(maskOn(targets[3]))
   await pause(400)
   expect(changes).toEqual([0, 3])
+})
+
+/**
+ * A fake clock for the frame loop, taken before `createScroll` so every frame
+ * it asks for is one of the test's, and a wait for the measure
+ * `document.fonts.ready` starts, so it cannot restart a converge in the middle
+ * of the frames. A real frame has been watched taking seconds on the CI
+ * runner, for the reason `TICK` in `packages/leko/src/harness.ts` records;
+ * the scroll and the page stay real.
+ */
+async function clocked(options: Partial<LekoScrollOptions>): Promise<ReturnType<typeof start>> {
+  vi.useFakeTimers()
+  const started = start(options)
+  await document.fonts.ready
+  return started
+}
+
+/** `ms` of the fake clock, a frame at a time. */
+const elapse = (ms: number): void => {
+  for (let t = 0; t < ms; t += 16) vi.advanceTimersByTime(16)
+}
+
+/** Time enough for an ordinary converge or morph to reach its last frame. */
+const USUAL = DURATION + 16
+
+test('intro.duration slows the converge at creation and not the morph after it', async () => {
+  const { targets } = build()
+  const { changes } = await clocked({ intro: { duration: 1200 } })
+  elapse(600)
+  expect(changes).toEqual([])
+  elapse(1200 + 16 - 600)
+  expect(changes).toEqual([0])
+  expect(mask()).toBe(maskOn(targets[0]))
+
+  await scrolled(lineAt(B + 50))
+  elapse(USUAL)
+  expect(changes).toEqual([0, 1])
+})
+
+test('created outside the range, the converge a later scroll starts is not the intro', async () => {
+  build([2000, 2600])
+  const { changes } = await clocked({
+    targets: [{ target: '#t0' }, { target: '#t1' }],
+    intro: { duration: 1200 },
+  })
+  expect(changes).toEqual([undefined])
+
+  await scrolled(lineAt(2000 + 50))
+  elapse(USUAL)
+  expect(changes).toEqual([undefined, 0])
+})
+
+test('a switch crossed during the intro goes on at the usual length', async () => {
+  const { targets } = build()
+  const { changes } = await clocked({ intro: { duration: 1200 } })
+  await scrolled(lineAt(B + 50))
+  elapse(USUAL)
+  expect(changes).toEqual([1])
+  expect(mask()).toBe(maskOn(targets[1]))
 })
 
 test('past the lower edge the root dims with the scroll and the mask is not rewritten', async () => {

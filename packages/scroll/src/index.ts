@@ -1,6 +1,7 @@
 export { createScroll } from './scroll.js'
 export type {
   LekoScroll,
+  LekoScrollIntro,
   LekoScrollLit,
   LekoScrollMessage,
   LekoScrollOff,

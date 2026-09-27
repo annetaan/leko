@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
 import type { Hole, Rect } from './geometry.js'
 import { maskLayers } from './mask.js'
@@ -12,6 +12,7 @@ const scrims: Scrim[] = []
 
 afterEach(() => {
   for (const scrim of scrims.splice(0)) scrim.destroy()
+  vi.useRealTimers()
 })
 
 const WIDTH = 1000
@@ -43,6 +44,11 @@ function mount(duration = 40): {
     arrived: () => new Promise((resolve) => waiting.push(resolve)),
     arrivals: () => count,
   }
+}
+
+/** `ms` of a fake clock, a frame at a time. */
+const elapse = (ms: number): void => {
+  for (let t = 0; t < ms; t += 16) vi.advanceTimersByTime(16)
 }
 
 const frame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()))
@@ -144,6 +150,26 @@ test('a converge issued mid-flight goes on from the hole on screen', async () =>
   between(next, mid, b)
 
   await arrived()
+  expect(arrivals()).toBe(1)
+  expect(part(scrim, 'scrim').style.maskImage).toBe(serialised(WIDTH, HEIGHT, b))
+})
+
+test("a converge takes the duration it is given, and the next one the scrim's own", () => {
+  // On a fake clock, because a real frame has been watched taking seconds on
+  // the CI runner, for the reason `TICK` in `packages/leko/src/harness.ts`
+  // records.
+  vi.useFakeTimers()
+  const { scrim, arrivals } = mount(40)
+  scrim.converge(a, seen, 1000)
+  elapse(500)
+  expect(arrivals()).toBe(0)
+  const mid = holeOnScreen(scrim)
+  if (!mid) throw new Error('no hole in flight')
+  between(mid, { ...seen, radius: 0 }, a)
+  expect(mid.width).toBeGreaterThan(a.width)
+
+  scrim.converge(b, seen)
+  elapse(40 + 16)
   expect(arrivals()).toBe(1)
   expect(part(scrim, 'scrim').style.maskImage).toBe(serialised(WIDTH, HEIGHT, b))
 })

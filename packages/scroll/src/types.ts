@@ -33,6 +33,15 @@ export interface LekoScrollOff {
 /** One entry of `targets`. */
 export type LekoScrollTarget = LekoScrollLit | LekoScrollOff
 
+/**
+ * The converge `createScroll` starts —
+ * [Entering converges, leaving fades](../DESIGN.md#entering-converges-leaving-fades).
+ */
+export interface LekoScrollIntro {
+  /** In milliseconds. Left out, the converge takes the 320ms every converge takes. */
+  duration?: number
+}
+
 export interface LekoScrollOptions {
   /** Lit in this order — [The array is the order](../DESIGN.md#the-array-is-the-order). */
   targets: readonly LekoScrollTarget[]
@@ -41,6 +50,7 @@ export interface LekoScrollOptions {
   spacing?: number
   padding?: number
   radius?: number
+  intro?: LekoScrollIntro
   /** [The whole page stays usable](../DESIGN.md#the-whole-page-stays-usable) says when it fires. */
   onChange?: (index: number | undefined) => void
 }
