@@ -19,10 +19,31 @@ name: Pages
 #          branches: [main]
 #        workflow_dispatch:
 #
-# 4. Replace the install section of docs/src/content/docs/getting-started.mdx,
-#    its Aside and its block, with `npm install @annetaan/leko` and
-#    `npm install -D @annetaan/leko-codegen`, and give the landing hero in
-#    docs/src/pages/index.astro its install line back.
+# 4. In docs/src/content/docs/getting-started.mdx, replace the Aside and the
+#    block under **Install Leko** with `npm install @annetaan/leko` and
+#    `npm install -D @annetaan/leko-codegen`, and drop "git and" from the
+#    opening's "You need git and Node 24.", since git was for the clone. In
+#    docs/src/pages/index.astro, put the install line back in the hero, right
+#    after its `.actions` div, with its two rules in the scoped <style> block
+#    (not <style is:global>):
+#
+#      <code class="install">npm install @annetaan/leko</code>
+#
+#      .install {
+#        display: inline-block;
+#        margin-top: 24px;
+#        padding: 8px 14px;
+#        border-radius: 8px;
+#        background: var(--bg-raised);
+#        border: 1px solid var(--line);
+#        color: var(--ink-soft);
+#      }
+#
+#      .install::before {
+#        content: '$ ';
+#        color: var(--ink-faint);
+#      }
+#
 # 5. Delete this comment down to `on:`, which is all about the time before
 #    the release, and the closing paragraph under
 #    CONTRIBUTING.md, **The documentation site**, which points here.

@@ -4,8 +4,7 @@ import { unpacked, withoutCondition } from './pack.mjs'
 
 describe('unpacked', () => {
   it('names an export target the tarball does not carry', () => {
-    // The bug this exists for: `development` pointed into `src/`, and `files`
-    // leaves `src/` out.
+    // The bug in CONTRIBUTING.md, **What `@annetaan/leko` ships**.
     const manifest = {
       exports: {
         '.': {

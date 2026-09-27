@@ -27,7 +27,8 @@ If npm asks to install `create-vite`, answer `y`.
   Leko is not on npm yet, and the `0.0.0` there is a placeholder with no code in it. This block
   builds both packages from the repository and installs their tarballs instead. It needs git and
   Node 24, and runs pnpm through `npx`. At the release it becomes `npm install @annetaan/leko` and
-  `npm install -D @annetaan/leko-codegen`.
+  `npm install -D @annetaan/leko-codegen`. The block leaves `leko/`, `leko-packages/` and `my-tour/`
+  side by side, and ends back in `my-tour/`.
 </Aside>
 
 ```sh
@@ -41,9 +42,6 @@ cd ../my-tour
 npm install ../leko-packages/annetaan-leko-0.0.0.tgz
 npm install -D ../leko-packages/annetaan-leko-codegen-0.0.0.tgz
 ```
-
-It leaves `leko/`, `leko-packages/` and `my-tour/` side by side, and ends back
-in `my-tour/`.
 
 ## Create the instance
 
