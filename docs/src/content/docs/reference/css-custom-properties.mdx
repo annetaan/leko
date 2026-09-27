@@ -1,0 +1,190 @@
+---
+title: CSS custom properties
+description: The --leko-* properties everything Leko draws reads, their defaults, and which element each one styles.
+---
+
+Everything Leko draws reads one of these: the scrim, the halo, the message and
+the control that ends the tour. `@annetaan/leko/leko.css` declares all of them
+on `:root` with the values below. Importing it is optional, because the code
+writes the same values as the `var()` fallbacks, so a tour looks the same with
+the stylesheet and without it.
+
+```ts
+import '@annetaan/leko/leko.css' // optional — just the --leko-* defaults
+```
+
+## Where to set them
+
+Set them on `:root`, or on a theme class on `html` or `body`:
+
+```css
+:root {
+  --leko-scrim-color: rgb(3 12 22 / 0.58);
+  --leko-message-radius: 12px;
+}
+
+.leko-halo {
+  --leko-halo-outline: 2px solid gold;
+}
+```
+
+Not on an element around the target. The message and the control that ends
+the tour are appended to `document.body`, and the scrim goes on `body` or
+inside the scroller the target is in, so a property set on a container around
+the target does not reach all of them. A property can also go on one of Leko's
+own elements by its class, the way the halo's are set on `.leko-halo` above.
+
+With the stylesheet imported, it and the host both declare on `:root`. An
+override then has to come after the stylesheet, or be more specific.
+
+## The scrim
+
+| Property             | Default             | Sets         |
+| -------------------- | ------------------- | ------------ |
+| `--leko-scrim-color` | `rgb(0 0 0 / 0.45)` | `background` |
+| `--leko-z`           | `9999`              | `z-index`    |
+
+`--leko-scrim-color` is the background of `.leko-scrim`, the dimming outside
+the cutouts.
+
+`--leko-z` is the stacking level of the scrim and of the two layers drawn
+beside it, the rectangles that block a hole and the halo frames. Both come
+after the scrim in the tree, so at the same level a rectangle and a frame land
+above it. Raise it when something of the page's own paints above the scrim.
+Where the browser has a top layer, the message and the control that ends the
+tour are popovers in it, above the scrim whatever `--leko-z` says —
+[The message](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-message).
+
+The [styled tour](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/styled-tour.ts)
+in the sandbox sets `--leko-scrim-color`.
+
+## The halo
+
+| Property              | Default | Sets             |
+| --------------------- | ------- | ---------------- |
+| `--leko-halo-outline` | `none`  | `outline`        |
+| `--leko-halo-offset`  | `0px`   | `outline-offset` |
+| `--leko-halo-shadow`  | `none`  | `box-shadow`     |
+| `--leko-halo-fade`    | `160ms` | `transition`     |
+
+Each hole the step cuts gets a `.leko-halo` frame of its own, on the hole's box
+and with its radius. The frame is transparent and catches no pointer, and with
+every default it paints nothing, so the halo is there only once a host sets one
+of these. The hole the step opened carries `data-open`, so
+`.leko-halo[data-open]` or `.leko-halo:not([data-open])` styles it apart from
+the holes the step only shows. A negative offset or an inset shadow paints over
+the target, and a host that writes one is choosing that.
+
+`--leko-halo-fade` is how long a frame's opacity takes to change. It runs as a
+frame appears and, under the default [`halo: 'return'`](../create-leko/#halo),
+as the frames go out while a morph carries their holes somewhere else and come
+back when they get there. `0ms` makes both a cut —
+[The halo](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-halo).
+
+In the sandbox, the
+[styled tour](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/styled-tour.ts)
+sets the outline, the offset and the shadow on `.leko-halo`, and quieter ones
+on `.leko-halo:not([data-open])`. The
+[halo that follows](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/halo-follows.ts)
+sets the outline and the shadow under `halo: 'follow'`.
+
+## The message
+
+| Property                   | Default                              | Sets            |
+| -------------------------- | ------------------------------------ | --------------- |
+| `--leko-message-bg`        | `#fff`                               | `background`    |
+| `--leko-message-color`     | `#16181d`                            | `color`         |
+| `--leko-message-font`      | `500 14px/1.5 system-ui, sans-serif` | `font`          |
+| `--leko-message-padding`   | `12px 16px`                          | `padding`       |
+| `--leko-message-border`    | `none`                               | `border`        |
+| `--leko-message-radius`    | `8px`                                | `border-radius` |
+| `--leko-message-shadow`    | `0 6px 24px rgb(0 0 0 / 0.28)`       | `box-shadow`    |
+| `--leko-message-max-width` | `min(320px, calc(100vw - 32px))`     | `max-width`     |
+
+These style `.leko-message`, the box that holds a step's `message`. The
+instruction inside it inherits the colour and the font; the reason a step
+refused and the next control set their own, below. The box is as wide as its
+content, up to `--leko-message-max-width`.
+
+The border's `none` is written out rather than left alone because the box is a
+popover, and the browser's own stylesheet gives a popover a solid border in the
+text colour.
+
+The [styled tour](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/styled-tour.ts)
+sets the background, the colour, the border, the radius, and a shadow with an
+inset part.
+
+## The reason a step refused
+
+| Property                     | Default                              | Sets         |
+| ---------------------------- | ------------------------------------ | ------------ |
+| `--leko-message-error-color` | `#b3261e`                            | `color`      |
+| `--leko-message-error-font`  | `500 13px/1.5 system-ui, sans-serif` | `font`       |
+| `--leko-message-error-gap`   | `8px`                                | `margin-top` |
+
+These style `.leko-message-error`, the line under the instruction that says
+why the next control was refused: the step's `validate` answered `false`, and
+the step has an [`error`](../story-and-step/#error) to show. The gap is the
+space above it.
+
+## The next control
+
+| Property                      | Default                              | Sets            |
+| ----------------------------- | ------------------------------------ | --------------- |
+| `--leko-message-next-bg`      | `#16181d`                            | `background`    |
+| `--leko-message-next-color`   | `#fff`                               | `color`         |
+| `--leko-message-next-font`    | `600 13px/1.5 system-ui, sans-serif` | `font`          |
+| `--leko-message-next-padding` | `6px 14px`                           | `padding`       |
+| `--leko-message-next-radius`  | `6px`                                | `border-radius` |
+| `--leko-message-next-gap`     | `12px`                               | `margin-top`    |
+
+These style `.leko-message-next`, the button at the foot of the message on a
+step that declares no `awaits`. It is pushed to the end of the line, and the
+gap is the space above it. What it reads is
+[`nextLabel`](../create-leko/#nextlabel).
+
+The [styled tour](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/styled-tour.ts)
+sets the background and the colour.
+
+## Where the message sits
+
+| Property              | Default | Sets               |
+| --------------------- | ------- | ------------------ |
+| `--leko-message-z`    | `10000` | `z-index`          |
+| `--leko-message-dock` | `24px`  | `top`, when docked |
+
+`--leko-message-z` is consulted only where the top layer is unavailable. In the
+top layer `z-index` has no effect. The default is above `--leko-z`.
+
+`--leko-message-dock` is how far above the foot of the room the docked message
+ends: the box's lower edge lands that far up. The room is the viewport, less
+whatever the host named as [`hostChrome`](../create-leko/#hostchrome). The
+message docks where it has no cutout to sit beside: on a step with no target,
+whatever the browser, and on every step in a browser that cannot do anchor
+positioning —
+[The message](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-message)
+and
+[Browser support](https://github.com/annetaan/leko/blob/main/DESIGN.md#browser-support).
+
+## The way out
+
+| Property               | Default                              | Sets            |
+| ---------------------- | ------------------------------------ | --------------- |
+| `--leko-close-bg`      | `#fff`                               | `background`    |
+| `--leko-close-color`   | `#16181d`                            | `color`         |
+| `--leko-close-font`    | `600 13px/1.5 system-ui, sans-serif` | `font`          |
+| `--leko-close-padding` | `6px 14px`                           | `padding`       |
+| `--leko-close-radius`  | `6px`                                | `border-radius` |
+| `--leko-close-shadow`  | `0 6px 24px rgb(0 0 0 / 0.28)`       | `box-shadow`    |
+| `--leko-close-z`       | `10001`                              | `z-index`       |
+
+The first six style `.leko-close-control`, the button that ends the tour. What
+it reads is [`closeLabel`](../create-leko/#closelabel).
+
+`--leko-close-z` is on its container, `.leko-close`, and is consulted only where
+the top layer is unavailable. The default is above `--leko-message-z`. With
+[`renderClose`](../create-leko/#renderclose) Leko's button is never drawn, so
+`--leko-close-z` is the only one of these that still applies.
+
+Leko picks the corner the control goes in, so there is no side to style —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).

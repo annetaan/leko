@@ -55,16 +55,14 @@ export const firstOrder = {
     },
     {
       id: 'enter-quantity',
-      target: 'input[name="quantity"]',
-      interactive: true,
+      target: { elements: 'input[name="quantity"]', interactive: true },
       message: '個数として 3 と入力してください',
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
       error: '3が入力されていません。入力値を確認してください。',
     },
     {
       id: 'save',
-      target: ['button[type="submit"]', '#tax', '#total'],
-      interactive: true,
+      target: [{ elements: 'button[type="submit"]', interactive: true }, '#tax', '#total'],
       message: '「購入する」をクリックしてください',
       awaits: 'order-saved',
     },
@@ -109,18 +107,18 @@ Leko は知りようがありません。ステップが残した状態を取り
 それは分割の合図です。2 つの経路が共有する部分も、両者が指す 1 ステップではなく
 ストーリーにします。理由は [DESIGN.md](DESIGN.md#a-story-is-atomic-and-stories-are-short) に書いてあります。
 
-`target` はリストで、その要素 1 つが穴 1 つになります。要素自体をリストで書くと、
-その要素どうしは union されて 1 つの穴になります。`target: [['#label', '#input']]` は
+`target` はリストで、その要素 1 つが穴 1 つになります。要素を `{ elements: [...] }` のリージョンで書くと、
+その要素どうしは union されて 1 つの穴になります。`target: { elements: ['#label', '#input'] }` は
 ラベルと入力欄とその間をまとめて 1 つの穴にします。
 
-穴は既定では「見えるが触れない」状態で、`interactive: true` と書いたステップだけが
+穴は既定では「見えるが触れない」状態で、最初のリージョンに `interactive: true` と書いたステップだけが
 下のページにポインタを渡します。ツアーのほとんどのステップは画面にあるものを説明する
 ためのもので、そこをクリックされると次のステップが指すページから離れてしまうからです。
 使用できるオプションは [`packages/types/src/types.ts`](packages/types/src/types.ts) に、各フィールドの隣に書いてあります。
 
 ## 他のライブラリーと比較したLekoの強み
 
-**直接的なインタラクション。** ステップに `interactive` を付けると、Lekoの要素が
+**直接的なインタラクション。** ステップのリージョンに `interactive` を付けると、Lekoの要素が
 ターゲットの上に配置されることは一切なく、透明な要素でさえも例外ではありません。
 Lekoはオーバーレイに穴を開けるので、クリック、フォーカス、キー操作、ホイール操作は
 すべて、その下の要素にそのまま届きます。

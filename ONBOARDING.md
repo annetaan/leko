@@ -321,8 +321,9 @@ nothing to check. The `reached`, `start` and `pressed` events all ask this
 first, in `plan.ts`.
 
 A morph is not one of those windows, and the machine is not told one is running.
-A step is on screen the moment `show` returns, so a call made while the drawing
-is still moving means what it says and goes through.
+A step is shown as far as the machine is concerned the moment `show` returns,
+on screen yet or not, so a call made while the drawing is still moving means
+what it says and goes through.
 
 `stop()` does not ask, and that is the one exception. A handler that has decided
 the tour should not go on has nowhere else to go. So every event that can land
@@ -348,17 +349,15 @@ catches nothing. The catching is done by `.leko-blocking`, a sibling it builds
 beside itself, whose rectangles come from `complementRects` in `geometry.ts` and
 are what is left of the surface once the open holes are taken out.
 
-Beside rather than inside, because a `clip-path` clips its descendants out of
-hit-testing along with itself, so a rectangle inside the scrim and over one of
-its holes catches nothing. `spike/blocking-a-hole/` is the page.
+DESIGN.md argues it under **The rectangles live beside the scrim, never inside
+it**.
 
 That makes the constraint true by construction. The rectangles are built from
 the complement of the cutouts the step opened, so nothing of Leko's can be over
-a target the step made reachable, even in principle. No clip path has to be
-trusted for it.
+a target the step made reachable, even in principle.
 
 A cutout that is not interactive is left out of that complement, so a rectangle
-covers it. It is still a hole in the clip and still shows what is under it.
+covers it. It is still a hole in the scrim and still shows what is under it.
 `interactive` is off by default and lives on the region: only the first region
 of a step can declare it, and the type is what refuses it on a later one.
 
@@ -428,7 +427,7 @@ whether a browser could get the answer wrong.
 | `scripts` | Node | The claim is about the text a repository check reads — a file's comments, a citation of a heading |
 | `spotlight-geometry` | Node | The claim is a property of the numbers `geometry.ts` returns |
 | `scroll-core` | Node | It is about Leko Scroll's pure core |
-| `spotlight` | Chromium, Firefox, WebKit | The claim is about what an engine does — with `clip-path`, with a box, with a popover |
+| `spotlight` | Chromium, Firefox, WebKit | The claim is about what an engine does — with a mask, with a box, with a popover |
 | `leko` | Chromium, Firefox, WebKit | An engine could answer differently. `elementFromPoint`, where a scrim mounted, a resize |
 | `leko-wiring` | Chromium only | It goes through the real `DomPresenter`, and no engine has an opinion about the answer |
 | `scroll` | Chromium, Firefox, WebKit | It is about Leko Scroll's shell |
@@ -487,12 +486,14 @@ So `packages/codegen` walks the project, collects every name a `reached()` call
 reports, and writes a declaration file that augments two interfaces the core
 exports empty. Open
 [`examples/sandbox/src/leko-signals.d.ts`](examples/sandbox/src/leko-signals.d.ts)
-and read the generated output. Four names, each with the file and line it came
-from.
+and read the generated output. The names alone, sorted, so an edit that moves a
+call changes nothing in it.
 
 It asks the compiler rather than the text, so `reached(ORDER_SAVED)` contributes
 `order-saved` from a file away. A name built at runtime cannot be gathered, and
-the generator prints every call like that rather than passing over it.
+the `leko-signals` command prints every call like that rather than passing over
+it. The sandbox runs the Vite plugin, which prints nothing, so
+`pnpm --filter ./examples/sandbox signals --check` is how to see them there.
 
 Two things to know.
 

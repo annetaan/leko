@@ -13,10 +13,10 @@ Every other tour library puts a transparent layer over the thing it highlights.
 That layer eats the clicks and the keystrokes, so the best it can do is *point
 at* a button and say "click here."
 
-Leko cuts a hole instead. The overlay is a scrim with an even-odd `clip-path`,
-so a step that asks for something can hand the element over for real. Clicks,
-focus, keys and the wheel all reach it, and the step advances only when your
-application says it actually succeeded.
+Leko cuts a hole instead. The overlay is a scrim with a hole masked out of it
+for every cutout, so a step that asks for something can hand the element over
+for real. Clicks, focus, keys and the wheel all reach it, and the step advances
+only when your application says it actually succeeded.
 
 Say so with `interactive` on the step's region. It is off by default, because
 most steps of a tour explain what is already on screen, and a click on one of

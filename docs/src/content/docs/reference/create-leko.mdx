@@ -1,0 +1,267 @@
+---
+title: createLeko and options
+description: The function that makes a tour, every option it takes with its default, and the cubicBezier helper that builds an easing curve.
+---
+
+`createLeko(options)` makes a tour, and it is the only way to get one. The
+[`Leko`](../leko/) it hands back is exported as a type and not as a class, so
+there is no `new Leko()` to choose between.
+
+## createLeko
+
+```ts
+createLeko(options?: LekoOptions): Leko
+```
+
+Every option is optional, and a call with none gives a tour that uses the
+defaults below. One instance holds every story an application has and shows one
+at a time, so an application usually makes one and shares it.
+
+```ts
+import { createLeko } from '@annetaan/leko'
+import '@annetaan/leko/leko.css' // optional — just the --leko-* defaults
+
+export const leko = createLeko()
+```
+
+## LekoOptions
+
+The object `createLeko` takes. Where the last column names a field, a step may
+set the same setting for itself, and the step wins over the instance, which
+wins over the default. A step writing `0` beats an instance writing a number.
+The options with no step field are read from the instance alone, and a story
+carries no settings at all —
+[Settings, and where they are read from](https://github.com/annetaan/leko/blob/main/DESIGN.md#settings-and-where-they-are-read-from).
+
+| Option         | Type                              | Default                     | Step field |
+| -------------- | --------------------------------- | --------------------------- | ---------- |
+| `padding`      | `number`                          | `8`                         | `padding`  |
+| `radius`       | `number`                          | `8`                         | `radius`   |
+| `scroll`       | `boolean \| 'direct' \| 'staged'` | `false`                     | `scroll`   |
+| `resolve`      | string union                      | `'visible-first'`           | `resolve`  |
+| `duration`     | `number`                          | `320`                       | `duration` |
+| `easing`       | `(t: number) => number`           | `cubicBezier(0.2, 0, 0, 1)` | `easing`   |
+| `halo`         | `'return' \| 'follow'`            | `'return'`                  | —          |
+| `nextLabel`    | `string`                          | `'Next'`                    | —          |
+| `onStep`       | function                          | —                           | —          |
+| `onDiagnostic` | function                          | —                           | —          |
+| `hostChrome`   | `LekoTarget \| LekoTarget[]`      | —                           | —          |
+| `closeLabel`   | `string`                          | `'End tour'`                | —          |
+| `renderClose`  | function                          | —                           | —          |
+
+### padding
+
+The space between a target's border box and the edge of its cutout, in px.
+
+### radius
+
+The corner radius of a cutout, in px.
+
+### scroll
+
+Whether every step brings its target into view before drawing it. It is off
+unless something asks, so a host that would rather nobody hunted for a
+highlight below the fold turns it on once here, and a step that lands somewhere
+a jump would be wrong says `scroll: false`.
+
+- `true` is the same as `'direct'`: every scrollport carrying the target is
+  moved in one movement, and the step is drawn once the page has stopped.
+- `'staged'` moves one scrollport at a time, outermost first, for a target
+  nested several scrollers deep.
+- `false` leaves the page where it is.
+
+The page glides rather than jumps, for at least `duration`, and a visitor who
+scrolls during the glide takes it over. With `duration: 0` or reduced motion
+each scrollport is set outright. A step with no target, or a
+`position: fixed` one, is never scrolled —
+[Bringing a target into view](https://github.com/annetaan/leko/blob/main/DESIGN.md#bringing-a-target-into-view).
+
+### resolve
+
+Which element a step means where its target matches several. The value is one
+of three strings.
+
+- `'visible-first'` takes the first match the visitor could see, passing over
+  one hidden by `visibility`, by `opacity: 0`, or by having no box at all. It is
+  the default.
+- `'first'` takes the first match, hidden or not, and finds nothing where that
+  one has no box.
+- `'in-viewport-first'` asks what `'visible-first'` asks, and then that some
+  of the match is inside the viewport.
+
+The rule is applied after the step's `onEnter` returns, so a step may reveal
+the copy it wants first. `'in-viewport-first'` and `scroll` do not combine: the
+rule is asked before the glide, so a match off screen is never found and the
+tour ends with `target-lost`. Ask for one or the other —
+[Which of several matches a selector means](https://github.com/annetaan/leko/blob/main/DESIGN.md#which-of-several-matches-a-selector-means).
+
+### duration
+
+How long the movement into a step runs, in ms: the opening on a first step and
+the morph from the step before on every other. It is also the least a glide
+runs for, on a step that scrolls, and the least each stage runs for on a
+`'staged'` one; a longer distance makes a longer glide. It is ignored when the
+visitor has asked for reduced motion, and `0` sets everything outright.
+
+### easing
+
+The curve a morph and a glide follow, from a fraction of the time to a fraction
+of the way. The default is Material 3's standard easing, which
+[`cubicBezier`](#cubicbezier) builds. The shake a refused step gives keeps
+Leko's own curve whatever this says.
+
+`f(1)` need not be exactly `1`, because the last frame writes the destination
+itself, and a morph that overshoots and comes back does no harm. A glide wants
+a curve that stays inside `[0, 1]`: a scroll past either end is clamped by the
+browser, Leko reads the clamped offset as the visitor taking the page over, and
+the glide stops there.
+
+### halo
+
+What the halo does while a morph carries its hole somewhere else.
+
+- `'return'` fades the frames out in flight, over
+  [`--leko-halo-fade`](../css-custom-properties/#the-halo), and back in with
+  the holes they frame.
+- `'follow'` keeps them on for the whole trip, and `data-open` flips as the
+  morph starts.
+
+It moves paint and nothing else. The halo catches no pointer either way, and
+what the step blocks is unchanged —
+[The halo](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-halo).
+
+### nextLabel
+
+The words on the next control. The control appears on every step that declares
+no `awaits` and on no other step, and it is the only route a step's `validate`
+guards. Which steps have one is not configurable; this option only says what it
+reads —
+[The next control](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-next-control).
+
+### onStep
+
+```ts
+onStep?: (step: LekoStep | undefined, story: LekoStory) => void
+```
+
+Called every time a story moves, including when it ends. It is the one place
+the tour says where it got to, so anything that draws its own progress needs
+it: a story advances when the page reports a signal from somewhere else
+entirely, and reading `leko.step` only tells a caller where the tour is if it
+thinks to look again.
+
+`step` is where the tour is now, and is `undefined` once there is nowhere to be:
+past the last step, or after `stop()`. `story` is the one that moved, so a
+handler that cares about one story asks `story.id`. It names a step once the
+step is handed to be drawn, which is before a glide lands or a late target turns
+up, so a step whose target never turns up is named and then followed by the
+ending. A step whose `onEnter` threw on the way in never reaches it.
+The return value is never read.
+
+```ts
+createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
+```
+
+`stop()` from inside this handler is never turned down, and `start()` from
+inside it never runs —
+[Saying where the tour got to](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-where-the-tour-got-to)
+and
+[There is nothing to subscribe to](https://github.com/annetaan/leko/blob/main/DESIGN.md#there-is-nothing-to-subscribe-to).
+
+### onDiagnostic
+
+```ts
+onDiagnostic?: (problem: LekoProblem) => void
+```
+
+Called when a call meant to do something and did not, with a
+[`LekoProblem`](../problems/) saying which. It is off by default and nothing is
+logged, so a project that wants to hear about one says how here —
+[Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+```ts
+createLeko({
+  onDiagnostic: (problem) => {
+    if (import.meta.env.DEV) console.warn('[leko]', problem)
+  },
+})
+```
+
+### hostChrome
+
+Where the host's own chrome is, so that nothing Leko draws lands on top of it:
+a sticky footer, a top bar, a support widget in a corner. It takes one target
+or several, named the way a step names one — a selector, or a function that
+hands back the element.
+
+```ts
+createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
+```
+
+It is read every time a step is drawn, so a bar that is not on the page at that
+moment claims nothing. It moves three things: which side of a cutout the
+message takes, where a message with no cutout sits, and which corner the
+control that ends the tour goes in.
+
+Name chrome that sits against an edge of the screen. For the message, each box
+is read as a band along the edge it is nearest, so something floating clear of
+every edge reserves nothing and a message can still land on it. The control
+that ends the tour dodges the boxes themselves —
+[A host's own chrome is named once, and every reader takes the boxes](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-hosts-own-chrome-is-named-once-and-every-reader-takes-the-boxes).
+
+It does not make the chrome usable. The scrim still blocks whatever the step
+did not open.
+
+### closeLabel
+
+The words on the control that ends the tour. There is always such a control
+and no way to turn it off, on every step, whatever the step `awaits`. What a
+host may change is what it says and what it looks like: restyle it with the
+[`--leko-close-*` custom properties](../css-custom-properties/#the-way-out), or
+draw it yourself with [`renderClose`](#renderclose) —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+
+### renderClose
+
+```ts
+renderClose?: (root: HTMLElement, stop: () => void) => (() => void) | void
+```
+
+Draw the control that ends the tour yourself. Leko puts `root` in a corner no
+cutout covers and leaves it empty. Fill it, wire whatever you draw to `stop`,
+and hand back a function that undoes what you did: it runs when the tour ends.
+
+```tsx
+createLeko({
+  renderClose: (root, stop) => {
+    const app = createRoot(root)
+    app.render(<SkipTour onClick={stop} />)
+    return () => app.unmount()
+  },
+})
+```
+
+The function is handed `stop` rather than the instance, because ending the
+tour is the only thing this control may do. There is no option that draws
+nothing —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+
+## cubicBezier
+
+```ts
+cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number
+```
+
+Builds an easing curve from two control points, read the way CSS reads
+`cubic-bezier()`, for `easing` on the instance or on a step.
+
+```ts
+import { createLeko, cubicBezier } from '@annetaan/leko'
+
+createLeko({ easing: cubicBezier(0.4, 0, 0.2, 1) })
+```
+
+`x1` and `x2` are held to `[0, 1]`, the way CSS holds its own, and `y1` and
+`y2` are free, so a curve may overshoot. The ends are exact: the curve answers
+`0` at `0` and `1` at `1`. A curve that leaves `[0, 1]` is fine for a morph and
+stops a glide early, as [`easing`](#easing) says.

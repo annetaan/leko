@@ -41,9 +41,11 @@ exactly one thing moves it.
 
 <StepLifecycle />
 
-The order is fixed, and the report deliberately comes last: `onStep` never
-names a step the user cannot see, so a step whose target went missing or whose
-`onEnter` threw is never reported as reached.
+The order is fixed, and the report deliberately comes last: a step whose
+`onEnter` threw is never reported as reached. The report follows the step being
+handed to be drawn, so a step that glides into view or waits for its target is
+reported before it is on screen, and one whose target never turns up is
+reported and then followed by the ending.
 
 What moves a step on is decided by one field:
 

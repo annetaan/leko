@@ -23,6 +23,7 @@
     "model:traces": "node scripts/model-traces.mjs",
     "check:pack": "node scripts/check-pack.mjs",
     "check:citations": "node scripts/check-citations.mjs",
+    "check:reference": "node scripts/check-reference.mjs",
     "check:links": "node scripts/check-links.mjs"
   },
   "devDependencies": {

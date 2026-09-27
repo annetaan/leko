@@ -64,8 +64,7 @@ export const firstOrder = {
     },
     {
       id: 'enter-quantity',
-      target: 'input[name="quantity"]',
-      interactive: true,
+      target: { elements: 'input[name="quantity"]', interactive: true },
       message: 'Enter 3 as the quantity.',
       // Your rule, your verdict. Typing something is not success.
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
@@ -78,8 +77,7 @@ export const firstOrder = {
       // Three regions, so three holes. The first is the one the step is about,
       // and `interactive` is what hands it to the user. Off by default, because
       // most steps explain something rather than ask for it.
-      target: ['button[type="submit"]', '#tax', '#total'],
-      interactive: true,
+      target: [{ elements: 'button[type="submit"]', interactive: true }, '#tax', '#total'],
       message: 'Place the order.',
       awaits: 'order-saved',
     },
@@ -172,8 +170,9 @@ awaits: 'order-svaed'                  // and this no longer compiles
 ```
 
 It asks the compiler rather than the text, so a name kept in a constant counts
-too. A name built at runtime cannot be gathered, and the generator tells you
-which calls those are.
+too. A name built at runtime cannot be gathered. The `leko-signals` command
+prints every call like that, with its file and line, and the Vite plugin does
+not, so run `leko-signals --out src/leko-signals.d.ts --check` to see them.
 
 `awaits` is the strict side and `reached()` never is. A `reached()` call is
 meant to stay in your source forever, including in builds where no tour runs,
@@ -183,10 +182,12 @@ Skip all of it and nothing changes for you. A name in `awaits` stays any
 string, there is nothing to import, and nothing lands in your bundle.
 
 `target` is a list, and each element of it is one hole. Write an element as a
-list of its own and those elements are unioned into a single hole, so
-`target: [['#label', '#input']]` lights the pair and the gap between them.
+region, `{ elements: [...] }`, and those elements are unioned into a single
+hole, so `target: { elements: ['#label', '#input'] }` lights the pair and the
+gap between them.
 
-A hole is shown and not handed over until the step says `interactive: true`.
+A hole is shown and not handed over until the step's first region says
+`interactive: true`.
 Most steps of a tour explain what is already on screen, and a click on one of
 those can take the user off the page the next step points at. Every option is
 documented next to itself in
@@ -194,11 +195,11 @@ documented next to itself in
 
 ## What makes it different
 
-**The user really uses your app.** Mark a step `interactive` and Leko puts
-nothing over the element it highlights. Not even a transparent layer. The real
-button takes the click and the real input takes the typing. Focus and the wheel
-reach it too, because nothing is intercepting them. Your tour can ask the user
-to do the thing instead of watching a pointer being waved at it.
+**The user really uses your app.** Mark a step's region `interactive` and Leko
+puts nothing over the element it highlights. Not even a transparent layer. The
+real button takes the click and the real input takes the typing. Focus and the
+wheel reach it too, because nothing is intercepting them. Your tour can ask the
+user to do the thing instead of watching a pointer being waved at it.
 
 Every other step gets a hole it can be seen through and not reached through,
 which is what almost every step of a tour wants.

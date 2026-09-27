@@ -73,6 +73,12 @@ in `docs/dist` and fails on an internal link that does not land.
 [`docs/src/lib/href.ts`](docs/src/lib/href.ts) says which link is the one that
 goes wrong.
 
+The pages under
+[`docs/src/content/docs/reference/`](docs/src/content/docs/reference/) are
+written by hand, and `pnpm check:reference` fails on a name
+`packages/leko/src/index.ts` exports, or a `--leko-*` property, that is on none
+of them.
+
 Every pull request's CI run carries an artifact named `docs-site`, which is the
 `docs/dist` that run built. Download it from the run's summary page and unzip it
 into an empty `docs/dist`, or let `gh` do both. Empty it either way: unzipping
@@ -104,6 +110,7 @@ pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether it could
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
+pnpm check:reference # whether every name packages/leko/src/index.ts exports and --leko-* property is on a reference page
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
 pnpm test            # vitest: ten projects, four of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
@@ -187,10 +194,10 @@ built.
 ## Before opening a pull request
 
 ```bash
-pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:links && pnpm model && pnpm test
+pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:reference && pnpm check:links && pnpm model && pnpm test
 ```
 
-CI runs the same nine, with `format:check` in place of `format`.
+CI runs the same ten, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

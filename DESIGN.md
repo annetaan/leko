@@ -104,7 +104,9 @@ make:
   in every engine tested, so a router that routes by writing the hash from
   inside a step's own `onEnter` lands inside the gate exactly as one calling
   `pushState` would, and is dropped as `signal-dropped`, the same as a
-  `reached()` would be — **Saying that a call did nothing**. Where the
+  `reached()` would be — **Saying that a call did nothing**. A story's first
+  step is the exception: nothing listens until that step is handed over to be
+  drawn, so a change made before then is not heard at all. Where the
   Navigation API is missing, the fallback is `popstate` and `hashchange`, and
   the spike never exercised a router's own `pushState` on such an engine —
   that path is inaudible to it, by the same page's own account. What is left —
@@ -510,22 +512,25 @@ its clear-up at the same level instead of splitting across two.
 - **Entry runs outermost first, and the ending mirrors it, innermost first:**
 
   ```text
-  story onEnter → step onEnter → resolve the target → draw → onStep
+  story onEnter → step onEnter → resolve the target → show → onStep
   ```
 
   The report goes last because a progress readout hearing about a step whose
   `onEnter` still runs is naming something the user cannot see. The whole of it
-  happens inside the call that moved the tour.
+  happens inside the call that moved the tour. `show` hands the step over and
+  returns, so a step that glides into view or waits a moment for its target is
+  reported before it is on screen, and drawn after the call.
 - **The story's `onLeave` runs when the run ends, after the last step's.**
   Clear-up put on the first step's `onLeave` instead fires the moment the tour
   reaches step 2, with the rest of the story still standing on what it took
   away.
 - **The target is resolved after `onEnter` returns** — resolved first, the
   selector reads a page the step has not set up yet.
-- **Whatever a handler hands back is dropped.** The step is drawn the moment
-  the handler returns, so an `async` handler runs its first line here and the
-  rest after the step is on screen. Work that has to finish before anything is
-  measured is a waiting step, argued below.
+- **Whatever a handler hands back is dropped.** The step is handed over to be
+  drawn the moment the handler returns, so an `async` handler runs its first
+  line here and the rest after the call that moved the tour has returned.
+  Work that has to finish before anything is measured is a waiting step,
+  argued below.
 - **Every `onEnter` gets its `onLeave`** — also where the handler threw
   halfway, and where a `stop()` walked out of it, because a handler that set
   something up before failing is owed one. `onLeave` is told where the tour is
@@ -683,10 +688,12 @@ only once `onStep` has returned.
 - `stop()` is the exception. A handler that has decided the tour should not go
   on has nowhere else to go, and ending is the one thing that needs nothing of
   the arrival: it throws the arrival away rather than acting on it.
-- The machine does not know a morph is running. A step is on screen the moment
-  `show` returns; how long the drawing takes to settle is the presenter's
-  business. A next press during the morph goes through — dropping it would be
-  Leko deciding the user did not mean the button they pressed.
+- The machine does not know a morph is running. A step is shown as far as it
+  is concerned the moment `show` returns, whether or not it has reached the
+  screen yet; how long the drawing takes to arrive and settle is the
+  presenter's business. A next press during the morph goes through —
+  dropping it would be Leko deciding the user did not mean the button they
+  pressed.
 
 What the gate buys is that no callback has to ask afterwards whether the world
 moved while it ran — which is why the state core needs no run counter. Where
@@ -796,8 +803,9 @@ declaration file augmenting two interfaces the core exports empty,
   shipped.**
 - The generator asks the compiler rather than the text, so a name kept in a
   constant counts from a file away. A name built at runtime cannot be gathered;
-  the generator prints every such call rather than passing over it, and a
-  project with any of them wants `--loose`.
+  the `leko-signals` command prints every such call rather than passing over
+  it — the Vite plugin does not — and a project with any of them wants
+  `--loose`.
 - **Strict on `awaits`, never on `reached()` — the asymmetry is the design.** A
   name in `awaits` missing from the vocabulary is a step waiting for a report
   nothing in the project makes. It advances for nobody, so it fails to compile,
