@@ -293,7 +293,7 @@ blockquote footer {
 }
 
 /* The page's own chrome, over the scrim so it can be read, and catching no
-   pointer events apart from the toggle. */
+   pointer events apart from the toggles. */
 .hairline {
   position: fixed;
   top: 50%;

@@ -1,4 +1,4 @@
-import { createScroll } from '@annetaan/leko/scroll'
+import { createScroll, type LekoScroll, type LekoScrollOptions } from '@annetaan/leko/scroll'
 
 /** What the readout says beside each index `onChange` can name. */
 const captions = [
@@ -15,7 +15,7 @@ const captions = [
 
 let notices = 0
 
-const scroll = createScroll({
+const options: LekoScrollOptions = {
   targets: [
     {
       target: '#hero',
@@ -61,7 +61,9 @@ const scroll = createScroll({
     byId('readout-caption').textContent = index === undefined ? 'nothing lit' : captions[index]!
     byId('readout-count').textContent = `${notices} ${notices === 1 ? 'notice' : 'notices'}`
   },
-})
+}
+
+let scroll: LekoScroll | undefined = createScroll(options)
 
 function byId(id: string): HTMLElement {
   return document.getElementById(id)!
@@ -82,9 +84,25 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('.question but
     const open = button.getAttribute('aria-expanded') !== 'true'
     button.setAttribute('aria-expanded', String(open))
     byId(button.getAttribute('aria-controls')!).hidden = !open
-    scroll.measure()
+    scroll?.measure()
   })
 }
+
+// Off is destroy(), which fires nothing, so the readout is told here. On is a
+// fresh createScroll(), which lights whatever the line is at.
+const spotlight = byId('spotlight-toggle')
+spotlight.addEventListener('click', () => {
+  if (scroll === undefined) {
+    scroll = createScroll(options)
+  } else {
+    scroll.destroy()
+    scroll = undefined
+    byId('readout-index').textContent = '…'
+    byId('readout-caption').textContent = 'spotlight off'
+  }
+  spotlight.setAttribute('aria-pressed', String(scroll !== undefined))
+  spotlight.textContent = scroll === undefined ? 'Spotlight: off' : 'Spotlight: on'
+})
 
 const hairline = byId('hairline')
 const toggle = byId('line-toggle')
