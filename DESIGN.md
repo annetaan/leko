@@ -233,7 +233,7 @@ the right way round for the person the step is asking something of.
 Without a built-in close control, host applications risk trapping users under the scrim overlay. To ensure a guaranteed escape path, this control:
 
 - **Cannot be disabled:** Hosts may customize its appearance via `renderClose`, but cannot remove it or assign it any action other than ending the tour.
-- **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes — and whatever chrome the host named as its own, which arrives in the same list of boxes.
+- **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes — and whatever chrome the host named as its own, which arrives in the same list of boxes. It is placed at the size it has now, and placed again whenever that size changes: what `renderClose` draws may arrive after the call returns, and a label may change width mid-step. What is read on a change of its size is Leko's own box and the viewport's size, never the page's content or its targets, and never on a scroll.
 - **Is the only global control:** Unlike "Next" (which is step-specific and derived from `awaits`), ending the tour is always permitted and available unconditionally.
 
 ## A target is a question
