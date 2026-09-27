@@ -1,5 +1,8 @@
 ---
 import { Code } from '@astrojs/starlight/components'
+import ThemeProvider from '@astrojs/starlight/components/ThemeProvider.astro'
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro'
+import DarkCode from '../components/DarkCode.astro'
 import { href } from '../lib/href.ts'
 
 /**
@@ -50,7 +53,7 @@ createScroll({
 ---
 
 <!doctype html>
-<!-- Expressive Code picks its theme from this attribute. The code cards are dark in both schemes. -->
+<!-- ThemeProvider rewrites this before first paint, from the same choice the docs keep. -->
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
@@ -60,6 +63,7 @@ createScroll({
       name="description"
       content="A product tour that cuts a hole in the overlay, so the user works the real element underneath."
     />
+    <ThemeProvider />
   </head>
   <body>
     <header class="bar">
@@ -68,6 +72,7 @@ createScroll({
         <a href={href('what-leko-is/')}>Docs</a>
         <a href={href('playground/')}>Playground</a>
         <a href="https://github.com/annetaan/leko">GitHub</a>
+        <ThemeSelect />
       </nav>
     </header>
 
@@ -151,11 +156,11 @@ createScroll({
           <div class="codes" id="signals">
             <div class="code-card">
               <p class="code-caption">The story</p>
-              <Code code={story} lang="ts" />
+              <DarkCode><Code code={story} lang="ts" /></DarkCode>
             </div>
             <div class="code-card">
               <p class="code-caption">Your app, where the order really saved</p>
-              <Code code={reached} lang="ts" />
+              <DarkCode><Code code={reached} lang="ts" /></DarkCode>
             </div>
           </div>
         </div>
@@ -198,7 +203,7 @@ createScroll({
           <div class="tiles" id="tiles">
             <div class="code-card">
               <p class="code-caption">Your stylesheet</p>
-              <Code code={styling} lang="css" />
+              <DarkCode><Code code={styling} lang="css" /></DarkCode>
             </div>
             <div class="stat">
               <p class="stat-number">0</p>
@@ -221,7 +226,7 @@ createScroll({
           </div>
           <div class="code-card" id="scroll-code">
             <p class="code-caption">This page, more or less</p>
-            <Code code={scroll} lang="ts" />
+            <DarkCode><Code code={scroll} lang="ts" /></DarkCode>
           </div>
         </div>
       </section>
@@ -249,6 +254,8 @@ createScroll({
       import { createScroll } from '@annetaan/leko/scroll'
 
       createScroll({
+        padding: 16,
+        radius: 16,
         targets: [
           { target: '#why-copy' },
           {
@@ -284,7 +291,7 @@ createScroll({
             target: '#scroll-code',
             message: { title: 'Leko Scroll', body: 'From @annetaan/leko/scroll.' },
           },
-          { target: '#closing', padding: 0, radius: 24 },
+          { target: '#closing', padding: 8, radius: 32 },
         ],
       })
 
@@ -343,26 +350,25 @@ createScroll({
 
     --leko-scroll-scrim-color: rgb(14 16 22 / 0.55);
     --leko-scroll-halo-outline: 2px solid var(--accent);
-    --leko-scroll-halo-offset: 4px;
     --leko-scroll-message-bg: var(--bg-raised);
     --leko-scroll-message-color: var(--ink);
     --leko-scroll-message-radius: 12px;
     --leko-scroll-message-max-width: min(300px, calc(100vw - 32px));
 
-    color-scheme: light dark;
+    color-scheme: light;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115;
-      --bg-raised: #1a1d24;
-      --ink: #eceae4;
-      --ink-soft: #b3b6bf;
-      --ink-faint: #7c808c;
-      --line: #2a2e37;
-      --accent: #f2c14e;
-      --leko-scroll-scrim-color: rgb(0 0 0 / 0.62);
-    }
+  :root[data-theme='dark'] {
+    --bg: #0f1115;
+    --bg-raised: #1a1d24;
+    --ink: #eceae4;
+    --ink-soft: #b3b6bf;
+    --ink-faint: #7c808c;
+    --line: #2a2e37;
+    --accent: #f2c14e;
+    --leko-scroll-scrim-color: rgb(0 0 0 / 0.62);
+
+    color-scheme: dark;
   }
 
   * {
@@ -419,6 +425,7 @@ createScroll({
 
   .bar-links {
     display: flex;
+    align-items: center;
     gap: clamp(14px, 3vw, 28px);
     font-size: 15px;
   }
@@ -429,6 +436,36 @@ createScroll({
   }
 
   .bar-links a:hover {
+    color: var(--ink);
+  }
+
+  /* Starlight's global stylesheet reaches this page only when the build happens
+     to bundle it in, and never under `astro dev`, so the picker's own rules
+     name nothing from it. */
+  .bar-links :global(starlight-theme-select label) {
+    color: var(--ink-soft);
+  }
+
+  .bar-links :global(starlight-theme-select .sr-only) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .bar-links :global(starlight-theme-select select) {
+    font-size: inherit;
+  }
+
+  .bar-links :global(starlight-theme-select option) {
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+
+  .bar-links :global(starlight-theme-select label:hover) {
     color: var(--ink);
   }
 
@@ -793,6 +830,18 @@ createScroll({
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #7d8590;
+  }
+
+  /* The cards are dark in both schemes. DarkCode holds Expressive Code to its
+     dark theme, but the border and the copy button are built from Starlight's
+     greys, which follow the page and are not defined at all under `astro dev`.
+     An undefined one drops the border, and the 1px it takes on each side
+     moves everything below it, so the card names Starlight's dark values. */
+  .code-card :global(.expressive-code) {
+    --ec-brdCol: color-mix(in srgb, hsl(224, 10%, 23%), transparent 25%);
+    --ec-frm-inlBtnFg: hsl(224, 6%, 77%);
+    --ec-frm-inlBtnBg: hsl(224, 6%, 77%);
+    --ec-frm-inlBtnBrd: hsl(224, 6%, 77%);
   }
 
   .code-card :global(pre) {

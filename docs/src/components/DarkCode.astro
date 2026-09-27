@@ -1,0 +1,11 @@
+---
+/**
+ * A `<Code>` block held to Expressive Code's dark theme whichever scheme the
+ * page is in. Expressive Code follows `data-theme` on the root, and reads the
+ * same attribute on a block as that block's own choice, but `<Code>` has no
+ * way to set it, so it goes on after rendering.
+ */
+const html = await Astro.slots.render('default')
+---
+
+<Fragment set:html={html.replace('class="expressive-code', 'data-theme="dark" class="expressive-code')} />
