@@ -8,13 +8,16 @@ import { type Layout, lineAt, type Position, positionAt, rangeOf, type Tuning } 
 
 /**
  * - `out` — the light is out, or was never on.
- * - `converging` — closing in on `to`, and nothing announced yet.
+ * - `converging` — closing in on `to`, and nothing announced yet. `intro` is
+ *   true while it is still the converge `create` started, and a switch crossed
+ *   on the way makes it false for good —
+ *   [Entering converges, leaving fades](../DESIGN.md#entering-converges-leaving-fades).
  * - `lit` — `on` arrived and was announced.
  * - `morphing` — on its way from `from`, which was announced, to `to`.
  */
 export type Mode =
   | { readonly kind: 'out' }
-  | { readonly kind: 'converging'; readonly to: number }
+  | { readonly kind: 'converging'; readonly to: number; readonly intro: boolean }
   | { readonly kind: 'lit'; readonly on: number }
   | { readonly kind: 'morphing'; readonly from: number; readonly to: number }
 
@@ -35,8 +38,11 @@ export type Event =
 
 export type Effect =
   | { effect: 'opacity'; value: number }
-  /** Close in on `to` from wherever the hole is, or from the viewport when none is drawn. */
-  | { effect: 'converge'; to: number }
+  /**
+   * Close in on `to` from wherever the hole is, or from the viewport when none
+   * is drawn. `intro` is the mode's, and the shell says how long that takes.
+   */
+  | { effect: 'converge'; to: number; intro: boolean }
   /** Move the hole from wherever it is to `to`. The message and the halo go for the flight. */
   | { effect: 'morph'; to: number }
   /** Put the hole on `on` where it now is, with no animation. */
@@ -66,10 +72,10 @@ export function create(tuning: Tuning, layout: Layout, scrollY: number): Outcome
   const at = { tuning, layout, scrollY }
   if (pos.zone === 'inside') {
     return {
-      state: { ...at, opacity: 1, mode: { kind: 'converging', to: pos.target } },
+      state: { ...at, opacity: 1, mode: { kind: 'converging', to: pos.target, intro: true } },
       effects: [
         { effect: 'opacity', value: 1 },
-        { effect: 'converge', to: pos.target },
+        { effect: 'converge', to: pos.target, intro: true },
       ],
     }
   }
@@ -104,8 +110,8 @@ export function reduce(state: State, event: Event): Outcome {
     case 'out': {
       if (pos.zone !== 'inside') return { state: moved, effects: [] }
       return {
-        state: { ...moved, opacity: 1, mode: { kind: 'converging', to: pos.target } },
-        effects: [...opacity, { effect: 'converge', to: pos.target }],
+        state: { ...moved, opacity: 1, mode: { kind: 'converging', to: pos.target, intro: false } },
+        effects: [...opacity, { effect: 'converge', to: pos.target, intro: false }],
       }
     }
 
@@ -121,10 +127,17 @@ export function reduce(state: State, event: Event): Outcome {
         }
       }
       const turned = pos.target !== mode.to
+      const intro = mode.intro && !turned
       return {
-        state: { ...moved, opacity: pos.opacity, mode: { kind: 'converging', to: pos.target } },
+        state: {
+          ...moved,
+          opacity: pos.opacity,
+          mode: { kind: 'converging', to: pos.target, intro },
+        },
         effects:
-          turned || measured ? [...opacity, { effect: 'converge', to: pos.target }] : opacity,
+          turned || measured
+            ? [...opacity, { effect: 'converge', to: pos.target, intro }]
+            : opacity,
       }
     }
 

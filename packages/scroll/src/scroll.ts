@@ -89,12 +89,11 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
           // measure and a sideways scroll since would start the converge off
           // the screen. An offset, not layout, and read only when a converge
           // starts, never on every scroll.
-          scrim.converge(holes[effect.to]!, {
-            x: window.scrollX,
-            y: window.scrollY,
-            width: viewportWidth,
-            height: viewportHeight,
-          })
+          scrim.converge(
+            holes[effect.to]!,
+            { x: window.scrollX, y: window.scrollY, width: viewportWidth, height: viewportHeight },
+            effect.intro ? options.intro?.duration : undefined,
+          )
           break
         case 'morph':
           scrim.morph(holes[effect.to]!)

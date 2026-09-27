@@ -48,10 +48,10 @@ const notices = (outcomes: Outcome[]) =>
 describe('creating', () => {
   test('created inside the range converges and announces nothing until arrival', () => {
     const outcome = created(2500)
-    expect(outcome.state.mode).toEqual({ kind: 'converging', to: 1 })
+    expect(outcome.state.mode).toEqual({ kind: 'converging', to: 1, intro: true })
     expect(outcome.effects).toEqual([
       { effect: 'opacity', value: 1 },
-      { effect: 'converge', to: 1 },
+      { effect: 'converge', to: 1, intro: true },
     ])
     expect(reduce(outcome.state, arrived).effects).toEqual([
       { effect: 'reveal', on: 1 },
@@ -144,7 +144,7 @@ describe('fading and coming back', () => {
       [{ effect: 'out' }, { effect: 'notify', index: undefined }],
       [
         { effect: 'opacity', value: 1 },
-        { effect: 'converge', to: 3 },
+        { effect: 'converge', to: 3, intro: false },
       ],
       [
         { effect: 'reveal', on: 3 },
@@ -164,14 +164,25 @@ describe('fading and coming back', () => {
     const outcomes = run(lit(4100), scroll(4600), scroll(4350), scroll(4100))
     expect(outcomes[2]!.effects).toEqual([
       { effect: 'opacity', value: 1 },
-      { effect: 'converge', to: 3 },
+      { effect: 'converge', to: 3, intro: false },
     ])
     // From above, the range begins at the first switch position.
     const above = run(created(600), scroll(850), scroll(1000))
     expect(above[1]!.effects).toEqual([
       { effect: 'opacity', value: 1 },
-      { effect: 'converge', to: 0 },
+      { effect: 'converge', to: 0, intro: false },
     ])
+  })
+
+  test('a converge after the light went out is never the intro', () => {
+    // Created inside, overtaken by the fade before it arrived, and back.
+    const outcomes = run(created(4100), scroll(4600), scroll(4100))
+    expect(outcomes[0]!.state.mode).toEqual({ kind: 'out' })
+    expect(outcomes[1]!.effects).toEqual([
+      { effect: 'opacity', value: 1 },
+      { effect: 'converge', to: 3, intro: false },
+    ])
+    expect(outcomes[1]!.state.mode).toEqual({ kind: 'converging', to: 3, intro: false })
   })
 
   test('an arrival while out or lit changes nothing', () => {
@@ -194,9 +205,26 @@ describe('a fast scroll', () => {
 
   test('a switch during a converge keeps it a converge', () => {
     const outcomes = run(created(1500), scroll(2500), arrived)
-    expect(outcomes[0]!.effects).toEqual([{ effect: 'converge', to: 1 }])
-    expect(outcomes[0]!.state.mode).toEqual({ kind: 'converging', to: 1 })
+    expect(outcomes[0]!.effects).toEqual([{ effect: 'converge', to: 1, intro: false }])
+    expect(outcomes[0]!.state.mode).toEqual({ kind: 'converging', to: 1, intro: false })
     expect(notices(outcomes)).toEqual([{ effect: 'notify', index: 1 }])
+  })
+
+  test('a switch during the intro turns it into an ordinary converge', () => {
+    // A measure after the turn re-issues it, and it stays ordinary: an intro
+    // once turned is never the intro again.
+    const outcomes = run(
+      created(1500),
+      scroll(1600),
+      scroll(2500),
+      measured(2500, [1000, 2100, 3000, 4000]),
+    )
+    expect(outcomes[0]!.state.mode).toEqual({ kind: 'converging', to: 0, intro: true })
+    expect(effects(outcomes).slice(1)).toEqual([
+      [{ effect: 'converge', to: 1, intro: false }],
+      [{ effect: 'converge', to: 1, intro: false }],
+    ])
+    expect(outcomes.at(-1)!.state.mode).toEqual({ kind: 'converging', to: 1, intro: false })
   })
 })
 
@@ -246,10 +274,16 @@ describe('measuring', () => {
     expect(none[0]!.effects).toEqual([{ effect: 'out' }, { effect: 'notify', index: undefined }])
   })
 
-  test('a measure during a converge with the same target converges again toward the new box', () => {
+  test('a measure during the intro toward the same target goes on as the intro', () => {
     const [outcome] = run(created(2500), measured(2500, [1100, 2100, 3100, 4100]))
-    expect(outcome!.effects).toEqual([{ effect: 'converge', to: 1 }])
-    expect(outcome!.state.mode).toEqual({ kind: 'converging', to: 1 })
+    expect(outcome!.effects).toEqual([{ effect: 'converge', to: 1, intro: true }])
+    expect(outcome!.state.mode).toEqual({ kind: 'converging', to: 1, intro: true })
+  })
+
+  test('a measure during an ordinary converge with the same target converges again as an ordinary one', () => {
+    const [, outcome] = run(created(600), scroll(2500), measured(2500, [1100, 2100, 3100, 4100]))
+    expect(outcome!.effects).toEqual([{ effect: 'converge', to: 1, intro: false }])
+    expect(outcome!.state.mode).toEqual({ kind: 'converging', to: 1, intro: false })
   })
 
   test('a measure during a morph with the same target morphs again toward the new box', () => {
@@ -301,7 +335,7 @@ describe('an off stretch', () => {
       [],
       [
         { effect: 'opacity', value: 1 },
-        { effect: 'converge', to: 2 },
+        { effect: 'converge', to: 2, intro: false },
       ],
       [
         { effect: 'reveal', on: 2 },
@@ -338,7 +372,7 @@ describe('an off stretch', () => {
       [{ effect: 'out' }, { effect: 'notify', index: undefined }],
       [
         { effect: 'opacity', value: 1 },
-        { effect: 'converge', to: 2 },
+        { effect: 'converge', to: 2, intro: false },
       ],
     ])
     expect(outcomes[1]!.state).toMatchObject({ opacity: 0, mode: { kind: 'out' } })

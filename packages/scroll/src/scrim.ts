@@ -6,11 +6,10 @@ import { Message } from './message.js'
 import type { LekoScrollMessage, LekoScrollSide } from './types.js'
 
 /**
- * How long a converge and a morph take, in milliseconds. Fixed rather than an
- * option: both run on time and not on scroll —
+ * How long a morph and a converge take, in milliseconds, unless the caller
+ * hands `converge` a duration of its own, which only the intro does —
  * [The line and the switch](../DESIGN.md#the-line-and-the-switch) and
- * [Entering converges, leaving fades](../DESIGN.md#entering-converges-leaving-fades) —
- * and [The API](../DESIGN.md#the-api) names no length for them.
+ * [Entering converges, leaving fades](../DESIGN.md#entering-converges-leaving-fades).
  */
 export const DURATION = 320
 
@@ -119,11 +118,11 @@ export class Scrim {
    * Close in on `to` from the hole on screen, or from `seen` — the part of the
    * page in the viewport — when none is drawn.
    */
-  converge(to: Hole, seen: Rect): void {
+  converge(to: Hole, seen: Rect, duration?: number): void {
     this.message.hide()
     this.hideHalo()
     this.converging = true
-    this.run(this.hole ?? { ...seen, radius: 0 }, to)
+    this.run(this.hole ?? { ...seen, radius: 0 }, to, duration)
   }
 
   /** Move the hole from where it is to `to`, the halo riding along. */
@@ -184,14 +183,14 @@ export class Scrim {
     this.converging = false
   }
 
-  /** A restart always takes the full duration, from wherever the hole has got to. */
-  private run(from: Hole, to: Hole): void {
+  /** A restart takes the full duration it is given, from wherever the hole has got to. */
+  private run(from: Hole, to: Hole, duration = this.duration): void {
     if (this.frame !== undefined) cancelAnimationFrame(this.frame)
     const began = performance.now()
     const tick = (now: number): void => {
       // Clamped at the bottom as well as the top, for the reason `segmentAt`
       // in `packages/spotlight/src/geometry.ts` gives.
-      const t = Math.min(1, Math.max(0, (now - began) / this.duration))
+      const t = Math.min(1, Math.max(0, (now - began) / duration))
       if (t >= 1) {
         this.hole = to
         this.paint(to)

@@ -6,6 +6,7 @@
 export { createScroll } from '@annetaan/leko-scroll'
 export type {
   LekoScroll,
+  LekoScrollIntro,
   LekoScrollLit,
   LekoScrollMessage,
   LekoScrollOff,
