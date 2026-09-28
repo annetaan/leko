@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Do a mask hole and a box laid on it meet at a fractional edge?</title>
+<style>
+  :root { color-scheme: light dark; }
+  /*
+   * Every length around a surface is a multiple of 4 CSS pixels, and the
+   * script moves the cases down to the next multiple of 4, so each surface
+   * starts on a whole device pixel at 1, 1.25, 1.5, 2 and 3 — where a scrim at
+   * the page's origin starts. The page checks that rather than trusting it, and
+   * says so in its table.
+   */
+  body { margin: 0; padding: 20px 24px 40px; font: 14px/22px system-ui, sans-serif; }
+  h1 { font-size: 17px; line-height: 26px; margin: 0 0 6px; }
+  h2 { font-size: 14px; line-height: 22px; margin: 20px 0 6px; }
+  p  { margin: 0 0 12px; max-width: 80ch; }
+  /* A smaller font would otherwise grow the line box it sits in. */
+  code { font-family: ui-monospace, monospace; font-size: 12px; line-height: 0; }
+  #env { white-space: pre-wrap; font-size: 11px; line-height: 16px; color: #888; margin: 0 0 16px; }
+
+  .cases { display: flex; flex-wrap: wrap; gap: 16px 24px; }
+  .case h3 {
+    font-size: 12px; line-height: 20px; height: 20px; margin: 0 0 4px;
+    font-weight: 600; white-space: nowrap; overflow: hidden;
+  }
+  .columns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .column { width: 180px; }
+  .column span { display: block; font-size: 11px; line-height: 16px; height: 16px; color: #888; }
+
+  /*
+   * One flat saturated ground, so a gap reads as a bright line against the
+   * dimmed ground around it and an overlap as a darker one.
+   */
+  .surface { position: relative; width: 180px; height: 120px; background: #f0f; overflow: hidden; }
+
+  /* The scrim as Leko Scroll builds it: the surface, less one hole image. */
+  .scrim {
+    position: absolute; inset: 0; background: rgb(0 0 0 / 0.5);
+    mask-repeat: no-repeat; mask-composite: subtract, add;
+  }
+
+  /*
+   * A halo laid flush on the hole, painted the scrim's colour inside it. Where
+   * it meets the scrim exactly, the edge of the hole cannot be seen at all.
+   */
+  .halo { position: absolute; box-shadow: inset 0 0 0 6px rgb(0 0 0 / 0.5); }
+
+  table { border-collapse: collapse; margin: 8px 0 20px; font-size: 13px; line-height: 20px; }
+  th, td { text-align: left; vertical-align: top; padding: 4px 10px; border-bottom: 1px solid #8883; }
+  td.flush { color: #178a3a; font-weight: 600; }
+  td.bad { color: #c22; font-weight: 600; }
+  td.off { color: #b57500; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Do a mask hole and a box laid on it meet at a fractional edge?</h1>
+<p>
+  Each surface is a hole cut in a scrim with a halo laid flush on it in the
+  scrim's own colour, so where the two meet the edge cannot be seen. A bright
+  line along an edge is a gap, where neither paints; a darker line is an
+  overlap, where both do.
+</p>
+<div id="env"></div>
+
+<div class="cases" id="cases"></div>
+
+<h2>What each column does</h2>
+<p>
+  Leko Scroll cuts its hole as a <code>data:</code> SVG image in a mask layer,
+  placed with <code>mask-position</code> at the image's own size, and lays the
+  halo on the same rectangle as an ordinary box. Each surface above does the
+  same by hand.
+</p>
+<p>
+  Each case is drawn three ways. <strong>raw</strong> writes the rectangle as
+  it came, the way the scrim does today — two decimals in the mask, every
+  digit in the box. <strong>whole CSS px</strong> moves each edge to the
+  nearest whole CSS pixel first. <strong>device px</strong> moves each edge to
+  the nearest device pixel instead, <code>1 / devicePixelRatio</code> of a CSS
+  pixel.
+</p>
+<p>
+  <strong>Judge by eye</strong> when the page is opened by hand, Safari
+  included: a page cannot read its own pixels. <code>run.mjs</code> hands the
+  page a screenshot of itself, and the page reads that and draws the table
+  below.
+</p>
+
+<h2>Read from a screenshot</h2>
+<table>
+  <thead id="head"></thead>
+  <tbody id="results"><tr><td>Not read. Open by hand, this page is judged by eye.</td></tr></tbody>
+</table>
+
+<script>
+  // Surface-local rectangles. The first two carry the fractions of the two
+  // landing-page targets the issue measured, #why and #why-copy; the rest are
+  // chosen so each rounding direction happens on its own.
+  const cases = [
+    { label: '#why on the landing page', x: 24.265625, y: 20.734375, width: 129.921875, height: 77.578125 },
+    { label: '#why-copy on the landing page', x: 20.796875, y: 22, width: 133.671875, height: 74.734375 },
+    { label: 'every fraction .4', x: 24.4, y: 22.4, width: 130.4, height: 74.4 },
+    { label: 'every fraction .6', x: 24.6, y: 22.6, width: 130.6, height: 74.6 },
+    { label: 'every fraction a half', x: 24.5, y: 22.5, width: 130.5, height: 74.5 },
+    { label: 'quarters', x: 24.25, y: 22.75, width: 130.5, height: 74.5 },
+    { label: 'the size alone fractional', x: 24, y: 22, width: 130.7, height: 74.3 },
+    { label: 'whole pixels, the control', x: 24, y: 22, width: 130, height: 74 },
+  ]
+  const radius = 8
+  const columns = [
+    { key: 'raw', label: 'raw' },
+    { key: 'css', label: 'whole CSS px' },
+    { key: 'device', label: 'device px' },
+  ]
+
+  const r2 = (n) => Math.round(n * 100) / 100
+
+  // Each edge to the nearest multiple of 1 / scale, rather than the position
+  // and the size each on their own.
+  const snap = (h, scale) => {
+    const x = Math.round(h.x * scale) / scale
+    const y = Math.round(h.y * scale) / scale
+    return {
+      x,
+      y,
+      width: Math.round((h.x + h.width) * scale) / scale - x,
+      height: Math.round((h.y + h.height) * scale) / scale - y,
+    }
+  }
+
+  // The mask the way `maskLayers` in packages/scroll/src/mask.ts writes it,
+  // with its two-decimal rounding, and the halo the way `layHalo` does.
+  const draw = (surface, h, mask) => {
+    const w = mask(h.width)
+    const hh = mask(h.height)
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${hh}">` +
+      `<rect x="0" y="0" width="${w}" height="${hh}" rx="${radius}" fill="black"/></svg>`
+    const scrim = document.createElement('div')
+    scrim.className = 'scrim'
+    scrim.style.maskImage = `linear-gradient(black, black), url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+    scrim.style.maskPosition = `0 0, ${mask(h.x)}px ${mask(h.y)}px`
+    const halo = document.createElement('div')
+    halo.className = 'halo'
+    Object.assign(halo.style, {
+      left: `${h.x}px`,
+      top: `${h.y}px`,
+      width: `${h.width}px`,
+      height: `${h.height}px`,
+      borderRadius: `${radius}px`,
+    })
+    surface.append(scrim, halo)
+  }
+
+  const dpr = window.devicePixelRatio
+  document.getElementById('env').textContent =
+    `${navigator.userAgent}\ndevicePixelRatio ${dpr}, viewport ${innerWidth}×${innerHeight}`
+
+  const surfaces = []
+  const host = document.getElementById('cases')
+  for (const c of cases) {
+    const box = document.createElement('div')
+    box.className = 'case'
+    const title = document.createElement('h3')
+    title.textContent = c.label
+    const row = document.createElement('div')
+    row.className = 'columns'
+    box.append(title, row)
+    for (const col of columns) {
+      const cell = document.createElement('div')
+      cell.className = 'column'
+      const name = document.createElement('span')
+      name.textContent = col.label
+      const surface = document.createElement('div')
+      surface.className = 'surface'
+      cell.append(name, surface)
+      row.append(cell)
+      if (col.key === 'raw') draw(surface, c, r2)
+      if (col.key === 'css') draw(surface, snap(c, 1), String)
+      if (col.key === 'device') draw(surface, snap(c, dpr), String)
+      surfaces.push({ c, col: col.key, surface })
+    }
+    host.append(box)
+  }
+  // Padding rather than a margin, which would collapse into the one above it.
+  const above = surfaces[0].surface.getBoundingClientRect().top + scrollY
+  host.style.paddingTop = `${Math.ceil(above / 4) * 4 - above}px`
+
+  // How far a sample may stray from the dimmed ground and still be ground, and
+  // how much of the way to a whole gap or a whole overlap it has to go to be
+  // called one rather than a partly covered pixel. The two directions are not
+  // the same distance: in red, the dimmed ground reads about 128, the bare
+  // ground about 255 and scrim and halo together about 64.
+  const TOLERANCE = 6
+  const WHOLE = 0.75
+  const SPAN = 4
+
+  // Reads a PNG screenshot of the viewport, taken at this page's
+  // devicePixelRatio, and samples SPAN device pixels either side of the middle
+  // of each edge of each hole.
+  async function read(dataUrl) {
+    const places = surfaces.map((s) => s.surface.getBoundingClientRect())
+    const img = new Image()
+    img.src = dataUrl
+    await img.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const g = canvas.getContext('2d', { willReadFrequently: true })
+    g.drawImage(img, 0, 0)
+    const data = g.getImageData(0, 0, canvas.width, canvas.height).data
+    const scale = canvas.width / innerWidth
+    const red = (x, y) => data[(y * canvas.width + x) * 4]
+
+    const tally = Object.fromEntries(
+      columns.map((col) => [col.key, { defective: 0, gap: 0, overlap: 0, partial: 0, off: 0, worst: 0 }]),
+    )
+    const verdicts = surfaces.map((s, i) => {
+      const p = places[i]
+      const t = tally[s.col]
+      if (p.left < 0 || p.top < 0 || p.right > innerWidth || p.bottom > innerHeight) {
+        t.off++
+        return { off: true }
+      }
+      const whole = (n) => Math.abs(n * dpr - Math.round(n * dpr)) < 1e-6
+      const between = !whole(p.left) || !whole(p.top)
+      const L = (p.left + s.c.x) * scale
+      const T = (p.top + s.c.y) * scale
+      const R = (p.left + s.c.x + s.c.width) * scale
+      const B = (p.top + s.c.y + s.c.height) * scale
+      const mx = Math.round((L + R) / 2)
+      const my = Math.round((T + B) / 2)
+      // The dimmed ground from a corner of the scrim, the bare ground from the
+      // middle of the hole, and both dimmings at once by applying the dimming
+      // twice, since no pixel here is meant to show that.
+      const ground = red(Math.round(p.left * scale) + 4, Math.round(p.top * scale) + 4)
+      const bare = red(mx, my)
+      const twice = (ground * ground) / bare
+      const gapAt = ground + WHOLE * (bare - ground)
+      const overlapAt = ground - WHOLE * (ground - twice)
+      const edges = {
+        top: [T, (i) => red(mx, i)],
+        right: [R, (i) => red(i, my)],
+        bottom: [B, (i) => red(mx, i)],
+        left: [L, (i) => red(i, my)],
+      }
+      const found = { gap: [], overlap: [], partial: [] }
+      for (const [edge, [at, sample]] of Object.entries(edges)) {
+        const kinds = new Set()
+        for (let i = Math.floor(at) - SPAN; i <= Math.floor(at) + SPAN; i++) {
+          const v = sample(i)
+          t.worst = Math.max(t.worst, Math.abs(v - ground))
+          if (Math.abs(v - ground) <= TOLERANCE) continue
+          const kind = v >= gapAt ? 'gap' : v <= overlapAt ? 'overlap' : 'partial'
+          t[kind]++
+          kinds.add(kind)
+        }
+        for (const kind of kinds) found[kind].push(edge)
+      }
+      const flush = !found.gap.length && !found.overlap.length && !found.partial.length
+      if (!flush) t.defective++
+      return { found, flush, between }
+    })
+
+    const cells = cases.map((c, i) => ({
+      label: c.label,
+      columns: columns.map((col, j) => verdicts[i * columns.length + j]),
+    }))
+    render(cells, tally)
+    return { ua: navigator.userAgent, dpr, cases: cases.length, tally, cells }
+  }
+
+  const say = (v) => {
+    if (v.off) return ['off', 'off screen']
+    const parts = ['gap', 'overlap', 'partial']
+      .filter((k) => v.found[k].length)
+      .map((k) => `${k}: ${v.found[k].join(', ')}`)
+    const said = parts.length ? parts.join('; ') : 'flush'
+    return [v.flush ? 'flush' : 'bad', v.between ? `${said} (surface between device pixels)` : said]
+  }
+
+  function render(cells, tally) {
+    const head = document.getElementById('head')
+    head.innerHTML = `<tr><th>case</th>${columns.map((c) => `<th>${c.label}</th>`).join('')}</tr>`
+    const body = document.getElementById('results')
+    body.textContent = ''
+    const line = (label, values) => {
+      const tr = document.createElement('tr')
+      const th = document.createElement('td')
+      th.textContent = label
+      tr.append(th)
+      for (const [cls, text] of values) {
+        const td = document.createElement('td')
+        td.className = cls
+        td.textContent = text
+        tr.append(td)
+      }
+      body.append(tr)
+    }
+    for (const row of cells) line(row.label, row.columns.map(say))
+    line(
+      'defective cases',
+      columns.map((c) => {
+        const t = tally[c.key]
+        const shown = cases.length - t.off
+        const text = `${t.defective} / ${shown}` + (t.off ? `, ${t.off} off screen` : '')
+        return [t.defective ? 'bad' : t.off ? 'off' : 'flush', text]
+      }),
+    )
+    line(
+      'pixels: gap / overlap / partial',
+      columns.map((c) => {
+        const t = tally[c.key]
+        return ['', `${t.gap} / ${t.overlap} / ${t.partial}`]
+      }),
+    )
+    line(
+      'largest step from the dimmed ground',
+      columns.map((c) => ['', String(tally[c.key].worst)]),
+    )
+  }
+
+  window.spikeFractionalEdge = { read }
+</script>
+</body>
+</html>
