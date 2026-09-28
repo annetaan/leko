@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="tile"><rect width="64" height="64" rx="14"/></clipPath>
+    <linearGradient id="beam" gradientUnits="userSpaceOnUse" x1="14" y1="0" x2="38" y2="0">
+      <stop offset="0" stop-color="#f5b82e" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#f5b82e" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#16181d"/>
+  <g clip-path="url(#tile)">
+    <g transform="translate(32 32) scale(0.9) translate(-32 -32)">
+      <path transform="translate(24 16) rotate(22.62)" d="M14 -9L40 -19.83V19.83L14 9Z" fill="url(#beam)"/>
+    </g>
+  </g>
+  <g transform="translate(32 32) scale(0.9) translate(-32 -32)">
+    <path d="M16 53L12 33L23 17" stroke="#d9dbe0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M4 56V53.7Q4 52.5 5.2 52.5H26.8Q28 52.5 28 53.7V56Z" fill="#d9dbe0"/>
+    <circle cx="12" cy="33" r="2.6" fill="#16181d" stroke="#d9dbe0" stroke-width="2"/>
+    <g transform="translate(24 16) rotate(22.62)">
+      <path d="M-4 -4H2L14 -9V9L2 4H-4Q-7 4 -7 0Q-7 -4 -4 -4Z" fill="#d9dbe0" stroke="#d9dbe0" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M14 -9V9" stroke="#f5b82e" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
