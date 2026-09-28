@@ -24,7 +24,7 @@ it is left alone, because everything else it points at shows at both widths.
 
 Three of the four steps you see carry a next control. The name step does not,
 and there is no way to configure that: it declares `awaits`, so the only thing
-that moves it on is the page reporting that the field was filled in.
+that moves it on is the page reporting that the name was saved.
 
 <div data-tour-source>
 
@@ -35,9 +35,9 @@ const thisPage = {
     { id: 'source', target: '[data-tour-source]', message: '…' },
     {
       id: 'name',
-      target: '[data-tour-input]',
+      target: { elements: '[data-tour-name]', interactive: true },
       message: '…',
-      awaits: 'name-entered',
+      awaits: 'name-saved',
     },
     { id: 'done', target: '[data-tour-start]', message: '…' },
   ],
@@ -45,7 +45,13 @@ const thisPage = {
 
 const desktopIntro = {
   id: 'desktop-intro',
-  steps: [{ id: 'sidebar', target: '#starlight__sidebar', message: '…' }],
+  steps: [
+    {
+      id: 'sidebar',
+      target: { elements: '#starlight__sidebar', interactive: true },
+      message: '…',
+    },
+  ],
   next: thisPage,
 } satisfies LekoStory
 
@@ -64,17 +70,28 @@ leko.pickUp([desktopIntro, mobileIntro]) // once, as the page loads — it takes
 
 </div>
 
-The listener on the field belongs to the page, and it reports rather than
-advances.
+The Save button's handler is the page's own. It saves, and then says so.
 
 ```ts
-input.addEventListener('input', () => {
-  if (input.value.trim() !== '') leko.reached('name-entered')
+save.addEventListener('click', async () => {
+  if (input.value.trim() === '') {
+    saved.textContent = 'Type a name first.'
+    return
+  }
+  save.disabled = true
+  saved.textContent = 'Saving…'
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  saved.textContent = 'Saved.'
+  save.disabled = false
+  leko.reached('name-saved')
 })
 ```
 
-Delete that line and the tour stops at the name step for ever. That is the
-point of it. The tour moves because the application said something was true.
+Nothing listens to the typing, and nothing listens to the click on the tour's
+behalf. The half-second wait stands in for a request. Delete the `reached()`
+line and the save still happens, but the tour stays at the name step until
+somebody ends it. It moves because the page said the save finished —
+[Signals and awaits](../guides/signals-and-awaits/).
 
 What `pagehide` keeps in `sessionStorage` is the pattern, the successor's
 id, and the URL it was kept at. The next document reads all three once: the
