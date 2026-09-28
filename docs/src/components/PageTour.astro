@@ -14,10 +14,14 @@
 <div class="tour-demo" data-tour-demo>
   <button class="tour-start" type="button" data-tour-start>Start the tour</button>
 
-  <label class="tour-field">
-    Your name
-    <input type="text" data-tour-input placeholder="type anything" />
-  </label>
+  <div class="tour-name" data-tour-name>
+    <label class="tour-field">
+      Your name
+      <input type="text" data-tour-input placeholder="type anything" />
+    </label>
+    <button class="tour-save" type="button" data-tour-save>Save</button>
+    <span class="tour-saved" data-tour-saved aria-live="polite"></span>
+  </div>
 
   <p class="tour-status" data-tour-status>No tour running.</p>
 </div>
@@ -32,6 +36,8 @@
   if (demo) {
     const status = demo.querySelector<HTMLElement>('[data-tour-status]')!
     const input = demo.querySelector<HTMLInputElement>('[data-tour-input]')!
+    const save = demo.querySelector<HTMLButtonElement>('[data-tour-save]')!
+    const saved = demo.querySelector<HTMLElement>('[data-tour-saved]')!
 
     // Never stale: pickUp() below runs once, before any click can be
     // delivered, so a handed-on run always sees this false.
@@ -53,10 +59,18 @@
       },
     })
 
-    // The real element is the real element. This listener is the page's own,
-    // and it reports what happened rather than advancing anything itself.
-    input.addEventListener('input', () => {
-      if (input.value.trim() !== '') leko.reached('name-entered')
+    // The page's own save; `reached()` after it is the one line the tour adds.
+    save.addEventListener('click', async () => {
+      if (input.value.trim() === '') {
+        saved.textContent = 'Type a name first.'
+        return
+      }
+      save.disabled = true
+      saved.textContent = 'Saving…'
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      saved.textContent = 'Saved.'
+      save.disabled = false
+      leko.reached('name-saved')
     })
 
     demo.querySelector('[data-tour-start]')!.addEventListener('click', () => {
@@ -81,6 +95,13 @@
 </script>
 
 <style>
+  .tour-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.5rem;
+  }
+
   .tour-field {
     display: grid;
     gap: 0.25rem;
@@ -94,6 +115,24 @@
     border-radius: 0.25rem;
     background: var(--sl-color-black);
     color: var(--sl-color-white);
+  }
+
+  .tour-save {
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+    cursor: pointer;
+  }
+
+  .tour-saved {
+    width: 18ch;
+    white-space: nowrap;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
   }
 
   .tour-status {

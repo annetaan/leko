@@ -24,7 +24,10 @@ export default defineConfig({
         },
         {
           label: 'Guides',
-          items: [{ label: 'React, Vue and a plain script', slug: 'guides/frameworks' }],
+          items: [
+            { label: 'React, Vue and a plain script', slug: 'guides/frameworks' },
+            { label: 'Signals and awaits', slug: 'guides/signals-and-awaits' },
+          ],
         },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
         { label: 'Proving the ground', items: [{ label: 'Playground', slug: 'playground' }] },

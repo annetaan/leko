@@ -14,12 +14,12 @@ export const thisPage = {
     },
     {
       id: 'name',
-      target: { elements: '[data-tour-input]', interactive: true },
+      target: { elements: '[data-tour-name]', interactive: true },
       message:
-        'Type your name. Nothing here is listening for a keystroke to ' +
-        'move the tour on. The page decides the field is filled in and ' +
-        'says so, and this step is the one waiting to hear it.',
-      awaits: 'name-entered',
+        'Type your name and press Save. There is no Next here. The page ' +
+        'says when the save has finished, and that is what this step ' +
+        'waits for.',
+      awaits: 'name-saved',
     },
     {
       id: 'done',

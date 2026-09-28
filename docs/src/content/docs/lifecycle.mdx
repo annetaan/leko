@@ -53,9 +53,7 @@ What moves a step on is decided by one field:
   mover. `validate`, if declared, guards that press — a refusal shakes the
   cutout, puts `error` under the instruction, and the tour stays put.
 - **`awaits: 'action-name'`:** the step has no next control, and
-  `leko.reached('action-name')` is the only mover. The signal is a statement of
-  fact from your own code — after the API call resolved, not when the button
-  was clicked.
+  `leko.reached('action-name')` is the only mover.
 - **`awaits: { url: /^\/checkout(?:[/?#]|$)/ }`:** the step has no next
   control, and a same-document change to the page's own URL that now matches
   the pattern is the only mover. It advances on a change, never on an arrival,
@@ -63,11 +61,9 @@ What moves a step on is decided by one field:
   `reached()` call moves it — a link has nowhere to put one — and DESIGN.md
   argues the whole of it under **A URL is a signal the page reports**.
 
-Nothing else moves a step. Not a DOM event, not a timer, not a signal nobody is
-waiting for (free and silent, permanently), and not a signal reported before
-the step was on screen — signals are not buffered, because a step advanced by
-something that happened before it appeared has established nothing about the
-user.
+Nothing else moves a step: not a DOM event, not a timer, and not a signal
+reported before the step's `onEnter` returned —
+[Signals and awaits](../guides/signals-and-awaits/).
 
 One property holds the whole diagram together: **no hook hands anything back,
 and Leko waits for nothing.** The chain from one step's `onLeave` to the next
