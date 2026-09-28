@@ -67,12 +67,12 @@ gathers them from the `reached()` calls, and
 [Getting started](../../getting-started/#get-the-signal-name-back-as-a-type)
 turns that on.
 
-## A signal counts only once the tour stands on its step
+## A signal counts only once its step has been entered
 
 A signal is not saved up. It moves the step the tour stands on at the moment it
-is reported, or it moves nothing. The tour stands on a step once the step's
-`onEnter` has returned, which is before the step is drawn, so a step still
-gliding into view can already be moved on.
+is reported, once that step's `onEnter` has returned, or it moves nothing. That
+is before the step is drawn, so a step still gliding into view can already be
+moved on.
 
 - **Too early.** Reported before the tour reaches the step that awaits it, it
   does nothing, and that step waits for the next report. Work nobody presses a
