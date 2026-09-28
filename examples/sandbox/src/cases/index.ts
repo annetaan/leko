@@ -15,6 +15,7 @@ import { insideShadowDom } from './inside-shadow-dom.js'
 import { linkedRegions } from './linked-regions.js'
 import { lookThenUse } from './look-then-use.js'
 import { messageSides } from './message-sides.js'
+import { movedByTheUpdate } from './moved-by-the-update.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
@@ -44,6 +45,7 @@ export const cases: Case[] = [
   formValidation,
   nextControl,
   asyncCompletion,
+  movedByTheUpdate,
   followALink,
   acrossAPageLoad,
   stepSetup,
