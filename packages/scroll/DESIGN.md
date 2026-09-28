@@ -41,7 +41,7 @@ can decide which goes first.
 ```ts
 createScroll({
   targets: [{ target, message?, side?, padding?, radius? } | { target, off: true }],
-  line?, fade?, spacing?, padding?, radius?, intro?, onChange?,
+  line?, fade?, spacing?, padding?, radius?, intro?, halo?, onChange?,
 }) // → { measure(), destroy() }
 ```
 
@@ -65,6 +65,8 @@ createScroll({
   be left out. Left out, or with no `duration`, it takes the 320ms every
   converge takes — [Entering converges, leaving
   fades](#entering-converges-leaving-fades).
+- `halo` is what the halo does during a converge, `'arrive'` or `'follow'`,
+  and may be left out. Left out, it is `'arrive'` — [The halo](#the-halo).
 - `onChange` is the one notice, and [The whole page stays
   usable](#the-whole-page-stays-usable) says when it fires. It may be left out:
   a page that only wants its targets lit has nothing to listen for.
@@ -396,7 +398,7 @@ converge cut off does: no `index` was announced for an `undefined` to answer.
 
 - Only the last arrival's message appears. The halo follows the turned morph
   to the latest target, as it follows every morph, and after a turned converge
-  it appears on the arrival, as after every converge.
+  it does what it does on every converge ([The halo](#the-halo)).
 - `onChange` fires only for the arrival. A target the morph or the converge
   was turned away from never arrived, so it never fires.
 
@@ -556,10 +558,24 @@ did not have.
 
 - **It follows the hole**, moving with it through a morph, on the rectangle
   the hole was cut on — [The scrim rides the page](#the-scrim-rides-the-page).
-  There is no mode to choose.
-- **It is absent during a converge** and appears after the arrival, fading in
-  over `--leko-scroll-halo-fade`, 160ms by default.
+  There is no mode to choose for a morph.
+- **Under `halo: 'arrive'`, the default, it is absent during a converge** and
+  appears after the arrival, fading in over `--leko-scroll-halo-fade`, 160ms by
+  default.
+- **Under `halo: 'follow'`, it rides every converge** on the hole as cut, its
+  opacity climbing from 0 to 1 with the clock, and is at full strength when the
+  hole lands. Nothing fades in after the arrival.
 - **It dims with the scrim during a fade.**
+
+**A following halo climbs rather than starting at full strength.** Every
+converge starts from a viewport-sized hole, so a halo at full strength on the
+first frame would darken the viewport's edges all at once. The climb follows
+the clock rather than the ease, because the ease moves the hole most of the way
+in the first frames, and the halo is meant to stay faint while the hole is
+still near the edges. The reason holds for every converge alike, the intro and
+the ones a scroll starts, which is why the option is the whole instance's and
+not the intro's. A converge that goes on from the hole on screen, turned or
+re-issued by a measure, climbs on from the opacity on screen.
 
 ## Padding and radius
 
@@ -620,9 +636,9 @@ change to the tour that nobody on the tour's side asked for.
 
 **What does not fit is copied and reworked.** The spotlight's `Scrim` is the
 first case: it carries the blocking rectangles, the marker a message anchors
-to and the halo's modes, and none of those is this product's. Logic the two
-come to share is extracted later, once both copies exist and the common part
-can be read off them rather than guessed.
+to and the halo's modes for a morph, and none of those is this product's.
+Logic the two come to share is extracted later, once both copies exist and the
+common part can be read off them rather than guessed.
 
 ## The core and the shell
 

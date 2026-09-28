@@ -113,6 +113,12 @@ function root(): HTMLElement {
 const mask = (): string =>
   root().querySelector<HTMLElement>('.leko-scroll-scrim')?.style.maskImage ?? ''
 
+function halo(): HTMLElement {
+  const el = root().querySelector<HTMLElement>('.leko-scroll-halo')
+  if (!el) throw new Error('no .leko-scroll-halo')
+  return el
+}
+
 /** The mask as the engine serialises it, for a comparison that does not depend on spelling. */
 function serialised(...args: Parameters<typeof maskLayers>): string {
   const probe = document.createElement('div')
@@ -247,6 +253,82 @@ test('a switch crossed during the intro goes on at the usual length', async () =
   elapse(USUAL)
   expect(changes).toEqual([1])
   expect(mask()).toBe(maskOn(targets[1]))
+})
+
+const climbing = (): void => {
+  const opacity = Number(halo().style.opacity)
+  expect(opacity).toBeGreaterThan(0)
+  expect(opacity).toBeLessThan(1)
+}
+
+test("halo 'follow' rides the halo on the intro, reaching full strength on the arrival", async () => {
+  build()
+  const { changes } = await clocked({ halo: 'follow', intro: { duration: 1200 } })
+  elapse(600)
+  climbing()
+  expect(parseFloat(halo().style.width)).toBeGreaterThan(200 + 2 * 8)
+  elapse(1200 + 16 - 600)
+  expect(changes).toEqual([0])
+  expect(halo().style.opacity).toBe('1')
+})
+
+test("halo 'follow' rides the halo on the converge a scroll into range starts", async () => {
+  build([2000, 2600])
+  const { changes } = await clocked({
+    targets: [{ target: '#t0' }, { target: '#t1' }],
+    halo: 'follow',
+  })
+  expect(changes).toEqual([undefined])
+
+  await scrolled(lineAt(2000 + 50))
+  elapse(DURATION / 2)
+  climbing()
+  elapse(USUAL)
+  expect(changes).toEqual([undefined, 0])
+  expect(halo().style.opacity).toBe('1')
+})
+
+test("halo 'follow' rides the halo on a converge after the light went out", async () => {
+  build([2000, 2600])
+  const { changes } = await clocked({
+    targets: [{ target: '#t0' }, { target: '#t1' }],
+    halo: 'follow',
+  })
+  await scrolled(lineAt(2000 + 50))
+  elapse(USUAL)
+  await scrolled(lineAt(1600))
+  expect(changes).toEqual([undefined, 0, undefined])
+  expect(halo().style.opacity).toBe('0')
+
+  await scrolled(lineAt(2000 + 50))
+  elapse(DURATION / 2)
+  climbing()
+  elapse(USUAL)
+  expect(changes).toEqual([undefined, 0, undefined, 0])
+  expect(halo().style.opacity).toBe('1')
+})
+
+test("halo 'follow' keeps the halo climbing through a switch crossed during a converge", async () => {
+  build()
+  const { changes } = await clocked({ halo: 'follow', intro: { duration: 1200 } })
+  elapse(600)
+  const reached = Number(halo().style.opacity)
+  await scrolled(lineAt(B + 50))
+  elapse(32)
+  expect(Number(halo().style.opacity)).toBeGreaterThanOrEqual(reached)
+  elapse(USUAL)
+  expect(changes).toEqual([1])
+  expect(halo().style.opacity).toBe('1')
+})
+
+test('with halo left out, the halo stays at 0 through a converge until the arrival', async () => {
+  build()
+  const { changes } = await clocked({ intro: { duration: 1200 } })
+  elapse(600)
+  expect(halo().style.opacity).toBe('0')
+  elapse(1200 + 16 - 600)
+  expect(changes).toEqual([0])
+  expect(halo().style.opacity).toBe('1')
 })
 
 test('past the lower edge the root dims with the scroll and the mask is not rewritten', async () => {

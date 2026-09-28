@@ -56,16 +56,17 @@ change is not followed —
 The object `createScroll` takes. Only `targets` has to be given. `padding` and
 `radius` here are for every target that does not set its own.
 
-| Option     | Type                          | Default  |
-| ---------- | ----------------------------- | -------- |
-| `targets`  | `readonly LekoScrollTarget[]` | required |
-| `line`     | `number`                      | `0.5`    |
-| `fade`     | `number`                      | `300`    |
-| `spacing`  | `number`                      | `150`    |
-| `padding`  | `number`                      | `8`      |
-| `radius`   | `number`                      | `8`      |
-| `intro`    | `LekoScrollIntro`             | —        |
-| `onChange` | function                      | —        |
+| Option     | Type                          | Default    |
+| ---------- | ----------------------------- | ---------- |
+| `targets`  | `readonly LekoScrollTarget[]` | required   |
+| `line`     | `number`                      | `0.5`      |
+| `fade`     | `number`                      | `300`      |
+| `spacing`  | `number`                      | `150`      |
+| `padding`  | `number`                      | `8`        |
+| `radius`   | `number`                      | `8`        |
+| `intro`    | `LekoScrollIntro`             | —          |
+| `halo`     | `'arrive' \| 'follow'`        | `'arrive'` |
+| `onChange` | function                      | —          |
 
 ### targets
 
@@ -118,6 +119,15 @@ is called: the dark closing in on that target before the reader has scrolled.
 It is a [`LekoScrollIntro`](#lekoscrollintro), and it changes nothing about the
 converges later scrolls start —
 [Entering converges, leaving fades](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#entering-converges-leaving-fades).
+
+### halo
+
+What the [halo](../css-custom-properties/#the-halo) does while the dark closes
+in on a target. Under `'arrive'` it is absent until the hole arrives, and
+appears then. Under `'follow'` it rides the hole in and grows to full strength
+as the hole lands. Either holds for every converge, the intro and the ones a
+scroll starts alike —
+[The halo](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-halo).
 
 ### onChange
 

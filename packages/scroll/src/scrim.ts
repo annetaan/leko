@@ -3,7 +3,7 @@ import { ease } from '@annetaan/leko-spotlight'
 import type { Hole, Rect } from './geometry.js'
 import { maskLayers } from './mask.js'
 import { Message } from './message.js'
-import type { LekoScrollMessage, LekoScrollSide } from './types.js'
+import type { LekoScrollMessage, LekoScrollOptions, LekoScrollSide } from './types.js'
 
 /**
  * How long a morph and a converge take, in milliseconds, unless the caller
@@ -51,7 +51,11 @@ export class Scrim {
   /** The halo's opacity as last written, where a following converge climbs from. */
   private haloOpacity = 0
 
-  constructor(options: { duration?: number; halo?: 'arrive' | 'follow'; onArrive: () => void }) {
+  constructor(options: {
+    duration?: number
+    halo?: LekoScrollOptions['halo']
+    onArrive: () => void
+  }) {
     this.duration = options.duration ?? DURATION
     this.follows = options.halo === 'follow'
     this.onArrive = options.onArrive
@@ -222,9 +226,7 @@ export class Scrim {
       this.hole = hole
       const cut = this.paint(hole)
       if (!this.converging || this.follows) this.layHalo(cut!)
-      // On the clock rather than on `ease`, which spends most of the move in
-      // the first frames: the halo stays faint while the hole is still near
-      // the viewport's edges, and is still exactly 1 on the arrival.
+      // On the clock rather than on `ease` — [The halo](../DESIGN.md#the-halo).
       if (rise !== undefined) this.setHaloOpacity(rise + (1 - rise) * t)
       this.frame = requestAnimationFrame(tick)
     }

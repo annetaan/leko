@@ -19,7 +19,7 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
 
   const { targets } = options
   const tuning = tuningOf(options)
-  const scrim = new Scrim({ onArrive: () => dispatch({ type: 'arrived' }) })
+  const scrim = new Scrim({ halo: options.halo, onArrive: () => dispatch({ type: 'arrived' }) })
   const warned = new Set<number>()
   let state: State | undefined
   let page: Page
