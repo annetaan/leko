@@ -1649,8 +1649,8 @@ paints above the scrim itself.
 - `packages/spotlight` draws the scrim, the hole and the message. It does not
   know what a step is.
 - `packages/leko` holds the class a consumer constructs, re-exports the
-  vocabulary `@annetaan/leko-types` declares, and is the only one that
-  publishes.
+  vocabulary `@annetaan/leko-types` declares, and is the only one of these
+  that publishes.
 
 What each half may ask of the other is `Presenter` and `Host` in
 `packages/machine/src/types.ts`:
