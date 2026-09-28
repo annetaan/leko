@@ -12,7 +12,9 @@ the user to do something, the element under the hole is the real one. Clicks
 reach it, focus reaches it, the keyboard reaches it, and scrolling under the
 pointer still scrolls.
 
-Two rules hold the library up, and everything else is negotiable.
+Two rules hold the library up, and everything else is negotiable. One is below.
+The other, that steps advance on application state and never on DOM events, is
+[Signals and awaits](../guides/signals-and-awaits/).
 
 ## Never place an element over a target the step opened
 
@@ -24,24 +26,6 @@ A step's region says `interactive: true` when it wants the page live. Most
 steps of most tours explain what is already on screen, so the default is a hole
 that is shown and not handed over. A click on one of those would take the user
 off the page the next step points at.
-
-## Steps advance on application state, never on DOM events
-
-A call site names what happened.
-
-```ts
-leko.reached('order-saved')
-```
-
-A step names what it waits for.
-
-```ts
-{ id: 'save', target: { elements: '#submit', interactive: true }, awaits: 'order-saved' }
-```
-
-There is no click listener anywhere that moves a tour along. A step that waits
-for a signal has no next control either, because the control would be a way past
-the work that step exists to make somebody do.
 
 ## It works across pages
 

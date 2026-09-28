@@ -1,0 +1,118 @@
+---
+title: Signals and awaits
+description: Why a step waits for something the application reports rather than for a click, how reached() names what happened, and why a step that waits has no next control.
+---
+
+A step moves on in one of two ways. Either it has a next control and the user
+presses it, or it declares `awaits` and moves on when the application reports
+that the thing it waits for has happened. This page is the second kind: what
+you write on each side, and what Leko does with it.
+
+## Steps advance on application state, never on DOM events
+
+A call site names what happened.
+
+```ts
+leko.reached('order-saved')
+```
+
+A step names what it waits for.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const save: LekoStep = {
+  id: 'save',
+  target: { elements: '#submit', interactive: true },
+  message: 'Place the order.',
+  awaits: 'order-saved',
+}
+```
+
+There is no click listener anywhere that moves a tour along. A click on the
+button is somebody trying. The order being saved is the thing that happened,
+and only the application knows when: after the request came back, not when the
+button was pressed. So the call goes where the application learns it.
+
+```ts
+async function placeOrder(order: Order) {
+  await saveOrder(order)
+  leko.reached('order-saved')
+}
+```
+
+`saveOrder` and `Order` are your application's own.
+[Where reached() goes](../frameworks/#where-reached-goes) says where this line
+sits in React, Vue and a plain script —
+[Signals and steps](https://github.com/annetaan/leko/blob/main/DESIGN.md#signals-and-steps).
+
+## reached() names what happened, not a step
+
+The name is a fact about the application, in its own words: `'order-saved'`,
+`'invoice-mailed'`. It never names a story or a step, and that is what lets the
+call stay where it is while the tour changes around it.
+
+- **Steps can be added, removed or reordered**, and the call still fires at the
+  moment it always meant.
+- **One call serves every story.** It moves the step the running story stands
+  on, if that step awaits the name. A story that is not running does not follow
+  along.
+- **It is safe to leave in.** A name no step awaits, and any call while no tour
+  is running, does nothing and reports nothing, not even through
+  `onDiagnostic`. The line can stay in builds where no tour runs —
+  [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+The compiler can check the names: [Signal types](../../reference/signal-types/)
+gathers them from the `reached()` calls, and
+[Getting started](../../getting-started/#get-the-signal-name-back-as-a-type)
+turns that on.
+
+## A signal counts only once the tour stands on its step
+
+A signal is not saved up. It moves the step the tour stands on at the moment it
+is reported, or it moves nothing. The tour stands on a step once the step's
+`onEnter` has returned, which is before the step is drawn, so a step still
+gliding into view can already be moved on.
+
+- **Too early.** Reported before the tour reaches the step that awaits it, it
+  does nothing, and that step waits for the next report. Work nobody presses a
+  button for, such as loading a draft, is started by the waiting step's own
+  `onEnter`, so it cannot report before the step is there —
+  [A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+- **From inside a handler.** Reported from inside the handlers that bring the
+  step up, its own `onEnter` among them, it is dropped and reported as
+  [`signal-dropped`](../../reference/problems/#signal-dropped). Make the call
+  after the handler returns.
+
+## A step that waits has no next control
+
+A step that declares `awaits` is drawn without a next control, and no option
+puts one back. The control would be a way past the work the step exists to
+make somebody do —
+[The next control](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-next-control).
+
+- **`validate` never runs on it.** `validate` guards the next control, and this
+  step has none.
+- **Nobody is trapped.** The control that ends the tour is on every step, this
+  one included —
+  [The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+- **Nothing presses Next from outside.** There is no call that moves to the
+  next step on command —
+  [A next-button component](../frameworks/#a-next-button-component).
+- **Where there is nothing to report, declare no `awaits`.** Typing a name is
+  not something the application finishes, so that step keeps its next control,
+  and [`validate`](../../reference/story-and-step/#validate) can hold the
+  control until the name is right.
+
+`awaits` has a second shape, `{ url }`, for a step that waits for the page's own
+URL to change — [LekoUrlAwait](../../reference/story-and-step/#lekourlawait).
+
+## See it run
+
+The sandbox case
+[async-completion.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/async-completion.ts)
+is this page in two steps: a Save button whose step ends when the request comes
+back, 1200 ms after the press, and not at the click.
+[next-control.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/next-control.ts)
+puts a step with a next control and a guard beside the step after it, which
+waits for the save.
