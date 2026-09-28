@@ -1,0 +1,274 @@
+---
+title: createScroll and options
+description: The function that starts Leko Scroll, every option it takes with its default, the shape of a target and a message, and what it hands back.
+---
+
+`@annetaan/leko/scroll` exports `createScroll` and the types it takes and hands
+back. Leko Scroll is a product of its own, not a kind of tour: it has no story,
+no steps and nothing to wait for, and it lights the targets of a long page one
+after another as the reader scrolls —
+[A second product, not a second tour](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#a-second-product-not-a-second-tour).
+`createLeko` and `createScroll` know nothing of each other. Each draws a scrim
+of its own, and not running both at once is the page's to decide.
+
+## createScroll
+
+```ts
+createScroll(options: LekoScrollOptions): LekoScroll
+```
+
+It runs from the moment it is called. There is no `start` and no `stop`: the
+light follows the scroll for as long as the page is up, and
+[`destroy()`](#lekoscroll) ends it —
+[The API](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-api).
+
+```ts
+import { createScroll } from '@annetaan/leko/scroll'
+
+const scroll = createScroll({
+  targets: [
+    { target: '#hero' },
+    {
+      target: '#pricing',
+      message: { title: 'Pricing', body: 'Every plan, side by side.' },
+    },
+    { target: '#quotes', off: true },
+    { target: '#faq', side: 'top', padding: 16 },
+  ],
+  onChange: (index) => console.log('lit', index),
+})
+```
+
+Nothing it puts over the page catches a pointer, so every link, button and
+field under the scrim answers as though it were not there. There is no next
+control, no close control and no focus ring —
+[The whole page stays usable](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-whole-page-stays-usable).
+
+With `prefers-reduced-motion` set when it is called, `createScroll` draws
+nothing and writes one `console.info`. It still hands back a `LekoScroll`,
+whose `measure()` and `destroy()` do nothing, and `onChange` is never called,
+so the page needs no branch for it. The setting is read once, and a later
+change is not followed —
+[Reduced motion](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#reduced-motion).
+
+## LekoScrollOptions
+
+The object `createScroll` takes. Only `targets` has to be given. `padding` and
+`radius` here are for every target that does not set its own.
+
+| Option     | Type                          | Default  |
+| ---------- | ----------------------------- | -------- |
+| `targets`  | `readonly LekoScrollTarget[]` | required |
+| `line`     | `number`                      | `0.5`    |
+| `fade`     | `number`                      | `300`    |
+| `spacing`  | `number`                      | `150`    |
+| `padding`  | `number`                      | `8`      |
+| `radius`   | `number`                      | `8`      |
+| `intro`    | `LekoScrollIntro`             | —        |
+| `onChange` | function                      | —        |
+
+### targets
+
+What gets lit, in the order it gets lit. Each entry is a
+[`LekoScrollTarget`](#lekoscrolltarget). The order is the array's and is never
+sorted into page order, so a target written first is lit first even where it
+sits lower on the page, and a disagreement between the two draws no warning —
+[The array is the order](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-array-is-the-order).
+
+### line
+
+Where on the screen the switch happens, as a fraction of the viewport's height
+from the top. A target switches on when its top edge comes up to the line, and
+the one lit is always the one the line last passed —
+[The line and the switch](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-line-and-the-switch).
+
+### fade
+
+How far past an edge the light takes to go out, in px: scrolling back above the
+first target, on past the last, or into a stretch where the light is off.
+Leaving fades with the scroll rather than on time, so scrolling back mid-fade
+gives the opacity back as it goes —
+[Entering converges, leaving fades](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#entering-converges-leaving-fades)
+and
+[The two edges](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-two-edges).
+
+### spacing
+
+The least scroll between two switches, in px. Two targets close together on the
+page are kept at least this far apart, and the switches are pulled up so that
+every target near the foot of the page is lit on the way down —
+[The line and the switch](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-line-and-the-switch).
+
+### padding
+
+The space between a target's border box and the edge of its hole, in px. A
+target's own `padding` wins over this one —
+[Padding and radius](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#padding-and-radius).
+
+### radius
+
+The corner radius of the hole, in px. A target's own `radius` wins over this
+one —
+[Padding and radius](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#padding-and-radius).
+
+### intro
+
+The converge `createScroll` starts, when the page is already on a target as it
+is called: the dark closing in on that target before the reader has scrolled.
+It is a [`LekoScrollIntro`](#lekoscrollintro), and it changes nothing about the
+converges later scrolls start —
+[Entering converges, leaving fades](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#entering-converges-leaving-fades).
+
+### onChange
+
+```ts
+onChange?: (index: number | undefined) => void
+```
+
+The one notice. It fires with a target's `index` in `targets` when the light
+arrives at it, and with `undefined` when nothing is lit at creation or when the
+light goes out after an `index` was announced. A target a fast scroll skips
+never fires. The return value is never read —
+[The whole page stays usable](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-whole-page-stays-usable).
+
+## LekoScrollTarget
+
+```ts
+type LekoScrollTarget = LekoScrollLit | LekoScrollOff
+```
+
+One entry of `targets`: one that gets lit, or a marker where the light goes
+off.
+
+### LekoScrollLit
+
+```ts
+interface LekoScrollLit {
+  target: string | Element
+  message?: LekoScrollMessage
+  side?: LekoScrollSide
+  padding?: number
+  radius?: number
+  off?: false
+}
+```
+
+| Field     | Type                | Required |
+| --------- | ------------------- | -------- |
+| `target`  | `string \| Element` | yes      |
+| `message` | `LekoScrollMessage` | no       |
+| `side`    | `LekoScrollSide`    | no       |
+| `padding` | `number`            | no       |
+| `radius`  | `number`            | no       |
+| `off`     | `false`             | no       |
+
+`target` is a selector or an element, laid out in the normal flow of the
+document. A target that is, or sits inside, something `position: sticky` or
+`position: fixed`, or that sits inside a scroller of its own, is not supported,
+because the scrim rides the document's scroll and those do not.
+
+A selector that matches several elements means the first of them in document
+order that has a box, and the match is chosen again each time the page is
+measured. A target that is not found is skipped with a `console.warn`, and the
+rest runs. It is looked for again the next time the page is measured, and its
+place in the array is kept, so `onChange` still names every target by the
+index it was written at —
+[What a target is](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#what-a-target-is).
+
+`message` and `side` are the box beside the hole and where it goes.
+`padding` and `radius` are this target's own, over the ones in the options.
+
+### LekoScrollOff
+
+```ts
+interface LekoScrollOff {
+  target: string | Element
+  off: true
+}
+```
+
+A marker: from its switch position the light is off, until the next lit
+entry's. It takes nothing but a `target`, because nothing about it is drawn. It
+is found and measured like any other entry and is never lit, so its index is
+never announced, and the light going out at it fires `undefined` —
+[A stretch where the light is off](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#a-stretch-where-the-light-is-off).
+
+## LekoScrollMessage
+
+```ts
+interface LekoScrollMessage {
+  title?: string
+  body?: string
+}
+```
+
+The box beside a lit target, shown only on a target that has one. A part left
+empty is not drawn, and a message with neither part shows no box. It is hidden
+while the hole moves and appears once it arrives, and it scrolls and dims with
+the scrim.
+
+It catches no pointer, so its text cannot be selected and a link in it cannot
+be pressed. Anything to act on belongs on the page —
+[The message](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-message).
+Its look is set with the
+[`--leko-scroll-message-*` custom properties](../css-custom-properties/#the-message).
+
+## LekoScrollSide
+
+```ts
+type LekoScrollSide = 'top' | 'bottom' | 'left' | 'right'
+```
+
+Which side of the hole the message goes on, `'bottom'` when a target does not
+say. Vertical room is never checked, so a box may sit off screen. A `'left'` or
+a `'right'` that does not fit the viewport's width goes to `'bottom'` —
+[The message](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-message).
+The space between the hole and the box is
+[`--leko-scroll-message-gap`](../css-custom-properties/#the-message).
+
+## LekoScrollIntro
+
+```ts
+interface LekoScrollIntro {
+  duration?: number
+}
+```
+
+How long the converge `createScroll` starts takes, in ms. Left out, or with no
+`duration`, it takes the 320ms every converge takes. A switch crossed during it
+turns it into an ordinary converge —
+[Entering converges, leaving fades](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#entering-converges-leaving-fades).
+
+## LekoScroll
+
+```ts
+interface LekoScroll {
+  measure(): void
+  destroy(): void
+}
+```
+
+What `createScroll` hands back.
+
+### measure
+
+Measures the page again. Leko Scroll measures on its own when it is created,
+on a window resize, on `load` and once `document.fonts.ready` settles, and not
+while the reader scrolls. It does not watch the layout, so a page that moves
+its own layout, opening an accordion or loading a section, calls this once it
+has —
+[Measuring](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#measuring).
+
+```ts
+document.querySelector('details')?.addEventListener('toggle', () => scroll.measure())
+```
+
+With the same target lit, the hole is put back where the target now is, at
+once and with no notice. Where the lit target changed, it goes there the way a
+scroll to the same position would.
+
+### destroy
+
+Ends it. The scrim, the halo and the message come off the page, the listeners
+go, and `onChange` is not called again. After it, `measure()` and `destroy()`
+do nothing.

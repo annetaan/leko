@@ -39,6 +39,18 @@ export default defineConfig({
             { label: 'CSS custom properties', slug: 'reference/css-custom-properties' },
           ],
         },
+        {
+          label: 'Leko Scroll',
+          items: [
+            {
+              label: 'Reference',
+              items: [
+                { label: 'createScroll and options', slug: 'scroll/reference/create-scroll' },
+                { label: 'CSS custom properties', slug: 'scroll/reference/css-custom-properties' },
+              ],
+            },
+          ],
+        },
       ],
       customCss: ['./src/styles/docs.css'],
       // The scrim covers the page and the message sits beside the cutout, so a
