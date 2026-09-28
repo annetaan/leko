@@ -246,8 +246,9 @@ export async function until(is: () => boolean, frames: number, what: string): Pr
 }
 
 /**
- * Wait until the message has its next control, and **say so if it never
- * arrives**.
+ * Wait until the message is showing its next control, and **say so if it
+ * never arrives**. Showing, and not only there: the message is on the page,
+ * hidden, from the first draw — DESIGN.md, **The way out**.
  *
  * A morph that animates puts the message back only when it arrives, so a test
  * running with a real `duration` has nothing to press until then. Tests with
@@ -262,7 +263,7 @@ export async function until(is: () => boolean, frames: number, what: string): Pr
  */
 export async function shown(within = 8000): Promise<void> {
   const began = performance.now()
-  while (!control()) {
+  while (!said() || !control()) {
     if (performance.now() - began > within) {
       throw new Error(`no next control after ${within}ms — the morph never finished`)
     }

@@ -18,6 +18,7 @@ tell you what you are allowed to assume.
 | [`anchor-across-shadow/`](anchor-across-shadow/) | Can a message anchor itself to a target inside a shadow root? |
 | [`blocking-a-hole/`](blocking-a-hole/) | Can an overlay block one of its own holes, or does the clip take the blocker with it? |
 | [`tab-order-in-the-top-layer/`](tab-order-in-the-top-layer/) | Does painting a popover over everything move it in the tab order too? |
+| [`paint-order-in-the-top-layer/`](paint-order-in-the-top-layer/) | Which of two popovers paints on top, and does `z-index` or DOM order have any say? |
 | [`anchored-paint-in-safari/`](anchored-paint-in-safari/) | Does a browser paint a box it anchored inside a scroller? |
 | [`halo-outside-the-hole/`](halo-outside-the-hole/) | Do an outline and an outer shadow stay out of the box they decorate? |
 | [`overlapping-holes/`](overlapping-holes/) | Can an overlay cut two holes that overlap, and what does each way of doing it cost? |

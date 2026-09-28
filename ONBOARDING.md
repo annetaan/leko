@@ -71,10 +71,10 @@ It takes well under a minute on a laptop once the browsers are installed.
 
 ## The shape of the code
 
-Seven packages. One of them publishes.
+Seven packages. Two of them publish.
 
 ```
-                    @annetaan/leko          the only published package
+                    @annetaan/leko          published
                     packages/leko/          the class, and the entry point
                     /        |          \
                    /         |           \      @annetaan/leko-types
@@ -91,7 +91,7 @@ Seven packages. One of them publishes.
       which step, and when     the scrim, the hole, the message
       no lib.dom at all        no idea what a step is
 
-                    @annetaan/leko-codegen   separate, optional
+                    @annetaan/leko-codegen   separate, optional, published
                     packages/codegen/        reads reached() calls, writes types
 ```
 

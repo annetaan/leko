@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Which of two popovers paints on top?</title>
+    <style>
+      :root { color-scheme: light dark; }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        font: 15px/1.6 system-ui, sans-serif;
+      }
+
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      .lede { max-width: 62ch; margin: 0 0 24px; }
+
+      /*
+       * Room in the page for the squares. They are popovers, so they paint in
+       * the top layer and take no room of their own; the script places them
+       * over this box, two pairs to a line, so all four fit a phone's width.
+       */
+      .stage { height: 280px; }
+
+      /*
+       * Each row is a pair of squares, A and B, overlapping by half. Every
+       * popover here is opened with `showPopover()`, so it paints in the top
+       * layer, and the question is which of the two a point in the overlap
+       * lands on.
+       */
+      [popover] {
+        margin: 0;
+        border: 0;
+        padding: 6px;
+        inset: auto;
+        width: 80px;
+        height: 80px;
+        box-sizing: border-box;
+        color: white;
+        font: 600 14px/1 system-ui, sans-serif;
+      }
+      .a { background: rgb(60 90 220); }
+      .b { background: rgb(230 120 30); }
+
+      /* Row 1: a z-index that would put A on top outside the top layer. */
+      #r1a { z-index: 10001; }
+      #r1b { z-index: 10000; }
+
+      table { border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 4px 14px 4px 0; vertical-align: top; }
+      code { font-family: ui-monospace, monospace; }
+      .note { max-width: 72ch; color: rgb(128 128 128); }
+      .bad { color: rgb(200 40 40); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Which of two popovers paints on top?</h1>
+
+    <p class="lede">
+      Four pairs of overlapping popovers, A in blue and B in orange. In every
+      pair one was shown after the other, and each pair adds one more thing that
+      might have a say: a <code>z-index</code>, the order in the document, a
+      box shown while <code>visibility: hidden</code>, and a box shown again.
+      The table reads which square a point in the overlap lands on.
+    </p>
+
+    <div class="stage" data-stage></div>
+
+    <div popover="manual" class="a" id="r1a">1 A</div>
+    <div popover="manual" class="b" id="r1b">1 B</div>
+
+    <!-- Row 2: B is earlier in the document than A, and shown second. -->
+    <div popover="manual" class="b" id="r2b">2 B</div>
+    <div popover="manual" class="a" id="r2a">2 A</div>
+
+    <div popover="manual" class="a" id="r3a">3 A</div>
+    <div popover="manual" class="b" id="r3b">3 B</div>
+
+    <div popover="manual" class="a" id="r4a">4 A</div>
+    <div popover="manual" class="b" id="r4b">4 B</div>
+
+    <table>
+      <thead>
+        <tr><th></th><th>Question</th><th>On top</th><th>Shown last</th><th>Verdict</th></tr>
+      </thead>
+      <tbody data-rows></tbody>
+    </table>
+
+    <p class="note">
+      A verdict of <code>show order</code> means the square shown last paints on
+      top whatever else the row gave it. Anything else is in red and names the
+      square that won, or says the overlap is off screen and the window too
+      small to judge.
+    </p>
+
+    <script>
+      const byId = (id) => document.getElementById(id)
+
+      // Each row sets its pair up, then says which square it showed last.
+      const rows = [
+        {
+          question: 'A has z-index 10001 and is shown first; B has 10000 and is shown second',
+          arrange: () => {
+            byId('r1a').showPopover()
+            byId('r1b').showPopover()
+          },
+          expected: 'B',
+        },
+        {
+          question: 'A is later in the document and shown first; B is earlier and shown second',
+          arrange: () => {
+            byId('r2a').showPopover()
+            byId('r2b').showPopover()
+          },
+          expected: 'B',
+        },
+        {
+          question: 'A is shown first under visibility: hidden, B second, then A is made visible',
+          arrange: () => {
+            const a = byId('r3a')
+            a.style.visibility = 'hidden'
+            a.showPopover()
+            byId('r3b').showPopover()
+            a.style.visibility = 'visible'
+          },
+          expected: 'B',
+        },
+        {
+          question: 'A and B are shown in that order, then A is hidden and shown again',
+          arrange: () => {
+            const a = byId('r4a')
+            a.showPopover()
+            byId('r4b').showPopover()
+            a.hidePopover()
+            a.showPopover()
+          },
+          expected: 'A',
+        },
+      ]
+
+      // Pair n over the stage: 1 and 2 on the first line, 3 and 4 under them.
+      const stage = document.querySelector('[data-stage]').getBoundingClientRect()
+      for (let n = 1; n <= 4; n += 1) {
+        const left = stage.left + ((n - 1) % 2) * 180
+        const top = stage.top + 10 + Math.floor((n - 1) / 2) * 140
+        Object.assign(byId(`r${n}a`).style, { left: `${left}px`, top: `${top}px` })
+        Object.assign(byId(`r${n}b`).style, { left: `${left + 40}px`, top: `${top + 40}px` })
+      }
+
+      // The middle of where the two squares overlap, and the square found there.
+      function onTop(n) {
+        const a = byId(`r${n}a`).getBoundingClientRect()
+        const b = byId(`r${n}b`).getBoundingClientRect()
+        const x = (Math.max(a.left, b.left) + Math.min(a.right, b.right)) / 2
+        const y = (Math.max(a.top, b.top) + Math.min(a.bottom, b.bottom)) / 2
+        // A point outside the viewport hits nothing, which is no verdict at all.
+        if (x >= innerWidth || y >= innerHeight) return 'off screen'
+        const hit = document.elementFromPoint(x, y)?.closest('[popover]')
+        if (hit === byId(`r${n}a`)) return 'A'
+        if (hit === byId(`r${n}b`)) return 'B'
+        return 'neither'
+      }
+
+      const supported = typeof HTMLElement.prototype.showPopover === 'function'
+      const results = rows.map((row, i) => {
+        if (supported) row.arrange()
+        return {
+          question: row.question,
+          top: supported ? onTop(i + 1) : 'no popover support',
+          expected: row.expected,
+        }
+      })
+
+      const body = document.querySelector('[data-rows]')
+      results.forEach(({ question, top, expected }, i) => {
+        const tr = document.createElement('tr')
+        const same = top === expected
+        const cells = [String(i + 1), question, top, expected, same ? 'show order' : top === 'off screen' ? top : `${top} on top`]
+        for (const text of cells) {
+          const td = document.createElement('td')
+          td.textContent = text
+          tr.append(td)
+        }
+        if (!same) tr.lastChild.className = 'bad'
+        body.append(tr)
+      })
+
+      // What `run.mjs` asks, so a run and a pair of eyes read the same answer.
+      window.spikePaintOrder = { results: () => results }
+    </script>
+  </body>
+</html>

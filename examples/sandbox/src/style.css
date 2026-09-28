@@ -708,6 +708,35 @@ button:disabled {
 }
 
 /*
+ * `way-out-on-top.ts`. The card's right edge is 110px in from the stage's, so
+ * the message centred on it, at its widest, reaches well into the corner the
+ * way out is drawn in, whatever width the control's label gives it.
+ */
+.way-out-card {
+  width: 150px;
+  margin: 24px 110px 24px auto;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.way-out-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.way-out-case .filler {
+  max-width: 680px;
+  color: var(--muted);
+}
+
+/* Room to scroll the card past the top of the screen. */
+.way-out-case {
+  padding-bottom: 100vh;
+}
+
+/*
  * The space between the two cards of one region in `scrolls-into-view.ts`. It
  * is inside the hole with them, and it is what would put the lower card half a
  * gap low if the first card alone were brought in. Sized off the screen so the

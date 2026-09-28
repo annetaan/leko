@@ -1651,6 +1651,41 @@ test('focus never lands on the page on its way round the ring', async () => {
   expect(touched).toEqual([])
 })
 
+test('Tab during a morph goes round the target and the way out, never the hidden message', async () => {
+  clocked()
+  const first = box('first', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const second = box('second', { left: '100px', top: '500px', width: '160px', height: '48px' })
+
+  start(
+    [
+      { id: 'one', target: { elements: () => first, interactive: true }, message: 'First.' },
+      { id: 'two', target: { elements: () => second, interactive: true }, message: 'Second.' },
+    ],
+    { duration: 320 },
+  )
+  await until(said, 60, 'the first step never said its words')
+  press()
+  // Two frames into the morph to the second step: the message is hidden by
+  // `visibility` and still in the tree, its next control with it.
+  await advance()
+  await advance()
+  expect(said()).toBe(false)
+
+  second.focus()
+  expect(await tabbing(3)).toEqual(['the way out', 'second', 'the way out'])
+})
+
+test('Tab reaches the message before the way out', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+
+  start([
+    { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
+
+  target.focus()
+  expect(await tabbing(2)).toEqual(['the message', 'the way out'])
+})
+
 test("the way out avoids the corner the host's chrome owns", () => {
   // An account menu of the host's, in the corner the way out prefers. It is not
   // a cutout, and until a host could say so nothing kept the two apart —
@@ -1727,6 +1762,81 @@ test('the way out is placed again when what renderClose drew changes size', asyn
   await placedAt(200, 'not placed at the width it was drawn at')
   own.style.width = '120px'
   await placedAt(120, 'not placed again when it narrowed')
+})
+
+// Long enough to reach the message's widest on any viewport the suite runs in,
+// so its right edge meets the corner the way out takes.
+const LONG =
+  'This is where your account settings live, along with billing and the team you belong to.'
+
+/** Where the way out and the message overlap, or `undefined` where they do not. */
+function overlap(): { x: number; y: number } | undefined {
+  const a = closer()!.getBoundingClientRect()
+  const b = document.querySelector('.leko-message')!.getBoundingClientRect()
+  const left = Math.max(a.left, b.left)
+  const right = Math.min(a.right, b.right)
+  const top = Math.max(a.top, b.top)
+  const bottom = Math.min(a.bottom, b.bottom)
+  return right > left && bottom > top ? { x: (left + right) / 2, y: (top + bottom) / 2 } : undefined
+}
+
+/** What paints at the middle of the overlap. A test with no overlap proves nothing, so it fails. */
+function onTop(): Element | null {
+  const at = overlap()
+  if (!at) throw new Error('the way out and the message do not meet')
+  return document.elementFromPoint(at.x, at.y)
+}
+
+// DESIGN.md, **The way out**: in the top layer the one shown later paints on
+// top, whatever `z-index` says.
+test('the way out paints above a message that lands on its corner', () => {
+  const target = box('target', { top: '0px', right: '160px', width: '120px', height: '20px' })
+
+  start([{ id: 'one', target: () => target, message: LONG }])
+
+  expect(onTop()?.closest('.leko-close')).not.toBeNull()
+})
+
+// Every morph hides the message, so this is the one that holds `hide()` to
+// leaving it in the top layer.
+test('the way out stays above the message a later step lands on its corner', async () => {
+  const first = box('first', { left: '100px', top: '300px', width: '160px', height: '48px' })
+  const second = box('second', { top: '0px', right: '160px', width: '120px', height: '20px' })
+
+  start([
+    { id: 'one', target: () => first },
+    { id: 'two', target: () => second, message: LONG },
+  ])
+  press()
+  await shown()
+
+  expect(onTop()?.closest('.leko-close')).not.toBeNull()
+})
+
+test('the way out stays above a message a scroll carries under it', async () => {
+  const spacer = keep(document.createElement('div'))
+  spacer.style.height = '3000px'
+  document.body.append(spacer)
+  const target = keep(document.createElement('button'))
+  target.textContent = 'target'
+  Object.assign(target.style, {
+    position: 'absolute',
+    left: '180px',
+    top: '500px',
+    width: '120px',
+    height: '30px',
+    margin: '0',
+  })
+  document.body.append(target)
+
+  start([{ id: 'one', target: () => target, message: LONG }])
+  // Clear of each other where it was drawn; the anchored message rides the
+  // scroll up into the corner.
+  window.scrollTo(0, 515)
+  await within(() => overlap() !== undefined, 60, 'the scroll never carried the message under it')
+
+  expect(onTop()?.closest('.leko-close')).not.toBeNull()
+  window.scrollTo(0, 0)
 })
 
 // --- a step that waits for a URL

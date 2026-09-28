@@ -29,6 +29,7 @@ import { styledTour } from './styled-tour.js'
 import { svgTarget } from './svg-target.js'
 import { targetNotThereYet } from './target-not-there-yet.js'
 import { twoStories } from './two-stories.js'
+import { wayOutOnTop } from './way-out-on-top.js'
 import { whichMatch } from './which-match.js'
 
 // The plain one first, because it is the one to open while working on the
@@ -62,6 +63,7 @@ export const cases: Case[] = [
   messageSides,
   hostChrome,
   closeThroughAPortal,
+  wayOutOnTop,
   targetNotThereYet,
   hiddenTarget,
   whichMatch,

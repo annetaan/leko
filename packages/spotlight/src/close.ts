@@ -50,8 +50,9 @@ export class Close {
       padding: '0',
       border: '0',
       background: 'transparent',
-      // Above the message, so a box that lands on top of this still leaves it
-      // pressable. The escape hatch wins whatever else is on screen.
+      // Only consulted where the top layer is unavailable. In it, `z-index` has
+      // no say; the way out paints above the message because the message
+      // entered first — DESIGN.md, **The way out**.
       zIndex: 'var(--leko-close-z, 10001)',
       pointerEvents: 'auto',
     })

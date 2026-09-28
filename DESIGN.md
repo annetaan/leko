@@ -234,6 +234,7 @@ Without a built-in close control, host applications risk trapping users under th
 
 - **Cannot be disabled:** Hosts may customize its appearance via `renderClose`, but cannot remove it or assign it any action other than ending the tour.
 - **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes — and whatever chrome the host named as its own, which arrives in the same list of boxes. It is placed at the size it has now, and placed again whenever that size changes: what `renderClose` draws may arrive after the call returns, and a label may change width mid-step. What is read on a change of its size is Leko's own box and the viewport's size, never the page's content or its targets, and never on a scroll.
+- **Paints above the message:** both are popovers in the top layer, where `z-index` has no effect and the one shown later paints on top ([`spike/paint-order-in-the-top-layer/`](spike/paint-order-in-the-top-layer/)). So the message goes into the top layer, still hidden, before the way out, the first time anything is drawn, and neither leaves it until the tour ends. Where the two meet, the way out covers the message. That also puts the message before the way out in document order, the order **The ring focus cannot leave** takes. The corner does not dodge the message: the message is anchored and the browser carries it on every scroll, so a corner chosen against where it was is wrong after the first scroll, and choosing again would be reading layout while the user scrolls.
 - **Is the only global control:** Unlike "Next" (which is step-specific and derived from `awaits`), ending the tour is always permitted and available unconditionally.
 
 ## A target is a question
@@ -423,8 +424,10 @@ To prevent Tab from escaping the tour, focus is constrained to a closed loop (ri
 - Composition: Includes the tour UI, plus the open target region only when
   `interactive: true`.
 - Order: The ring is document order. The top layer changes what paints over
-  what, not sequential focus navigation, so the browser already walks the order
-  the ring wants
+  what
+  ([`spike/paint-order-in-the-top-layer/`](spike/paint-order-in-the-top-layer/)),
+  not sequential focus navigation, so the browser already walks the order the
+  ring wants
   ([`spike/tab-order-in-the-top-layer/`](spike/tab-order-in-the-top-layer/)).
 - Mechanism: Intercepts keydown at the ring edges to jump over non-interactive areas, ensuring focus never lands on blocked elements.
 - Boundary fallback: Invisible focusable elements at both ends of the DOM catch Tab overflow before it hits browser chrome.
@@ -1646,8 +1649,8 @@ paints above the scrim itself.
 - `packages/spotlight` draws the scrim, the hole and the message. It does not
   know what a step is.
 - `packages/leko` holds the class a consumer constructs, re-exports the
-  vocabulary `@annetaan/leko-types` declares, and is the only one that
-  publishes.
+  vocabulary `@annetaan/leko-types` declares, and is the only one of these
+  that publishes.
 
 What each half may ask of the other is `Presenter` and `Host` in
 `packages/machine/src/types.ts`:

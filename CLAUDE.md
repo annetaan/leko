@@ -165,10 +165,10 @@ the wrong file.
 
 `packages/spotlight` draws and knows nothing about steps. `packages/presenter`
 wires the two together, `packages/types` is the public vocabulary, and
-`packages/leko` holds the class, re-exports that vocabulary, and is the only
-package that publishes. What each half may ask of the other is `Presenter` and
-`Host` in `packages/machine/src/types.ts`, and DESIGN.md argues the two rules
-that seam exists to keep.
+`packages/leko` holds the class, re-exports that vocabulary, and is the tour's
+one package that publishes; `packages/codegen` is the other. What each half may
+ask of the other is `Presenter` and `Host` in `packages/machine/src/types.ts`,
+and DESIGN.md argues the two rules that seam exists to keep.
 
 New behaviour that a user would notice wants a case in
 `examples/sandbox/src/cases/`, stating what it proves. A new claim about what a

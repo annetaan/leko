@@ -182,8 +182,11 @@ The first six style `.leko-close-control`, the button that ends the tour. What
 it reads is [`closeLabel`](../create-leko/#closelabel).
 
 `--leko-close-z` is on its container, `.leko-close`, and is consulted only where
-the top layer is unavailable. The default is above `--leko-message-z`. With
-[`renderClose`](../create-leko/#renderclose) Leko's button is never drawn, so
+the top layer is unavailable. The default is above `--leko-message-z`. Where
+the browser has a top layer, the control paints above the message whatever
+either property says —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+With [`renderClose`](../create-leko/#renderclose) Leko's button is never drawn, so
 `--leko-close-z` is the only one of these that still applies.
 
 Leko picks the corner the control goes in, so there is no side to style —

@@ -45,9 +45,17 @@ type Stop = HTMLElement | SVGElement
  * has no offset parent either and is perfectly visible, which is why that is
  * asked separately. SVG has no offset parents at all, so where
  * `checkVisibility` is missing an SVG stop is taken at its word.
+ *
+ * `visibilityProperty` because the message goes away by `visibility` and stays
+ * in the tree (`Message.hide`). Without it the message's control counts as a
+ * stop during a morph, and a redirect into it goes nowhere. `opacityProperty`
+ * is left out: Tab still lands on something at opacity 0, and the message
+ * fades in from 0, so the ring built as it appears would leave it out. An
+ * engine whose method predates the option ignores it, as under **Which of
+ * several matches a selector means** in DESIGN.md.
  */
 const reachable = (el: Stop): boolean => {
-  if (el.checkVisibility) return el.checkVisibility()
+  if (el.checkVisibility) return el.checkVisibility({ visibilityProperty: true })
   if (!(el instanceof HTMLElement)) return true
   return el.offsetParent !== null || getComputedStyle(el).position === 'fixed'
 }
