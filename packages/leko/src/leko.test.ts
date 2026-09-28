@@ -1797,6 +1797,22 @@ test('the way out paints above a message that lands on its corner', () => {
   expect(onTop()?.closest('.leko-close')).not.toBeNull()
 })
 
+// Every morph hides the message, so this is the one that holds `hide()` to
+// leaving it in the top layer.
+test('the way out stays above the message a later step lands on its corner', async () => {
+  const first = box('first', { left: '100px', top: '300px', width: '160px', height: '48px' })
+  const second = box('second', { top: '0px', right: '160px', width: '120px', height: '20px' })
+
+  start([
+    { id: 'one', target: () => first },
+    { id: 'two', target: () => second, message: LONG },
+  ])
+  press()
+  await shown()
+
+  expect(onTop()?.closest('.leko-close')).not.toBeNull()
+})
+
 test('the way out stays above a message a scroll carries under it', async () => {
   const spacer = keep(document.createElement('div'))
   spacer.style.height = '3000px'
