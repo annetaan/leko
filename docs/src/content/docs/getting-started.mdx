@@ -1,0 +1,206 @@
+---
+title: Getting started
+description: From an empty Vite project to a three-step tour on screen, with a step that waits for the app to report that a save finished.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+This page starts from an empty Vite project and ends with a three-step tour on
+its page. The middle step lights a Save button and moves on only when the app
+reports that the save finished, which is the thing Leko is for.
+
+You need git and Node 24.
+
+## Make an empty project
+
+```sh
+npm create vite@latest my-tour -- --template vanilla-ts --no-interactive
+cd my-tour
+npm install
+```
+
+If npm asks to install `create-vite`, answer `y`.
+
+## Install Leko
+
+<Aside type="caution" title="Before the release">
+  Leko is not on npm yet, and the `0.0.0` there is a placeholder with no code in it. This block
+  builds both packages from the repository and installs their tarballs instead. It needs git and
+  Node 24, and runs pnpm through `npx`. At the release it becomes `npm install @annetaan/leko` and
+  `npm install -D @annetaan/leko-codegen`. The block leaves `leko/`, `leko-packages/` and `my-tour/`
+  side by side, and ends back in `my-tour/`.
+</Aside>
+
+```sh
+cd ..
+git clone https://github.com/annetaan/leko.git
+cd leko
+npx -y pnpm@10 --filter "@annetaan/leko-codegen..." install
+npx -y pnpm@10 --filter "@annetaan/leko-codegen..." build
+npx -y pnpm@10 --filter @annetaan/leko --filter @annetaan/leko-codegen pack --pack-destination ../leko-packages
+cd ../my-tour
+npm install ../leko-packages/annetaan-leko-0.0.0.tgz
+npm install -D ../leko-packages/annetaan-leko-codegen-0.0.0.tgz
+```
+
+## Create the instance
+
+```ts
+// src/tour.ts
+import { createLeko } from '@annetaan/leko'
+
+export const leko = createLeko()
+```
+
+There is one instance, exported, and every file that imports `leko` shares it.
+Its options are in [createLeko and options](../reference/create-leko/).
+
+## Write a story
+
+```ts
+// src/stories.ts
+import type { LekoStory } from '@annetaan/leko'
+
+export const welcome = {
+  id: 'welcome',
+  steps: [
+    { id: 'name', target: '#name', message: 'Your name goes here.' },
+    {
+      id: 'save',
+      target: { elements: '#save', interactive: true },
+      message: 'Press Save. This step moves on when the save has finished.',
+      awaits: 'profile-saved',
+    },
+    { id: 'saved', target: '#status', message: 'Saved. The app said so, and the tour moved on.' },
+  ],
+} satisfies LekoStory
+```
+
+`satisfies LekoStory` checks the story without widening it, so `awaits` keeps
+its literal name and a mistyped one is reported on its own line, once the names
+are types ([LekoKnownSignal](../reference/signal-types/#lekoknownsignal)).
+
+The story has a file of its own for the reason
+[One instance, in a module](../guides/frameworks/#one-instance-in-a-module)
+gives, and so that the mistyped name in the last section lands in a file that
+holds only the story.
+
+The second step has no Next control, because it declares
+[`awaits`](../reference/story-and-step/#awaits): the only way past it is the
+save. `interactive: true` opens its hole, so the Save button under it is the
+real one and takes the click.
+
+## Report what finished
+
+Replace the template's `src/main.ts` with this:
+
+```ts ins="leko.reached('profile-saved')"
+// src/main.ts
+import { welcome } from './stories'
+import { leko } from './tour'
+
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+  <h1>Profile</h1>
+  <input id="name" value="Ada" />
+  <button id="save" type="button">Save</button>
+  <p id="status"></p>
+`
+
+const status = document.querySelector<HTMLParagraphElement>('#status')!
+
+async function save() {
+  status.textContent = 'Saving…'
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  status.textContent = 'Saved'
+  leko.reached('profile-saved')
+}
+
+document.querySelector<HTMLButtonElement>('#save')!.addEventListener('click', save)
+
+leko.start(welcome)
+```
+
+The click listener is the app's own save handler, and it would be there without
+a tour. The one line Leko adds is `reached()`, after the `await`, where the work
+has finished. It names what happened, not a story or a step, so it reads the
+same whether a tour is running or not. More on where it goes is under
+[Where reached() goes](../guides/frameworks/#where-reached-goes).
+
+## Run it
+
+```sh
+npm run dev
+```
+
+Open the address Vite prints. The page dims, with a hole around the name field
+and a message beside it with a Next control. Next moves the hole to Save, and
+this message has no Next. Press Save: the page says "Saving…", and half a
+second later "Saved", and the tour moves to that text. Its Next ends the tour.
+
+The "End tour" control in a corner of the page ends it at any step.
+
+## Get the signal name back as a type
+
+```ts
+// vite.config.ts
+import { lekoSignals } from '@annetaan/leko-codegen/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [lekoSignals({ out: 'src/leko-signals.d.ts' })],
+})
+```
+
+A dev server that is already running does not pick up a new config file, so
+stop it with Ctrl+C and run `npm run dev` again.
+
+The plugin writes `src/leko-signals.d.ts`, holding every name the app passes to
+`reached()`. Trimmed, it reads:
+
+```ts
+// src/leko-signals.d.ts
+declare module '@annetaan/leko' {
+  interface LekoSignals {
+    'profile-saved': true
+  }
+  // …
+}
+```
+
+Now `awaits` takes only a name the app reports. Change it in `src/stories.ts`
+to `'profile-svaed'` and run the compiler:
+
+```sh
+npx tsc
+```
+
+```
+error TS2820: Type '"profile-svaed"' is not assignable to type '"profile-saved" | LekoUrlAwait | undefined'. Did you mean '"profile-saved"'?
+```
+
+That error is on the `awaits` line of `src/stories.ts`. The compiler also
+reports a longer one in `src/main.ts`, where the story is passed to `start()`,
+and it goes away with the first.
+
+The editor shows the same error on that line, and offers `'profile-saved'` as a
+completion. Put the name back. `npm run build` runs `tsc` first, so a mistyped
+name fails the build too.
+
+Commit the generated file, for the reasons under
+[Gathering the names](../reference/signal-types/#gathering-the-names).
+
+## Where to go next
+
+- [React, Vue and a plain script](../guides/frameworks/) says where each call
+  goes in an app built with one.
+- [The lifecycle](../lifecycle/) is what happens between `start()` and the end
+  of a tour.
+- [Leko](../reference/leko/) and [Story and step](../reference/story-and-step/)
+  cover every method and every field.
+- [CSS custom properties](../reference/css-custom-properties/) covers the look,
+  and `import '@annetaan/leko/leko.css'`, the optional stylesheet that declares
+  their defaults.
+- The [Playground](../playground/) runs a tour over a real page.
+- The
+  [sandbox cases](https://github.com/annetaan/leko/tree/main/examples/sandbox/src/cases)
+  each prove one behaviour, and show the code that does it.

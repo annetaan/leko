@@ -35,10 +35,8 @@ jobs:
           name: docs-site
           path: docs/dist
           retention-days: 14
-      # Every bare import in a published package has to be something npm will
-      # install. A workspace link is not: it resolves here and nowhere a
-      # consumer is, which is how `@annetaan/leko` came to ship imports of two
-      # packages that are not on the registry, with every other check green.
+      # A tarball can be broken while every other check here is green.
+      # CONTRIBUTING.md, **What `@annetaan/leko` ships** says how it was twice.
       - run: pnpm check:pack
       # A link in the documentation site that does not land still builds, and
       # nothing else here fails on it. `docs/src/lib/href.ts` says why a link

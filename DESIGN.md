@@ -1674,8 +1674,9 @@ on `Target` in `spotlight/src/target.ts` says why. The tour's four workspace
 packages are private, and so is `packages/scroll`. `@annetaan/leko` bundles
 all five in with `tsdown`, `packages/scroll` behind `@annetaan/leko/scroll`, so a
 consumer installs one package with no runtime dependencies and a `.d.ts` that
-names none of them. **`pnpm check:pack` reads what `npm pack` would send and
-fails on a bare import the manifest does not depend on.**
+names none of them. **`pnpm check:pack` reads the tarball rather than the
+workspace**, and CONTRIBUTING.md, **What `@annetaan/leko` ships** says what it
+fails on.
 
 ## How to write here, and where tests go
 
