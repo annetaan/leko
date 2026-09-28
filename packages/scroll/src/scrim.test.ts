@@ -23,7 +23,10 @@ const HEIGHT = 3000
  * duration is for tests that only wait for the end; a test that reads frames
  * in flight asks for a long one, so a slow runner still has frames to read.
  */
-function mount(duration = 40): {
+function mount(
+  duration = 40,
+  halo?: 'arrive' | 'follow',
+): {
   scrim: Scrim
   arrived: () => Promise<void>
   arrivals: () => number
@@ -32,6 +35,7 @@ function mount(duration = 40): {
   const waiting: (() => void)[] = []
   const scrim = new Scrim({
     duration,
+    halo,
     onArrive: () => {
       count += 1
       for (const resolve of waiting.splice(0)) resolve()
@@ -414,4 +418,100 @@ test('destroy removes the root', () => {
   expect(scrim.root.isConnected).toBe(true)
   scrim.destroy()
   expect(scrim.root.isConnected).toBe(false)
+})
+
+const opacityOf = (scrim: Scrim): number => Number(part(scrim, 'halo').style.opacity)
+
+test('a converge the halo follows lays it on the hole as cut every frame and reaches opacity 1 on the arrival', () => {
+  vi.useFakeTimers()
+  const { scrim, arrivals } = mount(1000, 'follow')
+  scrim.converge(f, seen)
+  let frames = 0
+  let last = 0
+  while (arrivals() === 0) {
+    vi.advanceTimersByTime(16)
+    if (arrivals() > 0) break
+    const hole = holeOnScreen(scrim)
+    if (!hole) throw new Error('no hole in flight')
+    frames += 1
+    expect(haloBox(scrim)).toEqual(boxOf(hole))
+    const opacity = opacityOf(scrim)
+    expect(opacity).toBeGreaterThan(last)
+    expect(opacity).toBeLessThan(1)
+    last = opacity
+  }
+  expect(frames).toBeGreaterThan(10)
+  const cut = maskLayers(WIDTH, HEIGHT, f).hole
+  if (!cut) throw new Error('no hole cut')
+  expect(haloBox(scrim)).toEqual(boxOf(cut))
+  expect(part(scrim, 'halo').style.opacity).toBe('1')
+})
+
+test('a following converge starts its halo at opacity 0 after out', () => {
+  vi.useFakeTimers()
+  const { scrim } = mount(1000, 'follow')
+  scrim.place(a, WIDTH)
+  scrim.reveal(undefined, 'bottom', WIDTH)
+  expect(part(scrim, 'halo').style.opacity).toBe('1')
+
+  scrim.out()
+  scrim.converge(b, seen)
+  expect(part(scrim, 'halo').style.opacity).toBe('0')
+  vi.advanceTimersByTime(16)
+  expect(opacityOf(scrim)).toBeGreaterThan(0)
+  expect(opacityOf(scrim)).toBeLessThan(0.1)
+})
+
+test('a following converge issued mid-flight climbs the halo on from where it was, not from 0', () => {
+  vi.useFakeTimers()
+  const { scrim, arrivals } = mount(1000, 'follow')
+  scrim.converge(a, seen)
+  elapse(500)
+  const mid = opacityOf(scrim)
+  expect(mid).toBeGreaterThan(0.3)
+  expect(mid).toBeLessThan(1)
+
+  scrim.converge(b, seen)
+  expect(opacityOf(scrim)).toBe(mid)
+  vi.advanceTimersByTime(16)
+  const next = opacityOf(scrim)
+  expect(next).toBeGreaterThan(mid)
+  expect(next).toBeLessThan(1)
+  expect(haloBox(scrim)).toEqual(boxOf(holeOnScreen(scrim)!))
+
+  elapse(1000 + 16)
+  expect(arrivals()).toBe(1)
+  expect(part(scrim, 'halo').style.opacity).toBe('1')
+  expect(haloBox(scrim)).toEqual(boxOf(b))
+})
+
+test('reveal after a following converge leaves the halo at 1 with no transition', () => {
+  vi.useFakeTimers()
+  const { scrim, arrivals } = mount(40, 'follow')
+  scrim.converge(a, seen)
+  elapse(40 + 16)
+  expect(arrivals()).toBe(1)
+
+  scrim.reveal(undefined, 'bottom', WIDTH)
+  const halo = part(scrim, 'halo')
+  expect(halo.style.opacity).toBe('1')
+  expect(halo.style.transition).toBe('')
+  expect(haloBox(scrim)).toEqual(boxOf(a))
+})
+
+test('out during a following converge takes the halo away at once', () => {
+  vi.useFakeTimers()
+  const { scrim, arrivals } = mount(1000, 'follow')
+  const halo = part(scrim, 'halo')
+  scrim.opacity(1)
+  scrim.converge(a, seen)
+  elapse(500)
+  expect(opacityOf(scrim)).toBeGreaterThan(0)
+
+  scrim.out()
+  expect(halo.style.opacity).toBe('0')
+  expect(getComputedStyle(halo).opacity).toBe('0')
+  elapse(1000)
+  expect(arrivals()).toBe(0)
+  expect(halo.style.opacity).toBe('0')
 })

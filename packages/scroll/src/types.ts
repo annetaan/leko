@@ -51,6 +51,11 @@ export interface LekoScrollOptions {
   padding?: number
   radius?: number
   intro?: LekoScrollIntro
+  /**
+   * What the halo does during a converge. Left out, it is `'arrive'` —
+   * [The halo](../DESIGN.md#the-halo).
+   */
+  halo?: 'arrive' | 'follow'
   /** [The whole page stays usable](../DESIGN.md#the-whole-page-stays-usable) says when it fires. */
   onChange?: (index: number | undefined) => void
 }

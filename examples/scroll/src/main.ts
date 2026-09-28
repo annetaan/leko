@@ -54,6 +54,7 @@ const options: LekoScrollOptions = {
     },
   ],
   intro: { duration: 1200 },
+  halo: 'follow',
   // The count moves on every call, so a notice that repeats the last index
   // still shows.
   onChange: (index) => {

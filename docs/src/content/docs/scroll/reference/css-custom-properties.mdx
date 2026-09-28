@@ -64,10 +64,12 @@ paints above the scrim.
 
 These style `.leko-scroll-halo`, a frame on the hole with the hole's radius.
 With every default it paints nothing, so there is no halo until a page sets one
-of these. It follows the hole through a morph, is absent while the dark closes
-in on a target, and appears once the hole arrives.
-`--leko-scroll-halo-fade` is how long it takes to fade in then. It dims with
-the scrim as the light goes out —
+of these. It follows the hole through a morph. Under the default
+[`halo`](../create-scroll/#halo) it is absent while the dark closes in on a
+target, and appears once the hole arrives; `--leko-scroll-halo-fade` is how
+long it takes to fade in then. Under `halo: 'follow'` it rides the hole in and
+is at full strength on the arrival, so `--leko-scroll-halo-fade` plays no part.
+It dims with the scrim as the light goes out —
 [The halo](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-halo).
 
 ## The message

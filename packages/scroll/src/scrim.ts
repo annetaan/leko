@@ -3,7 +3,7 @@ import { ease } from '@annetaan/leko-spotlight'
 import type { Hole, Rect } from './geometry.js'
 import { maskLayers } from './mask.js'
 import { Message } from './message.js'
-import type { LekoScrollMessage, LekoScrollSide } from './types.js'
+import type { LekoScrollMessage, LekoScrollOptions, LekoScrollSide } from './types.js'
 
 /**
  * How long a morph and a converge take, in milliseconds, unless the caller
@@ -36,17 +36,28 @@ export class Scrim {
   private readonly halo: HTMLElement
   private readonly message = new Message()
   private readonly duration: number
+  private readonly follows: boolean
   private readonly onArrive: () => void
   private width = 0
   private height = 0
   /** What is on screen now, mid-flight included, before it is put on whole pixels. */
   private hole: Hole | undefined
   private frame: number | undefined
-  /** The halo stays off the hole until a converge arrives — [The halo](../DESIGN.md#the-halo). */
+  /**
+   * The halo stays off the hole during a converge unless this scrim's halo
+   * follows — [The halo](../DESIGN.md#the-halo).
+   */
   private converging = false
+  /** The halo's opacity as last written, where a following converge climbs from. */
+  private haloOpacity = 0
 
-  constructor(options: { duration?: number; onArrive: () => void }) {
+  constructor(options: {
+    duration?: number
+    halo?: LekoScrollOptions['halo']
+    onArrive: () => void
+  }) {
     this.duration = options.duration ?? DURATION
+    this.follows = options.halo === 'follow'
     this.onArrive = options.onArrive
 
     const root = document.createElement('div')
@@ -120,7 +131,9 @@ export class Scrim {
    */
   converge(to: Hole, seen: Rect, duration?: number): void {
     this.message.hide()
-    this.hideHalo()
+    // Following, each frame's opacity lands at once, climbing from the one on screen.
+    if (this.follows) this.halo.style.transition = ''
+    else this.hideHalo()
     this.converging = true
     this.run(this.hole ?? { ...seen, radius: 0 }, to, duration)
   }
@@ -142,17 +155,26 @@ export class Scrim {
     if (this.message.visible) this.message.place(hole, this.message.side, viewportWidth)
   }
 
-  /** The hole arrived: the halo fades in, and the message shows where it has something to say. */
+  /**
+   * The hole arrived: the halo fades in, or is already in when it follows, and
+   * the message shows where it has something to say.
+   */
   reveal(
     content: LekoScrollMessage | undefined,
     side: LekoScrollSide,
     viewportWidth: number,
   ): void {
-    this.halo.style.transition = 'opacity var(--leko-scroll-halo-fade, 160ms) ease-out'
-    // Read so the halo's opacity of 0 is computed before 1 is written, and it
-    // fades rather than cuts.
-    void this.halo.offsetWidth
-    this.halo.style.opacity = '1'
+    if (this.follows) {
+      // Already at 1: a following converge lands there, and a morph starts
+      // only from a halo that was revealed.
+      this.halo.style.transition = ''
+    } else {
+      this.halo.style.transition = 'opacity var(--leko-scroll-halo-fade, 160ms) ease-out'
+      // Read so the halo's opacity of 0 is computed before 1 is written, and it
+      // fades rather than cuts.
+      void this.halo.offsetWidth
+    }
+    this.setHaloOpacity(1)
     const hole = this.hole
     if (hole && content && (content.title || content.body)) {
       this.message.show(content, hole, side, viewportWidth)
@@ -186,6 +208,7 @@ export class Scrim {
   private run(from: Hole, to: Hole, duration = this.duration): void {
     if (this.frame !== undefined) cancelAnimationFrame(this.frame)
     const began = performance.now()
+    const rise = this.converging && this.follows ? this.haloOpacity : undefined
     const tick = (now: number): void => {
       // Clamped at the bottom as well as the top, for the reason `segmentAt`
       // in `packages/spotlight/src/geometry.ts` gives.
@@ -193,6 +216,7 @@ export class Scrim {
       if (t >= 1) {
         this.hole = to
         this.layHalo(this.paint(to)!)
+        if (rise !== undefined) this.setHaloOpacity(1)
         this.frame = undefined
         this.converging = false
         this.onArrive()
@@ -201,7 +225,9 @@ export class Scrim {
       const hole = lerp(from, to, ease(t))
       this.hole = hole
       const cut = this.paint(hole)
-      if (!this.converging) this.layHalo(cut!)
+      if (!this.converging || this.follows) this.layHalo(cut!)
+      // On the clock rather than on `ease` — [The halo](../DESIGN.md#the-halo).
+      if (rise !== undefined) this.setHaloOpacity(rise + (1 - rise) * t)
       this.frame = requestAnimationFrame(tick)
     }
     this.frame = requestAnimationFrame(tick)
@@ -226,7 +252,13 @@ export class Scrim {
 
   /** Gone at once. A fade out would linger on the old target while the next converge closes in. */
   private hideHalo(): void {
-    Object.assign(this.halo.style, { transition: '', opacity: '0' })
+    this.halo.style.transition = ''
+    this.setHaloOpacity(0)
+  }
+
+  private setHaloOpacity(value: number): void {
+    this.haloOpacity = value
+    this.halo.style.opacity = String(value)
   }
 
   private layHalo(hole: Hole): void {
