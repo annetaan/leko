@@ -35,9 +35,11 @@ verdict in that case rather than reporting an order it never saw.
 
 ## What it settled
 
-**The top layer changes what paints over what, and nothing about sequential
-focus navigation.** A popover is reached at its DOM position, so a box that
-covers the page is still the last thing Tab arrives at.
+**The top layer changes nothing about sequential focus navigation.** A popover
+is reached at its DOM position, so a box that covers the page is still the last
+thing Tab arrives at. What the top layer does change, which of two popovers
+paints over the other, is
+[`paint-order-in-the-top-layer/`](../paint-order-in-the-top-layer/)'s question.
 
 ## Why it matters
 
@@ -45,7 +47,9 @@ Leko draws chrome of its own and appends it to the end of the body. A step's
 target is somewhere in the middle of the page. So the order a ring wants —
 target, then the message, then the way out — is the order the browser already
 takes, and the ring only has to catch focus at the two ends rather than
-reorder anything in between.
+reorder anything in between. Which of the message and the way out paints on
+top is a separate matter, and
+[`paint-order-in-the-top-layer/`](../paint-order-in-the-top-layer/) settles it.
 
 That keeps `focus.ts` to a net and two ends. A version that had to impose an
 order would need every focusable in the page enumerated and sorted, which is the

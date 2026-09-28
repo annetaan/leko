@@ -423,8 +423,10 @@ To prevent Tab from escaping the tour, focus is constrained to a closed loop (ri
 - Composition: Includes the tour UI, plus the open target region only when
   `interactive: true`.
 - Order: The ring is document order. The top layer changes what paints over
-  what, not sequential focus navigation, so the browser already walks the order
-  the ring wants
+  what
+  ([`spike/paint-order-in-the-top-layer/`](spike/paint-order-in-the-top-layer/)),
+  not sequential focus navigation, so the browser already walks the order the
+  ring wants
   ([`spike/tab-order-in-the-top-layer/`](spike/tab-order-in-the-top-layer/)).
 - Mechanism: Intercepts keydown at the ring edges to jump over non-interactive areas, ensuring focus never lands on blocked elements.
 - Boundary fallback: Invisible focusable elements at both ends of the DOM catch Tab overflow before it hits browser chrome.
