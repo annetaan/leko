@@ -2,6 +2,8 @@
 import { Code } from '@astrojs/starlight/components'
 import ThemeProvider from '@astrojs/starlight/components/ThemeProvider.astro'
 import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro'
+import logoDark from '../assets/logo-dark.svg'
+import logoLight from '../assets/logo-light.svg'
 import DarkCode from '../components/DarkCode.astro'
 import { href } from '../lib/href.ts'
 
@@ -71,7 +73,10 @@ createScroll({
   </head>
   <body>
     <header class="bar">
-      <a class="bar-brand" href={href('/')}>Leko</a>
+      <a class="bar-brand" href={href('/')}>
+        <img class="logo light" src={logoLight.src} alt="Leko" />
+        <img class="logo dark" src={logoDark.src} alt="Leko" />
+      </a>
       <nav class="bar-links">
         <a href={href('what-leko-is/')}>Docs</a>
         <a href={href('playground/')}>Playground</a>
@@ -83,7 +88,10 @@ createScroll({
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <h1 class="wordmark">Leko</h1>
+          <h1 class="wordmark">
+            <img class="logo light" src={logoLight.src} alt="Leko" />
+            <img class="logo dark" src={logoDark.src} alt="Leko" />
+          </h1>
           <p class="statement">Light the way.<br />Leave the door open.</p>
           <p class="lede">
             The spotlight you can click through. A product tour that cuts a hole in the overlay, so
@@ -399,6 +407,17 @@ createScroll({
     color: inherit;
   }
 
+  /* The logo is drawn once per theme, as the docs' header does. */
+  .logo {
+    display: block;
+    height: auto;
+  }
+
+  :root[data-theme='dark'] .logo.light,
+  :root:not([data-theme='dark']) .logo.dark {
+    display: none;
+  }
+
   code {
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 0.88em;
@@ -421,11 +440,9 @@ createScroll({
     border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
   }
 
-  .bar-brand {
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    text-decoration: none;
-    font-size: 20px;
+  .bar-brand .logo {
+    width: auto;
+    height: 32px;
   }
 
   .bar-links {
@@ -490,10 +507,10 @@ createScroll({
 
   .wordmark {
     margin: 0;
-    font-size: clamp(72px, 12vw, 152px);
-    line-height: 0.9;
-    font-weight: 850;
-    letter-spacing: -0.06em;
+  }
+
+  .wordmark .logo {
+    width: clamp(240px, 36vw, 440px);
   }
 
   .statement {
