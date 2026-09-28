@@ -914,7 +914,7 @@ test('a resize while the target is hidden does not cut the morph short', async (
 
   // Nothing has been said yet: the words come back with the hole they belong
   // beside, and the hole is still on its way.
-  expect(control()).toBeNull()
+  expect(said()).toBe(false)
 
   // Hidden inside the morph, which the tour is left alone for, so the step
   // stays drawn — and then a resize, which is the one thing that redraws

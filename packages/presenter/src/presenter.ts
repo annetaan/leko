@@ -159,16 +159,14 @@ export class DomPresenter implements Presenter<LekoWorld> {
   /** One scrim per surface carrying the target, innermost first. DESIGN.md, **Scrolling**. */
   private layers: Scrim[] = []
   /**
-   * Outlives the scrims on purpose. A step in a different scroller rebuilds the
-   * stack, and the box holding the instruction should not blink while it does.
+   * The box holding the instruction and the way out. Both outlive the scrims on
+   * purpose: a step in a different scroller rebuilds the stack, and neither
+   * should blink while it does — the way out least of all, because it is what
+   * somebody reaches for when the page stops behaving. Made together the first
+   * time anything is drawn and taken away together in {@link destroy}, the
+   * message going into the top layer first — DESIGN.md, **The way out**.
    */
-  private message: Message | undefined
-  /**
-   * Outlives the scrims and the message, and more so: it is the one thing that
-   * must never blink, because it is what somebody reaches for when the page
-   * stops behaving.
-   */
-  private close: Close | undefined
+  private popovers: { message: Message; close: Close } | undefined
   /**
    * The ring Tab cannot leave while anything is drawn. The blocking rectangles
    * do nothing at all about a key, so without this the same element is one Tab
@@ -453,7 +451,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       case 'abandon':
         return effect.glide.abandon()
       case 'hide':
-        return this.message?.hide()
+        return this.popovers?.message.hide()
       case 'disarm':
         return this.disarm()
       case 'hunt':
@@ -602,7 +600,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     const { step } = drawn
     // The step being left is over, so its words go. Nothing is painted between
     // here and the morph below, so this is the same moment the arrival began.
-    this.message?.hide()
+    this.popovers?.message.hide()
     const holes = this.holes(step, anchor)
     const measured = this.measure(step, anchor, holes)
     // The anchor resolved a moment ago in this same task, so this is not
@@ -695,16 +693,15 @@ export class DomPresenter implements Presenter<LekoWorld> {
     // Read here as well, because a `say` after a morph is a task later than the
     // draw and brings no measurements of its own.
     const chrome = measured?.chrome ?? this.chromeBoxes()
-    this.showClose([...onScreen, ...chrome])
+    const { message } = this.showClose([...onScreen, ...chrome])
     if (!content.text && !content.error && !content.next) {
-      this.message?.hide()
+      message.hide()
       this.showRing(holes)
       return
     }
-    this.message ??= new Message(() => this.host.next())
     const gap = this.setting(step, 'padding')
     const inner = this.layers[0]
-    this.message.show(
+    message.show(
       content,
       onScreen,
       gap,
@@ -727,9 +724,10 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * nowhere to jump from, so that one is placed properly.
    */
   private retold(step: LekoStep, reason: string): void {
-    if (this.message?.visible) {
-      this.message.setText(step.message ?? '')
-      this.message.setError(reason)
+    const message = this.popovers?.message
+    if (message?.visible) {
+      message.setText(step.message ?? '')
+      message.setError(reason)
       return
     }
     this.say(step, reason)
@@ -764,14 +762,23 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * There is no way to skip this. Whatever the scrim blocks, this is what gets
    * out of it, and `renderClose` is how a host owns the markup without owning
    * the decision.
+   *
+   * The message is made with it and mounted first, so the way out paints above
+   * it — DESIGN.md, **The way out**.
    */
-  private showClose(cutouts: readonly Rect[]): void {
-    this.close ??= new Close(
-      () => this.host.close(),
-      this.options.closeLabel,
-      this.options.renderClose,
-    )
-    this.close.place(cutouts)
+  private showClose(cutouts: readonly Rect[]): { message: Message; close: Close } {
+    if (!this.popovers) {
+      const message = new Message(() => this.host.next())
+      message.mount()
+      const close = new Close(
+        () => this.host.close(),
+        this.options.closeLabel,
+        this.options.renderClose,
+      )
+      this.popovers = { message, close }
+    }
+    this.popovers.close.place(cutouts)
+    return this.popovers
   }
 
   /**
@@ -786,8 +793,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.ring ??= new FocusRing()
     this.ring.set([
       openElements(holes),
-      this.message ? [this.message.element] : [],
-      this.close ? [this.close.element] : [],
+      ...(this.popovers ? [[this.popovers.message.element], [this.popovers.close.element]] : []),
     ])
   }
 
@@ -995,10 +1001,9 @@ export class DomPresenter implements Presenter<LekoWorld> {
   private destroy(): void {
     this.destroyLayers()
     this.stopNavigation()
-    this.message?.destroy()
-    this.message = undefined
-    this.close?.destroy()
-    this.close = undefined
+    this.popovers?.message.destroy()
+    this.popovers?.close.destroy()
+    this.popovers = undefined
     this.ring?.destroy()
     this.ring = undefined
   }

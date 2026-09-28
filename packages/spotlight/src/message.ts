@@ -191,13 +191,7 @@ export class Message {
     at?: (side: Side) => void,
   ): void {
     this.fill(content)
-    if (!this.element.isConnected) document.body.append(this.element)
-    if (!this.open) {
-      // Absent where the top layer is not supported; the z-index above carries
-      // the element in that case.
-      this.element.showPopover?.()
-      this.open = true
-    }
+    this.mount()
     this.place(cutouts, gap, room, at)
     Object.assign(this.element.style, {
       transition: prefersReducedMotion() ? '' : `opacity ${FADE}ms`,
@@ -206,6 +200,23 @@ export class Message {
       pointerEvents: 'auto',
     })
     this.shown = true
+  }
+
+  /**
+   * Put the box on the page and into the top layer, still hidden. Does nothing
+   * the second time.
+   *
+   * Separate from {@link show} because the presenter mounts the message before
+   * the way out, which is what keeps the way out painting above it — DESIGN.md,
+   * **The way out**. Where there is no top layer, `Close.place` says what
+   * carries the two instead.
+   */
+  mount(): void {
+    if (!this.element.isConnected) document.body.append(this.element)
+    if (!this.open) {
+      this.element.showPopover?.()
+      this.open = true
+    }
   }
 
   /**
