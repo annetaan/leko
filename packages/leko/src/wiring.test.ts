@@ -11,6 +11,7 @@ import {
   control,
   drawn,
   frame,
+  framed,
   holding,
   holes,
   instance,
@@ -34,13 +35,14 @@ import type { LekoProblem, LekoStep, LekoStory } from '@annetaan/leko-types'
 // ONBOARDING.md, **Which Vitest project a new test belongs in**. Layout an
 // engine could perform differently lives in `leko.test.ts`.
 
-test('a selector matching several elements takes the first', () => {
+test('a selector matching several elements takes the first', async () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   first.classList.add('pick-me')
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
   second.classList.add('pick-me')
 
   start([{ id: 'sel', target: { elements: '.pick-me', interactive: true } }])
+  await framed()
 
   expect(centre(first)).toBe(first)
   expect(absorbed(second)).toBe(true)
@@ -73,8 +75,10 @@ test('a step does not advance until the application says it succeeded', async ()
     },
     { id: 'second', target: { elements: () => second, interactive: true } },
   ])
+  await framed()
 
   press()
+  await framed()
   expect(leko.step?.id).toBe('first')
   // Asked once, for the attempt that failed, and given the action target the
   // guard was given.
@@ -85,11 +89,12 @@ test('a step does not advance until the application says it succeeded', async ()
   // A frame first — `harness.ts` says why that is what separates two presses.
   await frame()
   press()
+  await framed()
   expect(leko.step?.id).toBe('second')
   expect(centre(second)).toBe(second)
 })
 
-test('reached does nothing while idle, so it needs no guard either', () => {
+test('reached does nothing while idle, so it needs no guard either', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = holding({
     id: 'story',
@@ -97,11 +102,12 @@ test('reached does nothing while idle, so it needs no guard either', () => {
   })
 
   expect(() => leko.reached('ready')).not.toThrow()
+  await framed()
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
 })
 
-test('validate is handed the first element of the first region, and no other', () => {
+test('validate is handed the first element of the first region, and no other', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const beside = box('beside', { left: '240px', top: '100px', width: '120px', height: '40px' })
   const later = box('later', { left: '100px', top: '300px', width: '120px', height: '40px' })
@@ -115,16 +121,20 @@ test('validate is handed the first element of the first region, and no other', (
     },
     { id: 'b', target: { elements: () => target, interactive: true } },
   ])
+  await framed()
   press()
+  await framed()
 
   expect(validate).toHaveBeenCalledWith(target)
 })
 
-test('the last step ends the tour', () => {
+test('the last step ends the tour', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = start([{ id: 'only', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   press()
+  await framed()
 
   expect(leko.state).toBe('idle')
   expect(scrim()).toBeNull()
@@ -157,7 +167,7 @@ test('a target that never turns up stops the tour instead of pointing at nothing
   ])
 })
 
-test('stopping and starting puts away whatever was running', () => {
+test('stopping and starting puts away whatever was running', async () => {
   const first = box('first', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const second = box('second', { left: '100px', top: '300px', width: '120px', height: '40px' })
 
@@ -173,6 +183,7 @@ test('stopping and starting puts away whatever was running', () => {
     id: 'returning',
     steps: [{ id: 'b', target: { elements: () => second, interactive: true } }],
   })
+  await framed()
 
   expect(leko.story?.id).toBe('returning')
   expect(leko.step?.id).toBe('b')
@@ -183,7 +194,7 @@ test('stopping and starting puts away whatever was running', () => {
   expect(absorbed(first)).toBe(true)
 })
 
-test('a story with no steps in it shows nothing', () => {
+test('a story with no steps in it shows nothing', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const leko = holding({
     id: 'onboarding',
@@ -191,6 +202,7 @@ test('a story with no steps in it shows nothing', () => {
   })
 
   leko.start({ id: 'nowhere', steps: [] })
+  await framed()
 
   expect(leko.state).toBe('idle')
   expect(leko.story).toBeUndefined()
@@ -206,6 +218,7 @@ test('a target replaced after its step was drawn leaves the standing hole where 
   })
 
   begin(leko, 'story')
+  await framed()
   seen.length = 0
 
   // What a framework does when it renders over the step: the old node is
@@ -270,7 +283,9 @@ test('a resize over a refused step keeps the reason on screen', async () => {
   })
 
   begin(leko, 'story')
+  await framed()
   press()
+  await framed()
 
   expect(reason()).toBe('A name, not a number.')
 
@@ -297,6 +312,7 @@ test('a target that turns up inside the retry is drawn again', async () => {
   })
 
   begin(leko, 'story')
+  await framed()
   press()
   seen.length = 0
 
@@ -328,6 +344,7 @@ test('moving on to a target that has gone waits, then reports the ending', async
   })
 
   begin(leko, 'story')
+  await framed()
   second.remove()
   seen.length = 0
   press()
@@ -343,7 +360,7 @@ test('moving on to a target that has gone waits, then reports the ending', async
   expect(seen).toEqual(['b', undefined])
 })
 
-test('onEnter builds the state the step assumes, before the target is looked for', () => {
+test('onEnter builds the state the step assumes, before the target is looked for', async () => {
   const leko = holding({
     id: 'story',
     steps: [
@@ -359,6 +376,7 @@ test('onEnter builds the state the step assumes, before the target is looked for
   })
 
   begin(leko, 'story')
+  await framed()
 
   // DESIGN.md, **The target is resolved after `onEnter` returns**.
   const target = document.querySelector<HTMLElement>('.late')!
@@ -379,6 +397,7 @@ test('a step that waits is drawn at once, and the signal it names moves the tour
   })
 
   begin(leko, 'story')
+  await framed()
 
   // Drawn and still, rather than between things. Every call a host makes now is
   // acted on, which is the whole reason the wait is written this way.
@@ -395,7 +414,7 @@ test('a step that waits is drawn at once, and the signal it names moves the tour
   expect(centre(first)).toBe(first)
 })
 
-test('a resize draws what is on screen, and never a step being built', () => {
+test('a resize draws what is on screen, and never a step being built', async () => {
   const [first, second] = pair()
   const leko = holding({
     id: 'story',
@@ -417,7 +436,9 @@ test('a resize draws what is on screen, and never a step being built', () => {
   })
 
   begin(leko, 'story')
+  await framed()
   press()
+  await framed()
 
   second.style.top = '600px'
   window.dispatchEvent(new Event('resize'))
@@ -425,7 +446,7 @@ test('a resize draws what is on screen, and never a step being built', () => {
   expect(centre(second)).toBe(second)
 })
 
-test('a story started from inside onLeave is refused, and the step that was arriving lands', () => {
+test('a story started from inside onLeave is refused, and the step that was arriving lands', async () => {
   const [first, second] = pair()
   const third = box('third', { left: '100px', top: '500px', width: '120px', height: '40px' })
   const problems: LekoProblem[] = []
@@ -449,7 +470,9 @@ test('a story started from inside onLeave is refused, and the step that was arri
   )
 
   begin(leko, 'story')
+  await framed()
   press()
+  await framed()
 
   // DESIGN.md, **One gate, and what it refuses**.
   expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
@@ -457,7 +480,7 @@ test('a story started from inside onLeave is refused, and the step that was arri
   expect(centre(second)).toBe(second)
 })
 
-test('a story builds what it assumes before its first step is looked for', () => {
+test('a story builds what it assumes before its first step is looked for', async () => {
   const entered: string[] = []
   const leko = holding({
     id: 'story',
@@ -475,6 +498,7 @@ test('a story builds what it assumes before its first step is looked for', () =>
   })
 
   begin(leko, 'story')
+  await framed()
 
   // DESIGN.md, **Entry runs outermost first, and the ending mirrors it,
   // innermost first**.
@@ -484,7 +508,7 @@ test('a story builds what it assumes before its first step is looked for', () =>
   expect(centre(target)).toBe(target)
 })
 
-test('a story being opened does not let a step be moved past', () => {
+test('a story being opened does not let a step be moved past', async () => {
   const [first, second] = pair()
   const entered: string[] = []
   const leko = holding({
@@ -510,13 +534,14 @@ test('a story being opened does not let a step be moved past', () => {
   })
 
   begin(leko, 'story')
+  await framed()
 
   expect(entered).toEqual(['a'])
   expect(leko.step?.id).toBe('a')
   expect(centre(first)).toBe(first)
 })
 
-test('moving on works once the story is open', () => {
+test('moving on works once the story is open', async () => {
   const [first, second] = pair()
   const leko = holding({
     id: 'story',
@@ -528,13 +553,15 @@ test('moving on works once the story is open', () => {
   })
 
   begin(leko, 'story')
+  await framed()
   press()
+  await framed()
 
   expect(leko.step?.id).toBe('b')
   expect(centre(second)).toBe(second)
 })
 
-test("a fresh object under the running story's name is turned down", () => {
+test("a fresh object under the running story's name is turned down", async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const other = box('other', { left: '300px', top: '100px', width: '120px', height: '40px' })
   const leko = holding({
@@ -543,6 +570,7 @@ test("a fresh object under the running story's name is turned down", () => {
   })
 
   begin(leko, 'story')
+  await framed()
 
   // What a component re-rendering hands back — DESIGN.md, **Starting a
   // story**.
@@ -550,13 +578,14 @@ test("a fresh object under the running story's name is turned down", () => {
     id: 'story',
     steps: [{ id: 'one', target: { elements: () => other, interactive: true } }],
   })
+  await framed()
 
   expect(leko.state).toBe('running')
   expect(centre(target)).toBe(target)
   expect(centre(other)).not.toBe(other)
 })
 
-test('a diagnostic reaches the host, with the step the signal was for', () => {
+test('a diagnostic reaches the host, with the step the signal was for', async () => {
   const [first, second] = pair()
   const problems: LekoProblem[] = []
   let leko!: Leko
@@ -577,6 +606,7 @@ test('a diagnostic reaches the host, with the step the signal was for', () => {
   )
 
   begin(leko, 'story')
+  await framed()
   press()
 
   expect(problems).toEqual([{ kind: 'signal-dropped', name: 'saved', step }])
@@ -586,7 +616,7 @@ test('a diagnostic reaches the host, with the step the signal was for', () => {
 // DESIGN.md, **The way out**. These are about the trap not being what you get
 // by default.
 
-test('a tour draws a way out of itself, and using it ends the tour', () => {
+test('a tour draws a way out of itself, and using it ends the tour', async () => {
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
   const leko = holding({
     id: 'story',
@@ -595,6 +625,7 @@ test('a tour draws a way out of itself, and using it ends the tour', () => {
 
   expect(closer()).toBeNull()
   begin(leko, 'story')
+  await framed()
 
   const out = closer()!.querySelector('button')!
   expect(out.textContent).toBe('End tour')
@@ -606,7 +637,7 @@ test('a tour draws a way out of itself, and using it ends the tour', () => {
   expect(centre(target)).toBe(target)
 })
 
-test('the way out is there on a step with nothing to point at', () => {
+test('the way out is there on a step with nothing to point at', async () => {
   const [first] = pair()
   const leko = holding({
     id: 'story',
@@ -617,7 +648,9 @@ test('the way out is there on a step with nothing to point at', () => {
   })
 
   begin(leko, 'story')
+  await framed()
   press()
+  await framed()
 
   // Nothing on the page can be pressed, which is the moment somebody most
   // wants out.
@@ -626,7 +659,7 @@ test('the way out is there on a step with nothing to point at', () => {
   expect(closer()).not.toBeNull()
 })
 
-test('the way out gives up the corner a cutout wants', () => {
+test('the way out gives up the corner a cutout wants', async () => {
   const corner = box('corner', {
     right: '20px',
     top: '20px',
@@ -640,6 +673,7 @@ test('the way out gives up the corner a cutout wants', () => {
   })
 
   begin(leko, 'story')
+  await framed()
 
   // DESIGN.md, **Is positioned automatically**. What sits in a page's top right
   // corner is usually the thing a viewer reaches for next.
@@ -648,7 +682,7 @@ test('the way out gives up the corner a cutout wants', () => {
   expect(at.left).toBeLessThan(window.innerWidth / 2)
 })
 
-test('renderClose fills a root Leko positions, and its teardown runs at the end', () => {
+test('renderClose fills a root Leko positions, and its teardown runs at the end', async () => {
   // The only thing a host may change about the way out other than its words —
   // DESIGN.md, **Cannot be disabled**.
   const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
@@ -668,6 +702,7 @@ test('renderClose fills a root Leko positions, and its teardown runs at the end'
   )
 
   begin(leko, 'story')
+  await framed()
 
   const own = closer()!.querySelector<HTMLElement>('.my-skip')!
   expect(closer()!.querySelector('.leko-close-control')).toBeNull()
@@ -703,6 +738,7 @@ test('a step arriving at a target that has gone leaves the step before it standi
   })
 
   begin(leko, 'story')
+  await framed()
   expect(centre(first)).toBe(first)
 
   // The step arrives at a target the page no longer has, which is the same
@@ -738,6 +774,7 @@ test('a target hidden or removed after its step was drawn leaves the tour alone'
     })
 
     begin(leko, 'story')
+    await framed()
     seen.length = 0
 
     if (take === 'hide') target.style.display = 'none'
@@ -844,7 +881,7 @@ test('a guarded step whose target has gone ends on the press, not before it', as
   }
 })
 
-test('a resize while the target is hidden or removed takes the standing layers with it', () => {
+test('a resize while the target is hidden or removed takes the standing layers with it', async () => {
   // Both halves of gone, and the same answer for each: the step stays drawn for
   // the rest of its length, so this is the whole of what keeps the layers
   // honest while it does.
@@ -868,6 +905,7 @@ test('a resize while the target is hidden or removed takes the standing layers w
     })
 
     begin(leko, 'story')
+    await framed()
     const layer = scrim()!
 
     // Nothing reports either and nothing ends it.
@@ -911,6 +949,7 @@ test('a resize while the target is hidden does not cut the morph short', async (
   )
 
   begin(leko, 'story')
+  await framed()
 
   // Nothing has been said yet: the words come back with the hole they belong
   // beside, and the hole is still on its way.
@@ -991,10 +1030,11 @@ function blockedWhenSeen(el: HTMLElement): boolean {
   return blocked
 }
 
-test('a resize whose task took the target away leaves the words where they were', () => {
+test('a resize whose task took the target away leaves the words where they were', async () => {
   const target = box('target', inFlow('100px'))
   target.id = 'anchor'
   start([{ id: 'one', target: { elements: '#anchor', interactive: true }, message: 'Press it.' }])
+  await framed()
   const words = document.querySelector<HTMLElement>('.leko-message')!
   expect(getComputedStyle(words).visibility).toBe('visible')
 
@@ -1026,6 +1066,7 @@ test('a resize while a target is not there yet is measured when the step is draw
     ],
   })
   begin(leko, 'story')
+  await framed()
 
   // `b` arrives with its target still rendering, and the page grows inside
   // the moment it is given.
@@ -1047,7 +1088,7 @@ test('a resize while a target is not there yet is measured when the step is draw
 /** A target function that answers with `el` and counts having been asked. */
 const asked = (el: Element) => vi.fn(() => el)
 
-test("a resize asks each of the step's targets once, and reads each box once", () => {
+test("a resize asks each of the step's targets once, and reads each box once", async () => {
   const [first, second] = pair()
   const later = box('later', { left: '100px', top: '500px', width: '120px', height: '40px' })
   const elements = [first, second, later]
@@ -1065,6 +1106,7 @@ test("a resize asks each of the step's targets once, and reads each box once", (
       message: 'Here.',
     },
   ])
+  await framed()
 
   for (const target of targets) target.mockClear()
   for (const rect of rects) rect.mockClear()
@@ -1087,7 +1129,7 @@ test("a resize asks each of the step's targets once, and reads each box once", (
   for (const rect of rects) expect(rect).toHaveBeenCalledTimes(1)
 })
 
-test("a resize reads a scroller's own box once for the surface, not once per element", () => {
+test("a resize reads a scroller's own box once for the surface, not once per element", async () => {
   const panel = keep(document.createElement('div'))
   Object.assign(panel.style, {
     position: 'fixed',
@@ -1129,6 +1171,7 @@ test("a resize reads a scroller's own box once for the surface, not once per ele
       message: 'Here.',
     },
   ])
+  await framed()
 
   container.mockClear()
   window.dispatchEvent(new Event('resize'))
@@ -1144,12 +1187,13 @@ test("a resize reads a scroller's own box once for the surface, not once per ele
   expect(container).toHaveBeenCalledTimes(2)
 })
 
-test('a resize whose target has gone asks for it once', () => {
+test('a resize whose target has gone asks for it once', async () => {
   const target = box('target', inFlow('100px'))
   let there: Element | null = target
   const asks = vi.fn(() => there)
 
   start([{ id: 'one', target: { elements: asks, interactive: true }, message: 'Press it.' }])
+  await framed()
   const before = drawn()
 
   // Gone with nothing reporting it, the way a re-render over a drawn step
@@ -1257,7 +1301,7 @@ function nested(): { targets: Element[] } {
   return { targets: [first, beside, later] }
 }
 
-test('a first draw and the resize after it write the same values', () => {
+test('a first draw and the resize after it write the same values', async () => {
   const [first, beside, later] = nested().targets
 
   start([
@@ -1267,6 +1311,7 @@ test('a first draw and the resize after it write the same values', () => {
       message: 'Here.',
     },
   ])
+  await framed()
   const opened = drawn()
   expect(opened).toContain('scrim 3:')
 
@@ -1290,7 +1335,7 @@ function getter(el: Element, key: string): () => unknown {
   throw new Error(`no getter for ${key}`)
 }
 
-test('every box a draw reads is read before it writes a layer', () => {
+test('every box a draw reads is read before it writes a layer', async () => {
   // The order itself, and nothing about what it costs. A read is one of the
   // three questions a draw puts to the page — a target's box, a surface's
   // scrollable size, the visible box of the innermost layer — and a write is
@@ -1338,6 +1383,7 @@ test('every box a draw reads is read before it writes a layer', () => {
       message: 'Here.',
     },
   ])
+  await framed()
 
   writes.observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true })
   for (const [i, el] of targets.entries()) {
@@ -1426,6 +1472,7 @@ test('the words after a morph are placed from the holes read then, not the ones 
   )
 
   begin(leko, 'story')
+  await framed()
   asks.mockClear()
 
   await shown()
@@ -1496,6 +1543,7 @@ test('a replacement that lands while the page glides draws nothing', async () =>
   begin(leko, 'story')
   await shown()
   press()
+  await framed()
   // The scrim's mask is written in the content's own coordinates, so a page
   // gliding under it does not touch this. Anything that moves it is something
   // having been drawn.
@@ -1690,6 +1738,7 @@ test('a reason told while the page glides is drawn when it lands', async () => {
   // about rather than the step being left.
   await frame()
   press()
+  await framed()
   await pause(40)
 
   expect(saying()).toBe(false)
@@ -1707,6 +1756,7 @@ test('a resize while the page glides puts the holes back and says nothing', asyn
   begin(leko, 'story')
   await shown()
   press()
+  await framed()
 
   await pause(40)
   window.dispatchEvent(new Event('resize'))
@@ -1966,7 +2016,7 @@ const restore = (): boolean =>
   window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
 const arriveAt = (url: string): void => void history.replaceState(null, '', url)
 
-test('a pagehide while the tour stands on a URL-awaiting last step keeps the note, and a fresh instance at a matching URL picks the successor up', () => {
+test('a pagehide while the tour stands on a URL-awaiting last step keeps the note, and a fresh instance at a matching URL picks the successor up', async () => {
   const first = leaving()
   hide()
   // The old document's tour is left standing — DESIGN.md's bullet of that
@@ -1981,6 +2031,7 @@ test('a pagehide while the tour stands on a URL-awaiting last step keeps the not
   arriveAt('/checkout')
   const second = instance()
   second.pickUp([checkout])
+  await framed()
 
   expect(second.story).toBe(checkout)
   expect(second.step?.id).toBe(checkout.steps[0]!.id)
@@ -2086,7 +2137,7 @@ test('a restore forgets the note it kept', () => {
   expect(second.state).toBe('idle')
 })
 
-test('a pageshow after stop does not forget it', () => {
+test('a pageshow after stop does not forget it', async () => {
   const first = leaving()
   hide()
   first.stop()
@@ -2097,6 +2148,7 @@ test('a pageshow after stop does not forget it', () => {
   // of touches nothing it kept.
   const second = instance()
   second.pickUp([checkout])
+  await framed()
   expect(second.story).toBe(checkout)
   expect(second.step?.id).toBe(checkout.steps[0]!.id)
   expect(holes()).toBe(1)

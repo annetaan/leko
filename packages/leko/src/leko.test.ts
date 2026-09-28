@@ -11,6 +11,7 @@ import {
   clocked,
   closer,
   frame,
+  framed,
   holding,
   holes,
   keep,
@@ -30,19 +31,21 @@ import {
 // ONBOARDING.md, **Which Vitest project a new test belongs in**. Which step the
 // tour is on is `wiring.test.ts`.
 
-test('the target is reachable through the cutout, and the rest of the page is not', () => {
+test('the target is reachable through the cutout, and the rest of the page is not', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const other = box('other', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   expect(centre(target)).toBe(target)
   expect(absorbed(other)).toBe(true)
 })
 
-test('stopping puts the page back', () => {
+test('stopping puts the page back', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   expect(scrim()).not.toBeNull()
   leko.stop()
@@ -52,12 +55,13 @@ test('stopping puts the page back', () => {
   expect(centre(target)).toBe(target)
 })
 
-test('one region of several targets is one cutout, and what sits between it opens too', () => {
+test('one region of several targets is one cutout, and what sits between it opens too', async () => {
   const left = box('left', { left: '100px', top: '100px', width: '100px', height: '40px' })
   const right = box('right', { left: '260px', top: '100px', width: '100px', height: '40px' })
   const between = box('between', { left: '210px', top: '105px', width: '40px', height: '30px' })
 
   start([{ id: 'columns', target: { elements: [() => left, () => right], interactive: true } }])
+  await framed()
 
   expect(centre(left)).toBe(left)
   expect(centre(right)).toBe(right)
@@ -65,7 +69,7 @@ test('one region of several targets is one cutout, and what sits between it open
   expect(centre(between)).toBe(between)
 })
 
-test('two regions get a cutout each rather than being unioned', () => {
+test('two regions get a cutout each rather than being unioned', async () => {
   const target = box('target', { left: '60px', top: '400px', width: '120px', height: '40px' })
   const summary = box('summary', { left: '60px', top: '60px', width: '120px', height: '40px' })
   const between = box('between', { left: '60px', top: '230px', width: '120px', height: '40px' })
@@ -73,6 +77,7 @@ test('two regions get a cutout each rather than being unioned', () => {
   // Two entries of `target`, so two holes. The same two named in one region's
   // `elements` would be the test above, and would open everything between them.
   start([{ id: 'linked', target: [{ elements: () => target, interactive: true }, () => summary] }])
+  await framed()
 
   expect(holes()).toBe(2)
   expect(centre(target)).toBe(target)
@@ -81,7 +86,7 @@ test('two regions get a cutout each rather than being unioned', () => {
   expect(absorbed(between)).toBe(true)
 })
 
-test('an element with no box is dropped from its region rather than unioned at the corner', () => {
+test('an element with no box is dropped from its region rather than unioned at the corner', async () => {
   const rendered = box('rendered', { left: '300px', top: '300px', width: '120px', height: '40px' })
   // The second element of the region, and not rendered — DESIGN.md, **An
   // element with no box is not found**.
@@ -95,6 +100,7 @@ test('an element with no box is dropped from its region rather than unioned at t
   const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
 
   start([{ id: 'one', target: { elements: [() => rendered, () => hidden], interactive: true } }])
+  await framed()
 
   expect(holes()).toBe(1)
   expect(centre(rendered)).toBe(rendered)
@@ -102,7 +108,7 @@ test('an element with no box is dropped from its region rather than unioned at t
   expect(absorbed(corner)).toBe(true)
 })
 
-test('a later region with nothing rendered in it is a hole the step does not cut', () => {
+test('a later region with nothing rendered in it is a hole the step does not cut', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const aside = box('aside', {
     left: '100px',
@@ -114,6 +120,7 @@ test('a later region with nothing rendered in it is a hole the step does not cut
   const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
 
   start([{ id: 'one', target: [{ elements: () => target, interactive: true }, () => aside] }])
+  await framed()
 
   // The same rule a later region that resolves to nothing already followed.
   expect(holes()).toBe(1)
@@ -161,20 +168,22 @@ const copies = (): [HTMLElement, HTMLElement] => {
   return [faded, seen]
 }
 
-test('a step resolves the visible copy by default', () => {
+test('a step resolves the visible copy by default', async () => {
   const [faded, seen] = copies()
 
   start([{ id: 'one', target: { elements: '.copy', interactive: true } }])
+  await framed()
 
   expect(holes()).toBe(1)
   expect(centre(seen)).toBe(seen)
   expect(absorbed(faded)).toBe(true)
 })
 
-test('a step resolves the visible copy when it asks for one', () => {
+test('a step resolves the visible copy when it asks for one', async () => {
   const [faded, seen] = copies()
 
   start([{ id: 'one', target: { elements: '.copy', interactive: true }, resolve: 'visible-first' }])
+  await framed()
 
   expect(holes()).toBe(1)
   expect(centre(seen)).toBe(seen)
@@ -182,7 +191,7 @@ test('a step resolves the visible copy when it asks for one', () => {
   expect(absorbed(faded)).toBe(true)
 })
 
-test('the instance setting reaches every step and a step overrides it', () => {
+test('the instance setting reaches every step and a step overrides it', async () => {
   const [faded, seen] = copies()
 
   const leko = holding(
@@ -200,17 +209,19 @@ test('the instance setting reaches every step and a step overrides it', () => {
     { resolve: 'first' },
   )
   begin(leko, 'copies')
+  await framed()
 
   // `first` from the instance, which the built-in default would not have given.
   expect(centre(faded)).toBe(faded)
 
   press()
+  await framed()
 
   expect(centre(seen)).toBe(seen)
   expect(absorbed(faded)).toBe(true)
 })
 
-test("the host's own chrome keeps the first match, whatever a step asked for", () => {
+test("the host's own chrome keeps the first match, whatever a step asked for", async () => {
   // Two copies of the host's account menu, the first of them faded out. The
   // instance asks every step for a visible match, and `hostChrome` is not a
   // step's target — DESIGN.md, **Which of several matches a selector means**.
@@ -231,6 +242,7 @@ test("the host's own chrome keeps the first match, whatever a step asked for", (
     resolve: 'visible-first',
     hostChrome: '.chrome',
   })
+  await framed()
 
   // So the faded copy at the top right is the box the way out stays off, and
   // the control goes left. The rule would have taken the copy on the left
@@ -238,7 +250,7 @@ test("the host's own chrome keeps the first match, whatever a step asked for", (
   expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
 })
 
-test('a step that reveals its copy in onEnter gets that copy', () => {
+test('a step that reveals its copy in onEnter gets that copy', async () => {
   const [faded, seen] = copies()
   seen.style.display = 'none'
 
@@ -256,6 +268,7 @@ test('a step that reveals its copy in onEnter gets that copy', () => {
       },
     },
   ])
+  await framed()
 
   expect(centre(seen)).toBe(seen)
   expect(absorbed(faded)).toBe(true)
@@ -303,10 +316,11 @@ test('a target still at opacity 0 when the grace runs out is lost', async () => 
   expect(problems).toEqual([expect.objectContaining({ kind: 'target-lost' })])
 })
 
-test('a step that says nothing shows its target and does not hand it over', () => {
+test('a step that says nothing shows its target and does not hand it over', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
 
   start([{ id: 'look', target: () => target }])
+  await framed()
 
   expect(holes()).toBe(1)
   // And the pointer stops at the tour, for the reason README.md gives beside
@@ -314,7 +328,7 @@ test('a step that says nothing shows its target and does not hand it over', () =
   expect(absorbed(target)).toBe(true)
 })
 
-test('an element inside an svg is a target like any other', () => {
+test('an element inside an svg is a target like any other', async () => {
   // Drawn at 2x through the viewBox, so the hole is only right if the box came
   // from `getBoundingClientRect` rather than from the shape's own attributes.
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -338,15 +352,17 @@ test('an element inside an svg is a target like any other', () => {
   // The function form, deliberately: an SVG shape is not an HTMLElement, so
   // this line is also the claim that the type lets a host hand one back.
   start([{ id: 'svg', target: { elements: () => wanted, interactive: true } }])
+  await framed()
 
   expect(centre(wanted)).toBe(wanted)
   expect(absorbed(other)).toBe(true)
 })
 
-test('what blocks a shown hole sits beside the scrim, never inside it', () => {
+test('what blocks a shown hole sits beside the scrim, never inside it', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
 
   start([{ id: 'look', target: () => target }])
+  await framed()
 
   // DESIGN.md, **The rectangles live beside the scrim, never inside it**, and
   // `spike/blocking-a-hole/` is the page that settled it.
@@ -355,7 +371,7 @@ test('what blocks a shown hole sits beside the scrim, never inside it', () => {
   expect(caught.closest('.leko-blocking')).not.toBeNull()
 })
 
-test('a step overrides the padding the instance was given', () => {
+test('a step overrides the padding the instance was given', async () => {
   const target = box('target', { left: '100px', top: '200px', width: '120px', height: '40px' })
   const near = box('near', { left: '120px', top: '170px', width: '20px', height: '20px' })
 
@@ -367,6 +383,7 @@ test('a step overrides the padding the instance was given', () => {
     { padding: 4 },
   )
   begin(leko, 'roomy')
+  await framed()
 
   // 20px above the target: outside the instance's padding, well inside the
   // step's, so the step is what decided the size of the hole. DESIGN.md, **A
@@ -374,7 +391,7 @@ test('a step overrides the padding the instance was given', () => {
   expect(centre(near)).toBe(near)
 })
 
-test('the scrim is mounted inside the scroller the target lives in', () => {
+test('the scrim is mounted inside the scroller the target lives in', async () => {
   const scroller = document.createElement('div')
   Object.assign(scroller.style, {
     position: 'fixed',
@@ -400,6 +417,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   keep(scroller)
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   // Inside the scroller, so scrolling moves scrim and target together —
   // DESIGN.md, **Scrolling**.
@@ -409,7 +427,7 @@ test('the scrim is mounted inside the scroller the target lives in', () => {
   expect(centre(target)).toBe(target)
 })
 
-test('the page outside a scroller is dimmed too, not just the scroller', () => {
+test('the page outside a scroller is dimmed too, not just the scroller', async () => {
   const scroller = document.createElement('div')
   Object.assign(scroller.style, {
     position: 'fixed',
@@ -437,6 +455,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
   const outside = box('outside', { left: '20px', top: '20px', width: '100px', height: '40px' })
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   // One scrim inside the scroller so the cutout tracks its content for free,
   // and one outside so the rest of the page is not left bright and clickable.
@@ -447,7 +466,7 @@ test('the page outside a scroller is dimmed too, not just the scroller', () => {
   expect(absorbed(outside)).toBe(true)
 })
 
-test('nothing that catches a pointer overlaps the hole cut for a scroller', () => {
+test('nothing that catches a pointer overlaps the hole cut for a scroller', async () => {
   const scroller = document.createElement('div')
   Object.assign(scroller.style, {
     position: 'fixed',
@@ -473,6 +492,7 @@ test('nothing that catches a pointer overlaps the hole cut for a scroller', () =
   keep(scroller)
 
   start([{ id: 'deep', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   // Geometry rather than hit-testing — DESIGN.md, **Do not go back to blocking
   // with the scrim itself**, for why no assertion about hit-testing can see
@@ -496,7 +516,7 @@ const svgOf = (mask: string): string =>
 /** Two decimal places, which is what the mask is written to. */
 const round = (n: number): number => Math.round(n * 100) / 100
 
-test("a hole in a scroller is cut where the scroller's own coordinates put it", () => {
+test("a hole in a scroller is cut where the scroller's own coordinates put it", async () => {
   // The claim this pins down is that a draw reading each box once and shifting
   // it into the scrim's space puts the hole where measuring it there directly
   // used to. Those two reach the same number by different arithmetic — one
@@ -533,6 +553,7 @@ test("a hole in a scroller is cut where the scroller's own coordinates put it", 
 
   const PADDING = 8
   start([{ id: 'deep', target: { elements: () => target, interactive: true }, padding: PADDING }])
+  await framed()
 
   // Where the hole belongs, worked out here from the page rather than from
   // anything Leko wrote: the target's box on screen, brought inside the panel's
@@ -557,7 +578,7 @@ test("a hole in a scroller is cut where the scroller's own coordinates put it", 
   expect(svg).toContain('<rect x="0" y="0"')
 })
 
-test("a target the scrim's own mounting moved is drawn where it ended up", () => {
+test("a target the scrim's own mounting moved is drawn where it ended up", async () => {
   // The panel is `static`, so the first layer mounted in it gives it a
   // `position`, and the target — absolutely positioned with an inset, its
   // containing block until then outside the panel — moves into the panel's
@@ -594,6 +615,7 @@ test("a target the scrim's own mounting moved is drawn where it ended up", () =>
 
   const PADDING = 8
   start([{ id: 'moved', target: { elements: () => target, interactive: true }, padding: PADDING }])
+  await framed()
 
   // The mounting did move it, or this test is about nothing.
   const after = target.getBoundingClientRect()
@@ -609,7 +631,7 @@ test("a target the scrim's own mounting moved is drawn where it ended up", () =>
   expect(placed[1]!).toBeCloseTo(round(y), 2)
 })
 
-test('a fixed target keeps its hole while the page scrolls under it', () => {
+test('a fixed target keeps its hole while the page scrolls under it', async () => {
   // Tall enough to scroll, so there is a scroll for the hole to be carried
   // off by. The document's scrim would be: it lives in the document and rides
   // it, while a fixed target stays where it is.
@@ -619,6 +641,7 @@ test('a fixed target keeps its hole while the page scrolls under it', () => {
   const target = box('pinned', { left: '100px', top: '100px', width: '120px', height: '40px' })
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   // DESIGN.md, **A `position: fixed` target is carried by the viewport, so its
   // layer is too**.
@@ -628,7 +651,7 @@ test('a fixed target keeps its hole while the page scrolls under it', () => {
   window.scrollTo(0, 0)
 })
 
-test('a pinned sticky target keeps its hole while the page scrolls under it', () => {
+test('a pinned sticky target keeps its hole while the page scrolls under it', async () => {
   // The second of a sticky target's two states — DESIGN.md, **A sticky target
   // is drawn in the state it is in, and there are two**. The page is taken past
   // the pin before the story starts, so the bar is held against the top of the
@@ -647,6 +670,7 @@ test('a pinned sticky target keeps its hole while the page scrolls under it', ()
   window.scrollTo(0, bar.getBoundingClientRect().top + window.scrollY + 300)
 
   start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+  await framed()
 
   expect(getComputedStyle(scrim()!).position).toBe('fixed')
   window.scrollTo(0, window.scrollY + 500)
@@ -654,7 +678,7 @@ test('a pinned sticky target keeps its hole while the page scrolls under it', ()
   window.scrollTo(0, 0)
 })
 
-test('a sticky target pinned inside a panel keeps its hole while the panel scrolls', () => {
+test('a sticky target pinned inside a panel keeps its hole while the panel scrolls', async () => {
   // The other kind of pinned: held against a scrollport that is not the
   // viewport, which `position: fixed` cannot express — DESIGN.md, **A layer
   // glued to a scrollport is what `position: fixed` cannot say**.
@@ -681,6 +705,7 @@ test('a sticky target pinned inside a panel keeps its hole while the panel scrol
   panel.scrollTop = 500
 
   start([{ id: 'one', target: { elements: () => head, interactive: true } }])
+  await framed()
 
   panel.scrollTop = 900
   expect(centre(head)).toBe(head)
@@ -733,6 +758,7 @@ test('a sticky target drawn while it rides keeps its hole once it pins', async (
   window.scrollTo(0, 0)
 
   start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+  await framed()
 
   // Riding, so it is an in-flow element and the layer is the document's.
   expect(getComputedStyle(scrim()!).position).toBe('absolute')
@@ -747,6 +773,7 @@ test('a sticky target drawn while it is pinned keeps its hole once it rides agai
   window.scrollTo(0, 900)
 
   start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+  await framed()
 
   // Pinned, so the layer is the viewport's — the one a fixed target gets.
   expect(getComputedStyle(scrim()!).position).toBe('fixed')
@@ -779,6 +806,7 @@ test('a sticky head in a panel keeps its hole on both sides of its pin', async (
   panel.scrollTop = 400
 
   start([{ id: 'one', target: { elements: () => head, interactive: true } }])
+  await framed()
 
   panel.scrollTop = 900
   await within(() => centre(head) === head, 30, 'the hole left the head further down the panel')
@@ -797,6 +825,7 @@ test("the message's anchor follows a sticky hole and the side does not change", 
   start([
     { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
   ])
+  await framed()
 
   const before = marker().style.top
   const side = messageBox().style.getPropertyValue('position-area')
@@ -828,6 +857,7 @@ test('an in-flow target rewrites nothing on a scroll', async () => {
   window.scrollTo(0, 0)
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   const held = scrim()!.style.maskPosition
   window.scrollTo(0, 400)
@@ -844,6 +874,7 @@ test('a fixed target rewrites nothing on a scroll', async () => {
   window.scrollTo(0, 0)
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   const held = scrim()!.style.maskPosition
   window.scrollTo(0, 400)
@@ -859,6 +890,7 @@ test('a sticky hole stops following when its target leaves the page', async () =
   window.scrollTo(0, 900)
 
   start([{ id: 'one', target: { elements: () => bar, interactive: true } }])
+  await framed()
 
   const held = scrim()!.style.maskPosition
   bar.remove()
@@ -868,7 +900,7 @@ test('a sticky hole stops following when its target leaves the page', async () =
   window.scrollTo(0, 0)
 })
 
-test('a fixed element an ancestor has taken back into the flow rides the page', () => {
+test('a fixed element an ancestor has taken back into the flow rides the page', async () => {
   // A transform on the card makes it the containing block, so the "fixed" badge
   // inside scrolls with the page. DESIGN.md, **Whether the viewport still holds
   // a fixed element is the engine's to say, not a list's**.
@@ -897,6 +929,7 @@ test('a fixed element an ancestor has taken back into the flow rides the page', 
   document.body.append(card)
 
   start([{ id: 'one', target: { elements: () => badge, interactive: true } }])
+  await framed()
 
   expect(getComputedStyle(scrim()!).position).toBe('absolute')
   window.scrollTo(0, 200)
@@ -947,10 +980,11 @@ const offCentre = (el: Element): number => {
   return (r.top - 8 + (r.bottom + 8)) / 2 - port().height / 2
 }
 
-test('a step told to scroll brings its target into view before drawing it', () => {
+test('a step told to scroll brings its target into view before drawing it', async () => {
   const target = belowTheFold(2000)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }])
+  await framed()
 
   // On screen and reachable, which together are the whole point: without the
   // scroll the hole is cut in a scrim nobody can see.
@@ -960,17 +994,18 @@ test('a step told to scroll brings its target into view before drawing it', () =
   window.scrollTo(0, 0)
 })
 
-test('a step that says nothing about scrolling leaves the page where it was', () => {
+test('a step that says nothing about scrolling leaves the page where it was', async () => {
   // The default, and it is off — DESIGN.md, **Bringing a target into view**.
   const target = belowTheFold(2000)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   expect(window.scrollY).toBe(0)
   window.scrollTo(0, 0)
 })
 
-test("the step's padding is part of the box the page is brought to", () => {
+test("the step's padding is part of the box the page is brought to", async () => {
   // Which box leads with its top edge, and where that edge goes, is arithmetic
   // `geometry.test.ts` asks of `scrollDelta` — this is the wiring: that the
   // `padding` the step is read for reaches the room `bringIntoView` is given.
@@ -994,6 +1029,7 @@ test("the step's padding is part of the box the page is brought to", () => {
   spacer.append(tall)
 
   start([{ id: 'tall', target: { elements: () => tall, interactive: true }, scroll: true }])
+  await framed()
 
   // The cutout's top edge at the middle of the screen, which is 8px above where
   // the element's own would be. Room of nothing lands the second of these.
@@ -1002,17 +1038,19 @@ test("the step's padding is part of the box the page is brought to", () => {
   window.scrollTo(0, 0)
 })
 
-test('the instance can ask for it, and a step can say no', () => {
+test('the instance can ask for it, and a step can say no', async () => {
   const target = belowTheFold(2000)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: false }], {
     scroll: true,
   })
+  await framed()
 
   // DESIGN.md, **Settings, and where they are read from**.
   expect(window.scrollY).toBe(0)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true } }], { scroll: true })
+  await framed()
   expect(window.scrollY).toBeGreaterThan(0)
   window.scrollTo(0, 0)
 })
@@ -1038,7 +1076,7 @@ function twoApart(gap: number): [HTMLElement, HTMLElement] {
   return [upper, lower]
 }
 
-test('a region the page was brought to is reachable through its hole, every element of it', () => {
+test('a region the page was brought to is reachable through its hole, every element of it', async () => {
   const [upper, lower] = twoApart(200)
 
   start([
@@ -1048,6 +1086,7 @@ test('a region the page was brought to is reachable through its hole, every elem
       scroll: true,
     },
   ])
+  await framed()
 
   // Which box a region is brought in by is
   // `the box brought in is the one around every element, not the first` in
@@ -1060,7 +1099,7 @@ test('a region the page was brought to is reachable through its hole, every elem
   window.scrollTo(0, 0)
 })
 
-test('a later region is not brought in', () => {
+test('a later region is not brought in', async () => {
   // Later regions stay where they are — DESIGN.md, **Bringing a target into
   // view**.
   const [upper, lower] = twoApart(port().height * 2)
@@ -1072,6 +1111,7 @@ test('a later region is not brought in', () => {
       scroll: true,
     },
   ])
+  await framed()
 
   expect(offCentre(upper)).toBeCloseTo(0, 0)
   expect(lower.getBoundingClientRect().top).toBeGreaterThan(port().height)
@@ -1178,7 +1218,7 @@ test('a glide draws nothing until the page has stopped', async () => {
   window.scrollTo(0, 0)
 })
 
-test('a visitor who asked for reduced motion has the page set outright, as the morph is', () => {
+test('a visitor who asked for reduced motion has the page set outright, as the morph is', async () => {
   // `motion.ts` is the one predicate the morph and the scroll before it both
   // read. Mocked at `matchMedia`, which is the one place it looks.
   const target = belowTheFold(2000)
@@ -1192,6 +1232,7 @@ test('a visitor who asked for reduced motion has the page set outright, as the m
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }], {
     duration: 320,
   })
+  await framed()
 
   // The same task as the arrival: nothing glided, nothing morphed, and the step
   // is already drawn against where the page was put.
@@ -1288,6 +1329,7 @@ test('a step arriving during a glide draws its own step, not the one gliding', a
   const onNear = scrim()!.style.maskPosition
 
   press()
+  await framed()
   await pause(MID_GLIDE)
   leko.reached('landed')
   await stopped()
@@ -1319,6 +1361,7 @@ test('a glide the tour has moved past stops where it is', async () => {
   await shown()
 
   press()
+  await framed()
   await pause(MID_GLIDE)
   leko.reached('landed')
   // Wherever the page was when the tour moved on is where it stays. Read here,
@@ -1350,6 +1393,7 @@ test('a viewer who scrolls during a glide stops it, and the step is drawn where 
   const held = scrim()!.style.maskPosition
 
   press()
+  await framed()
   await pause(MID_GLIDE)
   window.scrollTo(0, 4000)
   await stopped()
@@ -1435,10 +1479,11 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
   window.scrollTo(0, 0)
 })
 
-test('a resize redraws the step without scrolling it again', () => {
+test('a resize redraws the step without scrolling it again', async () => {
   const target = belowTheFold(2000)
 
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }])
+  await framed()
   // The viewer has read the step and moved on, on purpose.
   window.scrollTo(0, 300)
 
@@ -1450,7 +1495,7 @@ test('a resize redraws the step without scrolling it again', () => {
   window.scrollTo(0, 0)
 })
 
-test('a resize that pins the target puts the layers back under it', () => {
+test('a resize that pins the target puts the layers back under it', async () => {
   // A breakpoint that pins a header is the tour standing still while the
   // surface under it changes: the target leaves the document for the viewport
   // without the machine hearing anything. A document layer left under it rides
@@ -1469,6 +1514,7 @@ test('a resize that pins the target puts the layers back under it', () => {
   })
 
   start([{ id: 'one', target: { elements: () => target, interactive: true } }])
+  await framed()
   expect(getComputedStyle(scrim()!).position).toBe('absolute')
 
   target.style.position = 'fixed'
@@ -1480,7 +1526,7 @@ test('a resize that pins the target puts the layers back under it', () => {
   window.scrollTo(0, 0)
 })
 
-test('a resize whose task took the target away leaves the standing hole alone', () => {
+test('a resize whose task took the target away leaves the standing hole alone', async () => {
   // The step is drawn, its target goes, and the page resizes in the same task.
   // No retry begins — DESIGN.md, **Whether the target is still there stops being
   // watched once the step is drawn** — so the redraw finds the step still on
@@ -1492,6 +1538,7 @@ test('a resize whose task took the target away leaves the standing hole alone', 
   target.id = 'anchor'
   const far = box('far', { left: '100px', top: '400px', width: '120px', height: '40px' })
   start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+  await framed()
 
   target.remove()
   window.dispatchEvent(new Event('resize'))
@@ -1500,13 +1547,15 @@ test('a resize whose task took the target away leaves the standing hole alone', 
   expect(absorbed(far)).toBe(true)
 })
 
-test('shaking moves the cutouts, not the scrim', () => {
+test('shaking moves the cutouts, not the scrim', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   start([
     { id: 'one', target: { elements: () => target, interactive: true }, validate: () => false },
   ])
+  await framed()
 
   press()
+  await framed()
 
   // Translating the scrim would slide the dimming off the edge of the page.
   const scrimEl = document.querySelector<HTMLElement>('.leko-scrim')!
@@ -1523,6 +1572,7 @@ test('a resize re-places the cutout instead of replaying the opening', async () 
     { duration: 200 },
   )
   begin(leko, 'story')
+  await framed()
   await new Promise((r) => setTimeout(r, 300))
 
   window.dispatchEvent(new Event('resize'))
@@ -1560,6 +1610,7 @@ test('a closed step keeps Tab on the message and the way out', async () => {
   box('elsewhere', { left: '100px', top: '400px', width: '160px', height: '48px' })
 
   start([{ id: 'look', target: () => target, message: 'Read this.' }])
+  await framed()
 
   control()!.focus()
   const seen = await tabbing(4)
@@ -1578,6 +1629,7 @@ test('an open step puts its target in the ring and comes back to it', async () =
   start([
     { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
 
   target.focus()
   const seen = await tabbing(4)
@@ -1595,6 +1647,7 @@ test('shift-tab out of the ring lands on the end it was heading for', async () =
   start([
     { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
 
   // The first stop in the ring. Backwards out of it is the far end of the ring
   // rather than the page behind, which is the half a forward-only net misses.
@@ -1614,6 +1667,7 @@ test('a step with nothing to point at covers the page, and the way out is the on
   })
 
   start([{ id: 'loading', message: 'Loading the draft order…', awaits: 'draft-loaded' }])
+  await framed()
 
   // No region named, so no hole is cut and the page is blocked everywhere.
   expect(holes()).toBe(0)
@@ -1635,6 +1689,7 @@ test('focus never lands on the page on its way round the ring', async () => {
   start([
     { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
 
   const touched: string[] = []
   const watch = (event: FocusEvent): void => {
@@ -1681,12 +1736,13 @@ test('Tab reaches the message before the way out', async () => {
   start([
     { id: 'use', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
 
   target.focus()
   expect(await tabbing(2)).toEqual(['the message', 'the way out'])
 })
 
-test("the way out avoids the corner the host's chrome owns", () => {
+test("the way out avoids the corner the host's chrome owns", async () => {
   // An account menu of the host's, in the corner the way out prefers. It is not
   // a cutout, and until a host could say so nothing kept the two apart —
   // DESIGN.md, **A host's own chrome is named once, and every reader takes the
@@ -1703,6 +1759,7 @@ test("the way out avoids the corner the host's chrome owns", () => {
   start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
     hostChrome: () => menu,
   })
+  await framed()
 
   expect(closer()!.getBoundingClientRect().left).toBeLessThan(window.innerWidth / 2)
 })
@@ -1738,6 +1795,7 @@ test('the way out is placed at the size it has now when renderClose fills its ro
       return () => own.remove()
     },
   })
+  await framed()
 
   await placedAt(200, 'never placed at the width it was filled to')
   const at = closer()!.getBoundingClientRect()
@@ -1758,6 +1816,7 @@ test('the way out is placed again when what renderClose drew changes size', asyn
       return () => own.remove()
     },
   })
+  await framed()
 
   await placedAt(200, 'not placed at the width it was drawn at')
   own.style.width = '120px'
@@ -1789,10 +1848,11 @@ function onTop(): Element | null {
 
 // DESIGN.md, **The way out**: in the top layer the one shown later paints on
 // top, whatever `z-index` says.
-test('the way out paints above a message that lands on its corner', () => {
+test('the way out paints above a message that lands on its corner', async () => {
   const target = box('target', { top: '0px', right: '160px', width: '120px', height: '20px' })
 
   start([{ id: 'one', target: () => target, message: LONG }])
+  await framed()
 
   expect(onTop()?.closest('.leko-close')).not.toBeNull()
 })
@@ -1807,7 +1867,9 @@ test('the way out stays above the message a later step lands on its corner', asy
     { id: 'one', target: () => first },
     { id: 'two', target: () => second, message: LONG },
   ])
+  await framed()
   press()
+  await framed()
   await shown()
 
   expect(onTop()?.closest('.leko-close')).not.toBeNull()
@@ -1830,6 +1892,7 @@ test('the way out stays above a message a scroll carries under it', async () => 
   document.body.append(target)
 
   start([{ id: 'one', target: () => target, message: LONG }])
+  await framed()
   // Clear of each other where it was drawn; the anchored message rides the
   // scroll up into the corner.
   window.scrollTo(0, 515)

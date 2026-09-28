@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-import { begin, box, control, frame, keep, press, shown, start } from './harness.js'
+import { begin, box, control, frame, framed, keep, press, shown, start } from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -56,9 +56,10 @@ const appears = () => vi.waitUntil(visible)
  */
 const anchors = CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
 
-test('the step message is on screen, and above the scrim', () => {
+test('the step message is on screen, and above the scrim', async () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([{ id: 'one', target: { elements: 'button', interactive: true }, message: 'Press it.' }])
+  await framed()
 
   const el = message()
   expect(words()).toBe('Press it.')
@@ -70,23 +71,25 @@ test('the step message is on screen, and above the scrim', () => {
   expect(hit?.closest('.leko-message')).toBe(el)
 })
 
-test('the box carries no border until a host asks for one', () => {
+test('the box carries no border until a host asks for one', async () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([{ id: 'one', target: { elements: 'button', interactive: true }, message: 'Press it.' }])
+  await framed()
 
   // `message.ts` says why the border the UA stylesheet gives every popover has
   // to be taken off.
   expect(getComputedStyle(message()!).borderTopWidth).toBe('0px')
 })
 
-test('a step with nothing to say and a signal to wait for shows nothing', () => {
+test('a step with nothing to say and a signal to wait for shows nothing', async () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([{ id: 'one', target: { elements: 'button', interactive: true }, awaits: 'order-saved' }])
+  await framed()
 
   expect(visible()).toBe(false)
 })
 
-test.runIf(anchors)('the message clears the cutout rather than covering it', () => {
+test.runIf(anchors)('the message clears the cutout rather than covering it', async () => {
   const target = box('target', { left: '200px', top: '200px', width: '160px', height: '48px' })
   start([
     {
@@ -96,6 +99,7 @@ test.runIf(anchors)('the message clears the cutout rather than covering it', () 
       padding: 12,
     },
   ])
+  await framed()
 
   const hole = rect(target)
   const note = rect(message()!)
@@ -105,24 +109,28 @@ test.runIf(anchors)('the message clears the cutout rather than covering it', () 
   expect(note.top).toBeGreaterThanOrEqual(hole.bottom + 12)
 })
 
-test.runIf(anchors)('the message clears every cutout, not just the one it is anchored to', () => {
-  const target = box('target', { left: '200px', top: '200px', width: '160px', height: '40px' })
-  const second = box('second', { left: '200px', top: '260px', width: '160px', height: '40px' })
-  start([
-    {
-      id: 'one',
-      target: [{ elements: () => target, interactive: true }, () => second],
-      message: 'Both of these.',
-    },
-  ])
+test.runIf(anchors)(
+  'the message clears every cutout, not just the one it is anchored to',
+  async () => {
+    const target = box('target', { left: '200px', top: '200px', width: '160px', height: '40px' })
+    const second = box('second', { left: '200px', top: '260px', width: '160px', height: '40px' })
+    start([
+      {
+        id: 'one',
+        target: [{ elements: () => target, interactive: true }, () => second],
+        message: 'Both of these.',
+      },
+    ])
+    await framed()
 
-  const note = rect(message()!)
-  // The anchor is the first region, but the shape to stay clear of is every
-  // hole in the scrim: sitting on the second would hide half of what was
-  // explained.
-  expect(overlaps(note, rect(target))).toBe(false)
-  expect(overlaps(note, rect(second))).toBe(false)
-})
+    const note = rect(message()!)
+    // The anchor is the first region, but the shape to stay clear of is every
+    // hole in the scrim: sitting on the second would hide half of what was
+    // explained.
+    expect(overlaps(note, rect(target))).toBe(false)
+    expect(overlaps(note, rect(second))).toBe(false)
+  },
+)
 
 test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {
   // No selector reaches in here, and neither does an `anchor-name` — DESIGN.md,
@@ -165,7 +173,7 @@ const CHROME = 200
 const footer = () =>
   box('footer', { left: '0px', right: '0px', bottom: '0px', top: 'auto', height: `${CHROME}px` })
 
-test('a docked message with no chrome named sits where it always did', () => {
+test('a docked message with no chrome named sits where it always did', async () => {
   // The invariant the rewrite of `dock` had to keep: centred on the layout
   // viewport and its foot `--leko-message-dock` above the foot of it, which is
   // what `left: 50%` and `bottom: 24px` resolved to before there was a room to
@@ -176,6 +184,7 @@ test('a docked message with no chrome named sits where it always did', () => {
   // included**.
   const root = document.documentElement
   start([{ id: 'one', message: 'Nothing to point at.' }])
+  await framed()
 
   // Within a pixel rather than exactly: the box has a fractional width, so the
   // translate that centres it lands on a half pixel and WebKit rounds it. What
@@ -185,7 +194,7 @@ test('a docked message with no chrome named sits where it always did', () => {
   expect(Math.abs(note.bottom - (root.clientHeight - 24))).toBeLessThan(1)
 })
 
-test.runIf(anchors)('the message clears chrome the host declared', () => {
+test.runIf(anchors)('the message clears chrome the host declared', async () => {
   const bar = footer()
   // Just above the footer: room under the target in the viewport, none in what
   // the host left. Without `hostChrome` the box goes below and lands in the bar.
@@ -205,20 +214,22 @@ test.runIf(anchors)('the message clears chrome the host declared', () => {
     ],
     { hostChrome: () => bar },
   )
+  await framed()
 
   expect(overlaps(rect(message()!), rect(bar))).toBe(false)
 })
 
-test("the docked message sits above the host's chrome", () => {
+test("the docked message sits above the host's chrome", async () => {
   const bar = footer()
   // No target, so there is no hole to sit beside and the box docks — the other
   // reader of the room, and the one that runs on every engine.
   start([{ id: 'one', message: 'Waiting for the import to finish.' }], { hostChrome: () => bar })
+  await framed()
 
   expect(rect(message()!).bottom).toBeLessThanOrEqual(rect(bar).top)
 })
 
-test('Leko writes no anchor-name into the page it is pointing at', () => {
+test('Leko writes no anchor-name into the page it is pointing at', async () => {
   // The marker is Leko's own element, so the host's is left exactly as it was.
   // This used to be written and put back, and putting something back is a
   // promise that only holds until somebody forgets.
@@ -228,6 +239,7 @@ test('Leko writes no anchor-name into the page it is pointing at', () => {
   const leko = start([
     { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
 
   expect(target.style.getPropertyValue('anchor-name')).toBe('--the-page-had-this')
   leko.stop()
@@ -258,6 +270,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
       message: 'Scroll the list.',
     },
   ])
+  await framed()
   scroller.scrollTop = 400
   await frame()
 
@@ -272,7 +285,7 @@ test.runIf(anchors)('the message follows its target when a scroller moves under 
   expect(after.note - before.note).toBeCloseTo(after.target - before.target, 0)
 })
 
-test('a step whose target has no area still takes the anchor off the step before', () => {
+test('a step whose target has no area still takes the anchor off the step before', async () => {
   // The marker is put where the union of the step's holes is, and a hole with
   // no area is still a place. Skipped instead, it would be left where the step
   // before put it — and the message, which is written beside the marker and
@@ -297,9 +310,11 @@ test('a step whose target has no area still takes the anchor off the step before
       padding: 0,
     },
   ])
+  await framed()
   expect(at().x).toBeCloseTo(180, 0)
 
   press()
+  await framed()
 
   // Every edge of a box with no area is the same point, so which side the
   // message took does not come into it.
@@ -355,7 +370,7 @@ test('a hole with no area takes its place from its own region, not a morph lefto
   expect(at().y).toBeCloseTo(300, 0)
 })
 
-test('the step is read for its words every time, so an edit to it is seen', () => {
+test('the step is read for its words every time, so an edit to it is seen', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const step = {
     id: 'one',
@@ -363,6 +378,7 @@ test('the step is read for its words every time, so an edit to it is seen', () =
     message: 'Type your name.',
   }
   start([step, { id: 'two', target: { elements: () => target, interactive: true } }])
+  await framed()
 
   expect(words()).toBe('Type your name.')
 
@@ -375,7 +391,7 @@ test('the step is read for its words every time, so an edit to it is seen', () =
   expect(words()).toBe('Type the name on your card.')
 })
 
-test('an error is written into the box that is already there', () => {
+test('an error is written into the box that is already there', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start([
     {
@@ -388,8 +404,10 @@ test('an error is written into the box that is already there', () => {
     { id: 'two', target: { elements: () => target, interactive: true } },
   ])
 
+  await framed()
   const before = rect(message()!)
   press()
+  await framed()
 
   expect(words()).toBe('Type your name.')
   expect(error()?.textContent).toBe('A name, not a number.')
@@ -401,7 +419,7 @@ test('an error is written into the box that is already there', () => {
 
 // --- the next control -----------------------------------------------------
 
-test('a step that declares no signal is given a way out of it', () => {
+test('a step that declares no signal is given a way out of it', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
     {
@@ -411,6 +429,7 @@ test('a step that declares no signal is given a way out of it', () => {
     },
     { id: 'two', target: { elements: () => target, interactive: true }, message: 'Now save.' },
   ])
+  await framed()
 
   expect(control()?.textContent).toBe('Next')
   press()
@@ -454,7 +473,7 @@ test('a step with no message still gets the control, and nothing else', async ()
   expect(leko.step?.id).toBe('two')
 })
 
-test('the words on the control are the instance’s to choose', () => {
+test('the words on the control are the instance’s to choose', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   start(
     [
@@ -468,17 +487,19 @@ test('the words on the control are the instance’s to choose', () => {
       nextLabel: '次へ',
     },
   )
+  await framed()
 
   expect(control()?.textContent).toBe('次へ')
 })
 
-test('one press advances one step, however many events it arrives as', () => {
+test('one press advances one step, however many events it arrives as', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   const leko = start([
     { id: 'one', target: { elements: () => target, interactive: true } },
     { id: 'two', target: { elements: () => target, interactive: true } },
     { id: 'three', target: { elements: () => target, interactive: true } },
   ])
+  await framed()
 
   const button = control()!
   button.click()
@@ -495,6 +516,7 @@ test('a press after the frame is over is a second press', async () => {
     { id: 'two', target: { elements: () => target, interactive: true } },
     { id: 'three', target: { elements: () => target, interactive: true } },
   ])
+  await framed()
 
   press()
   await frame()
@@ -520,8 +542,10 @@ test('the control goes through validate, and a failed press stays where it is', 
       message: 'Now place the order.',
     },
   ])
+  await framed()
 
   press()
+  await framed()
   expect(leko.step?.id).toBe('one')
   // The instruction survives the complaint: a second failed attempt must not
   // leave the user with an error and nothing to act on.
@@ -531,6 +555,7 @@ test('the control goes through validate, and a failed press stays where it is', 
   typed = true
   await frame()
   press()
+  await framed()
 
   expect(leko.step?.id).toBe('two')
   expect(words()).toBe('Now place the order.')
@@ -550,12 +575,14 @@ test('an error is about the attempt, so leaving the step takes it away', async (
       error: 'Not yet.',
     },
   ])
+  await framed()
 
   press()
   // Two presses inside a frame are one press, and these are two: the first
   // leaves step one, the second is the attempt step two turns down.
   await frame()
   press()
+  await framed()
   expect(error()?.textContent).toBe('Not yet.')
 
   // A story runs from the top — DESIGN.md, **A story is atomic, and stories are
@@ -563,6 +590,7 @@ test('an error is about the attempt, so leaving the step takes it away', async (
   // behind, which DESIGN.md argues under **A failed attempt**.
   leko.stop()
   begin(leko, 'story')
+  await framed()
   expect(on(error())).toBe(false)
   expect(words()).toBe('First.')
 })
@@ -583,6 +611,7 @@ test('a step with only an error to show gets a box for it', async () => {
   expect(on(error())).toBe(false)
 
   press()
+  await framed()
 
   expect(error()?.textContent).toBe('The total is still zero.')
   expect(on(error())).toBe(true)
@@ -603,6 +632,7 @@ test('a refusal during the opening morph does not take the message with it', asy
     // place: what it is about is the window while the hole is still moving.
     { duration: 200 },
   )
+  await framed()
 
   // The box waits for the cutout to land, for the reason the `morphed` case of
   // the presenter's plan gives, in `@annetaan/leko-presenter`.
@@ -616,13 +646,14 @@ test('a refusal during the opening morph does not take the message with it', asy
   expect(words()).toBe('Press it.')
 })
 
-test('stopping takes the message with it, and gives the target its anchor name back', () => {
+test('stopping takes the message with it, and gives the target its anchor name back', async () => {
   const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
   target.style.setProperty('anchor-name', '--theirs')
 
   const leko = start([
     { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
   ])
+  await framed()
   leko.stop()
 
   expect(message()).toBeNull()
