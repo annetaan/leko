@@ -13,8 +13,7 @@
   --note: #8a5a00;
 
   --leko-scroll-scrim-color: rgb(20 24 20 / 0.6);
-  --leko-scroll-halo-outline: 2px solid #f2c14e;
-  --leko-scroll-halo-offset: 3px;
+  --leko-scroll-halo-shadow: inset 0 0 15px 15px var(--leko-scroll-scrim-color);
   --leko-scroll-message-max-width: min(240px, calc(100vw - 32px));
 
   /* A page that runs the tour as well writes the bridge once —
@@ -159,9 +158,11 @@ section {
   max-width: 440px;
 }
 
+/* 13.8rem is 220.8px, so at 1280 the cards' holes have edges between
+   pixels — [The scrim rides the page](../../../packages/scroll/DESIGN.md#the-scrim-rides-the-page). */
 .cards {
   display: grid;
-  grid-template-columns: repeat(3, 220px);
+  grid-template-columns: repeat(3, 13.8rem);
   justify-content: center;
   gap: 24px;
 }
