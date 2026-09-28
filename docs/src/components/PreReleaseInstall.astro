@@ -1,0 +1,43 @@
+---
+import { Aside, Code } from '@astrojs/starlight/components'
+
+interface Props {
+  project: string
+  codegen?: boolean
+}
+
+const { project, codegen = false } = Astro.props
+const filter = codegen ? '"@annetaan/leko-codegen..."' : '"@annetaan/leko..."'
+const packs = codegen ? '--filter @annetaan/leko --filter @annetaan/leko-codegen' : '--filter @annetaan/leko'
+const release = ['npm install @annetaan/leko', ...(codegen ? ['npm install -D @annetaan/leko-codegen'] : [])]
+const code = [
+  'cd ..',
+  'git clone https://github.com/annetaan/leko.git',
+  'cd leko',
+  `npx -y pnpm@10 --filter ${filter} install`,
+  `npx -y pnpm@10 --filter ${filter} build`,
+  `npx -y pnpm@10 ${packs} pack --pack-destination ../leko-packages`,
+  `cd ../${project}`,
+  'npm install ../leko-packages/annetaan-leko-0.0.0.tgz',
+  ...(codegen ? ['npm install -D ../leko-packages/annetaan-leko-codegen-0.0.0.tgz'] : []),
+].join('\n')
+---
+
+<Aside type="caution" title="Before the release">
+  <p>
+    Leko is not on npm yet, and the <code dir="auto">0.0.0</code> there is a placeholder with no
+    code in it. This block builds {codegen ? 'both packages' : 'the package'} from the repository
+    and installs {codegen ? 'their tarballs' : 'its tarball'} instead. It needs git and Node 24,
+    and runs pnpm through <code dir="auto">npx</code>. At the release it becomes{' '}
+    {release.map((line, i) => (
+      <>
+        {i > 0 && ' and '}
+        <code dir="auto">{line}</code>
+      </>
+    ))}. The block leaves <code dir="auto">leko/</code>, <code dir="auto">leko-packages/</code> and{' '}
+    <code dir="auto">{project}/</code> side by side, and ends back in{' '}
+    <code dir="auto">{project}/</code>.
+  </p>
+</Aside>
+
+<Code lang="sh" code={code} />

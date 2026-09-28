@@ -1,0 +1,97 @@
+---
+title: CSS custom properties
+description: The --leko-scroll-* properties everything Leko Scroll draws reads, their defaults, and which element each one styles.
+---
+
+Everything Leko Scroll draws reads one of these: the scrim, the halo and the
+message. There is no stylesheet to import. The defaults below are the `var()`
+fallbacks the script writes inline, so Leko Scroll draws correctly on a page
+that sets none of them —
+[Styling](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#styling).
+How the scrim, the halo and the message behave is in
+[createScroll and options](../create-scroll/).
+
+## Where to set them
+
+Set them on `:root`, or on `.leko-scroll`, the element `createScroll` appends
+to `document.body` with the scrim, the halo and the message inside it:
+
+```css
+:root {
+  --leko-scroll-scrim-color: rgb(3 12 22 / 0.58);
+}
+
+.leko-scroll {
+  --leko-scroll-halo-outline: 2px solid gold;
+  --leko-scroll-message-radius: 12px;
+}
+```
+
+Not on an element around a target, because none of what Leko Scroll draws is
+inside one.
+
+The names are Leko Scroll's own and share nothing with the tour's `--leko-*`
+properties. A page that wants the two to look alike says so once:
+
+```css
+:root {
+  --leko-scroll-scrim-color: var(--leko-scrim-color);
+}
+```
+
+## The scrim
+
+| Property                    | Default             | Sets         |
+| --------------------------- | ------------------- | ------------ |
+| `--leko-scroll-scrim-color` | `rgb(0 0 0 / 0.45)` | `background` |
+| `--leko-scroll-z`           | `9999`              | `z-index`    |
+
+`--leko-scroll-scrim-color` is the background of `.leko-scroll-scrim`, the
+dimming outside the hole.
+
+`--leko-scroll-z` is the stacking level of `.leko-scroll`, which holds the
+scrim, the halo and the message. Raise it when something of the page's own
+paints above the scrim.
+
+## The halo
+
+| Property                     | Default | Sets             |
+| ---------------------------- | ------- | ---------------- |
+| `--leko-scroll-halo-outline` | `none`  | `outline`        |
+| `--leko-scroll-halo-offset`  | `0px`   | `outline-offset` |
+| `--leko-scroll-halo-shadow`  | `none`  | `box-shadow`     |
+| `--leko-scroll-halo-fade`    | `160ms` | fade-in duration |
+
+These style `.leko-scroll-halo`, a frame on the hole with the hole's radius.
+With every default it paints nothing, so there is no halo until a page sets one
+of these. It follows the hole through a morph, is absent while the dark closes
+in on a target, and appears once the hole arrives.
+`--leko-scroll-halo-fade` is how long it takes to fade in then. It dims with
+the scrim as the light goes out —
+[The halo](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-halo).
+
+## The message
+
+| Property                           | Default                              | Sets               |
+| ---------------------------------- | ------------------------------------ | ------------------ |
+| `--leko-scroll-message-bg`         | `#fff`                               | `background`       |
+| `--leko-scroll-message-color`      | `#16181d`                            | `color`            |
+| `--leko-scroll-message-font`       | `500 14px/1.5 system-ui, sans-serif` | `font`             |
+| `--leko-scroll-message-title-font` | `600 15px/1.4 system-ui, sans-serif` | the title's `font` |
+| `--leko-scroll-message-padding`    | `12px 16px`                          | `padding`          |
+| `--leko-scroll-message-border`     | `none`                               | `border`           |
+| `--leko-scroll-message-radius`     | `8px`                                | `border-radius`    |
+| `--leko-scroll-message-shadow`     | `0 6px 24px rgb(0 0 0 / 0.28)`       | `box-shadow`       |
+| `--leko-scroll-message-max-width`  | `min(320px, calc(100vw - 32px))`     | `max-width`        |
+| `--leko-scroll-message-gap`        | `12px`                               | space to the hole  |
+
+These style `.leko-scroll-message`, the box that holds a target's
+[`message`](../create-scroll/#lekoscrollmessage). The box is as wide as its
+content, up to `--leko-scroll-message-max-width`. The title,
+`.leko-scroll-message-title`, takes its own font from
+`--leko-scroll-message-title-font`, and the body,
+`.leko-scroll-message-body`, inherits the box's colour and font.
+
+`--leko-scroll-message-gap` is the space between the hole and the box, on
+whichever [side](../create-scroll/#lekoscrollside) the box is on —
+[The message](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-message).

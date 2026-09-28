@@ -100,6 +100,28 @@ this existed.
 - A tour crosses a page load: the next document calls `pickUp` once and the
   story that follows starts there.
 
+## Leko Scroll
+
+The same package carries a second product. `@annetaan/leko/scroll` lights a
+long page one target after another as the reader scrolls, with no story, no
+steps and nothing to click past, and the page under the light stays usable.
+It is not a kind of tour, and
+[A second product, not a second tour](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#a-second-product-not-a-second-tour)
+says why.
+
+```ts
+import { createScroll } from '@annetaan/leko/scroll'
+
+createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
+```
+
+[Getting started with Leko Scroll](https://github.com/annetaan/leko/blob/main/docs/src/content/docs/scroll/getting-started.mdx)
+takes an empty Vite project to a lit page, and
+[its reference](https://github.com/annetaan/leko/tree/main/docs/src/content/docs/scroll/reference)
+covers every option and custom property.
+[`examples/scroll/`](https://github.com/annetaan/leko/tree/main/examples/scroll)
+is one long page lit end to end.
+
 ## Browser support
 
 The cutout needs CSS masking with several layers and `mask-composite`. The

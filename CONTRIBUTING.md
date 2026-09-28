@@ -73,11 +73,15 @@ in `docs/dist` and fails on an internal link that does not land.
 [`docs/src/lib/href.ts`](docs/src/lib/href.ts) says which link is the one that
 goes wrong.
 
-The pages under
-[`docs/src/content/docs/reference/`](docs/src/content/docs/reference/) are
-written by hand, and `pnpm check:reference` fails on a name
-`packages/leko/src/index.ts` exports, or a `--leko-*` property, that is on none
-of them.
+The reference pages are written by hand, one directory for each product:
+[`docs/src/content/docs/reference/`](docs/src/content/docs/reference/) for the
+tour and
+[`docs/src/content/docs/scroll/reference/`](docs/src/content/docs/scroll/reference/)
+for Leko Scroll. `pnpm check:reference` holds each entry point,
+`packages/leko/src/index.ts` and `packages/leko/src/scroll.ts`, against its own
+directory, and fails on a name it exports, or a `--leko-*` property its code
+reads through `var()`, that is on none of that directory's pages. The
+properties are the ones the code reads, not the ones `leko.css` declares.
 
 Every pull request's CI run carries an artifact named `docs-site`, which is the
 `docs/dist` that run built. Download it from the run's summary page and unzip it
@@ -110,7 +114,7 @@ pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether its manifest's paths are packed
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
-pnpm check:reference # whether every name packages/leko/src/index.ts exports and --leko-* property is on a reference page
+pnpm check:reference # whether every exported name and --leko-* property the code reads is on its product's reference
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
 pnpm test            # vitest: ten projects, four of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant

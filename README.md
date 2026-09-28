@@ -236,6 +236,27 @@ statically built site crosses the same way a plain multi-page one does. A
 framework router's own same-document navigation is a different signal, and
 *Browser support* below says what it takes.
 
+## Leko Scroll
+
+The same package carries a second product. `@annetaan/leko/scroll` lights a
+long page one target after another as the reader scrolls, with no story, no
+steps and nothing to click past, and the page under the light stays usable.
+It is not a kind of tour, and
+[A second product, not a second tour](packages/scroll/DESIGN.md#a-second-product-not-a-second-tour)
+says why.
+
+```ts
+import { createScroll } from '@annetaan/leko/scroll'
+
+createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
+```
+
+[Getting started with Leko Scroll](docs/src/content/docs/scroll/getting-started.mdx)
+takes an empty Vite project to a lit page, and
+[its reference](docs/src/content/docs/scroll/reference/) covers every option
+and custom property. `pnpm dev:scroll` serves
+[`examples/scroll/`](examples/scroll/), one long page lit end to end.
+
 ## Status
 
 | Milestone | State |
