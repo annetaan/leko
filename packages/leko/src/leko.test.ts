@@ -1651,6 +1651,30 @@ test('focus never lands on the page on its way round the ring', async () => {
   expect(touched).toEqual([])
 })
 
+test('Tab during a morph goes round the target and the way out, never the hidden message', async () => {
+  clocked()
+  const first = box('first', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  const second = box('second', { left: '100px', top: '500px', width: '160px', height: '48px' })
+
+  start(
+    [
+      { id: 'one', target: { elements: () => first, interactive: true }, message: 'First.' },
+      { id: 'two', target: { elements: () => second, interactive: true }, message: 'Second.' },
+    ],
+    { duration: 320 },
+  )
+  await until(said, 60, 'the first step never said its words')
+  press()
+  // Two frames into the morph to the second step: the message is hidden by
+  // `visibility` and still in the tree, its next control with it.
+  await advance()
+  await advance()
+  expect(said()).toBe(false)
+
+  second.focus()
+  expect(await tabbing(3)).toEqual(['the way out', 'second', 'the way out'])
+})
+
 test("the way out avoids the corner the host's chrome owns", () => {
   // An account menu of the host's, in the corner the way out prefers. It is not
   // a cutout, and until a host could say so nothing kept the two apart —

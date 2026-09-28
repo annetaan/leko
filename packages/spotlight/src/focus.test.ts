@@ -95,3 +95,22 @@ test('something display:none is not a stop', () => {
   expect(found.first.id).toBe('b')
   for (const el of mounted.splice(0)) el.remove()
 })
+
+test('something inside a visibility:hidden box is not a stop', () => {
+  // Inherited rather than set on the button, the way a hidden message hides
+  // its control.
+  const host = mount(
+    '<div style="visibility:hidden"><button id="a">a</button></div><button id="b">b</button>',
+  )
+  const found = ends([host])!
+  expect(found.first.id).toBe('b')
+  expect(found.last.id).toBe('b')
+  for (const el of mounted.splice(0)) el.remove()
+})
+
+test('something at opacity 0 is still a stop', () => {
+  const host = mount('<button id="a" style="opacity:0">a</button><button id="b">b</button>')
+  const found = ends([host])!
+  expect(found.first.id).toBe('a')
+  for (const el of mounted.splice(0)) el.remove()
+})
