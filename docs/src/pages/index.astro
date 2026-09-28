@@ -63,6 +63,10 @@ createScroll({
       name="description"
       content="A product tour that cuts a hole in the overlay, so the user works the real element underneath."
     />
+    <!-- The docs' three icons, in Starlight's order; docs/astro.config.mjs says why sizes names 32x32 alone. -->
+    <link rel="icon" href={href('favicon.ico')} sizes="32x32" />
+    <link rel="apple-touch-icon" href={href('apple-touch-icon.png')} />
+    <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
     <ThemeProvider />
   </head>
   <body>
