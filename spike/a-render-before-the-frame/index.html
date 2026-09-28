@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Does a render beat the next frame?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p, ul { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p, ul { color: #a8a8a8; } }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 16px 4px 0; border-bottom: 1px solid #8883; vertical-align: top; }
+  td:first-child { font-family: ui-monospace, monospace; }
+  td.n { font-variant-numeric: tabular-nums; }
+  .yes { color: #0a7d32; font-weight: 700; }
+  .no { color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .yes { color: #6ee79b; } .no { color: #ff8a80; } }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+  #verdict { font-size: 15px; }
+</style>
+</head>
+<body>
+
+<h1>Does a render beat the next frame?</h1>
+<p>
+  A handler that calls <code>setState</code> and then <code>leko.reached()</code>
+  leaves the framework's render behind it, and Leko requests a frame to draw the
+  next step in. This page asks, for four kinds of work a call can leave behind,
+  whether that work runs before the frame requested after it, between that frame
+  and the one after, or later still.
+</p>
+<p>
+  Each trial starts in a timer task, the way code after <code>await save()</code>
+  does, at a random point of the frame: a <code>setTimeout</code> of 0–16ms set
+  from a <code>requestAnimationFrame</code> callback. Inside that task it leaves
+  one variant's work behind and then calls <code>requestAnimationFrame</code>;
+  that callback, <em>frame 1</em>, requests <em>frame 2</em>. The trial records
+  where the work's own mark landed.
+</p>
+<ul>
+  <li><code>microtask</code> — <code>queueMicrotask</code>. React inside its own
+    handlers, Vue, Svelte, Preact and Lit flush this way. The specification
+    runs it before any frame; this row is the page checking itself.</li>
+  <li><code>message-in-call</code> — a <code>MessageChannel</code> message posted
+    inside the call, the way React 18's Scheduler posts a render outside React's
+    own handlers.</li>
+  <li><code>message-from-microtask</code> — a microtask queued in the call that
+    posts the message, the way React 19 schedules a render outside its own
+    handlers (<code>processRootScheduleInMicrotask</code> →
+    <code>scheduleCallback</code>).</li>
+  <li><code>timeout-0</code> — <code>setTimeout(0)</code>, for comparison only.</li>
+</ul>
+<p>
+  Two loads: <strong>idle</strong>, and <strong>busy</strong>, where a
+  <code>requestAnimationFrame</code> loop spins the main thread for about 12ms
+  every frame for the whole batch. A red cell is a trial that lands after
+  frame 1 for a <code>message-*</code> variant, or anywhere but before frame 1
+  for <code>microtask</code>. <code>timeout-0</code> is never judged.
+  <code>node run.mjs</code> reads the same <code>window.spikeFrame.measure()</code>
+  in more than one engine.
+</p>
+<p><span id="env" class="readout"></span></p>
+<p id="status" class="readout">Running…</p>
+
+<div id="tables"></div>
+<p id="verdict"></p>
+
+<script>
+const TRIALS = 100
+const SPIN = 12
+const VARIANTS = ['microtask', 'message-in-call', 'message-from-microtask', 'timeout-0']
+const LOADS = ['idle', 'busy']
+
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+
+// Leave one variant's work behind, calling `mark` when it runs. The work is
+// left before the frame is requested, the way reached() follows setState.
+function leave(variant, mark) {
+  if (variant === 'microtask') {
+    queueMicrotask(mark)
+  } else if (variant === 'message-in-call') {
+    const channel = new MessageChannel()
+    channel.port1.onmessage = mark
+    channel.port2.postMessage(0)
+  } else if (variant === 'message-from-microtask') {
+    queueMicrotask(() => {
+      const channel = new MessageChannel()
+      channel.port1.onmessage = mark
+      channel.port2.postMessage(0)
+    })
+  } else {
+    setTimeout(mark, 0)
+  }
+}
+
+// 0: the mark ran before frame 1; 1: between frame 1 and frame 2; 2: after
+// frame 2. Resolves once frame 2 has run and the mark has.
+function trial(variant) {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        let frames = 0
+        let at = null
+        let interval = null
+        let first = null
+        const done = () => {
+          if (frames === 2 && at !== null) resolve({ at, interval })
+        }
+        leave(variant, () => {
+          at = frames
+          done()
+        })
+        requestAnimationFrame((t1) => {
+          frames = 1
+          first = t1
+          requestAnimationFrame((t2) => {
+            frames = 2
+            interval = t2 - first
+            done()
+          })
+        })
+      }, Math.random() * 16)
+    })
+  })
+}
+
+// A rAF loop that holds the main thread for SPIN ms every frame until stopped.
+function busy() {
+  let running = true
+  const spin = () => {
+    if (!running) return
+    const until = performance.now() + SPIN
+    while (performance.now() < until) {}
+    requestAnimationFrame(spin)
+  }
+  requestAnimationFrame(spin)
+  return () => {
+    running = false
+  }
+}
+
+async function measure() {
+  const status = document.getElementById('status')
+  const loads = {}
+  const total = LOADS.length * VARIANTS.length * TRIALS
+  let run = 0
+  for (let i = 0; i < 10; i++) await nextFrame()
+  for (const load of LOADS) {
+    const stop = load === 'busy' ? busy() : () => {}
+    const counts = Object.fromEntries(VARIANTS.map((v) => [v, [0, 0, 0]]))
+    const intervals = []
+    // Round-robin, so each variant sees the same stretch of the run.
+    for (let i = 0; i < TRIALS; i++) {
+      for (const variant of VARIANTS) {
+        const { at, interval } = await trial(variant)
+        counts[variant][at] += 1
+        intervals.push(interval)
+        run += 1
+        if (run % 20 === 0) {
+          status.textContent = `Running ${load}: ${run} / ${total} trials. This takes about a minute; keep the tab in front, a background tab gives no frame.`
+        }
+      }
+    }
+    stop()
+    for (let i = 0; i < 10; i++) await nextFrame()
+    const interval = intervals.reduce((a, b) => a + b, 0) / intervals.length
+    loads[load] = { counts, interval }
+  }
+  return { trials: TRIALS, loads }
+}
+
+// Which frame count the measurement asks for: no message-* after frame 1
+// anywhere is one; some after frame 1 and none after frame 2 is two.
+function verdict(result) {
+  let afterOne = 0
+  let afterTwo = 0
+  for (const load of LOADS) {
+    for (const variant of ['message-in-call', 'message-from-microtask']) {
+      const [, between, after] = result.loads[load].counts[variant]
+      afterOne += between + after
+      afterTwo += after
+    }
+  }
+  if (afterOne === 0) return { frames: 1, text: 'one frame is enough' }
+  if (afterTwo === 0) return { frames: 2, text: 'two frames are needed' }
+  return {
+    frames: null,
+    text: 'two frames are not enough — a message task landed after frame 2',
+  }
+}
+
+function microtaskHeld(result) {
+  return LOADS.every((load) => {
+    const [, between, after] = result.loads[load].counts.microtask
+    return between + after === 0
+  })
+}
+
+function render(result) {
+  document.getElementById('env').textContent = navigator.userAgent
+  const judged = (variant, column, count) => {
+    if (count === 0 || column === 0 || variant === 'timeout-0') return ''
+    return ' class="no"'
+  }
+  document.getElementById('tables').innerHTML = LOADS.map((load) => {
+    const { counts, interval } = result.loads[load]
+    const rows = VARIANTS.map((variant) => {
+      const cells = counts[variant]
+        .map((count, column) => `<td class="n"><span${judged(variant, column, count)}>${count} / ${result.trials}</span></td>`)
+        .join('')
+      return `<tr><td>${variant}</td>${cells}</tr>`
+    }).join('')
+    return (
+      `<h2>${load} — mean ${interval.toFixed(1)}ms between frames</h2>` +
+      '<table><thead><tr><th>variant</th><th>before frame 1</th><th>before frame 2</th><th>after frame 2</th></tr></thead>' +
+      `<tbody>${rows}</tbody></table>`
+    )
+  }).join('')
+  const v = verdict(result)
+  const selfCheck = microtaskHeld(result)
+    ? '<span class="yes">The microtask row held: every one ran before frame 1.</span>'
+    : '<span class="no">The microtask row broke: a microtask ran after a frame, against the specification. Nothing else on this page can be trusted.</span>'
+  document.getElementById('verdict').innerHTML =
+    `${selfCheck}<br>Verdict: <span class="${v.frames === null ? 'no' : 'yes'}">${v.text}</span>.`
+  document.getElementById('status').textContent = 'Done.'
+}
+
+;(async () => {
+  const result = await measure()
+  window.spikeFrame = {
+    async measure() {
+      return { ...result, verdict: verdict(result), microtaskHeld: microtaskHeld(result) }
+    },
+  }
+  // Set before render(): run.mjs waits on this flag, and the measurement is
+  // complete once it is set. A draw that throws must not withhold it.
+  window.spikeFrameReady = true
+  render(result)
+})()
+</script>
+
+</body>
+</html>
