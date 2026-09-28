@@ -4,10 +4,25 @@ import type { Hole, Rect } from './geometry.js'
 // `packages/spotlight/src/geometry.ts` and cut down to one hole with no
 // `interactive` — [The scrim rides the page](../DESIGN.md#the-scrim-rides-the-page)
 // and [What comes from the spotlight](../DESIGN.md#what-comes-from-the-spotlight).
+// Putting the hole on whole pixels is this package's own, for the reason [The
+// scrim rides the page](../DESIGN.md#the-scrim-rides-the-page) gives.
 
 const round = (n: number): number => Math.round(n * 100) / 100
 
 const clamp = (n: number, max: number): number => Math.min(Math.max(0, n), Math.max(0, max))
+
+/** `hole` with each edge moved to the nearest whole pixel, its radius kept. */
+function snap(hole: Hole): Hole {
+  const x = Math.round(hole.x)
+  const y = Math.round(hole.y)
+  return {
+    x,
+    y,
+    width: Math.round(hole.x + hole.width) - x,
+    height: Math.round(hole.y + hole.height) - y,
+    radius: hole.radius,
+  }
+}
 
 /**
  * The hole as an SVG image the size of `clip`, the on-surface part of it. The
@@ -45,11 +60,15 @@ export function clipToSurface(width: number, height: number, hole: Hole): Hole {
   }
 }
 
-/** What the scrim writes to show its hole: one CSS value per property. */
+/**
+ * What the scrim writes to show its hole, one CSS value per property, and the
+ * hole as it was cut: on whole pixels, before the surface clips it.
+ */
 export interface MaskLayers {
   image: string
   position: string
   composite: string
+  hole: Hole | undefined
 }
 
 /**
@@ -58,13 +77,20 @@ export interface MaskLayers {
  * with no area on the surface is no layer, and leaves the surface alone.
  */
 export function maskLayers(width: number, height: number, hole: Hole | undefined): MaskLayers {
-  const clip = hole && clipToSurface(width, height, hole)
-  if (!hole || !clip || clip.width <= 0 || clip.height <= 0) {
-    return { image: 'linear-gradient(black, black)', position: '0 0', composite: 'subtract' }
+  const cut = hole && snap(hole)
+  const clip = cut && clipToSurface(width, height, cut)
+  if (!cut || !clip || clip.width <= 0 || clip.height <= 0) {
+    return {
+      image: 'linear-gradient(black, black)',
+      position: '0 0',
+      composite: 'subtract',
+      hole: cut,
+    }
   }
   return {
-    image: `linear-gradient(black, black), ${holeImage(hole, clip)}`,
+    image: `linear-gradient(black, black), ${holeImage(cut, clip)}`,
     position: `0 0, ${round(clip.x)}px ${round(clip.y)}px`,
     composite: 'subtract, add',
+    hole: cut,
   }
 }

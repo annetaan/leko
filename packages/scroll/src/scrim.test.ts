@@ -249,6 +249,59 @@ test('the halo rides a morph', async () => {
   expect(px(halo.style.top)).toBe(b.y)
 })
 
+/** The halo's box, read back from what it was laid with. */
+const haloBox = (scrim: Scrim): Omit<Hole, 'radius'> => {
+  const style = part(scrim, 'halo').style
+  return {
+    x: px(style.left),
+    y: px(style.top),
+    width: px(style.width),
+    height: px(style.height),
+  }
+}
+
+const boxOf = ({ x, y, width, height }: Hole): Omit<Hole, 'radius'> => ({ x, y, width, height })
+
+const whole = (box: Omit<Hole, 'radius'>): boolean => Object.values(box).every(Number.isInteger)
+
+// The fractions of the landing page's `#why` and `#why-copy`.
+const f: Hole = { x: 629.265625, y: 1206.734375, width: 239.921875, height: 287.578125, radius: 16 }
+const g: Hole = { x: 110.796875, y: 912, width: 473.671875, height: 294.734375, radius: 12 }
+
+test('a hole at a fraction of a pixel is cut and haloed on the same whole-pixel rectangle', () => {
+  const { scrim } = mount()
+  scrim.place(f, WIDTH)
+  const cut = maskLayers(WIDTH, HEIGHT, f).hole
+  if (!cut) throw new Error('no hole cut')
+  expect(whole(boxOf(cut))).toBe(true)
+  expect(holeOnScreen(scrim)).toEqual(cut)
+  expect(haloBox(scrim)).toEqual(boxOf(cut))
+  expect(px(part(scrim, 'halo').style.borderRadius)).toBe(cut.radius)
+})
+
+test('every frame of a morph between fractional holes is on whole pixels, the halo on the mask', async () => {
+  const { scrim, arrived, arrivals } = mount(300)
+  scrim.place(f, WIDTH)
+  scrim.reveal(undefined, 'bottom', WIDTH)
+  scrim.morph(g)
+  const landed = arrived()
+  let frames = 0
+  while (arrivals() === 0) {
+    await frame()
+    const hole = holeOnScreen(scrim)
+    if (arrivals() > 0 || !hole) continue
+    frames += 1
+    expect(whole(boxOf(hole))).toBe(true)
+    expect(haloBox(scrim)).toEqual(boxOf(hole))
+  }
+  await landed
+  expect(frames).toBeGreaterThan(0)
+  const cut = maskLayers(WIDTH, HEIGHT, g).hole
+  if (!cut) throw new Error('no hole cut')
+  expect(holeOnScreen(scrim)).toEqual(cut)
+  expect(haloBox(scrim)).toEqual(boxOf(cut))
+})
+
 test('place writes the hole at once with no frame running', async () => {
   const { scrim, arrivals } = mount()
   scrim.morph(b)
