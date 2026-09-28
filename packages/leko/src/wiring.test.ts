@@ -1298,7 +1298,7 @@ test('every box a draw reads is read before it writes a layer', () => {
   // three comes after a write: DESIGN.md, **A draw mounts its layers, then
   // reads, then writes**. `revealHalos` reads `offsetWidth` after `set` on this
   // path as on every other, deliberately and outside this count — its own doc
-  // says why, and #176 left it where it is.
+  // says why, and annetaan/leko-archive#176 left it where it is.
   //
   // The writes are read off a `MutationObserver` rather than spied on a
   // setter, because `style.width = …` reaches no property this engine lets a

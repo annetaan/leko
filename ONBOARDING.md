@@ -258,7 +258,8 @@ a wait too short to act on never reaches the machine at all.
 
 ## The two fields in the machine
 
-This is where the bugs were. Issues #31, #33 and #35 were each two fields
+This is where the bugs were. Pull requests annetaan/leko-archive#31,
+annetaan/leko-archive#33 and annetaan/leko-archive#35 were each two fields
 disagreeing about where the tour was.
 
 | Field | Holds |
@@ -519,8 +520,9 @@ holds, how many cases the sandbox has. Those counts are what makes its arguments
 checkable, and they are the first thing to go wrong when the code moves.
 
 Twelve sentences across DESIGN.md, `machine.test.ts` and README.md had drifted
-by August 2026, most of them out of #40 through #43. None of the twelve was a
-bug. They were all fixed in the commit that added this file. When you change
+by August 2026, most of them out of annetaan/leko-archive#40 through
+annetaan/leko-archive#43. None of the twelve was a bug. They were all fixed in
+the commit that added this file. When you change
 something DESIGN.md counts, open the paragraph that counts it before you open
 the pull request.
 

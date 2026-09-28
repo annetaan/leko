@@ -62,12 +62,12 @@ rather than opening it as a `file://` URL: some engines refuse `pushState` on
   The first attempt at this page used a 50ms wait between actions and lost
   events to the next action's window in Firefox, where a `back()` took longer
   than that to resolve; 300ms was enough in every engine tested.
-- **What this settles for the design in issue #7, and only this much**: in the
-  three engines tested, `currententrychange` fires synchronously inside
-  `pushState` and `replaceState`, so routing an application does with either
-  of those from inside a step's `onEnter` lands inside Leko's own gate on that
-  call and is dropped as `signal-dropped`, the same as any other signal fired
-  while an arrival is in flight. It does not hold for every same-document
+- **What this settles for the design in annetaan/leko-archive#7, and only
+  this much**: in the three engines tested, `currententrychange` fires
+  synchronously inside `pushState` and `replaceState`, so routing an
+  application does with either of those from inside a step's `onEnter` lands
+  inside Leko's own gate on that call and is dropped as `signal-dropped`, the
+  same as any other signal fired while an arrival is in flight. It does not hold for every same-document
   navigation: a click on an in-page `<a href>` is later in Firefox, and
   `history.back()`/`history.forward()` are later in all three engines, so
   routing built on either of those is not caught by the gate at all.
@@ -120,13 +120,14 @@ and the `forward()` fired all four later, and every handler read the new
   + `hashchange`, per the design.
 - **A navigation across a page load.** Every action here is same-document; a
   full navigation tears down and reloads the document, which is a different
-  question ([#103](https://github.com/annetaan/leko/issues/103)) and out of
-  scope for the step design this page feeds.
+  question ([#1](https://github.com/annetaan/leko/issues/1), carried over from
+  annetaan/leko-archive#103) and out of scope for the step design this page
+  feeds.
 - **Whether `location.hash =` and `<a href>` clicks to a different pathname or
   search behave the same way.** Both actions tested here only ever change the
   hash; a `pushState`-style change of `pathname` or `search` from a click
   would leave the page (a full navigation) unless something already intercepts
   it, which this page does not attempt.
 - **Router integration, URL normalisation, or arrival-time matching.** None of
-  those are what this page was written to settle; issue #7 rules them out for
-  reasons that belong there, not here.
+  those are what this page was written to settle; annetaan/leko-archive#7
+  rules them out for reasons that belong there, not here.

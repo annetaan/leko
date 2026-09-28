@@ -859,7 +859,7 @@ application is free to drive the real elements while a step is showing.**
     is the point — a mascot that sways, and the application's atmosphere is
     not Leko's to freeze — a step will be able to ask for its holes to be
     followed, at the price of that measurement per frame and off unless it
-    asks. That is issue #158 and it is not the default this bullet describes.
+    asks. That is issue #2 and it is not the default this bullet describes.
   - And **what a step assumes is `onEnter`'s to build and to keep, for the
     whole length of the step.** Up to the draw Leko is deciding what to point
     at, so an element with no box is nothing to point at and the step waits for
@@ -869,7 +869,7 @@ application is free to drive the real elements while a step is showing.**
     not Leko's question — which is what a tour costing the host nothing but the
     story means at the one place it costs something. This is about *whether*
     the target is there; *where* it is is the question this bullet's parent
-    answers, and #158 is the opt-in that would change that answer rather than
+    answers, and #2 is the opt-in that would change that answer rather than
     this one. Watching nothing is not the same as asking nothing: `validate`
     resolves the target afresh on a press, to hand the guard the element its
     parameter is not nullable for, and a step whose target has gone by then
