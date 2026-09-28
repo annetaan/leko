@@ -39,7 +39,7 @@ export class Scrim {
   private readonly onArrive: () => void
   private width = 0
   private height = 0
-  /** What is on screen now, mid-flight included. */
+  /** What is on screen now, mid-flight included, before it is put on whole pixels. */
   private hole: Hole | undefined
   private frame: number | undefined
   /** The halo stays off the hole until a converge arrives — [The halo](../DESIGN.md#the-halo). */
@@ -138,8 +138,7 @@ export class Scrim {
   place(hole: Hole, viewportWidth: number): void {
     this.halt()
     this.hole = hole
-    this.paint(hole)
-    this.layHalo(hole)
+    this.layHalo(this.paint(hole)!)
     if (this.message.visible) this.message.place(hole, this.message.side, viewportWidth)
   }
 
@@ -193,8 +192,7 @@ export class Scrim {
       const t = Math.min(1, Math.max(0, (now - began) / duration))
       if (t >= 1) {
         this.hole = to
-        this.paint(to)
-        this.layHalo(to)
+        this.layHalo(this.paint(to)!)
         this.frame = undefined
         this.converging = false
         this.onArrive()
@@ -202,15 +200,19 @@ export class Scrim {
       }
       const hole = lerp(from, to, ease(t))
       this.hole = hole
-      this.paint(hole)
-      if (!this.converging) this.layHalo(hole)
+      const cut = this.paint(hole)
+      if (!this.converging) this.layHalo(cut!)
       this.frame = requestAnimationFrame(tick)
     }
     this.frame = requestAnimationFrame(tick)
   }
 
-  private paint(hole: Hole | undefined): void {
-    const { image, position, composite } = maskLayers(this.width, this.height, hole)
+  /**
+   * The hole as it was cut, the rectangle the halo is laid on —
+   * [The scrim rides the page](../DESIGN.md#the-scrim-rides-the-page).
+   */
+  private paint(hole: Hole | undefined): Hole | undefined {
+    const { image, position, composite, hole: cut } = maskLayers(this.width, this.height, hole)
     // Unprefixed only, for the reason `Scrim.paint` in
     // `packages/spotlight/src/scrim.ts` gives.
     Object.assign(this.scrim.style, {
@@ -219,6 +221,7 @@ export class Scrim {
       maskComposite: composite,
       maskRepeat: 'no-repeat',
     })
+    return cut
   }
 
   /** Gone at once. A fade out would linger on the old target while the next converge closes in. */

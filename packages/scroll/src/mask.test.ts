@@ -26,9 +26,34 @@ test('one hole is one image at its clipped place, and no hole is the surface alo
   expect(position).toBe('0 0, 100px 0px')
   expect(composite).toBe('subtract, add')
 
-  expect(maskLayers(1000, 6000, undefined)).toEqual(surface)
-  expect(maskLayers(1000, 6000, { x: 10, y: 10, width: 0, height: 0, radius: 0 })).toEqual(surface)
-  expect(maskLayers(1000, 6000, { x: 10, y: 7000, width: 100, height: 50, radius: 8 })).toEqual(
-    surface,
-  )
+  expect(maskLayers(1000, 6000, undefined)).toStrictEqual({ ...surface, hole: undefined })
+  const flat = { x: 10, y: 10, width: 0, height: 0, radius: 0 }
+  expect(maskLayers(1000, 6000, flat)).toEqual({ ...surface, hole: flat })
+  const below = { x: 10, y: 7000, width: 100, height: 50, radius: 8 }
+  expect(maskLayers(1000, 6000, below)).toEqual({ ...surface, hole: below })
+})
+
+test('the hole is cut on whole pixels and handed back as cut, its radius kept', () => {
+  const why = maskLayers(1280, 6000, {
+    x: 629.265625,
+    y: 1206.734375,
+    width: 539.921875,
+    height: 287.578125,
+    radius: 16,
+  })
+  expect(why.hole).toEqual({ x: 629, y: 1207, width: 540, height: 287, radius: 16 })
+  expect(why.position).toBe('0 0, 629px 1207px')
+  expect(svgOf(`url(${why.image.split(', url(')[1]}`)).toContain('width="540" height="287">')
+
+  const copy = maskLayers(1280, 6000, {
+    x: 110.796875,
+    y: 912,
+    width: 473.671875,
+    height: 294.734375,
+    radius: 16,
+  })
+  expect(copy.hole).toEqual({ x: 111, y: 912, width: 473, height: 295, radius: 16 })
+
+  const whole = { x: 100, y: 500, width: 300, height: 120, radius: 8 }
+  expect(maskLayers(1280, 6000, whole).hole).toEqual(whole)
 })

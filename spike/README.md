@@ -29,6 +29,7 @@ tell you what you are allowed to assume.
 | [`a-sticky-target-pinning/`](a-sticky-target-pinning/) | When is a `position: sticky` element pinned, does it say so, and can a layer be glued to a scroller's scrollport? |
 | [`a-same-document-navigation/`](a-same-document-navigation/) | What says a same-document URL changed, does it come before or after `location` has moved, and does it land inside the call that triggered it or later? |
 | [`a-cross-document-navigation/`](a-cross-document-navigation/) | What can a document being left still say — does `pagehide` fire before the next document's script runs, does a `sessionStorage` write made there survive to be read, and does the same-document mechanism ever fire for a navigation that leaves the document? |
+| [`a-hole-at-a-fractional-edge/`](a-hole-at-a-fractional-edge/) | Do a mask hole and a box laid on it meet at a fractional edge, and on what rectangle do they? |
 
 ## Reading them
 

@@ -494,6 +494,25 @@ nothing measurable per frame in Chrome, Firefox or WebKit. Both are measured on
 [spike/overlapping-holes/](../../spike/overlapping-holes/), which has not
 measured Safari's cost.
 
+**The hole's edges are put on whole CSS pixels before it is cut, and the halo
+is laid on the hole as cut.** Chromium and Firefox place the mask image at its
+rounded position with its rounded size, and a box has each of its edges
+rounded; WebKit antialiases the mask's edge instead. So at a fraction of a
+pixel a halo flush on the hole leaves a line that neither paints, the page
+showing through undimmed, or one that both paint, darker than the scrim: the
+white rim first seen on the landing page. With every edge already on a whole
+CSS pixel there is nothing left to round, and the two meet in all three engines
+at 1x, 2x and 3x. Device pixels do not do it: at 2x and 3x a half-pixel edge
+stays in the mask's size and the two rules part again. What is left over is a
+fractional scale. At 1.25 and 1.5 a whole CSS pixel is a whole device pixel
+only every 4 and every 2 CSS pixels; in Chromium, Chrome and Firefox an edge on
+one meets and an edge between them may leave a partly covered line, never a
+whole gap or overlap. The line is 16 to 32 levels in 255 off the dimmed ground
+in Chromium and Chrome, and up to 64 in Firefox and WebKit. Those scales are
+emulated by Playwright, WebKit's line at them looks like an artifact of the
+emulation, and Safari is not checked. All of it is measured on
+[spike/a-hole-at-a-fractional-edge/](../../spike/a-hole-at-a-fractional-edge/).
+
 ## The message
 
 **A message is shown only on a target that configures one**, as
@@ -535,8 +554,9 @@ did not have.
 **The halo is a frame on the hole that a page opts into through the
 `--leko-scroll-halo-*` tokens.** Until a page sets one it paints nothing.
 
-- **It follows the hole**, moving with it through a morph. There is no mode to
-  choose.
+- **It follows the hole**, moving with it through a morph, on the rectangle
+  the hole was cut on — [The scrim rides the page](#the-scrim-rides-the-page).
+  There is no mode to choose.
 - **It is absent during a converge** and appears after the arrival, fading in
   over `--leko-scroll-halo-fade`, 160ms by default.
 - **It dims with the scrim during a fade.**
