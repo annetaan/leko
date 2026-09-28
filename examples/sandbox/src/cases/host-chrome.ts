@@ -7,7 +7,7 @@ import { type Case, html } from '../case.js'
 //
 // Every step here is about a box of Leko's that used to land on one of the two.
 // Turn the naming off in `main.ts` and watch each of them land back on it:
-// that is the state issue #141 described.
+// that is the state annetaan/leko-archive#141 described.
 export const hostChrome: Case = {
   id: 'host-chrome',
   title: 'Chrome the host says is its own',

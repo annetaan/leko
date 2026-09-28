@@ -24,7 +24,7 @@ import { type Case, html } from '../case.js'
 // all, so a step like that in this case would be indistinguishable from a tour
 // that had stopped working. That the message goes off screen instead of docking,
 // whenever no side of the hole has room on screen, is a gap of Leko's own rather
-// than something a case should be built around — issue #140.
+// than something a case should be built around — annetaan/leko-archive#140.
 export const scrollsIntoView: Case = {
   id: 'scrolls-into-view',
   title: 'A step that goes and gets its target',

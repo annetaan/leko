@@ -446,10 +446,10 @@ test('the ease is out: half the time has covered most of the way', () => {
 })
 
 test('the ease leaves from rest, where the ease-out shoved', () => {
-  // Issue #154. The curve before this one was `1 - (1 - t) ** 3`, which is at
-  // full speed on its first frame and answers 0.0297 here — three per cent of
-  // the way in one per cent of the time, and on a glide that is the whole
-  // viewport jumping. DESIGN.md, **The morph**.
+  // annetaan/leko-archive#154. The curve before this one was
+  // `1 - (1 - t) ** 3`, which is at full speed on its first frame and answers
+  // 0.0297 here — three per cent of the way in one per cent of the time, and on
+  // a glide that is the whole viewport jumping. DESIGN.md, **The morph**.
   expect(ease(0.01)).toBeLessThan(0.01)
 })
 
@@ -631,7 +631,7 @@ test('every corner covered gives the least covered one, and gives it every time'
 // twice and nothing is kept — DESIGN.md, **A host's own chrome is named once,
 // and every reader takes the boxes**.
 
-/** The sandbox's own footer, at the viewport #141 measured it in. */
+/** The sandbox's own footer, at the viewport annetaan/leko-archive#141 measured. */
 const FOOTER: Rect = { x: 0, y: 621, width: 1280, height: 179 }
 
 test('a chrome box against an edge is a band as deep as it reaches', () => {
@@ -684,8 +684,9 @@ test('the room is the viewport with the bands taken off', () => {
   expect(inset(viewport, chromeInsets(1280, 800, [FOOTER]))).toEqual(rect(0, 0, 1280, 621))
 })
 
-// The side the message takes. #141's table is the case: a hole in the middle of
-// the screen with 200px under it, and a footer that owns 179 of them.
+// The side the message takes. annetaan/leko-archive#141's table is the case: a
+// hole in the middle of the screen with 200px under it, and a footer that owns
+// 179 of them.
 
 const room = inset(rect(0, 0, 1280, 800), chromeInsets(1280, 800, [FOOTER]))
 
@@ -700,7 +701,8 @@ test('a side is chosen from the room, not the viewport', () => {
 })
 
 test('a taller message beside a lower row goes the same way', () => {
-  // #141's second row: the message would be 525..761, further into the footer.
+  // annetaan/leko-archive#141's second row: the message would be 525..761,
+  // further into the footer.
   const row = rect(560, 471, 160, 38)
   const note = { width: 320, height: 236 }
 

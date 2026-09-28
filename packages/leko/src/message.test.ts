@@ -158,8 +158,8 @@ test.runIf(anchors)('the message sits beside a target inside a shadow root', asy
 
 /**
  * A footer of the host's own, sticky above the scrim — the sandbox's, and the
- * page #141 was written against. 200px so the numbers below have room to be
- * unambiguous on whatever viewport the runner brings.
+ * page annetaan/leko-archive#141 was written against. 200px so the numbers
+ * below have room to be unambiguous on whatever viewport the runner brings.
  */
 const CHROME = 200
 const footer = () =>

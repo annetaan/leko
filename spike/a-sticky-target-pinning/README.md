@@ -49,8 +49,8 @@ at the draw, each marked against what held said:
   it pins. Three pixels short of the predicted offset the element still rides
   and two past it is held, in every engine, whether the reading was taken at
   rest or part of the way there. That is the destination
-  [#134](https://github.com/annetaan/leko/issues/134) was told to leave room
-  for.
+  [annetaan/leko-archive#134](https://github.com/annetaan/leko-archive/issues/134)
+  was told to leave room for.
 - **A layer can be glued to a scroller's scrollport**, which `position: fixed`
   cannot express. An absolutely positioned wrapper the size of the scroller's
   content, holding a `position: sticky` child at `top: 0; left: 0` the size of
@@ -164,8 +164,8 @@ every offset out from the layout it finds, so only the verdicts compare.
   sitting exactly on its inset is one pixel of scroll from pinning, and the
   inset test calls it pinned. Either answer is right at that offset and wrong
   on one side of it, which is the drift
-  [#135](https://github.com/annetaan/leko/issues/135) accepts by drawing one
-  state and naming it.
+  [annetaan/leko-archive#135](https://github.com/annetaan/leko-archive/issues/135)
+  accepts by drawing one state and naming it.
 - **`animation-timeline: scroll()`**, the zero-JS way to make the hole follow
   the whole piecewise-linear path rather than pick a state. It is a separate
   page if it is ever wanted, and the two-state answer here is cheap enough that

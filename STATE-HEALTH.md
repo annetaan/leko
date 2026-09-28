@@ -6,6 +6,9 @@ way there. Each is a pure `plan.ts` — a state, an event union, an effect union
 and one `reduce` — with a shell that makes the calls and decides nothing, and
 each has a Quint model beside it that a search walks.
 
+The reading was taken before the repository moved, so every issue and pull
+request number in it is annetaan/leko-archive's, not this repository's.
+
 This file is a **reading**, not a rule. [DESIGN.md](DESIGN.md) holds the rules
 and carries no history; the model READMEs under
 [`packages/machine/model/`](packages/machine/model/README.md) and
