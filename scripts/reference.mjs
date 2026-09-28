@@ -21,9 +21,13 @@ const EXPORT_BLOCK = /\bexport\s+(?:type\s+)?\{([^}]*)\}\s*from\b/g
 /**
  * A line comment or a block comment, taken out of the source before anything
  * else reads it. Left in, a comment beside a name makes a piece of the block
- * that `SPECIFIER` cannot read, and a `}` inside one ends the block early. A
- * module specifier with `//` in it would be cut too, and the entry point
- * imports none.
+ * that `SPECIFIER` cannot read, and a `}` inside one ends the block early.
+ *
+ * A `//` or a `/*` inside a string is cut as well, to the end of the line or
+ * the next `*\/`. The entry points import no module specifier with one in it.
+ * `consumed` reads the code, where the `xmlns="http://…"` of the SVG a hole is
+ * drawn from is one, and a `var()` after it on the same line would go unread
+ * without an error. None is there today; keep a `var()` off such a line.
  */
 const COMMENT = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g
 
@@ -35,12 +39,13 @@ const COMMENT = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g
 const SPECIFIER = /^(?:type\s+)?([\w$]+)(?:\s+as\s+([\w$]+))?$/
 
 /**
- * A custom property as a declaration: at the start of a line, before its colon.
- * Anchored to the line so a `var(--leko-z)` is a use and not a declaration, and
- * so a comment naming one in prose — which sits behind a ` * ` — is not one
- * either.
+ * The opening of a `var()` that reads a `--leko-` custom property, and the
+ * comma that starts its fallback when it has one. Where the fallback ends is
+ * the `)` that closes the `var()`, which a pattern cannot find: a fallback such
+ * as `min(320px, calc(100vw - 32px))` holds parentheses of its own, so
+ * `consumed` counts them.
  */
-const PROPERTY = /^\s*(--leko-[\w-]+)\s*:/gm
+const VAR = /\bvar\(\s*(--leko-[\w-]+)\s*(,?)/g
 
 /**
  * The inline code that opens a table row. Only the first cell, because the
@@ -85,9 +90,38 @@ export function exported(source) {
   return found
 }
 
-/** Every `--leko-` custom property the stylesheet declares. */
-export function properties(css) {
-  return new Set(Array.from(css.matchAll(PROPERTY), ([, name]) => name))
+/**
+ * Every `--leko-` custom property the source reads through `var()`, mapped to
+ * its fallback, or to `undefined` for a `var()` that has none. What the code
+ * reads is what a page can set, whether or not a stylesheet declares it.
+ *
+ * One property read with two different fallbacks throws: the default a page
+ * documents for it would be true of one read and not the other.
+ */
+export function consumed(source) {
+  const text = source.replaceAll(COMMENT, '')
+  const found = new Map()
+  for (const match of text.matchAll(VAR)) {
+    const [whole, name, comma] = match
+    let fallback
+    if (comma !== '') {
+      const start = match.index + whole.length
+      let depth = 0
+      let end = start
+      for (; end < text.length; end++) {
+        if (text[end] === '(') depth++
+        else if (text[end] === ')' && depth-- === 0) break
+      }
+      if (end === text.length) throw new Error(`Cannot find where var(${name}, …) ends.`)
+      fallback = text.slice(start, end).trim()
+    }
+    if (found.has(name) && found.get(name) !== fallback)
+      throw new Error(
+        `${name} is read with two fallbacks, \`${found.get(name)}\` and \`${fallback}\`.`,
+      )
+    found.set(name, fallback)
+  }
+  return found
 }
 
 /**

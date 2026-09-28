@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { compare, exported, named, properties } from './reference.mjs'
+import { compare, consumed, exported, named } from './reference.mjs'
 
 const KNOWN = {
   names: new Set(['createLeko', 'LekoStory', 'LekoStep']),
@@ -79,21 +79,56 @@ export * as types from '@annetaan/leko-types'`
   })
 })
 
-describe('properties', () => {
-  it('reads every --leko- declaration and nothing that only mentions one', () => {
-    const css = `:root {
-  /*
-   * How long a halo takes to fade.
-   * --leko-halo-fade: 0ms puts it back to a cut.
-   */
+describe('consumed', () => {
+  it('reads every --leko- property a var() reads, with its fallback', () => {
+    const source = `Object.assign(el.style, {
+  zIndex: 'var(--leko-z, 9999)',
+  background: 'var( --leko-scrim-color , rgb(0 0 0 / 0.45) )',
+})
+el.style.transition = 'opacity var(--leko-halo-fade, 160ms) ease-out'
+other.style.zIndex = 'var(--leko-z, 9999)'`
+    expect([...consumed(source)]).toEqual([
+      ['--leko-z', '9999'],
+      ['--leko-scrim-color', 'rgb(0 0 0 / 0.45)'],
+      ['--leko-halo-fade', '160ms'],
+    ])
+  })
+
+  it('reads a fallback with parentheses inside it whole', () => {
+    const source = `maxWidth: 'var(--leko-message-max-width, min(320px, calc(100vw - 32px)))',`
+    expect([...consumed(source)]).toEqual([
+      ['--leko-message-max-width', 'min(320px, calc(100vw - 32px))'],
+    ])
+  })
+
+  it('gives no fallback for a var() that has none', () => {
+    const source = `style.top = 'calc(10px - var(--leko-message-dock))'`
+    expect([...consumed(source)]).toEqual([['--leko-message-dock', undefined]])
+  })
+
+  it('throws on one property read with two different fallbacks', () => {
+    const source = `a: 'var(--leko-z, 9999)',
+b: 'var(--leko-z, 10000)',`
+    expect(() => consumed(source)).toThrow('--leko-z')
+  })
+
+  it('does not read a property a comment names', () => {
+    const source = `/*
+ * A page sets var(--leko-halo-outline, none) to draw a halo.
+ */
+// var(--leko-halo-shadow, none) paints nothing either
+const url = 'http://www.w3.org/2000/svg'
+outline: 'var(--leko-z, 9999)',`
+    expect([...consumed(source)]).toEqual([['--leko-z', '9999']])
+  })
+
+  it('does not read a declaration or a property outside var()', () => {
+    const source = `:root {
   --leko-z: 9999;
-  --leko-halo-fade: 160ms;
-  --other: 1px;
 }
-.leko-block {
-  z-index: var(--leko-z);
-}`
-    expect([...properties(css)]).toEqual(['--leko-z', '--leko-halo-fade'])
+const name = '--leko-halo-fade'
+style.setProperty('--leko-scrim-color', 'red')`
+    expect([...consumed(source)]).toEqual([])
   })
 })
 
