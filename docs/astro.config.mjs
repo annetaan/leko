@@ -42,6 +42,7 @@ export default defineConfig({
         {
           label: 'Leko Scroll',
           items: [
+            { label: 'Getting started', slug: 'scroll/getting-started' },
             {
               label: 'Reference',
               items: [

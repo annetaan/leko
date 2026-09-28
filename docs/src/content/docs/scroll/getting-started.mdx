@@ -1,0 +1,137 @@
+---
+title: Getting started with Leko Scroll
+description: From an empty Vite project to a long page that lights one target after another as the reader scrolls.
+---
+
+import PreReleaseInstall from '../../../components/PreReleaseInstall.astro'
+
+Leko Scroll lights a long page target by target as the reader scrolls. There is
+no story, no steps and nothing to click past: the light follows the scroll, and
+the page underneath stays usable the whole time. It is a product of its own
+rather than a kind of tour, and
+[A second product, not a second tour](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#a-second-product-not-a-second-tour)
+says how the two differ.
+
+This page starts from an empty Vite project and ends with a long page lit as
+you scroll it.
+
+You need git and Node 24.
+
+## Make an empty project
+
+```sh
+npm create vite@latest my-page -- --template vanilla-ts --no-interactive
+cd my-page
+npm install
+```
+
+If npm asks to install `create-vite`, answer `y`.
+
+## Install Leko
+
+<PreReleaseInstall project="my-page" />
+
+If you followed [Getting started](../../getting-started/) and made `my-page/`
+beside `my-tour/`, `leko-packages/` already holds the tarball, so the last two
+lines are all you need.
+
+## Light a long page
+
+Replace the template's `src/main.ts` with this:
+
+```ts
+// src/main.ts
+import { createScroll } from '@annetaan/leko/scroll'
+
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+  <section style="padding: 40vh 24px"><h1 id="welcome">Welcome</h1></section>
+  <section style="padding: 40vh 24px"><p id="features">Three features, side by side.</p></section>
+  <section style="padding: 40vh 24px"><p id="pricing">One plan, and it is free.</p></section>
+  <section style="padding: 40vh 24px; text-align: center"><button id="signup" type="button">Sign up</button></section>
+`
+
+document.querySelector<HTMLButtonElement>('#signup')!.addEventListener('click', (event) => {
+  ;(event.currentTarget as HTMLButtonElement).textContent = 'Signed up'
+})
+
+createScroll({
+  targets: [
+    { target: '#welcome' },
+    {
+      target: '#features',
+      message: { title: 'Features', body: 'Lit when its top reaches the middle of the screen.' },
+    },
+    { target: '#pricing' },
+    { target: '#signup', message: { body: 'The page under the light still works. Press it.' } },
+  ],
+  onChange: (index) => console.log('lit', index),
+})
+```
+
+`targets` is the order the light takes. A target with a `message` shows it beside
+the hole once the light has arrived. `onChange` is called with the index in
+`targets` of the target that is lit. Every option, with its default, is in
+[createScroll and options](../reference/create-scroll/).
+
+The new file leaves out the template's `import './style.css'`, so the page is
+unstyled for now. [Style it](#style-it) puts it back.
+
+## Run it
+
+```sh
+npm run dev
+```
+
+Open the address it prints and scroll down slowly.
+
+- At load the dark closes in on Welcome, and the console logs `lit 0`.
+- When the top of the features line passes the middle of the screen, the hole
+  slides down to it and the console logs `lit 1`. Its message fades in below it
+  once the hole has arrived, and not while the hole is moving.
+- Pricing is lit the same way, with `lit 2`, and shows no message because it
+  sets none.
+- Sign up's top never gets as far as the middle, because the page ends first.
+  It is lit anyway when you reach the foot, with `lit 3`, and its message
+  shows. [The line and the switch](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-line-and-the-switch)
+  says why a target near the foot is lit early.
+- Press Sign up under the light and it turns to Signed up. Nothing Leko Scroll
+  draws catches the pointer.
+- The page ends on Sign up, so there is no scrolling past the last target, and
+  the light stays on it at full strength.
+- Scroll back up and the targets are lit again in reverse, `lit 2`, `lit 1`,
+  `lit 0`.
+
+## Style it
+
+Leko Scroll needs no stylesheet, and everything it draws reads a custom
+property. Replace the template's `src/style.css` with this:
+
+```css
+/* src/style.css */
+:root {
+  --leko-scroll-scrim-color: rgb(3 12 22 / 0.6);
+  --leko-scroll-halo-outline: 2px solid gold;
+}
+```
+
+Then put `import './style.css'` back at the top of `src/main.ts`. The first
+property darkens the scrim, and the second draws a frame round the hole, which
+Leko Scroll paints only when a page asks for one. Every property is in
+[CSS custom properties](../reference/css-custom-properties/).
+
+## See it on a real page
+
+This site's [front page](../../) is lit by Leko Scroll, and its "One more thing"
+section shows the call that does it.
+[`examples/scroll/`](https://github.com/annetaan/leko/tree/main/examples/scroll)
+is one long page shaped like a landing page, with captions saying what each
+part shows. `pnpm dev:scroll` in a clone of the repository serves it.
+
+## Where to go next
+
+- [createScroll and options](../reference/create-scroll/) has every option, the
+  shape of a target and what `createScroll` hands back.
+- [CSS custom properties](../reference/css-custom-properties/) has every
+  property with its default.
+- [Leko Scroll's design](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#leko-scrolls-design)
+  gives the reason for each rule.

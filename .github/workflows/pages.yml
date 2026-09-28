@@ -19,13 +19,18 @@ name: Pages
 #          branches: [main]
 #        workflow_dispatch:
 #
-# 4. In docs/src/content/docs/getting-started.mdx, replace the Aside and the
-#    block under **Install Leko** with `npm install @annetaan/leko` and
-#    `npm install -D @annetaan/leko-codegen`, and drop "git and" from the
-#    opening's "You need git and Node 24.", since git was for the clone. In
-#    docs/src/pages/index.astro, put the install line back in the hero, right
-#    after its `.actions` div, with its two rules in the scoped <style> block
-#    (not <style is:global>):
+# 4. In docs/src/components/PreReleaseInstall.astro, drop the Aside and
+#    render only `npm install @annetaan/leko`, with
+#    `npm install -D @annetaan/leko-codegen` after it when `codegen` is set.
+#    In docs/src/content/docs/getting-started.mdx and
+#    docs/src/content/docs/scroll/getting-started.mdx, drop "git and" from
+#    the opening's "You need git and Node 24.", since git was for the clone,
+#    and from the Scroll page also delete the paragraph under **Install
+#    Leko** that ends "the last two lines are all you need", since there is
+#    no tarball left for it to mean.
+#    In docs/src/pages/index.astro, put the install line back in the hero,
+#    right after its `.actions` div, with its two rules in the scoped <style>
+#    block (not <style is:global>):
 #
 #      <code class="install">npm install @annetaan/leko</code>
 #
