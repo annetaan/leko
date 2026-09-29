@@ -29,7 +29,7 @@ that moves it on is the page reporting that the name was saved.
 
 <div data-tour-source>
 
-```ts
+```ts prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const button: HTMLButtonElement"
 const thisPage = {
   id: 'this-page',
   steps: [
@@ -73,7 +73,7 @@ leko.pickUp([desktopIntro, mobileIntro]) // once, as the page loads — it takes
 
 The Save button's handler is the page's own. It saves, and then says so.
 
-```ts
+```ts prelude="declare const save: HTMLButtonElement" prelude="declare const input: HTMLInputElement" prelude="declare const saved: HTMLElement"
 save.addEventListener('click', async () => {
   if (input.value.trim() === '') {
     saved.textContent = 'Type a name first.'

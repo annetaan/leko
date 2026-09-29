@@ -44,7 +44,7 @@ event — [Signals and awaits](../signals-and-awaits/).
 
 ### React
 
-```tsx
+```tsx prelude="import { useMutation } from '@tanstack/react-query'" prelude="type OrderForm = { name: string }" prelude="declare function saveOrder(values: OrderForm): Promise<void>"
 async function onSubmit(values: OrderForm) {
   await saveOrder(values)
   leko.reached('order-saved')
@@ -78,7 +78,7 @@ The page's own submit handler gains one line after its `await fetch(…)`.
 
 From a handler, `start` is one call:
 
-```tsx
+```tsx prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const welcome: LekoStory"
 <button onClick={() => leko.start(welcome)}>Take the tour</button>
 ```
 
@@ -86,7 +86,7 @@ In Vue it is the same call on `@click`.
 
 Once on mount, it goes in an effect:
 
-```tsx
+```tsx prelude="import { useEffect } from 'react'" prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const welcome: LekoStory" prelude="declare function seenWelcome(): boolean"
 useEffect(() => {
   if (!seenWelcome()) leko.start(welcome)
 }, [])
@@ -130,7 +130,7 @@ element (`const el = ref.current; () => el`) —
 
 A story reaches the ref through a function that builds it:
 
-```tsx
+```tsx prelude="import type { RefObject } from 'react'" prelude="import type { LekoStory } from '@annetaan/leko'"
 export const renameStory = (input: RefObject<HTMLInputElement | null>): LekoStory => ({
   id: 'rename',
   steps: [
@@ -141,7 +141,9 @@ export const renameStory = (input: RefObject<HTMLInputElement | null>): LekoStor
     },
   ],
 })
+```
 
+```tsx prelude="import type { RefObject } from 'react'" prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const renameStory: (input: RefObject<HTMLInputElement | null>) => LekoStory" prelude="declare const inputRef: RefObject<HTMLInputElement | null>"
 // in the component that owns the ref
 <button onClick={() => leko.start(renameStory(inputRef))}>Show me</button>
 ```
@@ -164,7 +166,7 @@ providers portals into it.
 
 ### React
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'"
 // src/tour.ts
 type CloseSlot = { root: HTMLElement; stop: () => void }
 let held: CloseSlot | null = null
@@ -191,7 +193,7 @@ export const leko = createLeko({
 })
 ```
 
-```tsx
+```tsx prelude="import { useSyncExternalStore } from 'react'" prelude="import { createPortal } from 'react-dom'" prelude="import { closeSlot } from './tour'"
 // src/TourClose.tsx
 export function TourClose() {
   const slot = useSyncExternalStore(closeSlot.subscribe, closeSlot.current, () => null)
@@ -211,7 +213,7 @@ Render `<TourClose />` once, inside the providers, beside `<App />`.
 
 ### Vue
 
-```ts
+```ts prelude="import { shallowRef } from 'vue'" prelude="import { createLeko } from '@annetaan/leko'"
 // src/tour.ts
 export const closeSlot = shallowRef<{ root: HTMLElement; stop: () => void } | null>(null)
 
@@ -281,7 +283,7 @@ What a step needs set up belongs in its `onEnter` and `onLeave`
 A flag that says a tour is running, or a progress readout, is fine, and
 `onStep` feeds it:
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'" prelude="declare function setTourRunning(running: boolean): void"
 createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
 ```
 

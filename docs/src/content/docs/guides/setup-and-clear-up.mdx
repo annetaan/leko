@@ -16,7 +16,7 @@ Put what every step of a story stands on in the story's `onEnter`, and what
 takes it away in the story's `onLeave`. Here a user with no project of their
 own is shown round a sample one.
 
-```ts
+```ts prelude="declare function showSampleProject(): void" prelude="declare function hideSampleProject(): void"
 // src/stories.ts
 import type { LekoStory } from '@annetaan/leko'
 
@@ -55,7 +55,7 @@ its `onLeave`. Here the postcode and the city are in a delivery section that
 starts closed. Two steps point into it in turn, and the step after them points
 at the Confirm button outside it.
 
-```ts
+```ts prelude="declare function openDelivery(): void" prelude="declare function closeDelivery(): void"
 import type { LekoStep } from '@annetaan/leko'
 
 const steps: LekoStep[] = [
@@ -103,7 +103,7 @@ some work has come back, such as rows loaded from the server, put a step before
 it that names no `target`, declares `awaits`, and starts the work in its own
 `onEnter`.
 
-```ts
+```ts prelude="declare function loadDraft(): Promise<void>"
 import type { LekoStep } from '@annetaan/leko'
 
 const steps: LekoStep[] = [
