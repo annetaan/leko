@@ -174,6 +174,20 @@ export const frame = (): Promise<void> =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 
 /**
+ * What a test waits for after a call that hands the tour a step, before it
+ * reads the page or changes it: the two frames a hand-over is drawn in —
+ * DESIGN.md, **A step is drawn on the next frame, not inside the call that
+ * moved the tour**.
+ *
+ * Two, not one, because a render the host's handler left behind can land after
+ * the first frame and not after the second — `spike/a-render-before-the-frame/`.
+ * Requested after the call, so each of these frames is registered after the
+ * tour's own, and the second runs after the draw. That is exactly enough, and
+ * no fewer frames will do.
+ */
+export const framed = (): Promise<void> => frame()
+
+/**
  * How often the two watchers below look at the page.
  *
  * A timer rather than an animation frame, deliberately. This suite runs in

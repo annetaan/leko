@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest'
 
-import type { Anchor, Fixture, Step, Story } from './fake.js'
+import type { Fixture, Step, Story } from './fake.js'
 import { Fake } from './fake.js'
 import { Machine } from './machine.js'
 import type { Problem } from './types.js'
@@ -159,10 +159,10 @@ class Recorder extends Fake {
   drawn: Step | undefined
   presenterUp = false
 
-  override show(step: Step, anchor: Anchor | null): void {
+  override show(step: Step): void {
     this.presenterUp = true
-    if (anchor !== null) this.drawn = step
-    super.show(step, anchor)
+    if (this.resolve(step) !== null) this.drawn = step
+    super.show(step)
   }
 
   override teardown(): void {

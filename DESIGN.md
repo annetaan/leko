@@ -75,7 +75,7 @@ make:
   next URL that matches after that. A signal fired before the step existed
   establishes nothing about the user, the same reasoning **Signal behavior**
   gives for not buffering one, and judging the arrival instead would advance
-  the machine from inside the call that is still drawing the step it would be
+  the machine from inside the call that is handing over the step it would be
   leaving — the reentrancy **One gate, and what it refuses** closes off for
   every other signal.
 - **Leko has no grammar for a URL.** `awaits: { url }` takes a `RegExp` and
@@ -372,8 +372,8 @@ Four limits are worth saying out loud rather than discovering.
   engines out.
 - **A match whose computed `opacity` is still `0` when the retry window runs
   out is not found.** The wait hears nodes coming and going and nothing else,
-  so a target fading in is seen only at the one look taken as the window
-  closes. A step whose target is still arriving belongs after the animation —
+  so a target fading in is seen only by a look: the one on the frame the step
+  is drawn in, and the one taken as the window closes. A step whose target is still arriving belongs after the animation —
   **The page is measured when a step is drawn, and not again**.
 - **A match scrolled out of a nested panel still passes
   `'in-viewport-first'`.** What is asked is the viewport, and a match inside a
@@ -487,7 +487,7 @@ reports the event via `reached()`.
 
 ## Target loss & recovery
 
-- **A target that is not on the page when its step arrives gets a 100ms grace period**, during which the target — selector or function — is resolved again on every mutation. The application is mid-render, and that is the whole of what the window is for: a step whose target renders a moment after its `onEnter` returned is drawn as though nothing had happened.
+- **A target that is not on the page when its step arrives gets a 100ms grace period**, during which the target — selector or function — is resolved again on every mutation. The application is mid-render, and that is the whole of what the window is for: a step whose target renders a moment after its `onEnter` returned is drawn as though nothing had happened. The grace counts from the frame the step would have been drawn in — **A step is drawn on the next frame, not inside the call that moved the tour**.
 - **And once more as the grace period runs out**, before the tour is given up.
   A mutation is not the only way a target turns up: a style can give it back
   the box it needs to be found at all, a framework can render it inside a
@@ -498,8 +498,8 @@ reports the event via `reached()`.
 - **An element with no box is not found when the target is resolved**, so a
   step arriving at a hidden target is a step whose target is not there: it
   waits its 100ms and ends the same way. That is resolution answering, and
-  resolution runs on an arrival, on a retry tick and on a landing — always
-  before the step is drawn.
+  resolution runs on the frame after a hand-over, on an arrival, on a retry
+  tick and on a landing — always before the step is drawn.
 - **Whether the target is still there stops being watched once the step is
   drawn** — `validate` still asks on a press, and a target gone by then ends
   the tour here with no window at all. The rule is stated in one place, under
@@ -515,14 +515,15 @@ its clear-up at the same level instead of splitting across two.
 - **Entry runs outermost first, and the ending mirrors it, innermost first:**
 
   ```text
-  story onEnter → step onEnter → resolve the target → show → onStep
+  story onEnter → step onEnter → show → onStep → the next frames: resolve the target → draw
   ```
 
   The report goes last because a progress readout hearing about a step whose
-  `onEnter` still runs is naming something the user cannot see. The whole of it
-  happens inside the call that moved the tour. `show` hands the step over and
-  returns, so a step that glides into view or waits a moment for its target is
-  reported before it is on screen, and drawn after the call.
+  `onEnter` still runs is naming something the user cannot see. Everything up
+  to it happens inside the call that moved the tour. `show` hands the step over
+  and returns, so every step is reported before it is on screen, and drawn two
+  frames after the call — **A step is drawn on the next frame, not inside the
+  call that moved the tour**.
 - **The story's `onLeave` runs when the run ends, after the last step's.**
   Clear-up put on the first step's `onLeave` instead fires the moment the tour
   reaches step 2, with the rest of the story still standing on what it took
@@ -670,6 +671,55 @@ is not something Leko knows.
   target that went is the one standing there is nothing to put back, and a
   step drawn into layers sized for the page as it was would leave the part the
   page grew by neither dimmed nor blocked until the next resize.
+
+## A step is drawn on the next frame, not inside the call that moved the tour
+
+A handler that updates the application and reports what happened —
+`setState(next); leko.reached('saved')` — leaves the update behind it. React
+inside its own handlers, Vue, Svelte, Preact and Lit apply it in a microtask
+after the handler returns, and React outside its own handlers renders it in a
+task of its own. A step measured inside the call is cut around where its target
+was before the update, and nothing measures it again: **The page is measured
+when a step is drawn, and not again**. So **a step the machine hands over is
+looked for, scrolled to, measured and drawn in a frame callback, never inside
+the call.** Which order the host writes the two lines in makes no difference.
+
+- **Two frames, not one.** The frame the step is drawn in is requested from
+  inside the callback of the frame after the call. A microtask always lands
+  before the first; a render posted as a task lands after the first now and
+  then in every engine measured, and never after the second —
+  [`spike/a-render-before-the-frame/`](spike/a-render-before-the-frame/).
+- **It costs the viewer a frame.** A draw made inside the call is not painted
+  before the next frame either, so the step appears one frame later than it
+  used to, and the morph starts from there.
+- **The frame is the first look for the target.** Found, the arrival goes on,
+  starting with the scroll question. Not found, and the step points at
+  something, the grace in **Target loss & recovery** begins there, with its
+  hunt. A step that points at nothing is drawn. A target the same update
+  creates is found by that look, so nothing is hunted for it.
+- **Nothing new is drawn while a step waits for its frame**, which is a
+  retry's kind of wait (**Nothing is drawn for a retry**): what was on screen
+  stands, a resize puts the standing holes back and says nothing, and another
+  hand-over or a teardown stops the frame, so a step overtaken before it is
+  never looked for. **The words of the step being left go at the call**, as
+  they do for a glide. The message lets a press through once a frame has gone
+  by, so a next control still showing on the second frame would take a press
+  to a step the viewer has not seen.
+- **Nothing else waits a frame.** A hunt's find, a deadline's, a glide's
+  landing and a resize are drawn where they are heard: none of them is a call
+  into the application with an update behind it.
+- **A tab in the background gives no frame**, so a step handed over there is
+  drawn when the tab is looked at, as a morph already is.
+- **Not a promise, not a read on scroll, and the machine is untouched.** The
+  frames are Leko's own and bounded, where a handler's promise is neither — **A
+  step that waits** argues that one. The target is read once, as before, only
+  later. The machine still takes a step as shown the moment `show` returns, so
+  the gate and the order `onStep` reports in stand, and the host is asked for
+  nothing: no `flushSync`, no `nextTick`.
+- **An update a framework puts off on purpose is not caught.** A transition
+  React defers, or a Suspense boundary resolving, lands after any bounded
+  count of frames. A step whose target settles then belongs after it, which is
+  a step with `awaits`.
 
 ## One gate, and what it refuses
 
@@ -840,8 +890,10 @@ application is free to drive the real elements while a step is showing.**
   after five seconds has established nothing about whether the user did
   anything.
 - **The page is measured when a step is drawn, and not again.** A hole is cut
-  where the target was at the draw, the morph carries it there, and nothing
-  measures the target after that: not a target that moves, not one hidden where
+  where the target was at the draw — two frames after the call that moved the
+  tour, **A step is drawn on the next frame, not inside the call that moved the
+  tour** — the morph carries it there, and nothing measures the target after
+  that: not a target that moves, not one hidden where
   it stands, not one whose box changes size, not one taken out of the document,
   not one a re-render replaced. A scroll is the exception and it
   costs nothing — the scrim lives inside whatever scrolls the target, so the
@@ -1213,8 +1265,8 @@ tour is for.
   a panel is set or glided as the design prefers; and a glide is cancelled by
   cancelling its frame.
 - **A port that needs no scroll is never waited on.** The delta decides, and a
-  delta of zero means the step is drawn in the same task the arrival came in
-  on. So does a destination that clamps to where the page already is — a
+  delta of zero means the step is drawn in the frame the arrival was measured
+  in. So does a destination that clamps to where the page already is — a
   target hanging off an edge the page is already against — because there is
   nothing to glide to.
 - **The destination is clamped once, before the first frame**, to the range
@@ -1426,8 +1478,9 @@ tour is for.
   already holds the cutout is not touched**. The arithmetic is `stickySlack`'s
   and is already written down, so this stays cheap to add if it is ever wanted.
 - **Only an arrival scrolls.** The call sits in `arrive` in `presenter.ts`,
-  which `show` is, between the target resolving and anything being measured,
-  and what it answered goes into the `show` event as a fact. Every redraw goes
+  which the frame after a hand-over and a hunt's find go through, between the target
+  resolving and anything being measured, and what it answered goes into the
+  `arrived` event as a fact. Every redraw goes
   through `reveal` instead — a resize, a framework rendering over the step —
   and by then the viewer may have moved the page on purpose, so none of them
   scrolls again.
@@ -1697,11 +1750,11 @@ fails on.
 - **Where a class has to wait on more than one thing, its mode is one union
   and a pure function says what an event does to it.** The machine is
   `plan.ts` and `machine.ts`; the presenter is `plan.ts` and `presenter.ts` in
-  `packages/presenter`, the same split. The presenter waits on a glide, a morph
-  and a retry deadline and listens to an observer and `resize`, and which of those
+  `packages/presenter`, the same split. The presenter waits on a glide, a morph,
+  a retry deadline and the frame a step is drawn in, and listens to an observer and `resize`, and which of those
   is running used to be four nullable fields read together, with the rules
   about their combinations written as prose that nothing checked. One field of
-  four variants, each carrying what belongs to it, spells only the states the
+  five variants, each carrying what belongs to it, spells only the states the
   prose allowed, and the transitions — where every recent presenter bug had
   been — are tested in Node one `(mode, event)` pair at a time. What the page
   says goes into the event as data; the shell reads the page and never decides
@@ -1743,8 +1796,9 @@ places.** Four kinds usually are not:
 - **What was tried and broke.** Code keeps no trace of the version before it,
   so the reason not to go back is nowhere else at all.
 - **A number's reason.** `RETRY` is about six frames because `onEnter` returns
-  synchronously and a framework paints at least a frame after that. Without it
-  the constant is a hundred with no argument behind it.
+  synchronously and a render begun by then paints within a frame or so of the
+  one the step would have been drawn in. Without it the constant is a hundred
+  with no argument behind it.
 - **An invariant the types cannot spell**, and only where they cannot.
 
 Everything else goes one of two ways. A fact the code, the types or the names

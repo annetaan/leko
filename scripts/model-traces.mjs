@@ -52,16 +52,13 @@ const CORPORA = [
     // entrances the review of the first plan found unenumerated, and the two
     // last lines of defence.
     harvest: [
-      { name: 'settled-stale', target: 'settledStale', seed: '0x1' },
+      // A seed whose stale landing is a glide a hand-over abandoned, which is
+      // what claim 2 of the model's README counts; `0x1` lands one that had
+      // already landed.
+      { name: 'settled-stale', target: 'settledStale', seed: '0x2' },
       { name: 'expired-stale', target: 'expiredStale', seed: '0x2' },
       { name: 'resized-in-glide', target: 'resizedInGlide', seed: '0x3' },
       { name: 'show-over-glide', target: 'showOverGlide', seed: '0x4' },
-      // The one above narrowed to a `show` that itself glides, so two glides
-      // are alive at once. `plan.qnt` says beside `glideOverGlide` why the
-      // wider target is not enough: its seed landed on `show-retry`, and the
-      // state where the mode's glide and the glides still running can disagree
-      // was never reached.
-      { name: 'glide-over-glide', target: 'glideOverGlide', seed: '0x10' },
       { name: 'glide-from-retry', target: 'glideFromRetry', seed: '0x5' },
       // The one above with a step standing behind the glide. `plan.qnt` says
       // beside `glideOverStanding` why the two are separate traces.
@@ -82,6 +79,13 @@ const CORPORA = [
       // A resize whose target has gone, which refits the layers standing
       // rather than cutting the holes again.
       { name: 'resized-gone', target: 'resolvedRefit', seed: '0x13' },
+      // The frame after a hand-over, each way it can go, and what can land on
+      // a step waiting for one.
+      { name: 'framed-arrive', target: 'framedArrive', seed: '0x14' },
+      { name: 'framed-retry', target: 'framedRetry', seed: '0x15' },
+      { name: 'glide-from-deferred', target: 'glideFromDeferred', seed: '0x16' },
+      { name: 'resized-in-deferred', target: 'resizedInDeferred', seed: '0x17' },
+      { name: 'show-over-deferred', target: 'showOverDeferred', seed: '0x18' },
     ],
   },
 ]

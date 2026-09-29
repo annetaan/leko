@@ -457,8 +457,9 @@ export interface LekoTargetedStep extends LekoStepBase {
    *
    * **A match whose computed `opacity` is still `0` when the wait runs out is
    * not found.** The wait hears nodes coming and going and nothing else, so a
-   * target fading in is seen at the one look taken as the wait ends, and only
-   * if the fade has begun by then.
+   * target fading in is seen only by a look — the one on the frame the step is
+   * drawn in, and the one taken as the wait ends — and only if the fade has
+   * begun by then.
    *
    * Nothing that passes is nothing found, and that is the ordinary missing
    * target: the step waits its moment, resolving again, and ends the tour if

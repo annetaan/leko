@@ -41,7 +41,7 @@ question with an answer rather than a feeling.
 | --------- | ------------------------------------ | ----------------------------------------------- |
 | Pure core | `packages/machine/src/plan.ts`       | `packages/presenter/src/plan.ts`                |
 | Shell     | `packages/machine/src/machine.ts`    | `packages/presenter/src/presenter.ts`           |
-| State     | `Core` — `position` and `phase`      | `Mode` — `idle`, `drawn`, `retrying`, `gliding` |
+| State     | `Core` — `position` and `phase`      | `Mode` — `idle`, `drawn`, `retrying`, `deferred`, `gliding` |
 | Model     | `packages/machine/model/machine.qnt` | `packages/presenter/model/plan.qnt`             |
 | Extracted | 2026-08-26 (#88)                     | 2026-09-04 (#152)                               |
 
@@ -93,9 +93,9 @@ them moves when something goes wrong.
 | How re-entry is made safe                           | identity guards          | effect order                 |
 | **What the search can see**                         |                          |                              |
 | Invariants                                          | 2                        | 7                            |
-| Witnesses                                           | 14                       | 39                           |
+| Witnesses                                           | 14                       | 46                           |
 | Branches of `reduce` with no witness                | not per-branch           | 1                            |
-| Traces in the corpus                                | 12                       | 18                           |
+| Traces in the corpus                                | 12                       | 22                           |
 | Model mutants caught                                | —                        | 5 of 6                       |
 | Code mutants caught by the hand-written suite alone | 3 of 7                   | 10 of 12                     |
 | Code mutants caught by a replayed trace alone       | 7 of 7                   | 10 of 12                     |
@@ -139,8 +139,8 @@ presenter has to be corrected is not the finding; it is simply doing more.
 ## Grip: this is where the two differ, and it is not the plan's fault
 
 The machine's shell is a third of its pair and holds five branches. Its effect
-`switch` makes calls and nothing else, except in one place: `draw` resolves the
-anchor and answers `lost` where there is none. That is the one decision in
+`switch` makes calls and nothing else, except in one place: `validate` resolves
+the anchor and answers `lost` where there is none. That is the one decision in
 `machine.ts`, and `plan.ts` argues it — pulling it apart would mean an anchor
 travelling back through the plan, and an anchor is resolved, used and dropped.
 
@@ -185,7 +185,7 @@ The presenter has three, and they are not interchangeable:
 | told apart by   | on which event                     | why it is not the others                                              |
 | --------------- | ---------------------------------- | --------------------------------------------------------------------- |
 | the step object | `morphed`, `mutated`, `unmeasured` | a batch or a morph landing about the step before                      |
-| `Pending`       | `expired`                          | a deadline set for a wait that has ended                              |
+| `Pending`       | `expired`                          | a clock set for a wait that has ended                                 |
 | `Glide`         | `settled`                          | a reason told mid-glide replaced the record and left the wait running |
 
 Three is the honest cost of a core that has two kinds of wait in it. It is not
@@ -208,7 +208,7 @@ caught by the `stillAt` asks. A late report cannot do damage because every
 event that can land late carries the position it was planned at.
 
 The presenter has three — `reveal` reports `unmeasured` or `morphed` from
-inside itself, `arrive` is a `show`, `lost` is a teardown from inside the
+inside itself, `arrive` is an `arrived`, `lost` is a teardown from inside the
 machine's call — and it has no `next`. Its safety is a rule about **the order
 of a list**: a re-entrant effect is the last of its outcome, because anything
 after one would run against a mode a nested dispatch has already replaced.
@@ -231,7 +231,7 @@ Both models run in CI under `pnpm model`, both have their invariants and
 witnesses read out of the model rather than listed in the script, and both have
 a corpus replayed against the real `reduce`. On the parts that can be compared,
 the presenter's model is the better instrumented of the two: seven invariants to
-two, thirty-nine witnesses to fourteen, eighteen traces to twelve.
+two, forty-six witnesses to fourteen, twenty-two traces to twelve.
 
 Three gaps are worth naming.
 

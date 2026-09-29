@@ -114,7 +114,7 @@ DESIGN.md. Do not do any of them without reading that page first.
   reports**.
 - **Judging a URL-waiting step's arrival the moment it is drawn, instead of
   only on the next change.** A step already at a matching URL when it appears
-  would advance from inside the very call that is still drawing it — the
+  would advance from inside the very call that is handing it over — the
   reentrancy every other signal is barred from. DESIGN.md argues it under **A
   URL is a signal the page reports**.
 - **Carrying more than a story id across a page load.** A step index, a
@@ -155,7 +155,7 @@ The three types a host brings are one parameter, `W extends World`. A signature
 names one type, never three.
 
 The presenter is split the same way. `packages/presenter/src/plan.ts` is the
-mode the presenter is in — one union, `idle`, `drawn`, `retrying` or `gliding`,
+mode the presenter is in — one union, `idle`, `drawn`, `retrying`, `deferred` or `gliding`,
 each variant carrying what belongs to it — and what an event does to it, as the
 next mode and a list of effects. It is pure and its tests run in Node. `presenter.ts`
 resolves targets, measures, builds the chrome and is a `switch` over the

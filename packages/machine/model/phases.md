@@ -131,9 +131,7 @@ flowchart TD
   H --> I{"still on this position?"}
   I -- "no. stop(), or a fresh start()" --> X["dropped"]
   I -- "yes" --> J["phase: ready"]
-  J --> K["presenter.resolve(step)"]
-  K -- "null" --> L["the presenter decides.<br>Wait, or Host.lost, which ends the run"]
-  K -- "an anchor" --> M["presenter.show(...)"]
+  J --> M["presenter.show(step, animate)<br>the presenter looks for the target, and decides:<br>draw, wait, or Host.lost, which ends the run"]
   M --> P["onStep(step, story)"]
 
   classDef open stroke:#0E9E86,stroke-width:2.5px

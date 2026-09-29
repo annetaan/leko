@@ -80,13 +80,13 @@ export const arrivedAt = (pattern: RegExp, url: string): boolean =>
 
 /**
  * What the machine does to the world, as data. **Nothing in this file makes a
- * call.** `draw` and `validate` are more than one call apiece, because pulling
- * them apart would mean an anchor travelling back through here, and an anchor is
- * resolved, used and dropped.
+ * call.** `validate` is more than one call, because pulling it apart would mean
+ * an anchor travelling back through here, and an anchor is resolved, used and
+ * dropped.
  */
 export type Effect<W extends World> =
   | { kind: 'teardown' }
-  /** `resolve` then `show`. Answers with nothing, or `lost` where there is no anchor. */
+  /** `show`. Answers with nothing, or `lost` from the presenter once it has given up on the target. */
   | { kind: 'draw'; step: Step<W>; animate: boolean }
   /** The guard said no and the step had words for it. */
   | { kind: 'retell'; step: Step<W>; reason: string }

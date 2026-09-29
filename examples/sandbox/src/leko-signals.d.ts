@@ -7,9 +7,11 @@ declare module '@annetaan/leko' {
   interface LekoSignals {
     'address-loaded': true
     'changes-saved': true
+    'density-changed': true
     'diagram-node-chosen': true
     'draft-loaded': true
     'export-finished': true
+    'layout-saved': true
     'lines-checked': true
     'order-placed': true
     'order-sent': true

@@ -84,13 +84,13 @@ export interface Drawn {
  * A step on its way, and how it is to be drawn when it gets there.
  *
  * One object per wait, made where the wait begins and by nothing else until it
- * ends. **Its identity is the wait**: the deadline set for it names it, and one
- * that fires late is told from the wait running by comparing the two, the way
- * `Position` tells a late callback apart in the machine. That comparison is
- * what makes a late deadline harmless rather than merely unlikely.
+ * ends. **Its identity is the wait**: the clock set for it names it, and one
+ * that runs out late is told from the wait running by comparing the two, the
+ * way `Position` tells a late callback apart in the machine. That comparison is
+ * what makes a late clock harmless rather than merely unlikely.
  *
- * The timer handle itself is the shell's and the glide is the mode's, which is
- * the rule CLAUDE.md states under **Writing code here**.
+ * The timer or frame handle itself is the shell's and the glide is the mode's,
+ * which is the rule CLAUDE.md states under **Writing code here**.
  */
 export interface Pending {
   readonly step: LekoStep
@@ -98,13 +98,17 @@ export interface Pending {
 }
 
 /**
- * Where the presenter is, as one value. Four modes, each carrying what belongs
+ * Where the presenter is, as one value. Five modes, each carrying what belongs
  * to it and nothing else.
  *
  * - `idle` — nothing drawn and nothing armed. Before the first step, and after
  *   a teardown.
  * - `drawn` — a step on screen and nothing armed at all. Past the draw the
  *   page belongs to the application again.
+ * - `deferred` — a step the machine has handed over, waiting for the frame it
+ *   is looked for and drawn in: that frame armed and nothing else. What is on
+ *   screen is `standing`, without its words. DESIGN.md, **A step is drawn on
+ *   the next frame, not inside the call that moved the tour**.
  * - `retrying` — a target that is not on the page, given a moment to turn up:
  *   the deadline running and the watcher hunting. What is on screen is
  *   `standing`, whatever was there, untouched. DESIGN.md, **Nothing is drawn
@@ -114,7 +118,7 @@ export interface Pending {
  *   on screen is `standing`, the step being left. DESIGN.md, **Nothing is
  *   drawn for the gap**.
  *
- * `standing` is on both modes that have a step on its way, and it is the step
+ * `standing` is on every mode that has a step on its way, and it is the step
  * the screen still shows, reason and all: a resize puts its holes back, and a
  * glide begun from a retry inherits it. It is `undefined` where nothing was on
  * screen when the wait began.
@@ -123,7 +127,7 @@ export interface Pending {
  * says a step is pending, nothing but a hunt is ever armed, only one retry ever
  * runs — are the shape of this type. Four nullable fields read together
  * admitted every combination, including the ones those sentences forbade; a
- * union admits these four.
+ * union admits these five.
  *
  * `error` is on every mode that has a step: the reason the last attempt was
  * told, held wherever the step is so that a redraw puts it back and a landing
@@ -156,6 +160,12 @@ export type Mode =
       readonly standing: Drawn | undefined
     }
   | {
+      readonly kind: 'deferred'
+      readonly pending: Pending
+      readonly error: string | undefined
+      readonly standing: Drawn | undefined
+    }
+  | {
       readonly kind: 'gliding'
       readonly glide: Glide
       readonly pending: Pending
@@ -177,24 +187,29 @@ export const idle: Mode = { kind: 'idle' }
 export type Event =
   // --- what the machine calls
   /**
-   * An arrival. `glide` is what `bringIntoView` answered, started by the shell
-   * before this was dispatched because only the shell can ask; it is set only
-   * beside an anchor, on a step that scrolls, where a port had somewhere to go.
-   * `error` is what the attempt has already been told: nothing from the
-   * machine, and the reason a guard gave while a retry was hunting where the
-   * retry found its target.
+   * The machine handing a step over. Nothing is looked for here: the step is
+   * looked for on the frame it is drawn in, and `expired` is that frame.
+   */
+  | { kind: 'show'; step: LekoStep; animate: boolean }
+  | { kind: 'retell'; step: LekoStep; reason: string }
+  | { kind: 'teardown' }
+  // --- what the page answers
+  /**
+   * An arrival at a target that is on the page. `glide` is what
+   * `bringIntoView` answered, started by the shell before this was dispatched
+   * because only the shell can ask; it is set only on a step that scrolls,
+   * where a port had somewhere to go. `error` is what the attempt has already
+   * been told: nothing from a hand-over, and the reason a guard gave while a
+   * retry was hunting where the retry found its target.
    */
   | {
-      kind: 'show'
+      kind: 'arrived'
       step: LekoStep
-      anchor: Element | null
+      anchor: Element
       animate: boolean
       glide: Glide | undefined
       error: string | undefined
     }
-  | { kind: 'retell'; step: LekoStep; reason: string }
-  | { kind: 'teardown' }
-  // --- what the page answers
   /** A glide stopped, and `anchor` is the target resolved again where it stopped. */
   | { kind: 'settled'; glide: Glide; anchor: Element | null }
   /** The morph that drew `step` got to the end. */
@@ -212,8 +227,9 @@ export type Event =
    */
   | { kind: 'unmeasured'; step: LekoStep; animate: boolean }
   /**
-   * A retry's deadline ran out. `pending` names the wait it was set for, and
-   * `found` is what resolving that step one last time turned up.
+   * The clock the mode armed ran out — the frame a hand-over waits for, or a
+   * retry's deadline. `pending` names the wait it was set for, and `found` is
+   * what resolving that step then turned up.
    */
   | { kind: 'expired'; pending: Pending; found: Element | null }
   | { kind: 'resized' }
@@ -241,9 +257,11 @@ export type Effect =
   | { kind: 'disarm' }
   /** Watch the page for `step`'s target turning up. */
   | { kind: 'hunt'; step: LekoStep }
-  /** Start the clock on a wait. */
+  /** Start the clock on a retry. */
   | { kind: 'deadline'; pending: Pending }
-  /** The clock stops. */
+  /** Arm the frame this hand-over is looked for and drawn in. */
+  | { kind: 'defer'; pending: Pending }
+  /** Whichever clock runs stops. */
   | { kind: 'cancel' }
   /**
    * Cut the holes again where the surface moved under them, around the target
@@ -274,7 +292,7 @@ export type Effect =
 /**
  * The four that answer the plan from inside the shell: `reveal` reports
  * `unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
- * `arrive` is a `show`, and `lost` is a teardown from inside the machine's
+ * `arrive` is an `arrived`, and `lost` is a teardown from inside the machine's
  * call. Each dispatches while the shell is still working through the outcome
  * that owed it, so an outcome holds at most one, in {@link Outcome.last}, and
  * `effects` cannot hold any: three of them replace the mode, and anything
@@ -289,7 +307,7 @@ export type Reentrant =
    * answer, and only the page can give it.
    */
   | { kind: 'replace'; drawn: Drawn; saying: boolean }
-  /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
+  /** `pending`'s target was found: a fresh arrival at it, through `arrived`. */
   | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
   /** `Host.lost`, whose own doc says what it is the only part of. */
   | { kind: 'lost'; step: LekoStep }
@@ -315,13 +333,14 @@ const nothing = (mode: Mode): Outcome => ({ mode, effects: [] })
  * Whatever `mode` has running that a fresh arrival or a teardown has to stop.
  *
  * A glide, because one nobody is waiting for must not go on carrying the page
- * to somewhere the tour no longer is, and a retry's deadline, because one left
- * to fire would be a call into the shell for a wait that is over. A retry's
- * watcher is not here: whatever comes next arms one for itself or disarms it.
+ * to somewhere the tour no longer is, and a clock — a retry's deadline or a
+ * hand-over's frame — because one left to run out would be a call into the
+ * shell for a wait that is over. A retry's watcher is not here: whatever comes
+ * next arms one for itself or disarms it.
  */
 const leaving = (mode: Mode): Effect[] => {
   if (mode.kind === 'gliding') return [{ kind: 'abandon', glide: mode.glide }]
-  if (mode.kind === 'retrying') return [{ kind: 'cancel' }]
+  if (mode.kind === 'retrying' || mode.kind === 'deferred') return [{ kind: 'cancel' }]
   return []
 }
 
@@ -393,28 +412,21 @@ export function reduce(mode: Mode, event: Event): Outcome {
     // --- what the machine calls
 
     case 'show': {
-      const { step, anchor, animate, glide, error } = event
-      // Whatever was being waited for, the tour is somewhere else now. A glide
-      // is stopped where it is rather than left to run, so a page on its way
-      // to a step the tour has left does not carry on under this one; a target
-      // that turns up late for a retry finds nobody hunting.
-      const before = leaving(mode)
-      const pending: Pending = { step, animate }
-      // Named a target and it is not on the page yet. A step that named nothing
-      // is not looked for. DESIGN.md, **A target that is not on the page when
-      // its step arrives gets a 100ms grace period**.
-      if (!anchor && pointsAt(step)) return retrying(pending, error, standingIn(mode), before)
-      // The page is moving, so the words go and nothing is armed: DESIGN.md,
-      // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed
-      // for it either, and a reason waits with the step**, which is the hunt a
-      // glide entered over a retry would otherwise leave running.
-      if (glide) {
-        return {
-          mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
-          effects: [...before, { kind: 'hide' }, { kind: 'disarm' }],
-        }
+      // Whatever the step points at, it is looked for and drawn on the frame:
+      // DESIGN.md, **A step is drawn on the next frame, not inside the call
+      // that moved the tour**. What is standing stays, but its words go now,
+      // so a press on the step being left cannot reach one nobody has seen.
+      // The `disarm` takes off a hunt a retry left behind.
+      const pending: Pending = { step: event.step, animate: event.animate }
+      return {
+        mode: { kind: 'deferred', pending, error: undefined, standing: standingIn(mode) },
+        effects: [
+          ...leaving(mode),
+          { kind: 'hide' },
+          { kind: 'disarm' },
+          { kind: 'defer', pending },
+        ],
       }
-      return revealing({ step, error }, anchor, animate, before)
     }
 
     case 'retell': {
@@ -441,6 +453,25 @@ export function reduce(mode: Mode, event: Event): Outcome {
       return { mode: idle, effects: [...leaving(mode), { kind: 'disarm' }, { kind: 'destroy' }] }
 
     // --- what the page answers
+
+    case 'arrived': {
+      const { step, anchor, animate, glide, error } = event
+      // This ends the wait that led here, the frame's or the retry's, so its
+      // clock stops. A glide the tour has left was stopped by `show`.
+      const before = leaving(mode)
+      // The page is moving, so the words go and nothing is armed: DESIGN.md,
+      // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed
+      // for it either, and a reason waits with the step**, which is the hunt a
+      // glide entered over a retry would otherwise leave running.
+      if (glide) {
+        const pending: Pending = { step, animate }
+        return {
+          mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
+          effects: [...before, { kind: 'hide' }, { kind: 'disarm' }],
+        }
+      }
+      return revealing({ step, error }, anchor, animate, before)
+    }
 
     case 'settled': {
       // Another arrival has been and gone, and it is drawing its own step. The
@@ -476,9 +507,9 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // Named rather than read off the mode, so a batch about the step before
       // is told apart from one about the step being waited for.
       if (mode.pending.step !== event.step || !event.found) return nothing(mode)
-      // Found, and a fresh arrival: it goes through `show`, because the scroll
-      // happens on the attempt that finds the target and only the shell can
-      // start one. What the wait was told goes with it.
+      // Found, and a fresh arrival: it goes through `arrived`, because the
+      // scroll happens on the attempt that finds the target and only the shell
+      // can start one. What the wait was told goes with it.
       return {
         mode,
         effects: [],
@@ -494,27 +525,44 @@ export function reduce(mode: Mode, event: Event): Outcome {
       return retrying({ step: mode.step, animate: event.animate }, mode.error, undefined, [], true)
 
     case 'expired': {
-      // The one it was set for, and no other: a deadline left over from a wait
+      // The one it was set for, and no other: a clock left over from a wait
       // that ended is answered with nothing, however long ago it was set.
-      if (mode.kind !== 'retrying' || mode.pending !== event.pending) return nothing(mode)
+      if (mode.kind !== 'retrying' && mode.kind !== 'deferred') return nothing(mode)
+      if (mode.pending !== event.pending) return nothing(mode)
+      const { pending, error } = mode
+      if (mode.kind === 'deferred') {
+        // The frame's look. A step that named nothing is not looked for.
+        if (!pointsAt(pending.step)) {
+          return revealing({ step: pending.step, error }, null, pending.animate, [])
+        }
+        // Found: a fresh arrival, through `arrived` for the reason a hunt's
+        // find goes through it.
+        if (event.found) {
+          return {
+            mode,
+            effects: [],
+            last: { kind: 'arrive', pending, anchor: event.found, error },
+          }
+        }
+        // Named a target and it is not on the page yet, and the grace starts
+        // here. DESIGN.md, **A target that is not on the page when its step
+        // arrives gets a 100ms grace period**.
+        return retrying(pending, error, mode.standing, [])
+      }
       // **Asked once more before giving up** — DESIGN.md, **And once more as
       // the grace period runs out**. Found, it is the fresh arrival a hunt's
-      // own find is, through `show` for the reason that one goes through it.
+      // own find is, through `arrived` for the reason that one goes through it.
       // Except for the one wait resolving cannot end, which is given up however
       // it answers: `unmeasured` on the mode says why.
       if (event.found && !mode.unmeasured) {
-        return {
-          mode,
-          effects: [],
-          last: { kind: 'arrive', pending: mode.pending, anchor: event.found, error: mode.error },
-        }
+        return { mode, effects: [], last: { kind: 'arrive', pending, anchor: event.found, error } }
       }
       // Over before the call is made. `lost` ends the run, and the teardown it
       // brings arrives from inside the call and finds nothing pending.
       return {
         mode: idle,
         effects: [{ kind: 'disarm' }],
-        last: { kind: 'lost', step: mode.pending.step },
+        last: { kind: 'lost', step: pending.step },
       }
     }
 
@@ -531,9 +579,9 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // back with the way out all the same — a resize can take away the corner
       // that control is standing in, and a page blocked with no way out of it
       // is what it exists to prevent. Putting back what was drawn is not
-      // drawing. Both waits reach here: DESIGN.md, **Nothing is armed for it
+      // drawing. Every wait reaches here: DESIGN.md, **Nothing is armed for it
       // either, and a reason waits with the step** for a glide, and DESIGN.md's
-      // **Nothing is drawn for a retry** for a retry.
+      // **Nothing is drawn for a retry** for a retry and for a frame.
       if (mode.kind === 'idle' || !mode.standing) return nothing(mode)
       return { mode, effects: [], last: { kind: 'replace', drawn: mode.standing, saying: false } }
     }

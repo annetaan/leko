@@ -1,6 +1,6 @@
 {
-  "target": "expiredLost",
-  "seed": "0x9",
+  "target": "framedArrive",
+  "seed": "0x14",
   "world": {
     "#map": [
       [
@@ -187,7 +187,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["resized-nothing"],
+        "marks": ["retell-idle"],
         "messageUp": false,
         "mode": {
           "tag": "Idle",
@@ -238,7 +238,7 @@
           }
         }
       },
-      "mbt::actionTaken": "doResized",
+      "mbt::actionTaken": "doRetell",
       "mbt::nondetPicks": {
         "animate": {
           "tag": "None",
@@ -289,10 +289,8 @@
           }
         },
         "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "wait"
         },
         "settleKnobs": {
           "tag": "None",
@@ -461,16 +459,9 @@
       },
       "m": {
         "clock": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "frame": true,
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
+            "#tup": []
           }
         },
         "deep": false,
@@ -478,30 +469,12 @@
         "glides": {
           "#set": []
         },
-        "marks": ["show-defer"],
+        "marks": ["resized-nothing"],
         "messageUp": false,
         "mode": {
-          "tag": "Deferred",
+          "tag": "Idle",
           "value": {
-            "error": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            },
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            },
-            "standing": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
+            "#tup": []
           }
         },
         "morphing": {
@@ -519,30 +492,7 @@
         "onPage": false,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Hide",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Defer",
-                "value": {
-                  "animate": false,
-                  "step": "two",
-                  "token": {
-                    "#bigint": "2"
-                  }
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -561,15 +511,7 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
           "tag": "Off",
@@ -578,11 +520,13 @@
           }
         }
       },
-      "mbt::actionTaken": "doShow",
+      "mbt::actionTaken": "doResized",
       "mbt::nondetPicks": {
         "animate": {
-          "tag": "Some",
-          "value": false
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "expireKnobs": {
           "tag": "None",
@@ -639,8 +583,10 @@
           }
         },
         "showStep": {
-          "tag": "Some",
-          "value": "two"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "waitPick": {
           "tag": "None",
@@ -656,47 +602,22 @@
       },
       "m": {
         "clock": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "frame": true,
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
+            "#tup": []
           }
         },
         "deep": false,
-        "from": "deferred",
+        "from": "idle",
         "glides": {
           "#set": []
         },
         "marks": ["resized-nothing"],
         "messageUp": false,
         "mode": {
-          "tag": "Deferred",
+          "tag": "Idle",
           "value": {
-            "error": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            },
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            },
-            "standing": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
+            "#tup": []
           }
         },
         "morphing": {
@@ -733,15 +654,7 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
           "tag": "Off",
@@ -832,48 +745,22 @@
       },
       "m": {
         "clock": {
-          "tag": "Just",
+          "tag": "Nothing",
           "value": {
-            "frame": false,
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
+            "#tup": []
           }
         },
         "deep": false,
-        "from": "deferred",
+        "from": "idle",
         "glides": {
           "#set": []
         },
-        "marks": ["framed-retry"],
+        "marks": ["retell-idle"],
         "messageUp": false,
         "mode": {
-          "tag": "Retrying",
+          "tag": "Idle",
           "value": {
-            "error": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            },
-            "pending": {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            },
-            "standing": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            },
-            "unmeasured": false
+            "#tup": []
           }
         },
         "morphing": {
@@ -891,24 +778,7 @@
         "onPage": false,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Hunt",
-                "value": {
-                  "step": "two"
-                }
-              },
-              {
-                "tag": "Deadline",
-                "value": {
-                  "animate": false,
-                  "step": "two",
-                  "token": {
-                    "#bigint": "2"
-                  }
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -918,7 +788,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -927,22 +797,16 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
-          "tag": "Hunting",
-          "value": "two"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
-      "mbt::actionTaken": "doExpired",
+      "mbt::actionTaken": "doRetell",
       "mbt::nondetPicks": {
         "animate": {
           "tag": "None",
@@ -951,16 +815,16 @@
           }
         },
         "expireKnobs": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "measured": true,
-            "outright": false,
-            "somewhere": true
+            "#tup": []
           }
         },
         "expiredFound": {
-          "tag": "Some",
-          "value": false
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "found": {
           "tag": "None",
@@ -993,10 +857,8 @@
           }
         },
         "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "two"
         },
         "settleKnobs": {
           "tag": "None",
@@ -1011,13 +873,9 @@
           }
         },
         "waitPick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "animate": false,
-            "step": "two",
-            "token": {
-              "#bigint": "2"
-            }
+            "#tup": []
           }
         }
       }
@@ -1034,11 +892,11 @@
           }
         },
         "deep": false,
-        "from": "retrying",
+        "from": "idle",
         "glides": {
           "#set": []
         },
-        "marks": ["teardown"],
+        "marks": ["resized-nothing"],
         "messageUp": false,
         "mode": {
           "tag": "Idle",
@@ -1061,26 +919,7 @@
         "onPage": false,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Cancel",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Destroy",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -1090,7 +929,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -1099,15 +938,7 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
           "tag": "Off",
@@ -1116,7 +947,7 @@
           }
         }
       },
-      "mbt::actionTaken": "doTeardown",
+      "mbt::actionTaken": "doResized",
       "mbt::nondetPicks": {
         "animate": {
           "tag": "None",
@@ -1208,7 +1039,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["retell-idle"],
+        "marks": ["teardown"],
         "messageUp": false,
         "mode": {
           "tag": "Idle",
@@ -1231,7 +1062,20 @@
         "onPage": false,
         "outcomes": [
           {
-            "effects": [],
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -1241,7 +1085,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -1250,15 +1094,7 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
           "tag": "Off",
@@ -1267,7 +1103,7 @@
           }
         }
       },
-      "mbt::actionTaken": "doRetell",
+      "mbt::actionTaken": "doTeardown",
       "mbt::nondetPicks": {
         "animate": {
           "tag": "None",
@@ -1318,8 +1154,10 @@
           }
         },
         "retellStep": {
-          "tag": "Some",
-          "value": "two"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "settleKnobs": {
           "tag": "None",
@@ -1390,7 +1228,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -1399,15 +1237,7 @@
           }
         },
         "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
+          "#set": []
         },
         "watcher": {
           "tag": "Off",
@@ -1508,7 +1338,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["retell-idle"],
+        "marks": ["teardown"],
         "messageUp": false,
         "mode": {
           "tag": "Idle",
@@ -1531,6 +1361,162 @@
         "onPage": false,
         "outcomes": [
           {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": []
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doTeardown",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 10
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "10"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
             "effects": [],
             "last": {
               "tag": "Nothing",
@@ -1541,7 +1527,337 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": []
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "two"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 11
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "11"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": []
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "wait"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 12
+      },
+      "m": {
+        "clock": {
+          "tag": "Just",
+          "value": {
+            "frame": true,
+            "pending": {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["show-defer"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Deferred",
+          "value": {
+            "error": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            },
+            "pending": {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            },
+            "standing": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "12"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [
+              {
+                "tag": "Hide",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Defer",
+                "value": {
+                  "animate": true,
+                  "step": "two",
+                  "token": {
+                    "#bigint": "11"
+                  }
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -1552,10 +1868,327 @@
         "waits": {
           "#set": [
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "2"
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doShow",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "Some",
+          "value": true
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "Some",
+          "value": "two"
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 13
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "deferred",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["teardown"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "13"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [
+              {
+                "tag": "Cancel",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doTeardown",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 14
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "14"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
               }
             }
           ]
@@ -1643,7 +2276,624 @@
     },
     {
       "#meta": {
-        "index": 10
+        "index": 15
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "15"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "one"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 16
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["retell-idle"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "16"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doRetell",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "Some",
+          "value": "wait"
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 17
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["teardown"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "17"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [
+              {
+                "tag": "Disarm",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Destroy",
+                "value": {
+                  "#tup": []
+                }
+              }
+            ],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doTeardown",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expiredFound": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 18
+      },
+      "m": {
+        "clock": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "deep": false,
+        "from": "idle",
+        "glides": {
+          "#set": []
+        },
+        "marks": ["expired-stale"],
+        "messageUp": false,
+        "mode": {
+          "tag": "Idle",
+          "value": {
+            "#tup": []
+          }
+        },
+        "morphing": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "moving": {
+          "#set": []
+        },
+        "nextToken": {
+          "#bigint": "18"
+        },
+        "onPage": false,
+        "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
+          }
+        ],
+        "page": {
+          "#set": ["first", "second"]
+        },
+        "screen": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waits": {
+          "#set": [
+            {
+              "animate": true,
+              "step": "two",
+              "token": {
+                "#bigint": "11"
+              }
+            }
+          ]
+        },
+        "watcher": {
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
+        }
+      },
+      "mbt::actionTaken": "doExpired",
+      "mbt::nondetPicks": {
+        "animate": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "expireKnobs": {
+          "tag": "Some",
+          "value": {
+            "measured": false,
+            "outright": false,
+            "somewhere": true
+          }
+        },
+        "expiredFound": {
+          "tag": "Some",
+          "value": false
+        },
+        "found": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "glidePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "landedOn": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutateKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "mutatedStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "retellStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "settleKnobs": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "showStep": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "waitPick": {
+          "tag": "Some",
+          "value": {
+            "animate": true,
+            "step": "two",
+            "token": {
+              "#bigint": "11"
+            }
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 19
       },
       "m": {
         "clock": {
@@ -1675,7 +2925,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "10"
+          "#bigint": "19"
         },
         "onPage": false,
         "outcomes": [
@@ -1690,7 +2940,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -1701,10 +2951,10 @@
         "waits": {
           "#set": [
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "2"
+                "#bigint": "11"
               }
             }
           ]
@@ -1794,1107 +3044,7 @@
     },
     {
       "#meta": {
-        "index": 11
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["teardown"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "11"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Destroy",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doTeardown",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expiredFound": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 12
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["retell-idle"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "12"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doRetell",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expiredFound": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "Some",
-          "value": "one"
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 13
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["expired-stale"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "13"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doExpired",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "Some",
-          "value": {
-            "measured": true,
-            "outright": true,
-            "somewhere": true
-          }
-        },
-        "expiredFound": {
-          "tag": "Some",
-          "value": true
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "Some",
-          "value": {
-            "animate": false,
-            "step": "two",
-            "token": {
-              "#bigint": "2"
-            }
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 14
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["teardown"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "14"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Destroy",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doTeardown",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expiredFound": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 15
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["expired-stale"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "15"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doExpired",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "Some",
-          "value": {
-            "measured": false,
-            "outright": true,
-            "somewhere": false
-          }
-        },
-        "expiredFound": {
-          "tag": "Some",
-          "value": false
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "Some",
-          "value": {
-            "animate": false,
-            "step": "two",
-            "token": {
-              "#bigint": "2"
-            }
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 16
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["teardown"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "16"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              },
-              {
-                "tag": "Destroy",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doTeardown",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expiredFound": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 17
-      },
-      "m": {
-        "clock": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "deep": false,
-        "from": "idle",
-        "glides": {
-          "#set": []
-        },
-        "marks": ["retell-idle"],
-        "messageUp": false,
-        "mode": {
-          "tag": "Idle",
-          "value": {
-            "#tup": []
-          }
-        },
-        "morphing": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "moving": {
-          "#set": []
-        },
-        "nextToken": {
-          "#bigint": "17"
-        },
-        "onPage": false,
-        "outcomes": [
-          {
-            "effects": [],
-            "last": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
-            }
-          }
-        ],
-        "page": {
-          "#set": ["first"]
-        },
-        "screen": {
-          "tag": "Nothing",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waits": {
-          "#set": [
-            {
-              "animate": false,
-              "step": "two",
-              "token": {
-                "#bigint": "2"
-              }
-            }
-          ]
-        },
-        "watcher": {
-          "tag": "Off",
-          "value": {
-            "#tup": []
-          }
-        }
-      },
-      "mbt::actionTaken": "doRetell",
-      "mbt::nondetPicks": {
-        "animate": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expireKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "expiredFound": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "found": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "glidePick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "landedOn": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutateKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "mutatedStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "retellStep": {
-          "tag": "Some",
-          "value": "two"
-        },
-        "settleKnobs": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "showStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        },
-        "waitPick": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
-        }
-      }
-    },
-    {
-      "#meta": {
-        "index": 18
+        "index": 20
       },
       "m": {
         "clock": {
@@ -2905,7 +3055,7 @@
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             }
           }
@@ -2930,7 +3080,7 @@
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             "standing": {
@@ -2951,7 +3101,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "18"
+          "#bigint": "20"
         },
         "onPage": false,
         "outcomes": [
@@ -2975,7 +3125,7 @@
                   "animate": false,
                   "step": "one",
                   "token": {
-                    "#bigint": "17"
+                    "#bigint": "19"
                   }
                 }
               }
@@ -2989,7 +3139,7 @@
           }
         ],
         "page": {
-          "#set": ["first"]
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -3003,14 +3153,14 @@
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "2"
+                "#bigint": "11"
               }
             }
           ]
@@ -3096,18 +3246,18 @@
     },
     {
       "#meta": {
-        "index": 19
+        "index": 21
       },
       "m": {
         "clock": {
           "tag": "Just",
           "value": {
-            "frame": false,
+            "frame": true,
             "pending": {
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             }
           }
@@ -3117,22 +3267,20 @@
         "glides": {
           "#set": []
         },
-        "marks": ["framed-retry"],
+        "marks": ["retell-held"],
         "messageUp": false,
         "mode": {
-          "tag": "Retrying",
+          "tag": "Deferred",
           "value": {
             "error": {
-              "tag": "Nothing",
-              "value": {
-                "#tup": []
-              }
+              "tag": "Just",
+              "value": "no"
             },
             "pending": {
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             "standing": {
@@ -3140,8 +3288,7 @@
               "value": {
                 "#tup": []
               }
-            },
-            "unmeasured": false
+            }
           }
         },
         "morphing": {
@@ -3154,29 +3301,12 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "19"
+          "#bigint": "21"
         },
         "onPage": false,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Hunt",
-                "value": {
-                  "step": "one"
-                }
-              },
-              {
-                "tag": "Deadline",
-                "value": {
-                  "animate": false,
-                  "step": "one",
-                  "token": {
-                    "#bigint": "17"
-                  }
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -3186,7 +3316,7 @@
           }
         ],
         "page": {
-          "#set": []
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -3200,24 +3330,26 @@
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             {
-              "animate": false,
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "2"
+                "#bigint": "11"
               }
             }
           ]
         },
         "watcher": {
-          "tag": "Hunting",
-          "value": "one"
+          "tag": "Off",
+          "value": {
+            "#tup": []
+          }
         }
       },
-      "mbt::actionTaken": "doExpired",
+      "mbt::actionTaken": "doRetell",
       "mbt::nondetPicks": {
         "animate": {
           "tag": "None",
@@ -3226,16 +3358,16 @@
           }
         },
         "expireKnobs": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "measured": false,
-            "outright": false,
-            "somewhere": true
+            "#tup": []
           }
         },
         "expiredFound": {
-          "tag": "Some",
-          "value": false
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         },
         "found": {
           "tag": "None",
@@ -3268,10 +3400,8 @@
           }
         },
         "retellStep": {
-          "tag": "None",
-          "value": {
-            "#tup": []
-          }
+          "tag": "Some",
+          "value": "one"
         },
         "settleKnobs": {
           "tag": "None",
@@ -3286,20 +3416,16 @@
           }
         },
         "waitPick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "animate": false,
-            "step": "one",
-            "token": {
-              "#bigint": "17"
-            }
+            "#tup": []
           }
         }
       }
     },
     {
       "#meta": {
-        "index": 20
+        "index": 22
       },
       "m": {
         "clock": {
@@ -3309,16 +3435,39 @@
           }
         },
         "deep": false,
-        "from": "retrying",
+        "from": "deferred",
         "glides": {
-          "#set": []
+          "#set": [
+            {
+              "#bigint": "22"
+            }
+          ]
         },
-        "marks": ["expired-lost", "teardown"],
+        "marks": ["framed-arrive", "arrived-glide"],
         "messageUp": false,
         "mode": {
-          "tag": "Idle",
+          "tag": "Gliding",
           "value": {
-            "#tup": []
+            "error": {
+              "tag": "Just",
+              "value": "no"
+            },
+            "glide": {
+              "#bigint": "22"
+            },
+            "pending": {
+              "animate": false,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
+              }
+            },
+            "standing": {
+              "tag": "Nothing",
+              "value": {
+                "#tup": []
+              }
+            }
           }
         },
         "morphing": {
@@ -3328,28 +3477,35 @@
           }
         },
         "moving": {
-          "#set": []
+          "#set": [
+            {
+              "#bigint": "22"
+            }
+          ]
         },
         "nextToken": {
-          "#bigint": "21"
+          "#bigint": "24"
         },
         "onPage": false,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Just",
               "value": {
-                "tag": "Lost",
+                "tag": "Arrive",
                 "value": {
-                  "step": "one"
+                  "error": {
+                    "tag": "Just",
+                    "value": "no"
+                  },
+                  "pending": {
+                    "animate": false,
+                    "step": "one",
+                    "token": {
+                      "#bigint": "19"
+                    }
+                  }
                 }
               }
             }
@@ -3357,13 +3513,19 @@
           {
             "effects": [
               {
-                "tag": "Disarm",
+                "tag": "Cancel",
                 "value": {
                   "#tup": []
                 }
               },
               {
-                "tag": "Destroy",
+                "tag": "Hide",
+                "value": {
+                  "#tup": []
+                }
+              },
+              {
+                "tag": "Disarm",
                 "value": {
                   "#tup": []
                 }
@@ -3378,7 +3540,7 @@
           }
         ],
         "page": {
-          "#set": []
+          "#set": ["first", "second"]
         },
         "screen": {
           "tag": "Nothing",
@@ -3392,14 +3554,21 @@
               "animate": false,
               "step": "one",
               "token": {
-                "#bigint": "17"
+                "#bigint": "19"
               }
             },
             {
               "animate": false,
+              "step": "one",
+              "token": {
+                "#bigint": "23"
+              }
+            },
+            {
+              "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "2"
+                "#bigint": "11"
               }
             }
           ]
@@ -3422,14 +3591,14 @@
         "expireKnobs": {
           "tag": "Some",
           "value": {
-            "measured": false,
-            "outright": true,
-            "somewhere": false
+            "measured": true,
+            "outright": false,
+            "somewhere": true
           }
         },
         "expiredFound": {
           "tag": "Some",
-          "value": false
+          "value": true
         },
         "found": {
           "tag": "None",
@@ -3485,7 +3654,7 @@
             "animate": false,
             "step": "one",
             "token": {
-              "#bigint": "17"
+              "#bigint": "19"
             }
           }
         }

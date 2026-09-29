@@ -28,13 +28,14 @@ pnpm test           # among other things, replay this one's
 `pnpm model` runs this after the machine's model, from the same script. It takes
 fifteen to thirty seconds depending on the machine, needs no JVM, and runs in
 CI. One search rather than the machine's two: `teardown` is one action in eight
-and every witness below is reached from `init`, the rarest in over a thousand of
+and every witness below is reached from `init`, the rarest in a few dozen of
 the 100,000 traces.
 
 ## What is modelled
 
 The state is `Mode` as `plan.ts` has it — `idle`, `drawn`, `retrying`,
-`gliding`, with `pending`, `error` and `standing` where the type carries them.
+`deferred`, `gliding`, with `pending`, `error` and `standing` where the type
+carries them.
 The two identities the plan compares become tokens off a counter, the way
 `Position`'s object identity became `occurrence` in `machine.qnt`: a `Pending`
 is told from a stale one on `expired`, and a `Glide` from a stale one on
@@ -46,7 +47,7 @@ the move `machine.qnt` made with `drawn`, `presenterUp` and `inflight`:
 | | `presenter.ts` |
 | --- | --- |
 | `watcher` | the one `MutationObserver`, armed for a hunt and for nothing else, and which step it is hunting for |
-| `deadline` | the timer on a retry, and which `Pending` it was set for |
+| `clock` | the frame a hand-over waits for or the deadline on a retry, which of the two, and which `Pending` it was set for |
 | `screen` | the step whose cutouts the innermost scrim holds |
 | `messageUp` | whether the message is visible |
 | `onPage` | whether anything of the tour — layers, the way out, the ring — is on the page |
@@ -89,7 +90,7 @@ The page's own events are offered where the shell would hear them and no
 wider: a `mutated` while the observer is armed, a `morphed` for the morph in
 flight, a `settled` or an `expired` for anything ever minted. The last two are
 the loose ones. In a browser an abandoned glide never settles and a landed one
-settled once, and a deadline is cleared before every wait that ends, so a stale
+settled once, and a clock is stopped before every wait that ends, so a stale
 report of either is unreachable. The plan compares all the same, and the model
 offers them so that the comparison is exercised rather than assumed.
 
@@ -97,7 +98,8 @@ offers them so that the comparison is exercised rather than assumed.
 
 Four effects come back into the plan from inside the shell: `reveal` reports
 `unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
-`arrive` is a `show`, and `lost` is a teardown from inside the machine's call.
+`arrive` is an `arrived`, and `lost` is a teardown from inside the machine's
+call.
 An `Outcome` carries at most one of them, in `last`, and the shell performs it
 after every other effect, so the order is the type's and nothing checks it.
 Quint has no recursion, so the interpreter is unrolled — `dispatch`,
@@ -106,8 +108,9 @@ third level's outcome that came back in marks the state `deep` instead of
 running. `boundedReentry` says that never happened. A plan that nests further
 wants another level, not a quieter model.
 
-The deepest chain as the plan stands is a hunt finding its target: `mutated`
-owes an `arrive`, the `show` it makes owes a `reveal`, and the `reveal` reports
+The deepest chain as the plan stands is a target found: an `expired` — the
+frame after a hand-over, or a retry's deadline — or a `mutated` that found it
+owes an `arrive`, the `arrived` it makes owes a `reveal`, and the `reveal` reports
 `unmeasured` or `morphed`. Three deep. A resize is two: `resized` owes a
 `replace`, and the answer comes back as `resolved`.
 
@@ -119,9 +122,10 @@ for a state predicate to hold is the mode against the implicit state:
 
 | | |
 | --- | --- |
-| `screenIsTheModes` | what is on the page is what the mode says: nothing in `idle`, the step in `drawn`, `standing` in `retrying` and `gliding` |
-| `armedIsTheModes` | a deadline is armed exactly in `retrying`, for the `pending` it holds; the observer hunts in `retrying` and is off in every other mode, a step on screen included |
+| `screenIsTheModes` | what is on the page is what the mode says: nothing in `idle`, the step in `drawn`, `standing` in `retrying`, `deferred` and `gliding` |
+| `armedIsTheModes` | a deadline is armed exactly in `retrying` and a frame exactly in `deferred`, each for the `pending` the mode holds; the observer hunts in `retrying` and is off in every other mode, a step on screen included |
 | `glidingIsBare` | `gliding` has the message hidden, and its glide is the only one moving the page |
+| `deferredIsBare` | `deferred` has the message hidden: the words of the step being left went at the call |
 | `idleIsClean` | `idle` has nothing on the page, no words and no morph |
 | `boundedReentry` | nothing came back in deeper than the interpreter unrolls |
 | `worldIsFixed` | the step table never changes, which is what lets `pointsAt` read it off the `pure val` while everything with a state reads the variable |
@@ -143,14 +147,16 @@ the real `reduce`:
 | 3 | an `expired` for a wait that ended is answered with nothing, however long ago it was set |
 | 3b | an `expired` that runs out onto a target that has turned up arrives at it rather than giving it up |
 | 3c | an `expired` for a wait a draw began gives its target up rather than arriving at it, whatever the last question answers |
+| 3d | claim 3, for a clock that ran out onto a step waiting for its frame |
 | 4 | a `resized` mid-glide puts the standing holes back and says nothing |
+| 4b | a `resized` while a step waits for its frame puts the standing holes back and says nothing |
 
 The model's job for those is to reach the state where the question can be
 asked, and the witnesses below are what aim the harvest.
 
 ## The corpus
 
-`traces/` holds 18 traces, harvested the way the machine's are: `quint run` is
+`traces/` holds 22 traces, harvested the way the machine's are: `quint run` is
 handed the negation of a target as its invariant, and the shortest thing that
 breaks "this never happens" is a trace where it does. The targets and the seeds
 are in `HARVEST` in `scripts/model-traces.mjs`, under this model's entry.
@@ -167,12 +173,10 @@ owed**: the effect lists the real plan produced, against the ones the model's
 `reduce` produced, rendered to a shape both can be written to — an anchor
 becomes whether there was one, a `Glide` becomes the model's token for it, a
 step becomes its id. Then **the state performing them left**: the mode and what
-it carries, the watcher and what it is armed for, the deadline, what is on the
+it carries, the watcher and what it is armed for, the clock, what is on the
 page, the words, the morph, the glides and the page itself. The glides by
-identity rather than by number: a `show` over a glide abandons one and mints
-another, so a mode left holding the abandoned one runs the same count and owes
-the same effects, and which token the mode holds is the only thing that tells
-the two apart.
+identity rather than by number, for the reason the second row under **What
+the corpus found, and what it did not** gives.
 
 Both halves, because two effects can leave the same footprint. A `say` owed
 where a `retell` was re-places the message box instead of swapping its words —
@@ -187,6 +191,13 @@ are told from a stale one with `!==`. The model numbers them; the replay reads
 the number off the mode the plan just committed and ties it to the object, so a
 `settled` for glide 0 five states later is dispatched with the object glide 0
 was. That is what makes claims 1 and 3 mean anything.
+
+Two glides are never alive at once any more. A hand-over abandons the glide
+running at the call, and the glide it may need is minted only on the frame
+after, so the state the second row below was found in cannot be reached, and
+its witness and its trace are gone. What that row caught is still asked: the
+identity check on `settled` by `settled-stale`, whose seed lands a glide a
+hand-over abandoned, and claim 2 by every trace.
 
 They are tied by order rather than by reading whichever mode an action ended
 in. Both sides take every token off one counter that only goes up, so the nth
@@ -253,7 +264,8 @@ so a plan that answered one went green. `mutated-elsewhere` is the mark for it
 now, and `hunt-elsewhere` is the trace.
 
 The second cost a trace and a field on the oracle, and it is the sharpest thing
-here. A `show` that glides, made while the page is already gliding, is the one
+here. It is history now — the paragraph on identities above says why the state
+it needs is gone. A hand-over that glides, made while the page is already gliding, is the one
 state where two glides are alive at once, and no trace reached it: `showOverGlide`
 admits that state, but its seed landed on a `show` that retried instead. So a
 mode holding the abandoned glide looked exactly like one holding the right glide
@@ -335,7 +347,10 @@ review findings were entrances of that shape — a glide begun from a retry, a
 `retell` arriving in `retrying` — and `glideFromRetry`, `resizedInGlide` and
 `retellInRetry` are those; `showOverGlide`, `showOverRetry`, `retellInGlide`,
 `teardownFromGlide`, `teardownFromRetry` and `landedWithReason` are the other
-entrances of the same class. The first finding, a `replace` owed beside a `say`
+entrances of the same class. `deferred` has its own: `glideFromDeferred`,
+`resizedInDeferred`, `retellInDeferred`, `teardownFromDeferred`,
+`showOverDeferred`, and `expiredStaleInDeferred` for a frame left over from a
+hand-over that ended. The first finding, a `replace` owed beside a `say`
 that assumed it had succeeded, is the shape of the `Effect` type now — `redraw`
 carries `saying` — and has no witness because there is no longer a branch to
 reach.
@@ -364,7 +379,7 @@ in `replay.test.ts` is that same `perform` in TypeScript.
 
 A divergence in the identities reads differently — a `settled` or an `expired`
 that should have been answered with nothing and was not. Those are claims 1 to
-3 above, and they fail with a message rather than a field comparison.
+3d above, and they fail with a message rather than a field comparison.
 
 ## When `pnpm model` fails
 
@@ -412,7 +427,7 @@ the commit, because a model that lies is worse than no model.
   knob for it.
 - Anything the corpus does not reach. The replay drives the traces under
   `traces/` and no other path, so a claim about a transition is checked exactly
-  where a trace goes. `traces/` is 18 of them, and the search is what aimed each.
+  where a trace goes. `traces/` is 22 of them, and the search is what aimed each.
 - Any depth at all, in the sense of a finished search. `nextToken` grows and
   nothing resets it, so the state space is infinite and only a bound is on
   offer. `quint verify` has not been run against this model.
