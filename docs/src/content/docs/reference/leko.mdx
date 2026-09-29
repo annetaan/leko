@@ -10,7 +10,7 @@ from `new`.
 
 ## Leko
 
-```ts
+```ts signature
 declare class Leko {
   get state(): LekoState
   get story(): LekoStory | undefined
@@ -100,7 +100,7 @@ inside a handler is dropped rather than saved for later —
 
 ### start
 
-```ts
+```ts signature
 start(story: LekoStory): void
 ```
 
@@ -114,7 +114,7 @@ it is and reports `tour-running`, naming the story it was given and the one
 still showing. Moving to another story is two calls, and the second goes
 through because `stop` finishes the whole ending before it returns:
 
-```ts
+```ts prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const other: LekoStory"
 leko.stop()
 leko.start(other)
 ```
@@ -132,7 +132,7 @@ fresh story —
 
 ### pickUp
 
-```ts
+```ts signature
 pickUp(stories: LekoStory[]): void
 ```
 
@@ -159,7 +159,7 @@ the note stays for the call that goes through a moment later.
 
 ### reached
 
-```ts
+```ts signature
 reached(name: LekoSignal): void
 ```
 
@@ -184,7 +184,7 @@ step, from the story's `onEnter`. Make the call after the handler returns.
 
 ### stop
 
-```ts
+```ts signature
 stop(): void
 ```
 
@@ -199,7 +199,7 @@ inside the `onLeave` or the report of an ending there is nothing left to end.
 
 ## LekoState
 
-```ts
+```ts signature
 type LekoState = 'idle' | 'running'
 ```
 

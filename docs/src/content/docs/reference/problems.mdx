@@ -11,7 +11,7 @@ under [Methods](../leko/#methods) shows which call reports which kind —
 
 ## LekoProblem
 
-```ts
+```ts signature
 type LekoProblem =
   | { kind: 'story-empty'; story: LekoStory }
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
@@ -24,7 +24,7 @@ type LekoProblem =
 Six kinds, told apart by `kind`. Narrowing on it gives that kind's fields, so a
 handler asks for the kind it cares about and reads the rest from there.
 
-```ts
+```ts prelude="import type { LekoProblem } from '@annetaan/leko'"
 const onDiagnostic = (problem: LekoProblem): void => {
   if (problem.kind === 'target-lost') {
     console.warn('[leko] not found:', problem.story.id, problem.step.id)

@@ -130,14 +130,14 @@ written to disk and nothing is run. A page is written to these rules:
    marks a block that shows the shape of something, or a piece of something,
    and the check skips it. A word inside a quoted value, such as a `title`,
    does not count. The page renders the same with the word and without it.
-4. **What a block leaves out goes in a prelude.** An MDX comment directly
-   above the block, with only blank lines between, that opens with a line that
-   is exactly `{/* prelude` and closes with a line that is exactly `*/}`, and
-   holds no `*/` of its own. Its TypeScript goes in front of the block when it
-   is compiled: the imports the block leaves out, and a `declare` for each name
-   the page treats as the application's own. It renders nothing. A prelude
-   followed by anything other than a ts or tsx block with neither word fails
-   the check.
+4. **What a block leaves out goes in a prelude.** Each `prelude="…"` or
+   `prelude='…'` value in the info string is one line of TypeScript, and the
+   lines go in front of the block, in order, when it is compiled: the imports
+   the block leaves out, and a `declare` for each name the page treats as the
+   application's own. A value in `"…"` holds no `"`, and one in `'…'` no `'`.
+   ` ```ts prelude="import type { LekoStory } from '@annetaan/leko'" prelude="declare const other: LekoStory" `
+   is one. The page renders the same with the values and without them. A
+   prelude on a `signature` or a `fragment` fails the check.
 5. **A step on its own is written `const step: LekoStep = { … }`**, so that it
    is checked as a step.
 

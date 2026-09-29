@@ -114,32 +114,42 @@ describe('blocks', () => {
     expect(blocks(page('```ts', 'x', '// src/tour.ts', '```'))[0].path).toBeUndefined()
   })
 
-  it('attaches a prelude comment to the block after it, across blank lines', () => {
-    const [block] = blocks(
+  it('reads a prelude from each prelude value in the info string, in order', () => {
+    const [block, bare] = blocks(
       page(
         '## Here',
-        '{/* prelude',
-        'declare const order: string',
-        '*/}',
         '',
-        '',
-        '```ts',
-        'order',
+        '```ts prelude="declare const a: 1" title="prelude=\'no\'" prelude="declare const b: 2"',
+        'a + b',
+        '```',
+        '```ts title="x"',
+        'x',
         '```',
       ),
     )
-    expect(block.prelude).toEqual({ line: 3, code: 'declare const order: string' })
-    expect(block.line).toBe(8)
+    expect(block.prelude).toEqual({ line: 3, code: 'declare const a: 1\ndeclare const b: 2' })
+    expect(block.line).toBe(4)
+    expect(block.kind).toBe('code')
+    expect(bare.prelude).toBeUndefined()
   })
 
-  it('throws on a prelude with no unmarked ts or tsx block after it', () => {
-    const prelude = ['{/* prelude', 'declare const a: 1', '*/}']
-    expect(() => blocks(page(...prelude))).toThrow()
-    expect(() => blocks(page(...prelude, 'Some prose.', '```ts', 'a', '```'))).toThrow()
-    expect(() => blocks(page(...prelude, '```sh', 'a', '```'))).toThrow()
-    expect(() => blocks(page(...prelude, '```ts signature', 'a', '```'))).toThrow()
-    expect(() => blocks(page(...prelude, '```ts fragment', 'a', '```'))).toThrow()
-    expect(() => blocks(page('{/* prelude', 'a */ b', '*/}', '```ts', 'a', '```'))).toThrow()
+  it('reads a prelude value in either quote', () => {
+    const [block] = blocks(
+      page(
+        '```ts prelude="import type { LekoStory } from \'@annetaan/leko\'" prelude=\'declare const s: "a"\'',
+        'x',
+        '```',
+      ),
+    )
+    expect(block.prelude.code).toBe(
+      'import type { LekoStory } from \'@annetaan/leko\'\ndeclare const s: "a"',
+    )
+  })
+
+  it('throws on a prelude on a signature or a fragment', () => {
+    expect(() => blocks(page('```ts signature prelude="declare const a: 1"', 'a', '```'))).toThrow()
+    expect(() => blocks(page('```ts fragment prelude="declare const a: 1"', 'a', '```'))).toThrow()
+    expect(() => blocks(page('```sh prelude="declare const a: 1"', 'a', '```'))).not.toThrow()
   })
 })
 
@@ -205,15 +215,7 @@ describe('projects', () => {
   it('puts the prelude before the block and counts its lines', () => {
     const [project] = projects(
       blocks(
-        page(
-          '{/* prelude',
-          'declare const a: 1',
-          'declare const b: 2',
-          '*/}',
-          '```ts',
-          'a + b',
-          '```',
-        ),
+        page('```ts prelude="declare const a: 1" prelude="declare const b: 2"', 'a + b', '```'),
       ),
     )
     expect(project.files.get(project.entry)).toBe('declare const a: 1\ndeclare const b: 2\na + b')
@@ -294,16 +296,15 @@ describe('compile', { timeout: 30_000 }, () => {
   it("reports a diagnostic in the prelude as the prelude's", () => {
     const [found] = check(
       page(
-        '{/* prelude',
-        'declare const a: number',
-        'declare const order: Order',
-        '*/}',
-        '```ts',
+        'Some prose.',
+        '',
+        '```ts prelude="declare const a: number" prelude="declare const order: Order"',
         'a',
         '```',
       ),
     )
     expect(found).toEqual([expect.objectContaining({ line: 3, prelude: true, code: 2304 })])
+    expect(found[0].message).toMatch(/^prelude value 2 of 2: /)
   })
 
   it("resolves an import of an earlier block's path", () => {

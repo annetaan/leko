@@ -11,15 +11,17 @@ import ts from 'typescript'
 
 import { HEADING, walk } from './citations.mjs'
 
-/** The lines a prelude opens and closes on, each the whole of its line. */
-const PRELUDE_OPEN = '{/* prelude'
-const PRELUDE_CLOSE = '*/}'
-
 /**
  * A quoted value in an info string, taken out before the words are read, so
  * `title="a signature"` marks nothing.
  */
 const QUOTED = /"[^"]*"|'[^']*'/g
+
+/**
+ * A quoted value in an info string with the key in front of it, if any. Read
+ * left to right, so a `prelude=` inside another value is part of that value.
+ */
+const VALUE = /(?<=^|\s)(?:([\w-]+)=)?(?:"([^"]*)"|'([^']*)')/g
 
 /**
  * A first line that names the block's file: a relative path ending in `.ts` or
@@ -42,62 +44,36 @@ const pathOf = (first) => {
 /**
  * Every ts and tsx block on the page, in page order, as `{ line, heading, lang,
  * code, path?, kind, prelude? }`. `line` is the page line of the first code
- * line, and `prelude` is `{ line, code }` the same way.
+ * line. `prelude` is `{ line, code }`: its `line` is the fence's, and its
+ * `code` is each `prelude` value in the info string, one line each, in order.
  *
- * A prelude that is not followed by an unmarked ts or tsx block throws: its
- * code would reach no compiler, and a page that says it is checked would not
- * be.
+ * A prelude on a signature or a fragment throws: its code would reach no
+ * compiler, and a page that says it is checked would not be.
  */
 export function blocks(markdown) {
   const found = []
   let heading
-  let open = null
-  let pending = null
   for (const part of walk(markdown)) {
     if (part.code === undefined) {
-      const { line, text } = part
-      if (open !== null) {
-        if (text === PRELUDE_CLOSE) {
-          pending = { line: open.line, code: open.code.join('\n'), opened: open.opened }
-          open = null
-        } else if (text.includes('*/')) {
-          throw refused(line, 'A prelude may not hold `*/`.')
-        } else {
-          open.code.push(text)
-        }
-      } else if (text === PRELUDE_OPEN) {
-        if (pending !== null)
-          throw refused(pending.opened, 'A prelude is followed by another prelude.')
-        open = { line: line + 1, code: [], opened: line }
-      } else if (pending !== null && text.trim() !== '') {
-        throw refused(pending.opened, 'A prelude is followed by something other than a block.')
-      } else {
-        heading = HEADING.exec(text)?.[1] ?? heading
-      }
+      heading = HEADING.exec(part.text)?.[1] ?? heading
       continue
     }
 
-    if (open !== null) throw refused(open.opened, 'A prelude holds a fenced block.')
     const words = part.info.replaceAll(QUOTED, ' ').split(/\s+/)
     const lang = words[0]
-    if (!LANGS.has(lang)) {
-      if (pending !== null)
-        throw refused(pending.opened, 'A prelude is followed by a block that is not ts or tsx.')
-      continue
-    }
+    if (!LANGS.has(lang)) continue
     const kind = words.slice(1).find((word) => KINDS.includes(word)) ?? 'code'
-    if (pending !== null && kind !== 'code')
-      throw refused(pending.opened, `A prelude is followed by a ${kind}.`)
+    const prelude = [...part.info.matchAll(VALUE)]
+      .filter(([, key]) => key === 'prelude')
+      .map(([, , double, single]) => double ?? single)
+    if (prelude.length > 0 && kind !== 'code') throw refused(part.line, `A ${kind} has a prelude.`)
 
     const block = { line: part.line + 1, heading, lang, code: part.code.join('\n'), kind }
     const path = pathOf(part.code[0])
     if (path !== undefined) block.path = path
-    if (pending !== null) block.prelude = { line: pending.line, code: pending.code }
-    pending = null
+    if (prelude.length > 0) block.prelude = { line: part.line, code: prelude.join('\n') }
     found.push(block)
   }
-  if (open !== null) throw refused(open.opened, 'A prelude is never closed.')
-  if (pending !== null) throw refused(pending.opened, 'A prelude is followed by no block.')
   return found
 }
 
@@ -199,7 +175,8 @@ const message = (diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messa
 
 /**
  * A diagnostic at the page line it is on. One with no place in the entry is
- * put at the block's first line, with the file it is in, if any, named.
+ * put at the block's first line, with the file it is in, if any, named. One in
+ * the prelude is put at the fence, and names the value it is in.
  */
 function finding(project, entry, diagnostic) {
   const { block, offset } = project
@@ -209,7 +186,13 @@ function finding(project, entry, diagnostic) {
     return { line: block.line, prelude: false, code: diagnostic.code, message: where + said }
   }
   const { line } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start)
-  return line < offset
-    ? { line: block.prelude.line + line, prelude: true, code: diagnostic.code, message: said }
-    : { line: block.line + line - offset, prelude: false, code: diagnostic.code, message: said }
+  if (line >= offset)
+    return {
+      line: block.line + line - offset,
+      prelude: false,
+      code: diagnostic.code,
+      message: said,
+    }
+  const value = `prelude value ${line + 1} of ${offset}: `
+  return { line: block.prelude.line, prelude: true, code: diagnostic.code, message: value + said }
 }

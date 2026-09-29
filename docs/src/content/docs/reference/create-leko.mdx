@@ -9,7 +9,7 @@ there is no `new Leko()` to choose between.
 
 ## createLeko
 
-```ts
+```ts signature
 createLeko(options?: LekoOptions): Leko
 ```
 
@@ -140,7 +140,7 @@ reads —
 
 ### onStep
 
-```ts
+```ts signature
 onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 ```
 
@@ -158,7 +158,7 @@ up, so a step whose target never turns up is named and then followed by the
 ending. A step whose `onEnter` threw on the way in never reaches it.
 The return value is never read.
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'" prelude="declare function setTourRunning(running: boolean): void"
 createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
 ```
 
@@ -170,7 +170,7 @@ and
 
 ### onDiagnostic
 
-```ts
+```ts signature
 onDiagnostic?: (problem: LekoProblem) => void
 ```
 
@@ -179,7 +179,7 @@ Called when a call meant to do something and did not, with a
 logged, so a project that wants to hear about one says how here —
 [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'"
 createLeko({
   onDiagnostic: (problem) => {
     if (import.meta.env.DEV) console.warn('[leko]', problem)
@@ -194,7 +194,7 @@ a sticky footer, a top bar, a support widget in a corner. It takes one target
 or several, named the way a step names one — a selector, or a function that
 hands back the element.
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'"
 createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
 ```
 
@@ -223,7 +223,7 @@ draw it yourself with [`renderClose`](#renderclose) —
 
 ### renderClose
 
-```ts
+```ts signature
 renderClose?: (root: HTMLElement, stop: () => void) => (() => void) | void
 ```
 
@@ -234,7 +234,7 @@ changes size
 Fill it, wire whatever you draw to `stop`, and hand back a function that undoes
 what you did: it runs when the tour ends.
 
-```ts
+```ts prelude="import { createLeko } from '@annetaan/leko'"
 createLeko({
   renderClose: (root, stop) => {
     const button = document.createElement('button')
@@ -257,7 +257,7 @@ nothing —
 
 ## cubicBezier
 
-```ts
+```ts signature
 cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number
 ```
 
