@@ -10,6 +10,8 @@ const base = '/leko'
 export default defineConfig({
   site: 'https://annetaan.github.io',
   base,
+  // Astro does not put `base` on a redirect's destination.
+  redirects: { '/what-leko-is': `${base}/getting-started/` },
   integrations: [
     starlight({
       title: 'Leko',
@@ -32,10 +34,7 @@ export default defineConfig({
       sidebar: [
         {
           label: 'Start here',
-          items: [
-            { label: 'What Leko is', slug: 'what-leko-is' },
-            { label: 'Getting started', slug: 'getting-started' },
-          ],
+          items: [{ label: 'Getting started', slug: 'getting-started' }],
         },
         {
           label: 'Guides',
