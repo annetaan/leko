@@ -121,10 +121,8 @@ export class Machine<W extends World> {
       case 'teardown':
         return this.presenter.teardown()
 
-      case 'draw': {
-        const anchor = this.presenter.resolve(effect.step)
-        return this.presenter.show(effect.step, anchor, effect.animate)
-      }
+      case 'draw':
+        return this.presenter.show(effect.step, effect.animate)
 
       case 'retell':
         return this.presenter.retell(effect.step, effect.reason)

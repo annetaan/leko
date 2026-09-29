@@ -63,7 +63,8 @@ export class Fake implements Presenter<Fixture> {
     return this.page.has(step.target) ? step.target : null
   }
 
-  show(step: Step, anchor: Anchor | null): void {
+  show(step: Step): void {
+    const anchor = this.resolve(step)
     // No retrying here — DESIGN.md, **Every retry belongs to an arrival, so
     // `Host.lost` is only ever about a step that was arriving**.
     if (anchor === null) return this.host.lost(step)

@@ -139,8 +139,8 @@ presenter has to be corrected is not the finding; it is simply doing more.
 ## Grip: this is where the two differ, and it is not the plan's fault
 
 The machine's shell is a third of its pair and holds five branches. Its effect
-`switch` makes calls and nothing else, except in one place: `draw` resolves the
-anchor and answers `lost` where there is none. That is the one decision in
+`switch` makes calls and nothing else, except in one place: `validate` resolves
+the anchor and answers `lost` where there is none. That is the one decision in
 `machine.ts`, and `plan.ts` argues it — pulling it apart would mean an anchor
 travelling back through the plan, and an anchor is resolved, used and dropped.
 

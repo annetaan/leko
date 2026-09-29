@@ -322,12 +322,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
   // ---------------------------------------------------------- what the machine calls
 
-  show(step: LekoStep, anchor: Element | null, animate: boolean): void {
+  show(step: LekoStep, animate: boolean): void {
     // Armed here, not in `reveal` — {@link watchNavigation}.
     this.watchNavigation()
     // An arrival is a fresh attempt at the step, so nothing is owed under the
     // instruction until a guard says otherwise.
-    this.arrive(step, anchor, animate, undefined)
+    this.arrive(step, this.resolve(step), animate, undefined)
   }
 
   /**

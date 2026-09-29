@@ -515,7 +515,7 @@ its clear-up at the same level instead of splitting across two.
 - **Entry runs outermost first, and the ending mirrors it, innermost first:**
 
   ```text
-  story onEnter → step onEnter → resolve the target → show → onStep
+  story onEnter → step onEnter → show, which resolves the target → onStep
   ```
 
   The report goes last because a progress readout hearing about a step whose

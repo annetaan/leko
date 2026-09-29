@@ -1806,7 +1806,7 @@ test('a target missing on arrival hands the machine nothing, and says nothing ye
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'late', target: { elements: '#not-here-yet', interactive: true } }
 
-  const nothing = presenter.show(step, null, false)
+  const nothing = presenter.show(step, false)
 
   // The step is drawn as far as the machine is concerned, and what is on screen
   // is whatever was there a moment ago. Only giving up is worth a call.
@@ -1822,7 +1822,7 @@ test('a target lost after the step was drawn is not a wait at all', async () => 
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'only', target: { elements: '#anchor', interactive: true } }
 
-  presenter.show(step, target, false)
+  presenter.show(step, false)
 
   target.remove()
   await observed()
@@ -1953,11 +1953,7 @@ test('the fallback popstate and hashchange from one hash change report a URL onc
     target.id = 'anchor'
     const { presenter, navigated } = watching()
 
-    presenter.show(
-      { id: 'first', target: { elements: '#anchor', interactive: true } },
-      target,
-      false,
-    )
+    presenter.show({ id: 'first', target: { elements: '#anchor', interactive: true } }, false)
     location.hash = 'summary'
     await frame()
 

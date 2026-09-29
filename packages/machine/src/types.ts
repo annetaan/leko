@@ -128,9 +128,8 @@ export interface Handoff {
 export interface Presenter<W extends World> {
   /**
    * The step's anchor, or `null` where it is not on the page and `null` again
-   * where the step names nothing to point at. Which of the two it was is a
-   * drawing question, and {@link show} is where it is answered. The `validate`
-   * effect asks this too, and does not tell the two apart: the vocabulary
+   * where the step names nothing to point at. The `validate` effect is its one
+   * caller in the machine, and it does not tell the two apart: the vocabulary
    * refuses a guard on a step with no target, so a `null` there is a target
    * that has gone.
    */
@@ -140,11 +139,11 @@ export interface Presenter<W extends World> {
    * step is on screen as far as the machine is concerned the moment this
    * returns — DESIGN.md, **One gate, and what it refuses**.
    *
-   * A `null` anchor is handed over all the same. What a missing target means is
-   * a drawing question, so a presenter may give it time and report
-   * {@link Host.lost} once it has given up.
+   * The presenter looks for the step's target itself. What a missing target
+   * means is a drawing question, so a presenter may give the step time and
+   * report {@link Host.lost} once it has given up.
    */
-  show(step: W['step'], anchor: W['anchor'] | null, animate: boolean): void
+  show(step: W['step'], animate: boolean): void
   /**
    * The guard said no, and this is what the step gave as the reason. Nothing has
    * moved, so only the words change.
