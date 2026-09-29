@@ -105,6 +105,42 @@ The site is not published anywhere yet. Publishing waits for the release.
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) is the workflow
 that will publish it, and its header says what the release changes.
 
+### Code blocks on the site
+
+`pnpm check:code-blocks` compiles every ` ```ts ` and ` ```tsx ` block in
+`docs/src/content/docs/**/*.mdx` against the workspace, in the project under
+[`docs/code-blocks/`](docs/code-blocks/), and fails on a block that does not
+compile, at the page line the error is on. A block's language is the first word
+of its info string, and a block in any other language is not read. Nothing is
+written to disk and nothing is run. A page is written to these rules:
+
+1. **A block may use `leko` without importing it.** `import { leko } from
+   './tour'` resolves too. Both are defined in `docs/code-blocks/`, the second
+   as Getting started writes `src/tour.ts`.
+2. **A block that names its file is that file.** Its first line is `// <path>`
+   and nothing else, with a path that is relative, has no `..` and ends in
+   `.ts` or `.tsx` — the comment Expressive Code shows as the block's file tab.
+   A later block on the same page sees the latest block written at each path, so
+   it can import from one, and a block named `src/tour.ts` replaces the real one
+   for the rest of its page. A block that names no file is seen by no other
+   block, so an augmentation reaches later blocks only from a block that names
+   its file.
+3. **A block that is not code to copy says so.** A bare `signature` or
+   `fragment` in the info string, ` ```ts signature ` or ` ```ts fragment `,
+   marks a block that shows the shape of something, or a piece of something,
+   and the check skips it. A word inside a quoted value, such as a `title`,
+   does not count. The page renders the same with the word and without it.
+4. **What a block leaves out goes in a prelude.** An MDX comment directly
+   above the block, with only blank lines between, that opens with a line that
+   is exactly `{/* prelude` and closes with a line that is exactly `*/}`, and
+   holds no `*/` of its own. Its TypeScript goes in front of the block when it
+   is compiled: the imports the block leaves out, and a `declare` for each name
+   the page treats as the application's own. It renders nothing. A prelude
+   followed by anything other than a ts or tsx block with neither word fails
+   the check.
+5. **A step on its own is written `const step: LekoStep = { … }`**, so that it
+   is checked as a step.
+
 ## Commands
 
 ```bash
@@ -117,6 +153,7 @@ pnpm format:check    # oxfmt --check, which is what CI runs
 pnpm check:pack      # what a published package would import, and whether its manifest's paths are packed
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:reference # whether every exported name and --leko-* property the code reads is on its product's reference
+pnpm check:code-blocks # whether every ts and tsx block on the site compiles against the workspace
 pnpm check:links     # whether every internal link in the built site lands, after pnpm build
 pnpm test            # vitest: ten projects, four of them in browsers
 pnpm model           # search the Quint models of the machine and the plan for a broken invariant
