@@ -1281,11 +1281,11 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
-        "marks": ["show-glide"],
+        "marks": ["show-arrive", "arrived-glide"],
         "messageUp": false,
         "mode": {
           "tag": "Gliding",
@@ -1297,13 +1297,13 @@
               }
             },
             "glide": {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             "pending": {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             },
             "standing": {
@@ -1323,15 +1323,39 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "8"
+          "#bigint": "9"
         },
         "onPage": false,
         "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Arrive",
+                "value": {
+                  "error": {
+                    "tag": "Nothing",
+                    "value": {
+                      "#tup": []
+                    }
+                  },
+                  "pending": {
+                    "animate": true,
+                    "step": "two",
+                    "token": {
+                      "#bigint": "6"
+                    }
+                  }
+                }
+              }
+            }
+          },
           {
             "effects": [
               {
@@ -1390,7 +1414,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -1502,7 +1526,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
@@ -1524,7 +1548,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "9"
+          "#bigint": "10"
         },
         "onPage": false,
         "outcomes": [
@@ -1533,7 +1557,7 @@
               {
                 "tag": "Abandon",
                 "value": {
-                  "#bigint": "6"
+                  "#bigint": "7"
                 }
               },
               {
@@ -1586,7 +1610,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -1702,7 +1726,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
@@ -1724,7 +1748,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "10"
+          "#bigint": "11"
         },
         "onPage": false,
         "outcomes": [
@@ -1780,7 +1804,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -1896,7 +1920,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
@@ -1918,7 +1942,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "11"
+          "#bigint": "12"
         },
         "onPage": false,
         "outcomes": [
@@ -1961,7 +1985,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -2077,7 +2101,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
@@ -2103,7 +2127,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "12"
+          "#bigint": "13"
         },
         "onPage": true,
         "outcomes": [
@@ -2164,7 +2188,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -2276,7 +2300,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             }
           ]
         },
@@ -2304,7 +2328,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "13"
+          "#bigint": "14"
         },
         "onPage": true,
         "outcomes": [
@@ -2358,7 +2382,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -2474,14 +2498,14 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
-        "marks": ["show-glide"],
+        "marks": ["show-arrive", "arrived-glide"],
         "messageUp": false,
         "mode": {
           "tag": "Gliding",
@@ -2493,13 +2517,13 @@
               }
             },
             "glide": {
-              "#bigint": "13"
+              "#bigint": "15"
             },
             "pending": {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             "standing": {
@@ -2525,15 +2549,39 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "15"
+          "#bigint": "17"
         },
         "onPage": true,
         "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Arrive",
+                "value": {
+                  "error": {
+                    "tag": "Nothing",
+                    "value": {
+                      "#tup": []
+                    }
+                  },
+                  "pending": {
+                    "animate": true,
+                    "step": "one",
+                    "token": {
+                      "#bigint": "14"
+                    }
+                  }
+                }
+              }
+            }
+          },
           {
             "effects": [
               {
@@ -2577,7 +2625,7 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -2591,7 +2639,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -2703,17 +2751,17 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
-        "marks": ["settled-draw", "morphed-said"],
-        "messageUp": true,
+        "marks": ["settled-stale"],
+        "messageUp": false,
         "mode": {
-          "tag": "Drawn",
+          "tag": "Gliding",
           "value": {
             "error": {
               "tag": "Nothing",
@@ -2721,7 +2769,28 @@
                 "#tup": []
               }
             },
-            "step": "one"
+            "glide": {
+              "#bigint": "15"
+            },
+            "pending": {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "16"
+              }
+            },
+            "standing": {
+              "tag": "Just",
+              "value": {
+                "error": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "step": "wait"
+              }
+            }
           }
         },
         "morphing": {
@@ -2731,57 +2800,19 @@
           }
         },
         "moving": {
-          "#set": []
+          "#set": [
+            {
+              "#bigint": "15"
+            }
+          ]
         },
         "nextToken": {
-          "#bigint": "17"
+          "#bigint": "18"
         },
         "onPage": true,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Disarm",
-                "value": {
-                  "#tup": []
-                }
-              }
-            ],
-            "last": {
-              "tag": "Just",
-              "value": {
-                "tag": "Reveal",
-                "value": {
-                  "anchor": true,
-                  "animate": true,
-                  "drawn": {
-                    "error": {
-                      "tag": "Nothing",
-                      "value": {
-                        "#tup": []
-                      }
-                    },
-                    "step": "one"
-                  }
-                }
-              }
-            }
-          },
-          {
-            "effects": [
-              {
-                "tag": "Say",
-                "value": {
-                  "error": {
-                    "tag": "Nothing",
-                    "value": {
-                      "#tup": []
-                    }
-                  },
-                  "step": "one"
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -2795,7 +2826,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -2810,7 +2841,7 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -2824,7 +2855,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -2865,7 +2896,7 @@
         "glidePick": {
           "tag": "Some",
           "value": {
-            "#bigint": "13"
+            "#bigint": "7"
           }
         },
         "landedOn": {
@@ -2936,27 +2967,48 @@
           }
         },
         "deep": false,
-        "from": "drawn",
+        "from": "gliding",
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
-        "marks": ["retell-said"],
-        "messageUp": true,
+        "marks": ["retell-held"],
+        "messageUp": false,
         "mode": {
-          "tag": "Drawn",
+          "tag": "Gliding",
           "value": {
             "error": {
               "tag": "Just",
               "value": "no"
             },
-            "step": "one"
+            "glide": {
+              "#bigint": "15"
+            },
+            "pending": {
+              "animate": true,
+              "step": "one",
+              "token": {
+                "#bigint": "16"
+              }
+            },
+            "standing": {
+              "tag": "Just",
+              "value": {
+                "error": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "step": "wait"
+              }
+            }
           }
         },
         "morphing": {
@@ -2966,23 +3018,19 @@
           }
         },
         "moving": {
-          "#set": []
+          "#set": [
+            {
+              "#bigint": "15"
+            }
+          ]
         },
         "nextToken": {
-          "#bigint": "18"
+          "#bigint": "19"
         },
         "onPage": true,
         "outcomes": [
           {
-            "effects": [
-              {
-                "tag": "Reword",
-                "value": {
-                  "reason": "no",
-                  "step": "wait"
-                }
-              }
-            ],
+            "effects": [],
             "last": {
               "tag": "Nothing",
               "value": {
@@ -2996,7 +3044,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -3011,7 +3059,7 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -3025,7 +3073,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -3134,24 +3182,24 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "18"
+              "#bigint": "19"
             }
           }
         },
         "deep": false,
-        "from": "drawn",
+        "from": "gliding",
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["show-retry"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3165,17 +3213,19 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -3191,12 +3241,18 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "19"
+          "#bigint": "20"
         },
         "onPage": true,
         "outcomes": [
           {
             "effects": [
+              {
+                "tag": "Abandon",
+                "value": {
+                  "#bigint": "15"
+                }
+              },
               {
                 "tag": "Hunt",
                 "value": {
@@ -3209,7 +3265,7 @@
                   "animate": false,
                   "step": "two",
                   "token": {
-                    "#bigint": "18"
+                    "#bigint": "19"
                   }
                 }
               }
@@ -3227,7 +3283,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -3242,14 +3298,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -3263,7 +3319,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -3368,7 +3424,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "18"
+              "#bigint": "19"
             }
           }
         },
@@ -3377,15 +3433,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["retell-held"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3397,17 +3453,19 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -3423,7 +3481,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "20"
+          "#bigint": "21"
         },
         "onPage": true,
         "outcomes": [
@@ -3442,7 +3500,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -3457,14 +3515,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -3478,7 +3536,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -3585,7 +3643,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "18"
+              "#bigint": "19"
             }
           }
         },
@@ -3594,15 +3652,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["settled-stale"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3614,17 +3672,19 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -3640,7 +3700,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "21"
+          "#bigint": "22"
         },
         "onPage": true,
         "outcomes": [
@@ -3659,7 +3719,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -3674,14 +3734,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -3695,7 +3755,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -3734,7 +3794,7 @@
         "glidePick": {
           "tag": "Some",
           "value": {
-            "#bigint": "13"
+            "#bigint": "7"
           }
         },
         "landedOn": {
@@ -3804,7 +3864,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "18"
+              "#bigint": "19"
             }
           }
         },
@@ -3813,15 +3873,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["mutated-elsewhere"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -3833,17 +3893,19 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -3859,7 +3921,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "22"
+          "#bigint": "23"
         },
         "onPage": true,
         "outcomes": [
@@ -3878,7 +3940,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -3893,14 +3955,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -3914,7 +3976,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -4021,7 +4083,7 @@
             "animate": false,
             "step": "two",
             "token": {
-              "#bigint": "18"
+              "#bigint": "19"
             }
           }
         },
@@ -4030,15 +4092,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["expired-stale"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -4050,17 +4112,19 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -4076,7 +4140,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "23"
+          "#bigint": "24"
         },
         "onPage": true,
         "outcomes": [
@@ -4095,7 +4159,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -4110,14 +4174,14 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
@@ -4131,7 +4195,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -4244,7 +4308,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "23"
+              "#bigint": "24"
             }
           }
         },
@@ -4253,15 +4317,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["show-retry"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -4275,17 +4339,19 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -4301,7 +4367,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "24"
+          "#bigint": "25"
         },
         "onPage": true,
         "outcomes": [
@@ -4325,7 +4391,7 @@
                   "animate": true,
                   "step": "one",
                   "token": {
-                    "#bigint": "23"
+                    "#bigint": "24"
                   }
                 }
               }
@@ -4343,7 +4409,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -4358,21 +4424,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             {
@@ -4386,7 +4452,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -4491,7 +4557,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "23"
+              "#bigint": "24"
             }
           }
         },
@@ -4500,15 +4566,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["retell-held"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -4520,17 +4586,19 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -4546,7 +4614,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "25"
+          "#bigint": "26"
         },
         "onPage": true,
         "outcomes": [
@@ -4565,7 +4633,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -4580,21 +4648,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             {
@@ -4608,7 +4676,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -4715,7 +4783,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "23"
+              "#bigint": "24"
             }
           }
         },
@@ -4724,15 +4792,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
         "marks": ["mutated-elsewhere"],
-        "messageUp": true,
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -4744,17 +4812,19 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -4770,7 +4840,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "26"
+          "#bigint": "27"
         },
         "onPage": true,
         "outcomes": [
@@ -4789,7 +4859,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -4804,21 +4874,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             {
@@ -4832,7 +4902,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]
@@ -4939,7 +5009,7 @@
             "animate": true,
             "step": "one",
             "token": {
-              "#bigint": "23"
+              "#bigint": "24"
             }
           }
         },
@@ -4948,15 +5018,15 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "6"
+              "#bigint": "7"
             },
             {
-              "#bigint": "13"
+              "#bigint": "15"
             }
           ]
         },
-        "marks": ["resized-holes", "resolved-refit"],
-        "messageUp": true,
+        "marks": ["resized-holes", "resolved-redraw"],
+        "messageUp": false,
         "mode": {
           "tag": "Retrying",
           "value": {
@@ -4968,17 +5038,19 @@
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             "standing": {
               "tag": "Just",
               "value": {
                 "error": {
-                  "tag": "Just",
-                  "value": "no"
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
                 },
-                "step": "one"
+                "step": "wait"
               }
             },
             "unmeasured": false
@@ -4994,7 +5066,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "28"
+          "#bigint": "29"
         },
         "onPage": true,
         "outcomes": [
@@ -5007,10 +5079,12 @@
                 "value": {
                   "drawn": {
                     "error": {
-                      "tag": "Just",
-                      "value": "no"
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
                     },
-                    "step": "one"
+                    "step": "wait"
                   },
                   "saying": false
                 }
@@ -5020,13 +5094,19 @@
           {
             "effects": [
               {
-                "tag": "Refit",
+                "tag": "Redraw",
                 "value": {
-                  "error": {
-                    "tag": "Just",
-                    "value": "no"
+                  "drawn": {
+                    "error": {
+                      "tag": "Nothing",
+                      "value": {
+                        "#tup": []
+                      }
+                    },
+                    "step": "wait"
                   },
-                  "step": "one"
+                  "found": false,
+                  "saying": false
                 }
               }
             ],
@@ -5043,7 +5123,7 @@
         },
         "screen": {
           "tag": "Just",
-          "value": "one"
+          "value": "wait"
         },
         "waits": {
           "#set": [
@@ -5058,21 +5138,21 @@
               "animate": false,
               "step": "two",
               "token": {
-                "#bigint": "18"
+                "#bigint": "19"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "14"
+                "#bigint": "16"
               }
             },
             {
               "animate": true,
               "step": "one",
               "token": {
-                "#bigint": "23"
+                "#bigint": "24"
               }
             },
             {
@@ -5086,7 +5166,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]

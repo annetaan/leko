@@ -208,7 +208,7 @@ caught by the `stillAt` asks. A late report cannot do damage because every
 event that can land late carries the position it was planned at.
 
 The presenter has three — `reveal` reports `unmeasured` or `morphed` from
-inside itself, `arrive` is a `show`, `lost` is a teardown from inside the
+inside itself, `arrive` is an `arrived`, `lost` is a teardown from inside the
 machine's call — and it has no `next`. Its safety is a rule about **the order
 of a list**: a re-entrant effect is the last of its outcome, because anything
 after one would run against a mode a nested dispatch has already replaced.

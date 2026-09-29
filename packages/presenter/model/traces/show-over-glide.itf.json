@@ -905,11 +905,11 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "5"
+              "#bigint": "6"
             }
           ]
         },
-        "marks": ["show-glide"],
+        "marks": ["show-arrive", "arrived-glide"],
         "messageUp": false,
         "mode": {
           "tag": "Gliding",
@@ -921,13 +921,13 @@
               }
             },
             "glide": {
-              "#bigint": "5"
+              "#bigint": "6"
             },
             "pending": {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "6"
+                "#bigint": "7"
               }
             },
             "standing": {
@@ -953,15 +953,39 @@
         "moving": {
           "#set": [
             {
-              "#bigint": "5"
+              "#bigint": "6"
             }
           ]
         },
         "nextToken": {
-          "#bigint": "7"
+          "#bigint": "8"
         },
         "onPage": true,
         "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Arrive",
+                "value": {
+                  "error": {
+                    "tag": "Nothing",
+                    "value": {
+                      "#tup": []
+                    }
+                  },
+                  "pending": {
+                    "animate": true,
+                    "step": "two",
+                    "token": {
+                      "#bigint": "5"
+                    }
+                  }
+                }
+              }
+            }
+          },
           {
             "effects": [
               {
@@ -998,7 +1022,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "6"
+                "#bigint": "7"
               }
             }
           ]
@@ -1105,7 +1129,7 @@
             "animate": true,
             "step": "two",
             "token": {
-              "#bigint": "7"
+              "#bigint": "8"
             }
           }
         },
@@ -1114,7 +1138,7 @@
         "glides": {
           "#set": [
             {
-              "#bigint": "5"
+              "#bigint": "6"
             }
           ]
         },
@@ -1133,7 +1157,7 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             },
             "standing": {
@@ -1161,7 +1185,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "8"
+          "#bigint": "9"
         },
         "onPage": true,
         "outcomes": [
@@ -1170,7 +1194,7 @@
               {
                 "tag": "Abandon",
                 "value": {
-                  "#bigint": "5"
+                  "#bigint": "6"
                 }
               },
               {
@@ -1185,7 +1209,7 @@
                   "animate": true,
                   "step": "two",
                   "token": {
-                    "#bigint": "7"
+                    "#bigint": "8"
                   }
                 }
               }
@@ -1211,14 +1235,14 @@
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "6"
+                "#bigint": "7"
               }
             },
             {
               "animate": true,
               "step": "two",
               "token": {
-                "#bigint": "7"
+                "#bigint": "8"
               }
             }
           ]

@@ -56,7 +56,7 @@ const CORPORA = [
       { name: 'expired-stale', target: 'expiredStale', seed: '0x2' },
       { name: 'resized-in-glide', target: 'resizedInGlide', seed: '0x3' },
       { name: 'show-over-glide', target: 'showOverGlide', seed: '0x4' },
-      // The one above narrowed to a `show` that itself glides, so two glides
+      // The one above narrowed to a hand-over that itself glides, so two glides
       // are alive at once. `plan.qnt` says beside `glideOverGlide` why the
       // wider target is not enough: its seed landed on `show-retry`, and the
       // state where the mode's glide and the glides still running can disagree

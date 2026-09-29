@@ -97,7 +97,8 @@ offers them so that the comparison is exercised rather than assumed.
 
 Four effects come back into the plan from inside the shell: `reveal` reports
 `unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
-`arrive` is a `show`, and `lost` is a teardown from inside the machine's call.
+`arrive` is an `arrived`, and `lost` is a teardown from inside the machine's
+call.
 An `Outcome` carries at most one of them, in `last`, and the shell performs it
 after every other effect, so the order is the type's and nothing checks it.
 Quint has no recursion, so the interpreter is unrolled — `dispatch`,
@@ -106,8 +107,9 @@ third level's outcome that came back in marks the state `deep` instead of
 running. `boundedReentry` says that never happened. A plan that nests further
 wants another level, not a quieter model.
 
-The deepest chain as the plan stands is a hunt finding its target: `mutated`
-owes an `arrive`, the `show` it makes owes a `reveal`, and the `reveal` reports
+The deepest chain as the plan stands is a target found: a `show` whose target
+is on the page, a `mutated` that found it or an `expired` that did owes an
+`arrive`, the `arrived` it makes owes a `reveal`, and the `reveal` reports
 `unmeasured` or `morphed`. Three deep. A resize is two: `resized` owes a
 `replace`, and the answer comes back as `resolved`.
 
@@ -169,7 +171,7 @@ becomes whether there was one, a `Glide` becomes the model's token for it, a
 step becomes its id. Then **the state performing them left**: the mode and what
 it carries, the watcher and what it is armed for, the deadline, what is on the
 page, the words, the morph, the glides and the page itself. The glides by
-identity rather than by number: a `show` over a glide abandons one and mints
+identity rather than by number: an arrival over a glide abandons one and mints
 another, so a mode left holding the abandoned one runs the same count and owes
 the same effects, and which token the mode holds is the only thing that tells
 the two apart.
@@ -253,7 +255,7 @@ so a plan that answered one went green. `mutated-elsewhere` is the mark for it
 now, and `hunt-elsewhere` is the trace.
 
 The second cost a trace and a field on the oracle, and it is the sharpest thing
-here. A `show` that glides, made while the page is already gliding, is the one
+here. A hand-over that glides, made while the page is already gliding, is the one
 state where two glides are alive at once, and no trace reached it: `showOverGlide`
 admits that state, but its seed landed on a `show` that retried instead. So a
 mode holding the abandoned glide looked exactly like one holding the right glide

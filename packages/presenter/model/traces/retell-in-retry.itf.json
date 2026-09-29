@@ -367,7 +367,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["show-draw", "morphed-said"],
+        "marks": ["show-arrive", "arrived-draw", "morphed-said"],
         "messageUp": true,
         "mode": {
           "tag": "Drawn",
@@ -391,10 +391,34 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "4"
         },
         "onPage": true,
         "outcomes": [
+          {
+            "effects": [],
+            "last": {
+              "tag": "Just",
+              "value": {
+                "tag": "Arrive",
+                "value": {
+                  "error": {
+                    "tag": "Nothing",
+                    "value": {
+                      "#tup": []
+                    }
+                  },
+                  "pending": {
+                    "animate": false,
+                    "step": "one",
+                    "token": {
+                      "#bigint": "1"
+                    }
+                  }
+                }
+              }
+            }
+          },
           {
             "effects": [
               {
@@ -586,7 +610,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "5"
         },
         "onPage": true,
         "outcomes": [
@@ -749,7 +773,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "6"
         },
         "onPage": true,
         "outcomes": [
@@ -912,7 +936,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "7"
+          "#bigint": "8"
         },
         "onPage": true,
         "outcomes": [
@@ -1099,7 +1123,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "8"
+          "#bigint": "9"
         },
         "onPage": false,
         "outcomes": [
@@ -1267,7 +1291,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "9"
+          "#bigint": "10"
         },
         "onPage": false,
         "outcomes": [
@@ -1420,7 +1444,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "10"
+          "#bigint": "11"
         },
         "onPage": false,
         "outcomes": [
@@ -1552,7 +1576,7 @@
             "animate": true,
             "step": "wait",
             "token": {
-              "#bigint": "11"
+              "#bigint": "12"
             }
           }
         },
@@ -1576,7 +1600,7 @@
               "animate": true,
               "step": "wait",
               "token": {
-                "#bigint": "11"
+                "#bigint": "12"
               }
             },
             "standing": {
@@ -1598,7 +1622,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "12"
+          "#bigint": "13"
         },
         "onPage": true,
         "outcomes": [
@@ -1645,7 +1669,7 @@
                   "animate": true,
                   "step": "wait",
                   "token": {
-                    "#bigint": "11"
+                    "#bigint": "12"
                   }
                 }
               }
@@ -1673,7 +1697,7 @@
               "animate": true,
               "step": "wait",
               "token": {
-                "#bigint": "11"
+                "#bigint": "12"
               }
             }
           ]
@@ -1778,7 +1802,7 @@
             "animate": true,
             "step": "wait",
             "token": {
-              "#bigint": "11"
+              "#bigint": "12"
             }
           }
         },
@@ -1800,7 +1824,7 @@
               "animate": true,
               "step": "wait",
               "token": {
-                "#bigint": "11"
+                "#bigint": "12"
               }
             },
             "standing": {
@@ -1822,7 +1846,7 @@
           "#set": []
         },
         "nextToken": {
-          "#bigint": "13"
+          "#bigint": "14"
         },
         "onPage": true,
         "outcomes": [
@@ -1851,7 +1875,7 @@
               "animate": true,
               "step": "wait",
               "token": {
-                "#bigint": "11"
+                "#bigint": "12"
               }
             }
           ]

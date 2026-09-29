@@ -60,8 +60,17 @@ function the<K extends Performed['kind']>(outcome: Outcome, kind: K): Performed 
   return found[0]!
 }
 
-const arrival = (over: Partial<Event & { kind: 'show' }> = {}): Event => ({
+/** The machine handing `step` over, with the target on the page unless a test says otherwise. */
+const handOver = (over: Partial<Event & { kind: 'show' }> = {}): Event => ({
   kind: 'show',
+  step,
+  anchor,
+  animate: true,
+  ...over,
+})
+
+const arrival = (over: Partial<Event & { kind: 'arrived' }> = {}): Event => ({
+  kind: 'arrived',
   step,
   anchor,
   animate: true,
@@ -151,6 +160,77 @@ describe('reading a step', () => {
   })
 })
 
+describe('a hand-over', () => {
+  test('hands a step whose target is on the page to an arrival', () => {
+    const outcome = reduce(drawn('was told'), handOver())
+
+    // Nothing changes until the arrival does: the scroll it may start is the
+    // shell's to ask for.
+    expect(outcome.mode).toEqual(drawn('was told'))
+    expect(outcome.effects).toEqual([])
+    expect(outcome.last).toEqual({
+      kind: 'arrive',
+      pending: { step, animate: true },
+      anchor,
+      error: undefined,
+    })
+  })
+
+  test('draws a step that points at nothing on the document', () => {
+    const outcome = reduce(drawn(), handOver({ step: waiting, anchor: null }))
+
+    expect(outcome.mode).toEqual({ kind: 'drawn', step: waiting, error: undefined })
+    // The same nothing as a step drawn around its target arms: what this test
+    // tells apart is the anchor the draw is given, which is `null` for a step
+    // that waits.
+    expect(owed(outcome)).toEqual(['disarm', 'reveal'])
+    expect(the(outcome, 'reveal').anchor).toBeNull()
+  })
+
+  test('gives a target that is not on the page a moment to turn up', () => {
+    const outcome = reduce(drawn('was told'), handOver({ anchor: null }))
+
+    expect(outcome.mode).toEqual({
+      kind: 'retrying',
+      pending: { step, animate: true },
+      unmeasured: false,
+      error: undefined,
+      standing: { step, error: 'was told' },
+    })
+    expect(owed(outcome)).toEqual(['hunt', 'deadline'])
+    // The deadline names the wait the mode holds, and no other object: that is
+    // what a late one is told apart by.
+    expect(the(outcome, 'deadline').pending).toBe((outcome.mode as Retrying).pending)
+  })
+
+  test('stops what the mode was running only once, in the arrival', () => {
+    const flight = glide()
+
+    const found = reduce(gliding(flight), handOver())
+    expect(owed(found)).toEqual(['arrive'])
+
+    expect(owed(reduce(gliding(flight), handOver({ anchor: null })))).toEqual([
+      'abandon',
+      'hunt',
+      'deadline',
+    ])
+    expect(owed(reduce(retrying(), handOver({ step: waiting, anchor: null })))).toEqual([
+      'cancel',
+      'disarm',
+      'reveal',
+    ])
+  })
+
+  test('a wait begun from a wait keeps what is standing, and one from nothing knows that', () => {
+    const standing: Drawn = { step: other, error: 'was told' }
+
+    expect(
+      (reduce(retrying(undefined, standing), handOver({ anchor: null })).mode as Retrying).standing,
+    ).toBe(standing)
+    expect((reduce(idle, handOver({ anchor: null })).mode as Retrying).standing).toBeUndefined()
+  })
+})
+
 describe('an arrival', () => {
   test('draws a step whose target is on the page, and arms nothing', () => {
     const outcome = reduce(idle, arrival())
@@ -167,32 +247,6 @@ describe('an arrival', () => {
       anchor,
       animate: true,
     })
-  })
-
-  test('draws a step that points at nothing on the document, and arms nothing either', () => {
-    const outcome = reduce(drawn(), arrival({ step: waiting, anchor: null }))
-
-    expect(outcome.mode).toEqual({ kind: 'drawn', step: waiting, error: undefined })
-    // The same nothing as the step above arms: what this test tells apart is
-    // the anchor the draw is given, which is `null` for a step that waits.
-    expect(owed(outcome)).toEqual(['disarm', 'reveal'])
-    expect(the(outcome, 'reveal').anchor).toBeNull()
-  })
-
-  test('gives a target that is not on the page a moment to turn up, and draws nothing', () => {
-    const outcome = reduce(drawn('was told'), arrival({ anchor: null }))
-
-    expect(outcome.mode).toEqual({
-      kind: 'retrying',
-      pending: { step, animate: true },
-      unmeasured: false,
-      error: undefined,
-      standing: { step, error: 'was told' },
-    })
-    expect(owed(outcome)).toEqual(['hunt', 'deadline'])
-    // The deadline names the wait the mode holds, and no other object: that is
-    // what a late one is told apart by.
-    expect(the(outcome, 'deadline').pending).toBe((outcome.mode as Retrying).pending)
   })
 
   test('holds the pending step behind a glide, hides the words and takes a retry off', () => {
@@ -226,7 +280,7 @@ describe('an arrival', () => {
     expect(owed(outcome)).toEqual(['cancel', 'disarm', 'reveal'])
   })
 
-  test('a wait begun from a wait keeps what is standing, because nothing was drawn between', () => {
+  test('a glide begun from a wait keeps what is standing, because nothing was drawn between', () => {
     const standing: Drawn = { step: other, error: 'was told' }
 
     expect(
@@ -237,13 +291,9 @@ describe('an arrival', () => {
     expect(
       (reduce(retrying(undefined, standing), arrival({ glide: glide() })).mode as Gliding).standing,
     ).toBe(standing)
-    expect(
-      (reduce(retrying(undefined, standing), arrival({ anchor: null })).mode as Retrying).standing,
-    ).toBe(standing)
   })
 
-  test('a wait begun from nothing on screen knows that', () => {
-    expect((reduce(idle, arrival({ anchor: null })).mode as Retrying).standing).toBeUndefined()
+  test('a glide begun from nothing on screen knows that', () => {
     expect((reduce(idle, arrival({ glide: glide() })).mode as Gliding).standing).toBeUndefined()
   })
 
@@ -639,8 +689,8 @@ describe('an outcome', () => {
 
 describe('a pending step is the wait, not the step', () => {
   test('two waits at the same step are two objects', () => {
-    const once = reduce(idle, arrival({ anchor: null })).mode as Retrying
-    const twice = reduce(idle, arrival({ anchor: null })).mode as Retrying
+    const once = reduce(idle, handOver({ anchor: null })).mode as Retrying
+    const twice = reduce(idle, handOver({ anchor: null })).mode as Retrying
 
     expect(twice.pending).toEqual(once.pending)
     expect(twice.pending).not.toBe(once.pending)

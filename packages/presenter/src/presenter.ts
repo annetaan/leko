@@ -325,13 +325,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
   show(step: LekoStep, animate: boolean): void {
     // Armed here, not in `reveal` — {@link watchNavigation}.
     this.watchNavigation()
-    // An arrival is a fresh attempt at the step, so nothing is owed under the
-    // instruction until a guard says otherwise.
-    this.arrive(step, this.resolve(step), animate, undefined)
+    this.dispatch({ kind: 'show', step, anchor: this.resolve(step), animate })
   }
 
   /**
-   * An arrival, from the machine or from a hunt that found its target.
+   * An arrival at a target that is on the page, from a hand-over that found it
+   * or from a hunt or a deadline that did.
    *
    * **The one place a scroll happens.** After the target resolved, so there is
    * something to scroll to, and before anything is measured, so every box the
@@ -348,28 +347,27 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private arrive(
     step: LekoStep,
-    anchor: Element | null,
+    anchor: Element,
     animate: boolean,
     error: string | undefined,
   ): void {
     const mode = this.scrolls(step)
     const { duration, easing } = this.motion(step)
-    const glide =
-      anchor && mode
-        ? bringIntoView(
-            lit(step, anchor, this.resolves(step)),
-            this.setting(step, 'padding'),
-            duration,
-            mode,
-            easing,
-          )
-        : undefined
+    const glide = mode
+      ? bringIntoView(
+          lit(step, anchor, this.resolves(step)),
+          this.setting(step, 'padding'),
+          duration,
+          mode,
+          easing,
+        )
+      : undefined
     if (glide) {
       void glide.settled.then(() => {
         this.dispatch({ kind: 'settled', glide, anchor: this.resolve(step) })
       })
     }
-    this.dispatch({ kind: 'show', step, anchor, animate, glide, error })
+    this.dispatch({ kind: 'arrived', step, anchor, animate, glide, error })
   }
 
   retell(step: LekoStep, reason: string): void {

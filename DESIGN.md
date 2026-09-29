@@ -1426,8 +1426,9 @@ tour is for.
   already holds the cutout is not touched**. The arithmetic is `stickySlack`'s
   and is already written down, so this stays cheap to add if it is ever wanted.
 - **Only an arrival scrolls.** The call sits in `arrive` in `presenter.ts`,
-  which `show` is, between the target resolving and anything being measured,
-  and what it answered goes into the `show` event as a fact. Every redraw goes
+  which a `show` that finds its target goes through, between the target
+  resolving and anything being measured, and what it answered goes into the
+  `arrived` event as a fact. Every redraw goes
   through `reveal` instead — a resize, a framework rendering over the step —
   and by then the viewer may have moved the page on purpose, so none of them
   scrolls again.

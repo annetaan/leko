@@ -49,7 +49,8 @@ module plan {
   /// `Event` in plan.ts. `anchor` and `found` are `Element | null` there and a
   /// bool here: what the plan reads off either is whether it is null.
   type Event =
-    | Show({ step: str, anchor: bool, animate: bool, glide: Maybe[int], error: Maybe[str] })
+    | Show({ step: str, anchor: bool, animate: bool })
+    | Arrived({ step: str, anchor: bool, animate: bool, glide: Maybe[int], error: Maybe[str] })
     | Retell({ step: str, reason: str })
     | Teardown
     | Settled({ glide: int, anchor: bool })
@@ -148,7 +149,7 @@ module plan {
     // `show` left reads this beside `marks`.
     from: str,
     // Which way each `reduce` the last action ran went, outermost first. More
-    // than one where an effect came back in: `["mutated-arrive", "show-glide"]`
+    // than one where an effect came back in: `["mutated-arrive", "arrived-glide"]`
     // is a hunt finding its target and the arrival gliding.
     marks: List[str],
     // What each of those `reduce` calls owed, for the replay's oracle.
@@ -255,20 +256,13 @@ module plan {
       // --- what the machine calls
 
       | Show(e) => {
-        val before = leaving(mode)
         val pending = { step: e.step, animate: e.animate, token: fresh }
         if (not(e.anchor) and pointsAt(e.step))
-          retrying(pending, e.error, standingIn(mode), before, false, "show-retry")
-        else
-          match e.glide {
-            | Just(g) => {
-              mode: Gliding({ glide: g, pending: pending, error: e.error, standing: standingIn(mode) }),
-              effects: before.concat([Hide, Disarm]),
-              last: Nothing,
-              mark: "show-glide",
-            }
-            | Nothing => revealing({ step: e.step, error: e.error }, e.anchor, e.animate, before, "show-draw")
-          }
+          retrying(pending, Nothing, standingIn(mode), leaving(mode), false, "show-retry")
+        else if (not(e.anchor))
+          revealing({ step: e.step, error: Nothing }, false, e.animate, leaving(mode), "show-draw")
+        // Nothing is left here: `Arrived` does the leaving.
+        else { mode: mode, effects: [], last: Just(Arrive({ pending: pending, error: Nothing })), mark: "show-arrive" }
       }
 
       // The step the event names is not compared, here as in plan.ts: the
@@ -292,6 +286,20 @@ module plan {
         { mode: Idle, effects: leaving(mode).concat([Disarm, Destroy]), last: Nothing, mark: "teardown" }
 
       // --- what the page answers
+
+      | Arrived(e) => {
+        val before = leaving(mode)
+        val pending = { step: e.step, animate: e.animate, token: fresh }
+        match e.glide {
+          | Just(g) => {
+            mode: Gliding({ glide: g, pending: pending, error: e.error, standing: standingIn(mode) }),
+            effects: before.concat([Hide, Disarm]),
+            last: Nothing,
+            mark: "arrived-glide",
+          }
+          | Nothing => revealing({ step: e.step, error: e.error }, e.anchor, e.animate, before, "arrived-draw")
+        }
+      }
 
       | Settled(e) =>
         match mode {
@@ -406,7 +414,7 @@ module plan {
 
   pure def mint(s: M): M = s.with("nextToken", s.nextToken + 1)
 
-  /// A glide begun, by the shell, before the `show` that carries it.
+  /// A glide begun, by the shell, before the `arrived` that carries it.
   pure def glideFrom(s: M): { s: M, glide: int } = {
     val g = s.nextToken
     { s: mint(s).with("moving", s.moving.union(Set(g))).with("glides", s.glides.union(Set(g))), glide: g }
@@ -459,7 +467,7 @@ module plan {
     }
 
   /// The four that come back in — `reveal` reports `unmeasured` or `morphed`
-  /// from inside itself, `replace` reports `resolved`, `arrive` is a `show`,
+  /// from inside itself, `replace` reports `resolved`, `arrive` is an `arrived`,
   /// `lost` is a teardown from inside the machine's call — and `again` is how.
   /// Quint has no recursion, so {@link dispatch} unrolls it as deep as the plan
   /// nests, and the next level marks the state `deep` instead of running.
@@ -498,16 +506,16 @@ module plan {
         }))
       | Arrive(a) => {
         // `arrive` in presenter.ts: the one place a scroll happens. A glide is
-        // minted where `bringIntoView` had somewhere to go, and the `show`
+        // minted where `bringIntoView` had somewhere to go, and the `arrived`
         // carries it.
         if (k.somewhere) {
           val begun = glideFrom(s)
-          again(begun.s, Show({
+          again(begun.s, Arrived({
             step: a.pending.step, anchor: true, animate: a.pending.animate,
             glide: Just(begun.glide), error: a.error,
           }))
         } else
-          again(s, Show({
+          again(s, Arrived({
             step: a.pending.step, anchor: true, animate: a.pending.animate,
             glide: Nothing, error: a.error,
           }))
@@ -551,9 +559,9 @@ module plan {
   pure def dispatch2(s: M, ev: Event, k: Knobs): M =
     dispatchWith(s, ev, k, (t, e) => dispatch3(t, e, k))
 
-  /// Three deep, which is as deep as the plan nests: a hunt finding its target
-  /// is an `arrive`, the `show` it makes is a `reveal`, and the `reveal`
-  /// reports `unmeasured` or `morphed`. Whatever those owe comes back in no
+  /// Three deep, which is as deep as the plan nests: a hand-over or a hunt
+  /// finding its target is an `arrive`, the `arrived` it makes is a `reveal`,
+  /// and the `reveal` reports `unmeasured` or `morphed`. Whatever those owe comes back in no
   /// further, and a fourth level is {@link boundedReentry} failing.
   pure def dispatch(s: M, ev: Event, k: Knobs): M =
     dispatchWith(s, ev, k, (t, e) => dispatch2(t, e, k))
@@ -569,21 +577,11 @@ module plan {
   // asked, and each is offered exactly where the shell would hear it.
 
   /// `Presenter.show`. `resolved` is what `resolve` answered, written to the
-  /// page so the world agrees with it; a glide is minted beside an anchor
-  /// where the knob says the port had somewhere to go.
+  /// page so the world agrees with it. Knobs, because a hand-over that finds
+  /// its target arrives, and the arrival is where a glide begins.
   action doShow(step: str, resolved: bool, animate: bool, k: Knobs): bool = all {
-    m' = {
-      val s = saw(begin(m), step, resolved)
-      val anchor = resolved and pointsAt(step)
-      val begun =
-        if (anchor and k.somewhere) {
-          val g = glideFrom(s)
-          { s: g.s, glide: Just(g.glide) }
-        } else { s: s, glide: Nothing }
-      dispatch(begun.s, Show({
-        step: step, anchor: anchor, animate: animate, glide: begun.glide, error: Nothing,
-      }), k)
-    },
+    m' = dispatch(saw(begin(m), step, resolved),
+                  Show({ step: step, anchor: resolved and pointsAt(step), animate: animate }), k),
   }
 
   /// `Presenter.retell`, about any step, in any mode.
@@ -806,7 +804,9 @@ module plan {
 
   val showDraw: bool = went(m, "show-draw")
   val showRetry: bool = went(m, "show-retry")
-  val showGlide: bool = went(m, "show-glide")
+  val showArrive: bool = went(m, "show-arrive")
+  val arrivedDraw: bool = went(m, "arrived-draw")
+  val arrivedGlide: bool = went(m, "arrived-glide")
   val retellSaid: bool = went(m, "retell-said")
   val retellHeld: bool = went(m, "retell-held")
   val retellIdle: bool = went(m, "retell-idle")
@@ -846,7 +846,8 @@ module plan {
   /// target and the arrival scrolling, or the machine showing a step over one.
   /// Its `standing` is inherited, and {@link screenIsTheModes} checks it.
   val glideFromRetry: bool =
-    m.marks == ["mutated-arrive", "show-glide"] or (m.marks == ["show-glide"] and m.from == "retrying")
+    m.marks == ["mutated-arrive", "arrived-glide"]
+      or (m.marks == ["show-arrive", "arrived-glide"] and m.from == "retrying")
 
   /// The same, with a step standing behind the glide, so what it inherited is
   /// a step rather than nothing.
@@ -862,7 +863,7 @@ module plan {
       | _ => false
     })
 
-  /// A `show` that glides, made while the page was already gliding.
+  /// A hand-over that glides, made while the page was already gliding.
   ///
   /// The one state in which two glides are alive at once: the old one
   /// abandoned, the new one running, and the mode holding exactly one of them.
@@ -870,7 +871,7 @@ module plan {
   /// and a plan that kept the abandoned glide on the new mode replayed green.
   /// In a browser that is a hang: the new glide settles, the mode holds the old
   /// one, and the step never draws on a page that has already scrolled to it.
-  val glideOverGlide: bool = m.from == "gliding" and first(m) == "show-glide"
+  val glideOverGlide: bool = m.from == "gliding" and m.marks == ["show-arrive", "arrived-glide"]
 
   /// A resize while the page glides, with a step standing to put back.
   val resizedInGlide: bool = went(m, "resized-holes") and kindOf(m.mode) == "gliding"
@@ -903,12 +904,15 @@ module plan {
   /// A `show` over a retry, which cancels the deadline it leaves; a target that
   /// turns up late for it must find nobody hunting.
   val showOverRetry: bool =
-    m.from == "retrying" and (first(m) == "show-retry" or first(m) == "show-draw")
+    m.from == "retrying" and (
+      first(m) == "show-retry" or first(m) == "show-draw"
+        or (first(m) == "show-arrive" and went(m, "arrived-draw"))
+    )
 
   /// A `show` over a glide, which abandons it: a page on its way to a step the
   /// tour has left must not carry on under this one.
   val showOverGlide: bool =
-    m.from == "gliding" and (first(m) == "show-draw" or first(m) == "show-retry" or first(m) == "show-glide")
+    m.from == "gliding" and (first(m) == "show-draw" or first(m) == "show-retry" or first(m) == "show-arrive")
 
   /// A step that points at nothing, drawn on the document with no hole and
   /// nothing watched.

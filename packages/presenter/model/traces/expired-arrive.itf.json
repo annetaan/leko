@@ -899,7 +899,7 @@
         "glides": {
           "#set": []
         },
-        "marks": ["expired-arrive", "show-draw", "morphed-said"],
+        "marks": ["expired-arrive", "arrived-draw", "morphed-said"],
         "messageUp": true,
         "mode": {
           "tag": "Drawn",

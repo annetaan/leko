@@ -481,11 +481,11 @@ class Shell {
         this.messageUp = true
         return
       case 'arrive': {
-        // The one place a scroll happens, and the hunt's target is resolved, so
-        // the `show` always carries an anchor.
+        // The one place a scroll happens, and the target is resolved, so the
+        // `arrived` always carries an anchor.
         const glide = this.knobs.somewhere ? this.mint() : undefined
         this.dispatch({
-          kind: 'show',
+          kind: 'arrived',
           step: effect.pending.step,
           anchor: ANCHOR,
           animate: effect.pending.animate,
@@ -511,21 +511,17 @@ class Shell {
   // ------------------------------------------------------------------ the calls
   //
   // One per action in the model, doing what that action does before it
-  // dispatches: the page written from what the shell saw, and a glide minted
-  // where `bringIntoView` had somewhere to go.
+  // dispatches: the page written from what the shell saw. A glide is minted
+  // where `bringIntoView` had somewhere to go, which is the `arrive` effect.
 
   show(name: string, resolved: boolean, animate: boolean): void {
     const step = this.step(name)
     this.saw(step, resolved)
-    const anchor = resolved && pointsAt(step)
-    const glide = anchor && this.knobs.somewhere ? this.mint() : undefined
     this.dispatch({
       kind: 'show',
       step,
-      anchor: anchor ? ANCHOR : null,
+      anchor: resolved && pointsAt(step) ? ANCHOR : null,
       animate,
-      glide,
-      error: undefined,
     })
   }
 
@@ -908,7 +904,7 @@ describe('every trace the model found', () => {
         // glide the mode holds, where the loop is trivially true. Counted
         // because until `glide-over-glide` was harvested no trace reached it,
         // and `packages/presenter/model/README.md` says how that went unnoticed.
-        if (now.from === 'gliding' && now.marks[0] === 'show-glide') {
+        if (now.from === 'gliding' && now.marks.join() === 'show-arrive,arrived-glide') {
           exercised.glideOverGlide += 1
         }
 

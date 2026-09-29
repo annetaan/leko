@@ -177,24 +177,30 @@ export const idle: Mode = { kind: 'idle' }
 export type Event =
   // --- what the machine calls
   /**
-   * An arrival. `glide` is what `bringIntoView` answered, started by the shell
-   * before this was dispatched because only the shell can ask; it is set only
-   * beside an anchor, on a step that scrolls, where a port had somewhere to go.
-   * `error` is what the attempt has already been told: nothing from the
-   * machine, and the reason a guard gave while a retry was hunting where the
-   * retry found its target.
+   * The machine handing a step over. `anchor` is what resolving the step
+   * turned up: found, the hand-over becomes an {@link Reentrant} `arrive`,
+   * because the scroll is started by the shell and only the shell can ask.
+   */
+  | { kind: 'show'; step: LekoStep; anchor: Element | null; animate: boolean }
+  | { kind: 'retell'; step: LekoStep; reason: string }
+  | { kind: 'teardown' }
+  // --- what the page answers
+  /**
+   * An arrival at a target that is on the page. `glide` is what
+   * `bringIntoView` answered, started by the shell before this was dispatched
+   * because only the shell can ask; it is set only on a step that scrolls,
+   * where a port had somewhere to go. `error` is what the attempt has already
+   * been told: nothing from a hand-over, and the reason a guard gave while a
+   * retry was hunting where the retry found its target.
    */
   | {
-      kind: 'show'
+      kind: 'arrived'
       step: LekoStep
-      anchor: Element | null
+      anchor: Element
       animate: boolean
       glide: Glide | undefined
       error: string | undefined
     }
-  | { kind: 'retell'; step: LekoStep; reason: string }
-  | { kind: 'teardown' }
-  // --- what the page answers
   /** A glide stopped, and `anchor` is the target resolved again where it stopped. */
   | { kind: 'settled'; glide: Glide; anchor: Element | null }
   /** The morph that drew `step` got to the end. */
@@ -274,7 +280,7 @@ export type Effect =
 /**
  * The four that answer the plan from inside the shell: `reveal` reports
  * `unmeasured` or `morphed` from inside itself, `replace` reports `resolved`,
- * `arrive` is a `show`, and `lost` is a teardown from inside the machine's
+ * `arrive` is an `arrived`, and `lost` is a teardown from inside the machine's
  * call. Each dispatches while the shell is still working through the outcome
  * that owed it, so an outcome holds at most one, in {@link Outcome.last}, and
  * `effects` cannot hold any: three of them replace the mode, and anything
@@ -289,7 +295,7 @@ export type Reentrant =
    * answer, and only the page can give it.
    */
   | { kind: 'replace'; drawn: Drawn; saying: boolean }
-  /** A hunt found its target: a fresh arrival at `pending`, through `show`. */
+  /** `pending`'s target was found: a fresh arrival at it, through `arrived`. */
   | { kind: 'arrive'; pending: Pending; anchor: Element; error: string | undefined }
   /** `Host.lost`, whose own doc says what it is the only part of. */
   | { kind: 'lost'; step: LekoStep }
@@ -393,28 +399,23 @@ export function reduce(mode: Mode, event: Event): Outcome {
     // --- what the machine calls
 
     case 'show': {
-      const { step, anchor, animate, glide, error } = event
-      // Whatever was being waited for, the tour is somewhere else now. A glide
-      // is stopped where it is rather than left to run, so a page on its way
-      // to a step the tour has left does not carry on under this one; a target
-      // that turns up late for a retry finds nobody hunting.
-      const before = leaving(mode)
+      const { step, anchor, animate } = event
       const pending: Pending = { step, animate }
       // Named a target and it is not on the page yet. A step that named nothing
       // is not looked for. DESIGN.md, **A target that is not on the page when
       // its step arrives gets a 100ms grace period**.
-      if (!anchor && pointsAt(step)) return retrying(pending, error, standingIn(mode), before)
-      // The page is moving, so the words go and nothing is armed: DESIGN.md,
-      // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed
-      // for it either, and a reason waits with the step**, which is the hunt a
-      // glide entered over a retry would otherwise leave running.
-      if (glide) {
-        return {
-          mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
-          effects: [...before, { kind: 'hide' }, { kind: 'disarm' }],
-        }
+      if (!anchor && pointsAt(step)) {
+        return retrying(pending, undefined, standingIn(mode), leaving(mode))
       }
-      return revealing({ step, error }, anchor, animate, before)
+      if (!anchor) return revealing({ step, error: undefined }, null, animate, leaving(mode))
+      // Found: the fresh arrival a hunt's find is, through `arrived` for the
+      // reason that one goes through it. Nothing is left here, because
+      // `arrived` does the leaving.
+      return {
+        mode,
+        effects: [],
+        last: { kind: 'arrive', pending, anchor, error: undefined },
+      }
     }
 
     case 'retell': {
@@ -441,6 +442,27 @@ export function reduce(mode: Mode, event: Event): Outcome {
       return { mode: idle, effects: [...leaving(mode), { kind: 'disarm' }, { kind: 'destroy' }] }
 
     // --- what the page answers
+
+    case 'arrived': {
+      const { step, anchor, animate, glide, error } = event
+      // Whatever was being waited for, the tour is somewhere else now. A glide
+      // is stopped where it is rather than left to run, so a page on its way
+      // to a step the tour has left does not carry on under this one; a target
+      // that turns up late for a retry finds nobody hunting.
+      const before = leaving(mode)
+      // The page is moving, so the words go and nothing is armed: DESIGN.md,
+      // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed
+      // for it either, and a reason waits with the step**, which is the hunt a
+      // glide entered over a retry would otherwise leave running.
+      if (glide) {
+        const pending: Pending = { step, animate }
+        return {
+          mode: { kind: 'gliding', glide, pending, error, standing: standingIn(mode) },
+          effects: [...before, { kind: 'hide' }, { kind: 'disarm' }],
+        }
+      }
+      return revealing({ step, error }, anchor, animate, before)
+    }
 
     case 'settled': {
       // Another arrival has been and gone, and it is drawing its own step. The
@@ -476,9 +498,9 @@ export function reduce(mode: Mode, event: Event): Outcome {
       // Named rather than read off the mode, so a batch about the step before
       // is told apart from one about the step being waited for.
       if (mode.pending.step !== event.step || !event.found) return nothing(mode)
-      // Found, and a fresh arrival: it goes through `show`, because the scroll
-      // happens on the attempt that finds the target and only the shell can
-      // start one. What the wait was told goes with it.
+      // Found, and a fresh arrival: it goes through `arrived`, because the
+      // scroll happens on the attempt that finds the target and only the shell
+      // can start one. What the wait was told goes with it.
       return {
         mode,
         effects: [],
@@ -499,7 +521,7 @@ export function reduce(mode: Mode, event: Event): Outcome {
       if (mode.kind !== 'retrying' || mode.pending !== event.pending) return nothing(mode)
       // **Asked once more before giving up** — DESIGN.md, **And once more as
       // the grace period runs out**. Found, it is the fresh arrival a hunt's
-      // own find is, through `show` for the reason that one goes through it.
+      // own find is, through `arrived` for the reason that one goes through it.
       // Except for the one wait resolving cannot end, which is given up however
       // it answers: `unmeasured` on the mode says why.
       if (event.found && !mode.unmeasured) {
