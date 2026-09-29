@@ -24,11 +24,9 @@ application reports once, so a tour put back on it would wait for ever —
   through.** The calls an application makes are the four under
   [Methods](../../reference/leko/#methods).
 - **Going back is running the story again.** `stop()` ends the story that is
-  running, and `start()` then begins it again at its first step. A `start()`
-  alone, while a tour runs, is refused —
+  running, and `start()` then begins it, or another story, at its first step.
+  A `start()` alone, while a tour runs, is refused —
   [start](../../reference/leko/#start).
-- **Moving to another story before this one ends is the same two calls,**
-  `stop()` and then `start()` of the other story.
 - **Split a story before it grows long.** A story of four steps costs a few
   seconds to run again, and a story of twenty is where a back control starts to
   feel necessary —
@@ -73,8 +71,9 @@ export const careful = {
   the tour in `careful` is not taken into `summary`. What else ends a tour
   without asking `next` is under
   [next](../../reference/story-and-step/#next).
-- **The join is one move.** The `onLeave` of the story that finished is handed
-  the story that follows, and the tour is never idle in between.
+- **The story that finished can leave its setup in place.** Its `onLeave` is
+  handed the story that follows, so teardown that story would rebuild can be
+  skipped — [story.onLeave](../../reference/story-and-step/#storyonleave).
 - **The count starts again with each story.**
   [`index`](../../reference/leko/#index) counts the steps of the story that is
   running, so a count across the whole tour is the application's own sum.
