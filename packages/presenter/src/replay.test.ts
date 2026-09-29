@@ -145,9 +145,10 @@ function toldEffect(value: Itf): Owed {
       return { kind: 'hunt', step: str(inner['step']) }
     case 'Lost':
       return { kind: 'lost', step: str(inner['step']) }
-    case 'Deadline': {
+    case 'Deadline':
+    case 'Defer': {
       const pending = wait(payload(value))
-      return { kind: 'deadline', step: pending.step, animate: pending.animate }
+      return { kind: kind.toLowerCase(), step: pending.step, animate: pending.animate }
     }
     case 'Reveal': {
       const drawn = picture(inner['drawn'])
@@ -217,7 +218,8 @@ interface Snapshot {
   picks: Record<string, Itf | undefined>
   mode: Told
   watcher: { kind: string; step: string | undefined }
-  deadline: Wait | undefined
+  /** The clock running, and whether it is a frame or a deadline. See `clock`. */
+  clock: { pending: Wait; frame: boolean } | undefined
   screen: string | undefined
   messageUp: boolean
   onPage: boolean
@@ -252,7 +254,10 @@ const snapshot = (raw: Record<string, Itf>): Snapshot => {
       kind: tag(watcher),
       step: tag(watcher) === 'Off' ? undefined : str(payload(watcher)),
     },
-    deadline: maybe(m['deadline'], wait),
+    clock: maybe(m['clock'], (inner) => {
+      const record = inner as { pending: Itf; frame: boolean }
+      return { pending: wait(record.pending), frame: record.frame }
+    }),
     screen: maybe(m['screen'], str),
     messageUp: m['messageUp'] as boolean,
     onPage: m['onPage'] as boolean,
@@ -335,7 +340,7 @@ class Flight implements Glide {
 class Shell {
   mode: Mode = idle
   watcher: { kind: 'hunting'; step: LekoStep } | undefined
-  deadline: Pending | undefined
+  clock: { pending: Pending; frame: boolean } | undefined
   screen: LekoStep | undefined
   messageUp = false
   onPage = false
@@ -398,7 +403,7 @@ class Shell {
     // Every mode this commits, not only the one the action ends in: a `Pending`
     // is minted at whatever depth the plan reached, and an outcome further in
     // can replace the mode that carried it.
-    if (outcome.mode.kind === 'retrying' || outcome.mode.kind === 'gliding') {
+    if (outcome.mode.kind !== 'idle' && outcome.mode.kind !== 'drawn') {
       if (!this.begun.includes(outcome.mode.pending)) this.begun.push(outcome.mode.pending)
     }
     const performed = [...outcome.effects, ...(outcome.last ? [outcome.last] : [])]
@@ -423,10 +428,14 @@ class Shell {
         return
       case 'deadline':
         // `cancel()` then `setTimeout`, so there is never a second one.
-        this.deadline = effect.pending
+        this.clock = { pending: effect.pending, frame: false }
+        return
+      case 'defer':
+        // `cancel()` then `requestAnimationFrame`, for the same reason.
+        this.clock = { pending: effect.pending, frame: true }
         return
       case 'cancel':
-        this.deadline = undefined
+        this.clock = undefined
         return
       case 'reveal': {
         // `measure` restacks the layers whatever it finds, so something of the
@@ -514,15 +523,8 @@ class Shell {
   // dispatches: the page written from what the shell saw. A glide is minted
   // where `bringIntoView` had somewhere to go, which is the `arrive` effect.
 
-  show(name: string, resolved: boolean, animate: boolean): void {
-    const step = this.step(name)
-    this.saw(step, resolved)
-    this.dispatch({
-      kind: 'show',
-      step,
-      anchor: resolved && pointsAt(step) ? ANCHOR : null,
-      animate,
-    })
+  show(name: string, animate: boolean): void {
+    this.dispatch({ kind: 'show', step: this.step(name), animate })
   }
 
   settled(token: number, landed: boolean): void {
@@ -552,9 +554,9 @@ class Shell {
   expired(token: number, found: boolean): void {
     const pending = this.waits.get(token)
     if (!pending) throw new Error(`the trace expires a wait nothing began: ${token}`)
-    if (this.deadline === pending) {
+    if (this.clock?.pending === pending) {
       this.saw(pending.step, found)
-      this.deadline = undefined
+      this.clock = undefined
     }
     this.dispatch({
       kind: 'expired',
@@ -602,8 +604,9 @@ class Shell {
       case 'lost':
         return { kind: 'lost', step: effect.step.id }
       case 'deadline':
+      case 'defer':
         return {
-          kind: 'deadline',
+          kind: effect.kind,
           step: effect.pending.step.id,
           animate: effect.pending.animate,
         }
@@ -677,7 +680,8 @@ interface Observed {
   standing: { step: string; error: string | undefined } | undefined
   watcher: string
   watching: string | undefined
-  deadline: string | undefined
+  /** The step the clock runs for, and which clock: `frame` or `deadline`. */
+  clock: string | undefined
   screen: string | undefined
   messageUp: boolean
   onPage: boolean
@@ -697,7 +701,8 @@ const observe = (shell: Shell): Observed => {
   const bare = {
     watcher: shell.watcher?.kind ?? 'off',
     watching: shell.watcher?.step.id,
-    deadline: shell.deadline?.step.id,
+    clock:
+      shell.clock && `${shell.clock.frame ? 'frame' : 'deadline'} ${shell.clock.pending.step.id}`,
     screen: shell.screen?.id,
     messageUp: shell.messageUp,
     onPage: shell.onPage,
@@ -705,17 +710,15 @@ const observe = (shell: Shell): Observed => {
     moving: [...shell.moving].map((flight) => shell.tokenOf(flight)).toSorted((a, b) => a - b),
     page: [...shell.page].toSorted(),
   }
-  const standing = mode.kind === 'retrying' || mode.kind === 'gliding' ? mode.standing : undefined
+  const waiting = mode.kind !== 'idle' && mode.kind !== 'drawn' ? mode : undefined
+  const standing = waiting?.standing
   return {
     ...bare,
     kind: mode.kind,
     glide: mode.kind === 'gliding' ? shell.tokenOf(mode.glide) : undefined,
     step: mode.kind === 'drawn' ? mode.step.id : undefined,
     error: mode.kind === 'idle' ? undefined : mode.error,
-    pending:
-      mode.kind === 'retrying' || mode.kind === 'gliding'
-        ? { step: mode.pending.step.id, animate: mode.pending.animate }
-        : undefined,
+    pending: waiting && { step: waiting.pending.step.id, animate: waiting.pending.animate },
     unmeasured: mode.kind === 'retrying' ? mode.unmeasured : undefined,
     standing: standing && { step: standing.step.id, error: standing.error },
   }
@@ -731,7 +734,7 @@ const expected = (now: Snapshot): Observed => ({
   standing: now.mode.standing && { step: now.mode.standing.step, error: now.mode.standing.error },
   watcher: now.watcher.kind.toLowerCase(),
   watching: now.watcher.step,
-  deadline: now.deadline?.step,
+  clock: now.clock && `${now.clock.frame ? 'frame' : 'deadline'} ${now.clock.pending.step}`,
   screen: now.screen,
   messageUp: now.messageUp,
   onPage: now.onPage,
@@ -766,7 +769,8 @@ const exercised = {
   expiredUnmeasured: 0,
   settledAbandoned: 0,
   resizedMidGlide: 0,
-  glideOverGlide: 0,
+  staleFrame: 0,
+  resizedDeferred: 0,
 }
 
 afterAll(() => {
@@ -789,8 +793,12 @@ afterAll(() => {
   ).toBeGreaterThan(0)
   expect(exercised.resizedMidGlide, 'no trace resized the window mid-glide').toBeGreaterThan(0)
   expect(
-    exercised.glideOverGlide,
-    'no trace showed a gliding step over a glide, so nothing exercised the loop below claim 2',
+    exercised.staleFrame,
+    'no trace ran out a clock for a wait that had ended onto a step waiting for its frame',
+  ).toBeGreaterThan(0)
+  expect(
+    exercised.resizedDeferred,
+    'no trace resized the window while a step waited for its frame',
   ).toBeGreaterThan(0)
 })
 
@@ -830,12 +838,7 @@ describe('every trace the model found', () => {
 
         switch (now.action) {
           case 'doShow':
-            shell.knobs = knobs(picks['showKnobs']!)
-            shell.show(
-              str(picks['showStep']!),
-              picks['resolved'] as boolean,
-              picks['animate'] as boolean,
-            )
+            shell.show(str(picks['showStep']!), picks['animate'] as boolean)
             break
           case 'doRetell':
             shell.dispatch({
@@ -899,15 +902,6 @@ describe('every trace the model found', () => {
             expect(flat, `${where}: an abandoned glide drew something`).toEqual([])
           }
         }
-        // `glideOverGlide` in `plan.qnt` spelled in TypeScript, and no wider:
-        // anything else arriving mid-glide leaves `moving` holding exactly the
-        // glide the mode holds, where the loop is trivially true. Counted
-        // because until `glide-over-glide` was harvested no trace reached it,
-        // and `packages/presenter/model/README.md` says how that went unnoticed.
-        if (now.from === 'gliding' && now.marks.join() === 'show-arrive,arrived-glide') {
-          exercised.glideOverGlide += 1
-        }
-
         // And nothing else is still carrying the page, which is the rest of
         // claim 2.
         for (const flight of shell.moving) {
@@ -922,6 +916,8 @@ describe('every trace the model found', () => {
           exercised.staleExpired += 1
           expect(flat, `${where}: a deadline for a wait that had ended was acted on`).toEqual([])
           expect(observe(shell), `${where}: and it moved the page`).toEqual(before)
+          // Claim 3d: the same, onto a step waiting for its frame.
+          if (before.kind === 'deferred') exercised.staleFrame += 1
         }
 
         // Claim 3b of `packages/presenter/model/README.md`.
@@ -966,6 +962,23 @@ describe('every trace the model found', () => {
             expect(effect.saying, `${where}: a replace mid-glide put the words back`).toBe(false)
           }
           expect(shell.messageUp, `${where}: the message came back mid-glide`).toBe(false)
+        }
+
+        // Claim 4b of `packages/presenter/model/README.md`: the standing holes
+        // go back while a step waits for its frame, and nothing is said.
+        if (now.action === 'doResized' && now.from === 'deferred') {
+          exercised.resizedDeferred += 1
+          expect(
+            flat.filter((effect) => effect.kind === 'say' || effect.kind === 'retell'),
+            `${where}: the page said something before the frame`,
+          ).toEqual([])
+          for (const effect of flat) {
+            if (effect.kind !== 'replace' && effect.kind !== 'redraw') continue
+            expect(effect.saying, `${where}: a replace before the frame put the words back`).toBe(
+              false,
+            )
+          }
+          expect(shell.messageUp, `${where}: the message came back before the frame`).toBe(false)
         }
       }
     })

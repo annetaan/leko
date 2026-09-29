@@ -175,7 +175,9 @@ export const frame = (): Promise<void> =>
 
 /**
  * What a test waits for after a call that hands the tour a step, before it
- * reads the page or changes it: the two frames a hand-over can be drawn in.
+ * reads the page or changes it: the two frames a hand-over is drawn in —
+ * DESIGN.md, **A step is drawn on the next frame, not inside the call that
+ * moved the tour**.
  *
  * Two, not one, because a render the host's handler left behind can land after
  * the first frame and not after the second — `spike/a-render-before-the-frame/`.

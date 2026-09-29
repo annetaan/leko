@@ -1,5 +1,5 @@
 import { userEvent } from '@vitest/browser/context'
-import type { LekoProblem } from '@annetaan/leko-types'
+import type { LekoProblem, LekoStep } from '@annetaan/leko-types'
 import { expect, test, vi } from 'vitest'
 
 import {
@@ -128,7 +128,7 @@ test('a later region with nothing rendered in it is a hole the step does not cut
   expect(absorbed(corner)).toBe(true)
 })
 
-test('a step whose target has no box draws nothing at all', () => {
+test('a step whose target has no box draws nothing at all', async () => {
   const target = box('target', {
     left: '100px',
     top: '100px',
@@ -140,6 +140,7 @@ test('a step whose target has no box draws nothing at all', () => {
   const corner = box('corner', { left: '0px', top: '0px', width: '40px', height: '20px' })
 
   start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+  await framed()
 
   // The other face of the same box — DESIGN.md, **An element with no box is not
   // found when the target is resolved**. Nothing is drawn, nothing is blocked,
@@ -286,11 +287,12 @@ test('a target that fades in from opacity 0 is found when the grace runs out', a
   target.id = 'anchor'
 
   start([{ id: 'one', target: { elements: '#anchor', interactive: true } }])
+  await framed()
   target.style.opacity = '1'
 
   // A style change is not a mutation the wait hears, so nothing is drawn until
-  // the one look taken as the grace runs out — DESIGN.md, **Which of several
-  // matches a selector means**.
+  // the look on the frame, and once more as the grace runs out — DESIGN.md,
+  // **Which of several matches a selector means**.
   expect(scrim()).toBeNull()
   await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
 })
@@ -309,6 +311,8 @@ test('a target still at opacity 0 when the grace runs out is lost', async () => 
   const leko = start([{ id: 'one', target: { elements: '#anchor', interactive: true } }], {
     onDiagnostic: (problem) => problems.push(problem),
   })
+  await framed()
+  expect(scrim()).toBeNull()
 
   await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
 
@@ -1173,23 +1177,24 @@ test('a glide draws nothing until the page has stopped', async () => {
     // A real morph, because the glide is armed by the same number.
     { duration: 320 },
   )
-  // The opening morph: 320ms is twenty frames, and the words come back on the
-  // frame it ends.
-  await until(said, 30, 'the first step never said its words')
+  // The hand-over's two frames and the opening morph: 320ms is twenty frames,
+  // and the words come back on the frame it ends.
+  await until(said, 32, 'the first step never said its words')
   const held = scrim()!.style.maskPosition
   expect(held).not.toBe('')
 
   press()
   // Every frame until the far step has been drawn and its words are back. The
-  // glide is `glideDuration` of the distance — 772px here, so 140 · ∛772 ≈
-  // 1284ms, 81 frames — and the morph after it is twenty more; 200 is room.
+  // hand-over is two frames, the glide is `glideDuration` of the distance —
+  // 772px here, so 140 · ∛772 ≈ 1284ms, 81 frames — and the morph after it is
+  // twenty more; 202 is room.
   const flight: { scrollY: number; mask: string }[] = []
   await until(
     () => {
       flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
       return said()
     },
-    200,
+    202,
     'the far step never said its words',
   )
 
@@ -1292,14 +1297,14 @@ test('a step that asks for staged leaves its panel until the page has landed', a
   })
 
   expect(scroller.scrollTop).toBe(0)
-  // Frames enough for the page to be plainly on its way, and nowhere near the
-  // end of its stage.
-  for (let n = 0; n < 10; n++) await advance()
+  // The hand-over's two frames, and then frames enough for the page to be
+  // plainly on its way, and nowhere near the end of its stage.
+  for (let n = 0; n < 12; n++) await advance()
   expect(window.scrollY).toBeGreaterThan(0)
   expect(scroller.scrollTop).toBe(0)
 
   // The page's stage, the beat, the panel's stage, the draw and the morph.
-  await until(said, 400, 'the staged step never said its words')
+  await until(said, 402, 'the staged step never said its words')
   expect(scroller.scrollTop).toBeGreaterThan(0)
   expect(centre(target)).toBe(target)
   window.scrollTo(0, 0)
@@ -1453,12 +1458,13 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
     ],
     { duration: 320 },
   )
-  await until(said, 30, 'the first step never said its words')
+  await until(said, 32, 'the first step never said its words')
 
   press()
-  // Six frames into a glide of 772px over 140 · ∛772 ≈ 1284ms: the page has set
-  // off and is nowhere near the step it is heading for, on any curve.
-  for (let n = 0; n < 6; n++) await advance()
+  // The hand-over's two frames, then six into a glide of 772px over
+  // 140 · ∛772 ≈ 1284ms: the page has set off and is nowhere near the step it
+  // is heading for, on any curve.
+  for (let n = 0; n < 8; n++) await advance()
   expect(window.scrollY).toBeGreaterThan(0)
   expect(window.scrollY).toBeLessThan(700)
   // And nothing has been drawn, so what arrives next arrives mid-glide rather
@@ -1466,9 +1472,10 @@ test('a step that scrolls, arriving during a glide, lands where it meant to', as
   expect(said()).toBe(false)
 
   leko.reached('landed')
-  // The glide that replaces it is some 1900px — 140 · ∛1900 ≈ 1740ms, 109
-  // frames — and the morph after it is twenty more; 200 is room.
-  await until(said, 200, 'the step that arrived mid-glide never said its words')
+  // The hand-over's two frames, the glide that replaces it — some 1900px,
+  // 140 · ∛1900 ≈ 1740ms, 109 frames — and the morph after it, twenty more;
+  // 202 is room.
+  await until(said, 202, 'the step that arrived mid-glide never said its words')
 
   expect(leko.step?.id).toBe('other')
   expect(centre(other)).toBe(other)
@@ -1718,12 +1725,12 @@ test('Tab during a morph goes round the target and the way out, never the hidden
     ],
     { duration: 320 },
   )
-  await until(said, 60, 'the first step never said its words')
+  await until(said, 62, 'the first step never said its words')
   press()
-  // Two frames into the morph to the second step: the message is hidden by
-  // `visibility` and still in the tree, its next control with it.
-  await advance()
-  await advance()
+  // The hand-over's two frames and two into the morph to the second step: the
+  // message is hidden by `visibility` and still in the tree, its next control
+  // with it.
+  for (let n = 0; n < 4; n++) await advance()
   expect(said()).toBe(false)
 
   second.focus()
@@ -1941,3 +1948,220 @@ test.skipIf(!('navigation' in window))(
     expect(leko.step?.id).toBe('second')
   },
 )
+
+// --- a step drawn on the frame after the call that moved the tour
+//
+// DESIGN.md, **A step is drawn on the next frame, not inside the call that
+// moved the tour**. Each handler here moves or makes the next step's target the
+// way a framework applies an update: in a microtask of the handler, or in a
+// task of its own posted from it, as `spike/a-render-before-the-frame/` has
+// them.
+
+/** A step standing on `first`, which the signal `moved` takes to `then`. */
+function moving(first: HTMLElement, then: LekoStep['target'], rest: LekoStep[] = []) {
+  return start([
+    { id: 'first', target: { elements: () => first, interactive: true }, awaits: 'moved' },
+    { id: 'then', target: then },
+    ...rest,
+  ])
+}
+
+const at = (top: string): Partial<CSSStyleDeclaration> => ({
+  left: '100px',
+  top,
+  width: '120px',
+  height: '40px',
+})
+
+test('a step after reached() is cut where the update its handler made put the target', async () => {
+  const first = box('first', at('100px'))
+  const target = box('target', at('200px'))
+  const leko = moving(first, { elements: () => target, interactive: true })
+  await framed()
+
+  queueMicrotask(() => {
+    target.style.top = '500px'
+  })
+  leko.reached('moved')
+  await framed()
+
+  expect(leko.step?.id).toBe('then')
+  expect(centre(target)).toBe(target)
+})
+
+test('a step is cut where the update put its target when the handler reports before it updates', async () => {
+  const first = box('first', at('100px'))
+  const target = box('target', at('200px'))
+  const leko = moving(first, { elements: () => target, interactive: true })
+  await framed()
+
+  leko.reached('moved')
+  queueMicrotask(() => {
+    target.style.top = '500px'
+  })
+  await framed()
+
+  expect(centre(target)).toBe(target)
+})
+
+test('a step is cut where an update rendered as a task of its own put its target', async () => {
+  const first = box('first', at('100px'))
+  const target = box('target', at('200px'))
+  const leko = moving(first, { elements: () => target, interactive: true })
+  await framed()
+
+  // The way a scheduler outside a framework's own handlers renders: a message
+  // posted from the handler, which can land after the first frame.
+  const channel = new MessageChannel()
+  channel.port1.addEventListener('message', () => {
+    target.style.top = '500px'
+  })
+  channel.port1.start()
+  channel.port2.postMessage(null)
+  leko.reached('moved')
+  await framed()
+
+  expect(centre(target)).toBe(target)
+  channel.port1.close()
+})
+
+test('a step drawn after an update that grew the page dims and blocks it to its new foot', async () => {
+  // On the document, so the layer is the document's and sized to it.
+  const first = box('first', { ...at('100px'), position: 'absolute' })
+  const target = box('target', { ...at('200px'), position: 'absolute' })
+  const leko = moving(first, { elements: () => target, interactive: true })
+  await framed()
+
+  let far: HTMLElement | undefined
+  queueMicrotask(() => {
+    const spacer = keep(document.createElement('div'))
+    spacer.style.height = '3000px'
+    document.body.append(spacer)
+    far = box('far', { ...at('2800px'), position: 'absolute' })
+  })
+  leko.reached('moved')
+  await framed()
+
+  // No resize fires for a page that grew, so only the draw can have seen it.
+  window.scrollTo(0, far!.offsetTop - 200)
+  expect(absorbed(far!)).toBe(true)
+  window.scrollTo(0, 0)
+})
+
+test('a target the same update gives a box is drawn on the frame, with no wait', async () => {
+  // On a clock the test owns, so "no wait" is a count of frames: two, with the
+  // retry's 100ms nowhere near run out.
+  clocked()
+  const first = box('first', at('100px'))
+  const given = box('given', { ...at('400px'), display: 'none' })
+  given.id = 'given'
+  const leko = moving(first, { elements: '#given', interactive: true })
+  await advance()
+  await advance()
+
+  // A style, not a node: no mutation the hunt could hear, so only a look can
+  // find it, and the one before the grace ends is the frame's.
+  queueMicrotask(() => {
+    given.style.display = ''
+  })
+  leko.reached('moved')
+  await advance()
+  await advance()
+
+  expect(leko.step?.id).toBe('then')
+  expect(centre(given)).toBe(given)
+})
+
+test('a target not on the page at the frame is given its grace from the frame', async () => {
+  clocked()
+  const first = box('first', at('100px'))
+  const leko = moving(first, { elements: '#never', interactive: true })
+  await advance()
+  await advance()
+  expect(leko.step?.id).toBe('first')
+
+  leko.reached('moved')
+  await advance()
+  await advance()
+
+  // Past the grace counted from the call, and short of it counted from the
+  // frame: the tour is still waiting, with the step before standing.
+  vi.advanceTimersByTime(90)
+  await Promise.resolve()
+  expect(leko.state).toBe('running')
+  expect(leko.step?.id).toBe('then')
+  expect(holes()).toBe(1)
+
+  vi.advanceTimersByTime(20)
+  await Promise.resolve()
+  expect(leko.state).toBe('idle')
+})
+
+test('a press on the step being left, before the frame, does not reach the step it moved to', async () => {
+  const one = box('one', at('100px'))
+  const two = box('two', at('200px'))
+  const three = box('three', at('300px'))
+  const leko = start([
+    { id: 'one', target: () => one, message: 'One.' },
+    { id: 'two', target: () => two, message: 'Two.' },
+    { id: 'three', target: () => three, message: 'Three.' },
+  ])
+  await framed()
+
+  press()
+  // One frame: the press guard has let go, and the step pressed to is still
+  // waiting for the frame it is drawn in.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  expect(said()).toBe(false)
+
+  // The words of the step being left went with the call, so what a pointer
+  // finds where its control was is the tour's blocking, not the control.
+  const where = centre(control()!) as HTMLElement | null
+  expect(where?.closest('.leko-message')).toBeNull()
+  where?.click()
+  await framed()
+
+  expect(leko.step?.id).toBe('two')
+})
+
+test('a step overtaken before its frame is never drawn', async () => {
+  const first = box('first', at('100px'))
+  const skipped = box('skipped', at('200px'))
+  const last = box('last', at('300px'))
+  const asked = vi.fn(() => skipped)
+  const leko = start([
+    { id: 'first', target: { elements: () => first, interactive: true }, awaits: 'moved' },
+    { id: 'skipped', target: { elements: asked, interactive: true }, awaits: 'again' },
+    { id: 'last', target: { elements: () => last, interactive: true } },
+  ])
+  await framed()
+
+  leko.reached('moved')
+  leko.reached('again')
+  await framed()
+
+  // Never looked for, so never measured and never drawn.
+  expect(asked).not.toHaveBeenCalled()
+  expect(leko.step?.id).toBe('last')
+  expect(centre(last)).toBe(last)
+})
+
+test('a stop before the frame leaves nothing on the page', async () => {
+  const first = box('first', at('100px'))
+  const target = box('target', at('200px'))
+  const leko = moving(first, { elements: () => target, interactive: true })
+  await framed()
+
+  leko.reached('moved')
+  leko.stop()
+  await framed()
+
+  expect(document.querySelectorAll('[class^=leko-]').length).toBe(0)
+  expect(centre(target)).toBe(target)
+
+  // And a tour stopped before its first frame never draws at all.
+  const again = start([{ id: 'only', target: () => target }])
+  again.stop()
+  await framed()
+  expect(document.querySelectorAll('[class^=leko-]').length).toBe(0)
+})

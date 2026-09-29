@@ -2,7 +2,7 @@
 // can walk it. Read `README.md` beside this file first: it says what this
 // covers, what it does not, and what to do when the two disagree.
 //
-// `mode` is the plan's `Mode`, under the same four names. `watcher`, `deadline`,
+// `mode` is the plan's `Mode`, under the same five names. `watcher`, `clock`,
 // `screen`, `messageUp`, `onPage`, `morphing` and `moving` are what the shell keeps
 // implicitly — a field of `DomPresenter`, or a promise the page is holding — and
 // a model has to say out loud, because they are what the invariants read.
@@ -27,7 +27,7 @@ module plan {
   type Picture = { step: str, error: Maybe[str] }
 
   /// `Pending` in plan.ts. `token` is its object identity written down: the
-  /// plan makes one `{ step, animate }` per wait and tells a late deadline from
+  /// plan makes one `{ step, animate }` per wait and tells a late clock from
   /// the wait running by comparing the two with `!==`, so two waits for the
   /// same step drawn the same way are still two waits. Nothing but `expired`
   /// looks at the token.
@@ -44,12 +44,13 @@ module plan {
     // than on `Pending`, which `Gliding` carries too and where it would mean
     // nothing.
     | Retrying({ pending: Pending, unmeasured: bool, error: Maybe[str], standing: Maybe[Picture] })
+    | Deferred({ pending: Pending, error: Maybe[str], standing: Maybe[Picture] })
     | Gliding({ glide: int, pending: Pending, error: Maybe[str], standing: Maybe[Picture] })
 
   /// `Event` in plan.ts. `anchor` and `found` are `Element | null` there and a
   /// bool here: what the plan reads off either is whether it is null.
   type Event =
-    | Show({ step: str, anchor: bool, animate: bool })
+    | Show({ step: str, animate: bool })
     | Arrived({ step: str, anchor: bool, animate: bool, glide: Maybe[int], error: Maybe[str] })
     | Retell({ step: str, reason: str })
     | Teardown
@@ -70,6 +71,7 @@ module plan {
     | Disarm
     | Hunt({ step: str })
     | Deadline(Pending)
+    | Defer(Pending)
     | Cancel
     | Redraw({ drawn: Picture, found: bool, saying: bool })
     | Refit(Picture)
@@ -107,9 +109,10 @@ module plan {
     // --- what the shell keeps implicitly
     // `DomPresenter.watcher`, and what it was armed for.
     watcher: Watcher,
-    // `DomPresenter.deadline`: the timer set and not yet fired or cleared, and
-    // the wait it was set for.
-    deadline: Maybe[Pending],
+    // `DomPresenter.clock`: the clock set and not yet run out or stopped, the
+    // wait it was set for, and whether it is a hand-over's frame or a retry's
+    // deadline.
+    clock: Maybe[{ pending: Pending, frame: bool }],
     // The step whose cutouts the innermost scrim holds — or, for a step that
     // points at nothing, the step drawn on the document with none. Written by
     // `reveal` and `redraw`, cleared by `destroy`.
@@ -199,6 +202,7 @@ module plan {
       | Idle => "idle"
       | Drawn(_) => "drawn"
       | Retrying(_) => "retrying"
+      | Deferred(_) => "deferred"
       | Gliding(_) => "gliding"
     }
 
@@ -216,6 +220,7 @@ module plan {
     match mode {
       | Gliding(g) => [Abandon(g.glide)]
       | Retrying(_) => [Cancel]
+      | Deferred(_) => [Cancel]
       | _ => []
     }
 
@@ -225,6 +230,7 @@ module plan {
       | Idle => Nothing
       | Drawn(d) => Just(d)
       | Retrying(r) => r.standing
+      | Deferred(d) => d.standing
       | Gliding(g) => g.standing
     }
 
@@ -255,14 +261,15 @@ module plan {
     match event {
       // --- what the machine calls
 
+      // Whatever the step points at: it is looked for on the frame.
       | Show(e) => {
         val pending = { step: e.step, animate: e.animate, token: fresh }
-        if (not(e.anchor) and pointsAt(e.step))
-          retrying(pending, Nothing, standingIn(mode), leaving(mode), false, "show-retry")
-        else if (not(e.anchor))
-          revealing({ step: e.step, error: Nothing }, false, e.animate, leaving(mode), "show-draw")
-        // Nothing is left here: `Arrived` does the leaving.
-        else { mode: mode, effects: [], last: Just(Arrive({ pending: pending, error: Nothing })), mark: "show-arrive" }
+        {
+          mode: Deferred({ pending: pending, error: Nothing, standing: standingIn(mode) }),
+          effects: leaving(mode).concat([Hide, Disarm, Defer(pending)]),
+          last: Nothing,
+          mark: "show-defer",
+        }
       }
 
       // The step the event names is not compared, here as in plan.ts: the
@@ -279,6 +286,7 @@ module plan {
             mark: "retell-said",
           }
           | Retrying(r) => nothing(Retrying(r.with("error", Just(e.reason))), "retell-held")
+          | Deferred(d) => nothing(Deferred(d.with("error", Just(e.reason))), "retell-held")
           | Gliding(g) => nothing(Gliding(g.with("error", Just(e.reason))), "retell-held")
         }
 
@@ -379,6 +387,18 @@ module plan {
               last: Just(Lost({ step: r.pending.step })),
               mark: "expired-lost",
             }
+          // The frame after a hand-over: the first look for the target.
+          | Deferred(d) =>
+            if (d.pending != e.pending) nothing(mode, "expired-stale")
+            else if (not(pointsAt(d.pending.step)))
+              revealing({ step: d.pending.step, error: d.error }, false, d.pending.animate, [], "framed-draw")
+            else if (e.found) {
+              mode: mode,
+              effects: [],
+              last: Just(Arrive({ pending: d.pending, error: d.error })),
+              mark: "framed-arrive",
+            }
+            else retrying(d.pending, d.error, d.standing, [], false, "framed-retry")
           | _ => nothing(mode, "expired-stale")
         }
 
@@ -440,9 +460,11 @@ module plan {
       | Hide => s.with("messageUp", false)
       | Disarm => s.with("watcher", Off)
       | Hunt(h) => s.with("watcher", Hunting(h.step))
-      // `cancel()` then `setTimeout`, so there is never a second one.
-      | Deadline(p) => s.with("deadline", Just(p))
-      | Cancel => s.with("deadline", Nothing)
+      // `cancel()` then `setTimeout` or `requestAnimationFrame`, so there is
+      // never a second one.
+      | Deadline(p) => s.with("clock", Just({ pending: p, frame: false }))
+      | Defer(p) => s.with("clock", Just({ pending: p, frame: true }))
+      | Cancel => s.with("clock", Nothing)
       // The layers standing are sized to the surface again and the way out is
       // placed: nothing is cut and nothing is said, so nothing the model keeps
       // moves.
@@ -495,7 +517,7 @@ module plan {
       }
       // `perform`'s `replace` in presenter.ts: the page is asked where the step
       // is and answers as data. The one place the page is read here, which is
-      // the same question `show`'s anchor is.
+      // the same question the frame after a hand-over asks.
       | Replace(r) =>
         again(s, Resolved({
           drawn: r.drawn, saying: r.saying,
@@ -537,6 +559,7 @@ module plan {
     // be reported on for ever.
     val begun = match o.mode {
       | Retrying(r) => if (r.pending.token == fresh) Set(r.pending) else Set()
+      | Deferred(d) => if (d.pending.token == fresh) Set(d.pending) else Set()
       | Gliding(g) => if (g.pending.token == fresh) Set(g.pending) else Set()
       | _ => Set()
     }
@@ -559,7 +582,7 @@ module plan {
   pure def dispatch2(s: M, ev: Event, k: Knobs): M =
     dispatchWith(s, ev, k, (t, e) => dispatch3(t, e, k))
 
-  /// Three deep, which is as deep as the plan nests: a hand-over or a hunt
+  /// Three deep, which is as deep as the plan nests: a clock or a hunt
   /// finding its target is an `arrive`, the `arrived` it makes is a `reveal`,
   /// and the `reveal` reports `unmeasured` or `morphed`. Whatever those owe comes back in no
   /// further, and a fourth level is {@link boundedReentry} failing.
@@ -576,12 +599,10 @@ module plan {
   // every mode; the rest are the page answering something the shell armed or
   // asked, and each is offered exactly where the shell would hear it.
 
-  /// `Presenter.show`. `resolved` is what `resolve` answered, written to the
-  /// page so the world agrees with it. Knobs, because a hand-over that finds
-  /// its target arrives, and the arrival is where a glide begins.
-  action doShow(step: str, resolved: bool, animate: bool, k: Knobs): bool = all {
-    m' = dispatch(saw(begin(m), step, resolved),
-                  Show({ step: step, anchor: resolved and pointsAt(step), animate: animate }), k),
+  /// `Presenter.show`. Nothing is looked for: the step is resolved on the
+  /// frame, which is {@link doExpired}.
+  action doShow(step: str, animate: bool): bool = all {
+    m' = dispatch(begin(m), Show({ step: step, animate: animate }), NO_KNOBS),
   }
 
   /// `Presenter.retell`, about any step, in any mode.
@@ -636,23 +657,29 @@ module plan {
     m' = dispatch(saw(begin(m), step, found), Mutated({ step: step, found: found and pointsAt(step) }), k),
   }
 
-  /// A deadline firing, for any wait ever begun. For the one armed it is the
-  /// retry running out; for any other it is stale, and offered for the reason
+  /// A clock running out — a hand-over's frame or a retry's deadline — for
+  /// any wait ever begun. For the one armed it is the frame or the retry
+  /// running out; for any other it is stale, and offered for the reason
   /// {@link doSettled} offers one. `found` is what the shell resolved as the
-  /// timer fired, written to the page the way a `mutated` writes it.
+  /// clock ran out, written to the page the way a `mutated` writes it, and
+  /// false for a step that points at nothing.
   ///
-  /// Knobs, because a deadline that finds its target arrives, and an arrival
-  /// is where a glide begins: the same reason {@link doMutated} carries them.
+  /// Knobs, because a clock that finds its target arrives, and an arrival is
+  /// where a glide begins: the same reason {@link doMutated} carries them.
   action doExpired(p: Pending, found: bool, k: Knobs): bool = all {
     m.waits.contains(p),
     m' = {
       val s = begin(m)
       val e = Expired({ pending: p, found: found and pointsAt(p.step) })
-      // What it resolved is written to the page only for the deadline the
-      // retry is actually running, the way {@link doSettled} writes a landing
-      // only for the glide the mode holds: a stale one is answered with
-      // nothing, so what it saw is nothing the page has to agree with.
-      if (s.deadline == Just(p)) dispatch(saw(s, p.step, found).with("deadline", Nothing), e, k)
+      // What it resolved is written to the page only for the clock actually
+      // running, the way {@link doSettled} writes a landing only for the glide
+      // the mode holds: a stale one is answered with nothing, so what it saw
+      // is nothing the page has to agree with.
+      val armed = match s.clock {
+        | Just(c) => c.pending == p
+        | Nothing => false
+      }
+      if (armed) dispatch(saw(s, p.step, found).with("clock", Nothing), e, k)
       else dispatch(s, e, k)
     },
   }
@@ -667,7 +694,7 @@ module plan {
   pure val FRESH: M = {
     mode: Idle,
     watcher: Off,
-    deadline: Nothing,
+    clock: Nothing,
     screen: Nothing,
     messageUp: false,
     onPage: false,
@@ -690,10 +717,8 @@ module plan {
 
   action step = any {
     nondet showStep = STEPS.keys().oneOf()
-    nondet resolved = Bool.oneOf()
     nondet animate = Bool.oneOf()
-    nondet showKnobs = KNOBS.oneOf()
-    doShow(showStep, resolved, animate, showKnobs),
+    doShow(showStep, animate),
     nondet retellStep = STEPS.keys().oneOf()
     doRetell(retellStep),
     doTeardown,
@@ -720,9 +745,9 @@ module plan {
   // implicitly.
 
   /// What is on the page is what the mode says is. `idle` has nothing there,
-  /// `drawn` has its step, and both modes with a step on its way have
-  /// `standing` — nothing is drawn for a retry or for the gap, and putting back
-  /// what was drawn is not drawing. The finding this would have caught: a glide
+  /// `drawn` has its step, and every mode with a step on its way has
+  /// `standing` — nothing is drawn for a retry, for the frame or for the gap,
+  /// and putting back what was drawn is not drawing. The finding this would have caught: a glide
   /// begun from a retry carrying no `standing`, so a resize during it put
   /// nothing back.
   val screenIsTheModes: bool =
@@ -734,6 +759,11 @@ module plan {
           | Nothing => m.screen == Nothing
           | Just(d) => m.screen == Just(d.step)
         }
+      | Deferred(w) =>
+        match w.standing {
+          | Nothing => m.screen == Nothing
+          | Just(d) => m.screen == Just(d.step)
+        }
       | Gliding(g) =>
         match g.standing {
           | Nothing => m.screen == Nothing
@@ -741,15 +771,27 @@ module plan {
         }
     }
 
-  /// A deadline is armed exactly while the mode is `retrying`, and for the
-  /// `pending` it holds; the observer hunts in `retrying`, for that same step,
-  /// and is off in every other mode. A step on screen arms nothing.
+  /// A deadline is armed exactly while the mode is `retrying`, and a frame
+  /// exactly while it is `deferred`, each for the `pending` the mode holds; the
+  /// observer hunts in `retrying`, for that same step, and is off in every
+  /// other mode. A step on screen arms nothing.
   val armedIsTheModes: bool =
     match m.mode {
-      | Idle => m.deadline == Nothing and m.watcher == Off
-      | Drawn(_) => m.deadline == Nothing and m.watcher == Off
-      | Retrying(r) => m.deadline == Just(r.pending) and m.watcher == Hunting(r.pending.step)
-      | Gliding(_) => m.deadline == Nothing and m.watcher == Off
+      | Idle => m.clock == Nothing and m.watcher == Off
+      | Drawn(_) => m.clock == Nothing and m.watcher == Off
+      | Retrying(r) =>
+        m.clock == Just({ pending: r.pending, frame: false }) and m.watcher == Hunting(r.pending.step)
+      | Deferred(d) => m.clock == Just({ pending: d.pending, frame: true }) and m.watcher == Off
+      | Gliding(_) => m.clock == Nothing and m.watcher == Off
+    }
+
+  /// `deferred` implies the message is hidden: the words of the step being
+  /// left go at the call, so a press on its next control cannot reach a step
+  /// the viewer has not seen.
+  val deferredIsBare: bool =
+    match m.mode {
+      | Deferred(_) => not(m.messageUp)
+      | _ => true
     }
 
   /// `gliding` implies the message is hidden — nothing is drawn for the gap —
@@ -763,7 +805,7 @@ module plan {
     }
 
   /// `idle` implies nothing is left: nothing on the page, no words, no morph.
-  /// The deadline, the watcher and the glide are {@link armedIsTheModes} and
+  /// The clock, the watcher and the glide are {@link armedIsTheModes} and
   /// {@link glidingIsBare}'s. A tour that has been stopped must not draw
   /// itself back onto the page 100ms later.
   val idleIsClean: bool =
@@ -802,9 +844,10 @@ module plan {
 
   // --- one per branch of `reduce` a trace can reach
 
-  val showDraw: bool = went(m, "show-draw")
-  val showRetry: bool = went(m, "show-retry")
-  val showArrive: bool = went(m, "show-arrive")
+  val showDefer: bool = went(m, "show-defer")
+  val framedDraw: bool = went(m, "framed-draw")
+  val framedRetry: bool = went(m, "framed-retry")
+  val framedArrive: bool = went(m, "framed-arrive")
   val arrivedDraw: bool = went(m, "arrived-draw")
   val arrivedGlide: bool = went(m, "arrived-glide")
   val retellSaid: bool = went(m, "retell-said")
@@ -843,11 +886,16 @@ module plan {
   // --- plan found unenumerated, and the others of that class
 
   /// A glide begun from a retry, either way one can be: a hunt finding its
-  /// target and the arrival scrolling, or the machine showing a step over one.
-  /// Its `standing` is inherited, and {@link screenIsTheModes} checks it.
+  /// target and the arrival scrolling, or the deadline finding it. Its
+  /// `standing` is inherited, and {@link screenIsTheModes} checks it.
   val glideFromRetry: bool =
-    m.marks == ["mutated-arrive", "arrived-glide"]
-      or (m.marks == ["show-arrive", "arrived-glide"] and m.from == "retrying")
+    m.from == "retrying" and (
+      m.marks == ["mutated-arrive", "arrived-glide"] or m.marks == ["expired-arrive", "arrived-glide"]
+    )
+
+  /// A glide begun on the frame after a hand-over, which inherits what the
+  /// hand-over kept standing.
+  val glideFromDeferred: bool = m.from == "deferred" and m.marks == ["framed-arrive", "arrived-glide"]
 
   /// The same, with a step standing behind the glide, so what it inherited is
   /// a step rather than nothing.
@@ -858,20 +906,10 @@ module plan {
   /// that one replayed green against a plan which dropped `standing` on the
   /// way. This is the state that tells the two apart.
   val glideOverStanding: bool =
-    glideFromRetry and (match m.mode {
+    (glideFromRetry or glideFromDeferred) and (match m.mode {
       | Gliding(g) => g.standing != Nothing
       | _ => false
     })
-
-  /// A hand-over that glides, made while the page was already gliding.
-  ///
-  /// The one state in which two glides are alive at once: the old one
-  /// abandoned, the new one running, and the mode holding exactly one of them.
-  /// `replay.test.ts` compares which — the corpus reached no such state before,
-  /// and a plan that kept the abandoned glide on the new mode replayed green.
-  /// In a browser that is a hang: the new glide settles, the mode holds the old
-  /// one, and the step never draws on a page that has already scrolled to it.
-  val glideOverGlide: bool = m.from == "gliding" and m.marks == ["show-arrive", "arrived-glide"]
 
   /// A resize while the page glides, with a step standing to put back.
   val resizedInGlide: bool = went(m, "resized-holes") and kindOf(m.mode) == "gliding"
@@ -879,12 +917,19 @@ module plan {
   /// A resize while a retry hunts, with a step standing to put back.
   val resizedInRetry: bool = went(m, "resized-holes") and kindOf(m.mode) == "retrying"
 
+  /// A resize while a step waits for its frame, with a step standing to put
+  /// back without its words.
+  val resizedInDeferred: bool = went(m, "resized-holes") and kindOf(m.mode) == "deferred"
+
   /// A `retell` arriving in `retrying`: the entrance the first plan had not
   /// enumerated. The reason is stored on the mode and nothing is said.
   val retellInRetry: bool = went(m, "retell-held") and kindOf(m.mode) == "retrying"
 
   /// The same arriving mid-glide, where the reason waits for the landing.
   val retellInGlide: bool = went(m, "retell-held") and kindOf(m.mode) == "gliding"
+
+  /// The same arriving before the frame, where the reason waits for the draw.
+  val retellInDeferred: bool = went(m, "retell-held") and kindOf(m.mode) == "deferred"
 
   /// A `settled` landing with the reason a guard told mid-glide, so the words
   /// drawn are the mode's and not the arrival's.
@@ -898,21 +943,28 @@ module plan {
 
   val teardownFromGlide: bool = went(m, "teardown") and m.from == "gliding"
   val teardownFromRetry: bool = went(m, "teardown") and m.from == "retrying"
+  /// A teardown before the frame, which stops it: a stopped tour draws nothing
+  /// on it.
+  val teardownFromDeferred: bool = went(m, "teardown") and m.from == "deferred"
 
   // --- an arrival landing on a wait already running
 
-  /// A `show` over a retry, which cancels the deadline it leaves; a target that
-  /// turns up late for it must find nobody hunting.
-  val showOverRetry: bool =
-    m.from == "retrying" and (
-      first(m) == "show-retry" or first(m) == "show-draw"
-        or (first(m) == "show-arrive" and went(m, "arrived-draw"))
-    )
+  /// A `show` over a retry, which cancels the deadline it leaves and takes
+  /// the hunt off; a target that turns up late for it must find nobody
+  /// hunting.
+  val showOverRetry: bool = m.from == "retrying" and first(m) == "show-defer"
 
   /// A `show` over a glide, which abandons it: a page on its way to a step the
   /// tour has left must not carry on under this one.
-  val showOverGlide: bool =
-    m.from == "gliding" and (first(m) == "show-draw" or first(m) == "show-retry" or first(m) == "show-arrive")
+  val showOverGlide: bool = m.from == "gliding" and first(m) == "show-defer"
+
+  /// A `show` over a step still waiting for its frame, which stops that frame:
+  /// the step overtaken is never drawn.
+  val showOverDeferred: bool = m.from == "deferred" and first(m) == "show-defer"
+
+  /// A frame left over from a hand-over that ended, landing on the one that
+  /// replaced it, and answered with nothing.
+  val expiredStaleInDeferred: bool = went(m, "expired-stale") and kindOf(m.mode) == "deferred"
 
   /// A step that points at nothing, drawn on the document with no hole and
   /// nothing watched.

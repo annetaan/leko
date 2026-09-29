@@ -148,6 +148,7 @@ test('a target that never turns up stops the tour instead of pointing at nothing
   )
 
   begin(leko, 'story')
+  await framed()
 
   // DESIGN.md, **Nothing is drawn for a retry**. What was on screen a moment
   // ago stays there, and here that is nothing.
@@ -248,6 +249,7 @@ test('a tour stopped while a target is being waited for does not draw itself bac
   // The story's own first step arrives at a target nothing has rendered, so the
   // hunt and the deadline are both running and nothing is drawn.
   begin(leko, 'story')
+  await framed()
   expect(scrim()).toBeNull()
 
   // Stopped with both of them running. Nothing Leko owns may outlive the tour:
@@ -314,6 +316,7 @@ test('a target that turns up inside the retry is drawn again', async () => {
   begin(leko, 'story')
   await framed()
   press()
+  await framed()
   seen.length = 0
 
   // The step arrived with nothing to resolve, so it waits. What is standing is
@@ -348,6 +351,7 @@ test('moving on to a target that has gone waits, then reports the ending', async
   second.remove()
   seen.length = 0
   press()
+  await framed()
 
   // `b` is where the tour is while its target is given a moment to turn up. The
   // machine drew it, so it is named. Whether the presenter found an anchor for
@@ -745,6 +749,7 @@ test('a step arriving at a target that has gone leaves the step before it standi
   // situation as one whose target has not been rendered yet.
   second.remove()
   press()
+  await framed()
 
   // The hole of the step before stands where it was until the retry runs out.
   // Everything else is where it was too: the page outside the hole is still
@@ -809,6 +814,7 @@ test('a target given its box back inside the retry is drawn, though no node move
   )
 
   begin(leko, 'story')
+  await framed()
 
   // On the page and not rendered, so not found, so the hunt is running and
   // nothing is drawn.
@@ -979,6 +985,7 @@ test('a target that is not there yet leaves the page alone until it is', async (
 
   expect(scrim()).toBeNull()
   begin(leko, 'story')
+  await framed()
 
   // Nothing is drawn and nothing is blocked. The window is a few frames long,
   // which is the trade for never showing a covered page over a fault the viewer
@@ -1071,6 +1078,7 @@ test('a resize while a target is not there yet is measured when the step is draw
   // `b` arrives with its target still rendering, and the page grows inside
   // the moment it is given.
   press()
+  await framed()
   const far = grown()
   const late = box('late', inFlow('300px'))
   late.id = 'late'
@@ -1426,7 +1434,7 @@ test('every box a draw reads is read before it writes a layer', async () => {
   writes.disconnect()
 })
 
-test('the opening starts from the box the draw read, not one read after it wrote', () => {
+test('the opening starts from the box the draw read, not one read after it wrote', async () => {
   // A story's first step converges from what the viewer can see of the inner
   // surface — DESIGN.md, **A story opens by converging, from every hole
   // stretched over the whole surface** — and that box is read in the draw's
@@ -1447,6 +1455,10 @@ test('the opening starts from the box the draw read, not one read after it wrote
     ],
     { duration: 320 },
   )
+  // The two frames the hand-over is drawn on, and the morph's first tick not
+  // yet run.
+  await advance()
+  await advance()
 
   // Two stretched cutouts, one per destination hole, each the size of the
   // scroller's visible box and sitting on its scroll offset.
@@ -1596,18 +1608,18 @@ test('an easing given on the options is the curve the morph and the glide both f
     ],
     { duration: 320, easing: () => 0 },
   )
-  await until(said, 30, 'the first step never said its words')
+  await until(said, 32, 'the first step never said its words')
 
   press()
-  // The glide is `glideDuration` of some 2300px — about 116 frames — and the
-  // morph after it is twenty more; 300 is room.
+  // The hand-over is two frames, the glide `glideDuration` of some 2300px —
+  // about 116 frames — and the morph after it twenty more; 302 is room.
   const flight: { scrollY: number; mask: string }[] = []
   await until(
     () => {
       flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
       return said()
     },
-    300,
+    302,
     'the far step never said its words',
   )
 
@@ -1647,7 +1659,7 @@ test("a step's easing is the curve the morph and the glide into it both follow",
     ],
     { duration: 320 },
   )
-  await until(said, 30, 'the first step never said its words')
+  await until(said, 32, 'the first step never said its words')
 
   press()
   const flight: { scrollY: number; mask: string }[] = []
@@ -1656,7 +1668,7 @@ test("a step's easing is the curve the morph and the glide into it both follow",
       flight.push({ scrollY: window.scrollY, mask: scrim()!.style.maskPosition })
       return said()
     },
-    300,
+    302,
     'the far step never said its words',
   )
 
@@ -1680,13 +1692,14 @@ test("a step's duration of 0 snaps where the instance animates", async () => {
     ],
     { duration: 320 },
   )
-  await until(said, 30, 'the first step never said its words')
+  await until(said, 32, 'the first step never said its words')
 
   press()
-  await Promise.resolve()
+  await advance()
+  await advance()
 
-  // No frame has run, and the step is already up: its message is back, which
-  // it is only once the morph has arrived.
+  // Only the hand-over's two frames have run, and the step is already up: its
+  // message is back, which it is only once the morph has arrived.
   expect(leko.step?.id).toBe('second')
   expect(said()).toBe(true)
   // And the mask is where it ends up: frames from here on move nothing.
@@ -1706,7 +1719,7 @@ test("a refused step shakes on Leko's own curve, whatever the host asked for", a
     // and the mask below would not move at all.
     { duration: 320, easing: () => 0 },
   )
-  await until(said, 30, 'the step never said its words')
+  await until(said, 32, 'the step never said its words')
   const settled = scrim()!.style.maskPosition
 
   press()
@@ -1823,6 +1836,7 @@ test('a target lost after the step was drawn is not a wait at all', async () => 
   const step: LekoStep = { id: 'only', target: { elements: '#anchor', interactive: true } }
 
   presenter.show(step, false)
+  await framed()
 
   target.remove()
   await observed()
@@ -1856,7 +1870,7 @@ test('a route pushed while the step shows advances it', () => {
   expect(leko.step?.id).toBe('second')
 })
 
-test('a route pushed while the first step is still retrying for its target advances it', () => {
+test('a route pushed while the first step is still retrying for its target advances it', async () => {
   // Arming has to survive a step that never reaches `reveal`: this one's
   // target is not there yet, so the presenter goes into `retrying` and hunts
   // for it rather than drawing. Arming on `reveal` left this window deaf —
@@ -1866,6 +1880,7 @@ test('a route pushed while the first step is still retrying for its target advan
     { id: 'first', target: () => late, awaits: { url: /^\/checkout/ } },
     { id: 'second', target: () => document.body },
   ])
+  await framed()
 
   history.pushState({}, '', '/checkout')
 

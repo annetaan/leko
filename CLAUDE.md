@@ -155,7 +155,7 @@ The three types a host brings are one parameter, `W extends World`. A signature
 names one type, never three.
 
 The presenter is split the same way. `packages/presenter/src/plan.ts` is the
-mode the presenter is in — one union, `idle`, `drawn`, `retrying` or `gliding`,
+mode the presenter is in — one union, `idle`, `drawn`, `retrying`, `deferred` or `gliding`,
 each variant carrying what belongs to it — and what an event does to it, as the
 next mode and a list of effects. It is pure and its tests run in Node. `presenter.ts`
 resolves targets, measures, builds the chrome and is a `switch` over the

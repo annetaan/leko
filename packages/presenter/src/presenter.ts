@@ -64,10 +64,12 @@ const navigationApi = (): NavigationApi | undefined =>
 
 /**
  * How long a target that is not on the page is given to turn up — about six
- * frames. `onEnter` returns synchronously and a framework paints at least a
- * frame after that, so a target the application is rendering right now lands
- * well inside this. Nothing is redrawn while it runs, so the window costs the
- * viewer nothing.
+ * frames, counted from the frame the step would have been drawn in: DESIGN.md,
+ * **A step is drawn on the next frame, not inside the call that moved the
+ * tour**. `onEnter` returns synchronously, and a render the application began
+ * by then paints within a frame or so of that one, so a target it is
+ * rendering right now lands well inside this. Nothing is redrawn while it
+ * runs, so the window costs the viewer nothing.
  *
  * For the gap between a step arriving and its target existing, and for nothing
  * else. A wait the application knows it is having is a step of its own —
@@ -192,11 +194,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
    */
   private watcher: MutationObserver | undefined
   /**
-   * The clock on a retry, while one runs. Which wait it is for is the mode's
-   * `pending`; this is the handle the page handed back, held here because a
-   * pure plan cannot make one.
+   * What stops the clock running, while one does: a retry's deadline or the
+   * frame a hand-over waits for. Which wait it is for is the mode's `pending`;
+   * this is what the page handed back, held here because a pure plan cannot
+   * make it.
    */
-  private deadline: ReturnType<typeof setTimeout> | undefined
+  private clock: (() => void) | undefined
 
   constructor(options: LekoOptions, host: Host<LekoWorld>) {
     this.options = options
@@ -325,12 +328,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
   show(step: LekoStep, animate: boolean): void {
     // Armed here, not in `reveal` — {@link watchNavigation}.
     this.watchNavigation()
-    this.dispatch({ kind: 'show', step, anchor: this.resolve(step), animate })
+    this.dispatch({ kind: 'show', step, animate })
   }
 
   /**
-   * An arrival at a target that is on the page, from a hand-over that found it
-   * or from a hunt or a deadline that did.
+   * An arrival at a target that is on the page, from the frame after a
+   * hand-over that found it or from a hunt or a deadline that did.
    *
    * **The one place a scroll happens.** After the target resolved, so there is
    * something to scroll to, and before anything is measured, so every box the
@@ -460,10 +463,28 @@ export class DomPresenter implements Presenter<LekoWorld> {
         // Resolved here rather than trusted to the hunt: a target can turn up
         // without a mutation the observer hears. Whether that makes the wait an
         // arrival or an ending is the plan's.
-        this.deadline = setTimeout(
-          () => this.dispatch({ kind: 'expired', pending, found: this.resolve(pending.step) }),
-          RETRY,
-        )
+        const id = setTimeout(() => {
+          this.clock = undefined
+          this.dispatch({ kind: 'expired', pending, found: this.resolve(pending.step) })
+        }, RETRY)
+        this.clock = () => clearTimeout(id)
+        return
+      }
+      case 'defer': {
+        const { pending } = effect
+        this.cancel()
+        // The rule is DESIGN.md's **A step is drawn on the next frame, not
+        // inside the call that moved the tour**. Two frames rather than one: a
+        // render a handler left behind as a task of its own lands after the
+        // first frame now and then in every engine measured, and never after
+        // the second — spike/a-render-before-the-frame/.
+        let id = requestAnimationFrame(() => {
+          id = requestAnimationFrame(() => {
+            this.clock = undefined
+            this.dispatch({ kind: 'expired', pending, found: this.resolve(pending.step) })
+          })
+        })
+        this.clock = () => cancelAnimationFrame(id)
         return
       }
       case 'cancel':
@@ -890,9 +911,8 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   private cancel(): void {
-    if (this.deadline === undefined) return
-    clearTimeout(this.deadline)
-    this.deadline = undefined
+    this.clock?.()
+    this.clock = undefined
   }
 
   /**
@@ -995,7 +1015,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     this.layers = []
   }
 
-  /** Everything this put on the page. The hunt and the deadline went by effects of their own. */
+  /** Everything this put on the page. The hunt and the clock went by effects of their own. */
   private destroy(): void {
     this.destroyLayers()
     this.stopNavigation()
