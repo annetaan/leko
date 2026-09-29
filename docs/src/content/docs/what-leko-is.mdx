@@ -12,20 +12,11 @@ the user to do something, the element under the hole is the real one. Clicks
 reach it, focus reaches it, the keyboard reaches it, and scrolling under the
 pointer still scrolls.
 
-Two rules hold the library up, and everything else is negotiable. One is below.
-The other, that steps advance on application state and never on DOM events, is
-[Signals and awaits](../guides/signals-and-awaits/).
-
-## Never place an element over a target the step opened
-
-Not even a transparent one. An overlay with a transparent patch over the button
-is still an overlay over the button, and the browser knows it even when the
-person does not.
-
-A step's region says `interactive: true` when it wants the page live. Most
-steps of most tours explain what is already on screen, so the default is a hole
-that is shown and not handed over. A click on one of those would take the user
-off the page the next step points at.
+Two rules hold the library up, and everything else is negotiable: never place
+an element over a target the step opened, and steps advance on application
+state, never on DOM events.
+[Holes that are shown and holes that are open](../guides/holes/) is the first,
+and [Signals and awaits](../guides/signals-and-awaits/) is the second.
 
 ## It works across pages
 

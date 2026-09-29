@@ -42,6 +42,7 @@ export default defineConfig({
           items: [
             { label: 'React, Vue and a plain script', slug: 'guides/frameworks' },
             { label: 'Signals and awaits', slug: 'guides/signals-and-awaits' },
+            { label: 'Holes that are shown and holes that are open', slug: 'guides/holes' },
           ],
         },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },

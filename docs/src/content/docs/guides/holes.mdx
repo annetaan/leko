@@ -1,0 +1,109 @@
+---
+title: Holes that are shown and holes that are open
+description: Why a step's hole shows the page without handing it over unless the step says interactive, what the user can do in each case, and how one step lights two things apart.
+---
+
+A step lights what it is about by cutting a hole in the dimmed overlay, and the
+hole always shows what is under it. Whether the user can also work what is
+under it is a second question, and the step answers it. Each entry of the
+step's `target` is a region, one hole, and a region is shown and nothing more
+unless it declares `interactive: true`, which opens it.
+
+## Never place an element over a target the step opened
+
+Where a step opens its hole, nothing of Leko's is over the element, not even a
+transparent layer, so clicks, focus, the keyboard and the wheel reach the real
+element. An overlay with a transparent patch over a button is still an overlay
+over the button, and the browser knows it even when the person does not —
+[Three constraints that must not be broken](https://github.com/annetaan/leko/blob/main/DESIGN.md#three-constraints-that-must-not-be-broken).
+
+A target named alone, such as `'#plan'`, is shown. A region with
+`interactive: true` is open.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const steps: LekoStep[] = [
+  { id: 'plan', target: '#plan', message: 'This is what you are paying.' },
+  {
+    id: 'name',
+    target: { elements: '#name', interactive: true },
+    message: 'Type the name that goes on the invoice.',
+  },
+]
+```
+
+- **A shown hole takes nothing.** A click on it goes nowhere, and Tab moves
+  only between the message and the control that ends the tour —
+  [The ring focus cannot leave](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-ring-focus-cannot-leave).
+- **An open hole is the page.** The element takes the pointer and the keyboard,
+  and Tab goes from it to the message and back to it. The rest of the page
+  stays blocked.
+- **Shown is the default.** Most steps explain what is already on screen, and a
+  click through one of their holes would take the user off the page the next
+  step points at.
+- **`interactive` is not `awaits`.** `interactive` says whether the page under
+  the hole is live, and `awaits` says what moves the step on. An open step can
+  keep its next control, and a `validate` that holds the control until the work
+  is done —
+  [A hole, and whether it is open](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-hole-and-whether-it-is-open).
+
+## Only the first region may open
+
+The first entry of `target` is the only one that may declare `interactive`,
+because one step asks the user for at most one thing —
+[A hole, and whether it is open](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-hole-and-whether-it-is-open).
+
+- **The type holds it.** Every later entry is a
+  [`LekoShownRegion`](../../reference/story-and-step/#lekoshownregion), where
+  `interactive` does not compile.
+- **In plain JavaScript,** where no type checks the story, a later region's
+  `interactive` is ignored and that hole is shown.
+
+The first region decides more than this, and
+[target](../../reference/story-and-step/#target) says what.
+
+## One step, two holes
+
+Where a step is about one thing and another thing explains it, give `target`
+two entries. Each is a hole of its own, and only the first may open. Here the
+user ticks a box once they have checked the lines of an order, and the lines
+are lit beside it.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const steps: LekoStep[] = [
+  {
+    id: 'lines',
+    target: [{ elements: '#check', interactive: true }, '#lines'],
+    message: 'Check each line of the order, then tick the box.',
+  },
+]
+```
+
+- **The box goes first, and is open,** because ticking it is the work. The
+  lines follow and are shown, because they are what the tick vouches for.
+- **Two entries, not one region.** Named together in one region's `elements`,
+  the box and the lines would become one hole around both, with everything
+  between them inside it and open with it. As two entries, the space between
+  them stays dimmed and blocked.
+- **With [`scroll`](../../reference/story-and-step/#scroll) on, only the box
+  is brought into view.**
+
+Every shape `target` takes is under
+[target](../../reference/story-and-step/#target).
+
+## See it run
+
+The sandbox case
+[look-then-use.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/look-then-use.ts)
+counts what gets through: both of its counters stay at zero through the first
+step however hard its button is pressed, and in the second step the field is
+yours.
+[linked-regions.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/linked-regions.ts)
+lights a summary and the row behind it as two holes, and with the motion set
+to ×10 slower the band between them goes dark last. The first step of the
+`careful` story in
+[branching.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/branching.ts)
+is the box and the lines above.
