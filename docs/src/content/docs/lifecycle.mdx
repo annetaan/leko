@@ -18,7 +18,8 @@ exactly one thing moves it.
 - **`start(story)` is the only way in from outside.** Called while a tour is
   running it does nothing and reports `tour-running` — `stop()` first, then
   `start()`. There is no way to begin part-way through, and no way back: a
-  story that should be revisitable is a shorter story, run again.
+  story that should be revisitable is a shorter story, run again —
+  [Several short stories](../guides/several-short-stories/#a-story-runs-forward-from-its-first-step).
 - **`story.onEnter` runs first and `story.onLeave` runs last**, bracketing
   every step. Setup a whole story stands on belongs in the story's own hooks;
   clear-up written on the first step's `onLeave` fires the moment the tour
@@ -30,7 +31,8 @@ exactly one thing moves it.
 - **`next` is the only way one story leads to another.** It is asked when the
   last step advances — never on `stop()`, never on a failure — and the handoff
   is one operation: `onLeave` is told where the tour is going, and the tour is
-  never idle in between.
+  never idle in between —
+  [next joins one story to the one after it](../guides/several-short-stories/#next-joins-one-story-to-the-one-after-it).
 - **A page load ends the story where it stands.** A story that declares
   `next`, whose last step waits for a URL, hands its successor on across the
   load, and the next document's `pickUp(stories)` starts that story from its

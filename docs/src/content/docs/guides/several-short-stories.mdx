@@ -1,0 +1,145 @@
+---
+title: Several short stories
+description: Why a story runs only forward from its first step, how next joins one story to the one after it, and how a branch is a next that chooses.
+---
+
+A tour is several short stories rather than one long one. A story runs forward
+from its first step and cannot be entered anywhere else, so a user who wants to
+go back runs it again, and a short story is quick to run again. A story names
+the one that follows it in `next`, and a branch is a `next` that chooses
+between stories.
+
+## A story runs forward from its first step
+
+`start()` shows a story from its first step, and nothing takes a tour back to a
+step it has left. A step that declares `awaits` waited for something the
+application reports once, so a tour put back on it would wait for ever —
+[A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+
+- **A step without `awaits` gets no back control either.** `onLeave` can close
+  a panel again but cannot unsave an order, and a back control that worked on
+  some steps and not others would be worse than none —
+  [A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+- **Nothing on the instance takes a tour back, or into a story part-way
+  through.** The calls an application makes are the four under
+  [Methods](../../reference/leko/#methods).
+- **Going back is running the story again.** `stop()` ends the story that is
+  running, and `start()` then begins it again at its first step. A `start()`
+  alone, while a tour runs, is refused —
+  [start](../../reference/leko/#start).
+- **Moving to another story before this one ends is the same two calls,**
+  `stop()` and then `start()` of the other story.
+- **Split a story before it grows long.** A story of four steps costs a few
+  seconds to run again, and a story of twenty is where a back control starts to
+  feel necessary —
+  [A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+
+## next joins one story to the one after it
+
+A story names the story that follows it in `next`, and when its last step moves
+on, the tour goes on into that story from its first step. Here `careful`, one
+way through reviewing an order, hands on to `summary`.
+
+```ts
+// src/stories.ts
+import type { LekoStory } from '@annetaan/leko'
+
+export const summary = {
+  id: 'summary',
+  steps: [{ id: 'summary', target: '#status', message: 'The order is on its way.' }],
+} satisfies LekoStory
+
+export const careful = {
+  id: 'careful',
+  steps: [
+    {
+      id: 'lines',
+      target: [{ elements: '#check', interactive: true }, '#lines'],
+      message: 'Check each line of the order, then tick the box.',
+      awaits: 'lines-checked',
+    },
+    {
+      id: 'send',
+      target: { elements: '#send', interactive: true },
+      message: 'Send the order.',
+      awaits: 'order-sent',
+    },
+  ],
+  next: summary,
+} satisfies LekoStory
+```
+
+- **Only a story that ran to its last step is followed.** A user who closes
+  the tour in `careful` is not taken into `summary`. What else ends a tour
+  without asking `next` is under
+  [next](../../reference/story-and-step/#next).
+- **The join is one move.** The `onLeave` of the story that finished is handed
+  the story that follows, and the tour is never idle in between.
+- **The count starts again with each story.**
+  [`index`](../../reference/leko/#index) counts the steps of the story that is
+  running, so a count across the whole tour is the application's own sum.
+- **`next` also carries a tour across a link that loads a new page** —
+  [A story hands its next to the new page, and pickUp starts it](../across-a-page-load/#a-story-hands-its-next-to-the-new-page-and-pickup-starts-it).
+
+## A branch is a next that chooses
+
+A `next` may be a function, and the story it answers with is the one that
+runs. The branch below is three kinds of story: one that asks the user to choose,
+one for each way on, and one where the ways meet. Here the ways meet at the
+`summary` above, which `careful` and `quick` both name as their `next`. What
+two paths share is a story rather than a step they both point at, so no branch
+has to know how many steps came before it —
+[A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+
+```ts
+// src/stories.ts, below summary and careful
+export const quick = {
+  id: 'quick',
+  steps: [
+    {
+      id: 'send',
+      target: { elements: '#send', interactive: true },
+      message: 'Send the order.',
+      awaits: 'order-sent',
+    },
+  ],
+  next: summary,
+} satisfies LekoStory
+
+export const intro = {
+  id: 'intro',
+  steps: [
+    {
+      id: 'choose',
+      target: { elements: ['#careful', '#quick'], interactive: true },
+      message: 'Check every line first, or send the order now.',
+      awaits: 'path-chosen',
+    },
+  ],
+  next: () => (order.path === 'careful' ? careful : quick),
+} satisfies LekoStory
+```
+
+`order` is your application's own, and records which button was pressed.
+
+- **The step that asks for the choice declares `awaits`.** The application
+  reports `path-chosen` once it has recorded the choice, and `next` reads the
+  choice from there.
+- **`next` is asked again on every run,** so a second run of `intro` does not
+  inherit the first run's branch.
+
+The application may also choose the story it hands `start()`, such as one story
+for a wide window and another for a narrow one.
+
+## See it run
+
+The sandbox case
+[branching.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/branching.ts)
+is these four stories on markup of its own, with a first step in `intro` that
+lights the order's total. On the careful way, the line at the foot of the
+sandbox reads `careful 1/2`, and `summary 1/1` once the order is sent. Closing
+the tour on either branch ends it there, and the summary never shows.
+
+The [Playground](../../playground/#what-the-tour-is-doing) chooses the story it
+starts by the window's width. When the width crosses while its first story
+shows, it calls `stop()` and starts the story for the new width.
