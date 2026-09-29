@@ -46,6 +46,7 @@ export default defineConfig({
             { label: 'Several short stories', slug: 'guides/several-short-stories' },
             { label: 'Across a page load', slug: 'guides/across-a-page-load' },
             { label: 'Setup and clear-up', slug: 'guides/setup-and-clear-up' },
+            { label: 'Styling', slug: 'guides/styling' },
           ],
         },
         { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
