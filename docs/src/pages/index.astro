@@ -584,11 +584,24 @@ createScroll({
     margin: 0;
   }
 
+  /* A scrim can only dim what is lighter than itself, and the dark page's
+     surface is nearly the scrim's colour already, so the dark drawing is a
+     lighter window under a deeper scrim. */
+  :global(:root[data-theme='dark']) .mock {
+    --mock-surface: #5a606d;
+    --mock-line: #7a8190;
+    --mock-scrim: rgb(0 0 0 / 0.6);
+  }
+
   .mock {
+    --mock-surface: var(--bg-raised);
+    --mock-line: var(--line);
+    --mock-scrim: rgb(14 16 22 / 0.62);
+
     position: relative;
     border-radius: var(--radius);
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
+    background: var(--mock-surface);
+    border: 1px solid var(--mock-line);
     box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.35);
     overflow: hidden;
   }
@@ -597,14 +610,14 @@ createScroll({
     display: flex;
     gap: 6px;
     padding: 12px 14px;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--mock-line);
   }
 
   .mock-bar span {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--line);
+    background: var(--mock-line);
   }
 
   .mock-body {
@@ -616,7 +629,7 @@ createScroll({
   .mock-line {
     height: 10px;
     border-radius: 5px;
-    background: var(--line);
+    background: var(--mock-line);
   }
 
   .w30 {
@@ -631,7 +644,7 @@ createScroll({
 
   .mock-field {
     height: 40px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--mock-line);
     border-radius: 8px;
   }
 
@@ -656,8 +669,8 @@ createScroll({
     position: relative;
     z-index: 1;
     box-shadow:
-      0 0 0 6px var(--bg-raised),
-      0 0 0 2000px rgb(14 16 22 / 0.62);
+      0 0 0 10px var(--mock-surface),
+      0 0 0 2000px var(--mock-scrim);
   }
 
   .cursor {
@@ -1022,6 +1035,11 @@ createScroll({
     }
 
     .bar-links a[href^='https'] {
+      display: none;
+    }
+
+    /* Too small to read as a hole at this width. */
+    .hero-art {
       display: none;
     }
   }
