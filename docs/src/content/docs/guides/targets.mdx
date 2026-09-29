@@ -39,9 +39,6 @@ const steps: LekoStep[] = [
 ]
 ```
 
-- **A function that hands back an element it kept cannot recover either,**
-  because the node the page replaced stays disconnected —
-  [Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
 - **A shadow root changes nothing about the step.** The hole is cut, blocked
   or opened, and the message is placed, the same as for any other target.
 - **A framework ref is a function too.** How to write one in React and Vue is
