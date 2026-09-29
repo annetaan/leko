@@ -54,7 +54,8 @@ export const insideShadowDom: Case = {
   title: 'A target inside a shadow root',
   proves:
     'A target is a question, and a function is the form of it the host answers. ' +
-    'No selector reaches inside a shadow root, and the cutout does not care.',
+    'No selector reaches inside a shadow root, and the cutout does not care: ' +
+    'a press through the open hole reaches the button behind the boundary.',
 
   mount(root) {
     const panel = html(`
@@ -67,12 +68,30 @@ export const insideShadowDom: Case = {
         </div>
         <p class="hint">
           The button below is a custom element. Its markup lives in a shadow
-          root, so nothing in this page can select it.
+          root, so nothing in this page can select it. The line above it counts
+          the presses that reach it.
         </p>
+        <p class="hint" data-status></p>
         <send-button></send-button>
-        <p class="hint" data-status>Nothing sent yet.</p>
       </div>
     `)
+
+    const send = panel.querySelector<HTMLElement>(SEND)!
+    const status = panel.querySelector<HTMLElement>('[data-status]')!
+
+    // Counted rather than described, as in look-then-use.ts. The listener sits
+    // on the host: a click is composed, so it crosses the shadow boundary and
+    // reaches the host without anything reaching into the root.
+    let presses = 0
+    const report = (): void => {
+      status.textContent = `Presses that reached the button: ${presses}.`
+    }
+    send.addEventListener('click', () => {
+      presses += 1
+      report()
+    })
+    report()
+
     root.append(panel)
     return () => panel.remove()
   },

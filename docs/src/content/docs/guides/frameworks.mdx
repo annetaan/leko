@@ -111,7 +111,7 @@ after the first render:
 
 Not before the first render: the successor's first target gets only a 100ms
 grace to turn up
-([Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery)),
+([A target that is not there yet gets a moment](../targets/#a-target-that-is-not-there-yet-gets-a-moment)),
 and a first step that waits on data is a step that waits
 ([A wait is a step that declares awaits, not a promise](../setup-and-clear-up/#a-wait-is-a-step-that-declares-awaits-not-a-promise)).
 What crosses the page load and what does not is
@@ -121,13 +121,12 @@ What crosses the page load and what does not is
 
 A selector is the default target, and the right one wherever the element can be
 named —
-[Resolution & custom functions](https://github.com/annetaan/leko/blob/main/DESIGN.md#resolution--custom-functions).
+[A target is a selector, or a function that finds it](../targets/#a-target-is-a-selector-or-a-function-that-finds-it).
 
 Otherwise, a function that reads the ref each time it is asked:
 `() => ref.current` in React, `() => el.value` in Vue. Never capture the
-element (`const el = ref.current; () => el`): once the framework replaces the
-node, the held one stays disconnected and the step cannot recover —
-[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+element (`const el = ref.current; () => el`) —
+[`target-lost`](../../reference/problems/#target-lost).
 
 A story reaches the ref through a function that builds it:
 
