@@ -72,8 +72,8 @@ export const introFor = () => (matchMedia(SIDEBAR_SHOWN).matches ? desktopIntro 
 // own redirect from `/leko/playground` to `/leko/playground/`.
 const PLAYGROUND_URL = /\/playground\/?(?:[?#]|$)/
 
-export const fromIndex = {
-  id: 'from-index',
+export const toPlayground = {
+  id: 'to-playground',
   steps: [
     {
       id: 'open-playground',

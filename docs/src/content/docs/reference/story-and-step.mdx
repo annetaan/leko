@@ -73,8 +73,9 @@ reads is the application's own state.
 
 Across a page load, `next` is what the arriving document runs, but only when
 this story's last step declares `awaits: { url }` and the document is left
-while the tour stands on that step. The arriving document takes it up with
-[`pickUp`](../leko/#pickup) —
+while the tour stands on that step. `next` is asked on the page being left, as
+that page goes, and answering `undefined` hands nothing on. The arriving
+document takes it up with [`pickUp`](../leko/#pickup) —
 [A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
 
 ### story.onEnter

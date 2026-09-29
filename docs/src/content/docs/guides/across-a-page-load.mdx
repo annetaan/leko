@@ -1,0 +1,143 @@
+---
+title: Across a page load
+description: How a step waits for the page's own URL, how a story hands its next on across a full page load with pickUp, and what crosses the load.
+---
+
+import SiteTour from '../../../components/SiteTour.astro'
+
+A step can wait for the page's own URL instead of a call to `reached()`, with
+`awaits: { url }`. On one page, a change to a URL that matches moves the step
+on. A link that loads a new page takes the story no further, and a story whose
+last step waits for that URL and names a `next` hands the `next` on instead.
+The new page starts that story from its first step when it calls `pickUp`.
+
+## A step can wait for a URL
+
+Where a step asks the user to follow a link, its `awaits` is a `RegExp` for the
+URL rather than the name a `reached()` call reports. A link has no handler of the application's own to put
+`reached()` in, so the step waits for the URL the link leaves behind —
+[A URL is a signal the page reports](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-url-is-a-signal-the-page-reports).
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const go: LekoStep = {
+  id: 'go',
+  target: { elements: '#checkout-link', interactive: true },
+  message: 'Open checkout.',
+  awaits: { url: /^\/checkout(?:[/?#]|$)/ },
+}
+```
+
+- **The URL moves it, not the click.** A hash link, a router's `pushState` and
+  Back to a matching URL all move the step, and the application calls
+  `reached()` nowhere.
+- **A link that loads a new page is different.** The page running the tour
+  goes away with the step still on it.
+
+[LekoUrlAwait](../../reference/story-and-step/#lekourlawait) says what the
+pattern is tested against and when a match counts.
+
+## A story hands its next to the new page, and pickUp starts it
+
+Two declarations together hand a story on, and nothing else does: its last
+step waits for a URL, and the story names a `next`. The page being left cannot
+know whether the navigation will succeed, so the page that loads is the one
+that checks the URL —
+[A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+
+```ts
+// src/stories.ts
+import type { LekoStory } from '@annetaan/leko'
+
+export const checkout = {
+  id: 'checkout',
+  steps: [{ id: 'summary', target: '#summary', message: 'This is your order.' }],
+} satisfies LekoStory
+
+export const storefront = {
+  id: 'storefront',
+  steps: [
+    { id: 'cart', target: '#cart', message: 'What you picked.' },
+    {
+      id: 'go',
+      target: { elements: '#checkout-link', interactive: true },
+      message: 'Open checkout.',
+      awaits: { url: /^\/checkout(?:[/?#]|$)/ },
+    },
+  ],
+  next: checkout,
+} satisfies LekoStory
+```
+
+```ts
+// src/checkout.ts
+import { checkout } from './stories'
+import { leko } from './tour'
+
+leko.pickUp([checkout]) // once, as the checkout page loads
+```
+
+- **Only the last step hands on.** A step earlier in the story that waits for
+  a URL hands nothing on when its link loads a new page.
+- **Both pages import the stories from one module.** The page the link opens
+  hands `pickUp` the story `next` names, and handing it no story with that
+  story's `id` reports
+  [`story-unknown`](../../reference/problems/#story-unknown).
+- **Every page that runs Leko calls `pickUp` once, with the stories it has.**
+  Where the call goes in React, Vue and a plain script is under
+  [Starting a story, and pickUp](../frameworks/#starting-a-story-and-pickup),
+  and every outcome of the call is under
+  [pickUp](../../reference/leko/#pickup).
+- **A `next` may be a function.** When it is asked across a page load is under
+  [next](../../reference/story-and-step/#next).
+
+## What crosses the load
+
+As the page goes, Leko keeps a note of three things in `sessionStorage`: the
+last step's pattern, the `id` of the successor (the story `next` answers
+with), and the URL of the page being left. The new page's `pickUp` starts the
+successor only when the new page's URL matches the pattern and is not the kept
+URL. Only the `id` reaches the story, and the successor starts from its first
+step.
+
+- **No step index, and no `onEnter` skipped.** The successor runs as `start()`
+  would run it. A story started part-way through would stand on a step whose
+  signal was already reported, or whose `onEnter` assumes work the steps before
+  it did —
+  [A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+- **The first page that calls `pickUp` takes the note,** whether or not that
+  call starts anything. A tour whose user never reaches checkout is over at
+  the next page that calls `pickUp`. A page between the two that runs no Leko leaves
+  the note in place, and a later visit to a matching URL in the same tab then
+  starts the successor —
+  [A page load ends the story, and hands it on](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-page-load-ends-the-story-and-hands-it-on).
+- **A reload starts nothing.** The page being left, reloaded, is at the kept
+  URL.
+- **The page being left keeps its tour standing.** Nothing ends that tour, so
+  no `onLeave` or `onStep` runs as the page goes. A page the browser restores
+  from its back/forward cache is back on the step that asked the user to
+  leave, and the note is dropped.
+- **A tour stopped with `stop()` before the page goes hands nothing on.**
+- **Where `sessionStorage` is blocked, nothing is handed on and nothing is
+  reported.**
+
+## See it run
+
+The button below starts a story of one step, which lights the link beside the
+button and waits for the playground's URL. Opening that link loads the
+playground as a new page, the playground calls `pickUp` as it loads, and its
+own tour starts at the first step. The last line of the playground's demo says
+the tour began with that page load. Both pages import their stories from
+[docs/src/lib/stories.ts](https://github.com/annetaan/leko/blob/main/docs/src/lib/stories.ts).
+
+<SiteTour />
+
+The sandbox case
+[across-a-page-load.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/across-a-page-load.ts)
+makes the same crossing between two pages of its own: a line on the second
+page says whether `pickUp` or the button at the foot of the page started the
+tour, and a reload of either page starts nothing.
+[follow-a-link.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/follow-a-link.ts)
+waits for a URL without leaving the page: one link goes through a router's
+`pushState`, one is a plain hash link, and Back moves the step after each.
