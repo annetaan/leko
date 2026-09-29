@@ -1815,11 +1815,12 @@ function watching(options = {}) {
   return { presenter, lost, navigated }
 }
 
-test('a target missing on arrival hands the machine nothing, and says nothing yet', () => {
+test('a target missing on arrival hands the machine nothing, and says nothing yet', async () => {
   const { presenter, lost } = watching()
   const step: LekoStep = { id: 'late', target: { elements: '#not-here-yet', interactive: true } }
 
   const nothing = presenter.show(step, false)
+  await framed()
 
   // The step is drawn as far as the machine is concerned, and what is on screen
   // is whatever was there a moment ago. Only giving up is worth a call.

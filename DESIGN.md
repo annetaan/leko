@@ -75,7 +75,7 @@ make:
   next URL that matches after that. A signal fired before the step existed
   establishes nothing about the user, the same reasoning **Signal behavior**
   gives for not buffering one, and judging the arrival instead would advance
-  the machine from inside the call that is still drawing the step it would be
+  the machine from inside the call that is handing over the step it would be
   leaving — the reentrancy **One gate, and what it refuses** closes off for
   every other signal.
 - **Leko has no grammar for a URL.** `awaits: { url }` takes a `RegExp` and

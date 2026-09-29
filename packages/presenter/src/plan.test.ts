@@ -213,6 +213,8 @@ describe('a hand-over', () => {
   })
 })
 
+// Only `deferred` and `retrying` perform an `arrive`; the cases from any
+// other mode are kept because `reduce` is total.
 describe('an arrival', () => {
   test('draws a step whose target is on the page, and arms nothing', () => {
     const outcome = reduce(idle, arrival())
@@ -245,15 +247,6 @@ describe('an arrival', () => {
     })
     // Entered from a retry, the one mode with a hunt armed as well as a clock.
     expect(owed(outcome)).toEqual(['cancel', 'hide', 'disarm'])
-  })
-
-  test('stops a glide the tour has moved past before anything else', () => {
-    const flight = glide()
-
-    const outcome = reduce(gliding(flight), arrival({ step: other }))
-
-    expect(owed(outcome)).toEqual(['abandon', 'disarm', 'reveal'])
-    expect(the(outcome, 'abandon').glide).toBe(flight)
   })
 
   test("stops a retry's clock before anything else", () => {

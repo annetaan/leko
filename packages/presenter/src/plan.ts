@@ -456,10 +456,8 @@ export function reduce(mode: Mode, event: Event): Outcome {
 
     case 'arrived': {
       const { step, anchor, animate, glide, error } = event
-      // Whatever was being waited for, the tour is somewhere else now. A glide
-      // is stopped where it is rather than left to run, so a page on its way
-      // to a step the tour has left does not carry on under this one; a target
-      // that turns up late for a retry finds nobody hunting.
+      // This ends the wait that led here, the frame's or the retry's, so its
+      // clock stops. A glide the tour has left was stopped by `show`.
       const before = leaving(mode)
       // The page is moving, so the words go and nothing is armed: DESIGN.md,
       // **Nothing is drawn for the gap**, and DESIGN.md's **Nothing is armed

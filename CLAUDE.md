@@ -114,7 +114,7 @@ DESIGN.md. Do not do any of them without reading that page first.
   reports**.
 - **Judging a URL-waiting step's arrival the moment it is drawn, instead of
   only on the next change.** A step already at a matching URL when it appears
-  would advance from inside the very call that is still drawing it — the
+  would advance from inside the very call that is handing it over — the
   reentrancy every other signal is barred from. DESIGN.md argues it under **A
   URL is a signal the page reports**.
 - **Carrying more than a story id across a page load.** A step index, a
