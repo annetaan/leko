@@ -205,6 +205,15 @@ export function anchors(markdown) {
 }
 
 /**
+ * The YAML with each comment line's `#` taken off, so a citation wrapped over
+ * two comment lines reads as one, the way `passages` reads a `//` comment. A
+ * line that is only a `#` becomes blank and ends the paragraph.
+ */
+export function uncommented(yaml) {
+  return yaml.replaceAll(/^[ \t]*#(?:[ \t]+|$)/gm, '')
+}
+
+/**
  * A document read a paragraph at a time, each on one line. A citation is a
  * document's name and the bold that follows it, so a file flattened whole
  * makes a paragraph that ends in a bare name and a bullet that opens in bold

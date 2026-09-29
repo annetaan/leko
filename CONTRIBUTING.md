@@ -253,10 +253,10 @@ changes what a package imports, how it is built or what its manifest exports.
 ## Before opening a pull request
 
 ```bash
-pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:reference && pnpm check:links && pnpm model && pnpm test
+pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:reference && pnpm check:code-blocks && pnpm check:links && pnpm model && pnpm test
 ```
 
-CI runs the same ten, with `format:check` in place of `format`.
+CI runs the same eleven, with `format:check` in place of `format`.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

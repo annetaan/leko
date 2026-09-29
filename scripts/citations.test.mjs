@@ -7,6 +7,7 @@ import {
   links,
   paragraphs,
   slugs,
+  uncommented,
   unread,
   walk,
 } from './citations.mjs'
@@ -95,6 +96,21 @@ describe('paragraphs', () => {
   it('joins the lines of a paragraph, so a citation may wrap', () => {
     const page = 'DESIGN.md argues\nit under\n**The halo**\n'
     expect(paragraphs(page).flatMap(citations)).toEqual([{ doc: 'DESIGN.md', heading: 'The halo' }])
+  })
+})
+
+describe('uncommented', () => {
+  it('lets a citation wrap across YAML comment lines', () => {
+    const file =
+      '      # says it. CONTRIBUTING.md,\n      # **Code blocks on the site** says\n      - run: x\n'
+    expect(paragraphs(uncommented(file)).flatMap(citations)).toEqual([
+      { doc: 'CONTRIBUTING.md', heading: 'Code blocks on the site' },
+    ])
+  })
+
+  it('ends a paragraph at a comment line that is only a #', () => {
+    const file = '# the rest DESIGN.md argues\n#\n# under **Some heading** of the next\n'
+    expect(paragraphs(uncommented(file)).flatMap(citations)).toEqual([])
   })
 })
 

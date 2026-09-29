@@ -53,6 +53,11 @@ jobs:
       # page saying it exists, and so does a page documenting a renamed one.
       # `scripts/check-reference.mjs` says what counts as documented.
       - run: pnpm check:reference
+      # A block the site shows a reader to copy can stop compiling when the API
+      # moves under it, and the site still builds and nothing else here fails
+      # on it. CONTRIBUTING.md, **Code blocks on the site** says what a block
+      # may lean on.
+      - run: pnpm check:code-blocks
       # Quint's own download of its evaluator goes without a token, and a shared
       # runner's address is past the anonymous limit often enough to fail a run
       # on that alone (`packages/machine/model/README.md`, **Running it**). This
