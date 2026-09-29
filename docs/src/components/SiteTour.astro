@@ -4,7 +4,7 @@ import { href } from '../lib/href.ts'
 /**
  * The other end of the crossing PageTour.astro completes.
  *
- * The link below is what `fromIndex`'s one step targets — see stories.ts
+ * The link below is what `toPlayground`'s one step targets — see stories.ts
  * for why. The story itself names `next` — DESIGN.md, **A page load ends
  * the story, and hands it on**.
  */
@@ -20,16 +20,17 @@ import { href } from '../lib/href.ts'
 <script>
   import { createLeko } from '@annetaan/leko'
   import '@annetaan/leko/leko.css'
-  import { fromIndex } from '../lib/stories.ts'
+  import { toPlayground } from '../lib/stories.ts'
 
   const leko = createLeko()
 
   document
     .querySelector('[data-site-tour-start]')!
     .addEventListener('click', () => {
-      leko.start(fromIndex)
+      leko.start(toPlayground)
     })
 
-  // Once per document: takes up a note naming from-index, or nothing.
-  leko.pickUp([fromIndex])
+  // No story hands on to this one, so this call only takes away a note an
+  // earlier page left behind.
+  leko.pickUp([toPlayground])
 </script>
