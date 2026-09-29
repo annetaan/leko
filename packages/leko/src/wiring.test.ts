@@ -641,6 +641,16 @@ test('a tour draws a way out of itself, and using it ends the tour', async () =>
   expect(centre(target)).toBe(target)
 })
 
+test('the words on the way out are the instance’s to choose', async () => {
+  const target = box('target', { left: '100px', top: '300px', width: '120px', height: '40px' })
+  start([{ id: 'one', target: { elements: () => target, interactive: true } }], {
+    closeLabel: 'Skip the tour',
+  })
+  await framed()
+
+  expect(closer()!.querySelector('button')!.textContent).toBe('Skip the tour')
+})
+
 test('the way out is there on a step with nothing to point at', async () => {
   const [first] = pair()
   const leko = holding({
@@ -1790,6 +1800,54 @@ test('a resize while the page glides puts the holes back and says nothing', asyn
   expect(leko.step?.id).toBe('far')
 
   window.scrollTo(0, 0)
+})
+
+// --- the look a host gives the tour
+//
+// The sandbox case `styled-tour.ts` shows it on screen.
+
+test("a rule on the box's own background does not restyle it, and its custom property does", async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
+  start([
+    { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
+  const sheet = keep(document.head.appendChild(document.createElement('style')))
+
+  sheet.textContent = '.leko-message { background: rgb(1, 2, 3) }'
+  await framed()
+  const words = document.querySelector<HTMLElement>('.leko-message')!
+  expect(getComputedStyle(words).backgroundColor).toBe('rgb(255, 255, 255)')
+
+  sheet.textContent = ':root { --leko-message-bg: rgb(1, 2, 3) }'
+  expect(getComputedStyle(words).backgroundColor).toBe('rgb(1, 2, 3)')
+
+  sheet.textContent = '.leko-message { --leko-message-bg: rgb(4, 5, 6) }'
+  expect(getComputedStyle(words).backgroundColor).toBe('rgb(4, 5, 6)')
+})
+
+test("a step's radius rounds its hole and its halo, over the instance's", async () => {
+  const [first, second] = pair()
+  const leko = holding(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', target: { elements: () => first, interactive: true } },
+        { id: 'b', target: { elements: () => second, interactive: true }, radius: 20 },
+      ],
+    },
+    { radius: 4 },
+  )
+
+  begin(leko, 'story')
+  await framed()
+  expect(decodeURIComponent(scrim()!.style.maskImage)).toContain('rx="4"')
+  expect(document.querySelector<HTMLElement>('.leko-halo')!.style.borderRadius).toBe('4px')
+
+  press()
+  await framed()
+  expect(leko.step?.id).toBe('b')
+  expect(decodeURIComponent(scrim()!.style.maskImage)).toContain('rx="20"')
+  expect(document.querySelector<HTMLElement>('.leko-halo')!.style.borderRadius).toBe('20px')
 })
 
 // --- what the presenter reports on its own account
