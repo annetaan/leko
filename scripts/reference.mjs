@@ -1,6 +1,7 @@
 /*
  * Finding the names the public surface has, and the names the reference pages
- * document.
+ * document, and the defaults a stylesheet declares against the fallbacks the
+ * code reads.
  *
  * Text in and findings out, so `reference.test.mjs` drives it directly and
  * `check-reference.mjs` is left with the disk and the report.
@@ -46,6 +47,12 @@ const SPECIFIER = /^(?:type\s+)?([\w$]+)(?:\s+as\s+([\w$]+))?$/
  * `consumed` counts them.
  */
 const VAR = /\bvar\(\s*(--leko-[\w-]+)\s*(,?)/g
+
+/**
+ * A `--leko-` declaration in a stylesheet, up to the `;` that ends it. `[^;]`
+ * crosses a newline, so a value written over several lines is read whole.
+ */
+const DECLARATION = /(--leko-[\w-]+)\s*:\s*([^;]*);/g
 
 /**
  * The inline code that opens a table row. Only the first cell, because the
@@ -120,6 +127,50 @@ export function consumed(source) {
         `${name} is read with two fallbacks, \`${found.get(name)}\` and \`${fallback}\`.`,
       )
     found.set(name, fallback)
+  }
+  return found
+}
+
+/**
+ * Every `--leko-` custom property the stylesheet declares, mapped to its value
+ * with each run of whitespace read as one space.
+ *
+ * One property declared twice with two different values throws, the way
+ * `consumed` throws on two fallbacks: which one is the default depends on
+ * where the rule sits, and a check that took either would be judging half.
+ */
+export function declared(css) {
+  const found = new Map()
+  for (const [, name, raw] of css.replaceAll(COMMENT, '').matchAll(DECLARATION)) {
+    const value = raw.replaceAll(/\s+/g, ' ').trim()
+    if (found.has(name) && found.get(name) !== value)
+      throw new Error(
+        `${name} is declared with two values, \`${found.get(name)}\` and \`${value}\`.`,
+      )
+    found.set(name, value)
+  }
+  return found
+}
+
+/**
+ * Where the stylesheet's defaults and the code's fallbacks part, over what
+ * `declared` and `consumed` return.
+ *
+ * `{ name, declared, fallback }` is a property both have with different
+ * values. A `var()` with no fallback is one of them, with `fallback`
+ * `undefined`: without the stylesheet it has no value at all. `{ name, only }`
+ * is a property only one side has, `only` naming which, `'stylesheet'` or
+ * `'code'`.
+ */
+export function defaults(stylesheet, code) {
+  const found = []
+  for (const [name, value] of stylesheet) {
+    if (!code.has(name)) found.push({ name, only: 'stylesheet' })
+    else if (code.get(name) !== value)
+      found.push({ name, declared: value, fallback: code.get(name) })
+  }
+  for (const name of code.keys()) {
+    if (!stylesheet.has(name)) found.push({ name, only: 'code' })
   }
   return found
 }
