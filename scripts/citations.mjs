@@ -65,7 +65,7 @@ export const CITATION = new RegExp(
 const MARKER = String.raw`(?:[-*+]|\d{1,9}[.)])`
 
 /** `#` and its text, or a list item that opens in bold, on one unwrapped line. */
-const HEADING = /^#{1,6}[ \t]+(.+?)[ \t]*$/
+export const HEADING = /^#{1,6}[ \t]+(.+?)[ \t]*$/
 const BULLET = new RegExp(String.raw`^[ \t]*${MARKER}[ \t]+\*\*(.+?)\*\*`)
 
 /** A list item's own line, and a fence as its run of marks and its info string. */
@@ -74,33 +74,51 @@ const FENCE = /^[ \t]*(`{3,}|~{3,})[ \t]*(.*)$/
 const INDENTED = /^[ \t]/
 
 /**
- * The markdown with every fenced block blanked out. A citation shown inside a
- * fence is one nobody wrote, and a `#` line in a fenced shell script is
- * nobody's heading — so both the names a document offers and the citations it
- * makes are read from here.
+ * The markdown a line at a time, with each fenced block read whole: `{ line,
+ * text }` for a line outside a fence, and `{ line, info, code, closed }` for a
+ * block, where `line` is the page line of the opening fence, counted from 1,
+ * `code` the lines between the fences, and `closed` false for a block that
+ * runs to the end of the file.
  *
  * A closing fence carries no info string in CommonMark, so a ` ```js ` line
  * inside a block is content and not the close of it. Read as a close, the block
  * ends early and the lines after it are taken for the document's own — which is
  * the very reading the fence is dropped to prevent (micromark 4.0.2).
+ */
+export function* walk(markdown) {
+  let block = null
+  for (const [index, line] of markdown.split('\n').entries()) {
+    const [, marks, info] = FENCE.exec(line) ?? []
+    if (block !== null) {
+      if (marks?.startsWith(block.marks) && info === '') {
+        yield { line: block.line, info: block.info, code: block.code, closed: true }
+        block = null
+      } else {
+        block.code.push(line)
+      }
+    } else if (marks !== undefined) {
+      block = { line: index + 1, marks, info: info.trim(), code: [] }
+    } else {
+      yield { line: index + 1, text: line }
+    }
+  }
+  if (block !== null) yield { line: block.line, info: block.info, code: block.code, closed: false }
+}
+
+/**
+ * The markdown with every fenced block blanked out. A citation shown inside a
+ * fence is one nobody wrote, and a `#` line in a fenced shell script is
+ * nobody's heading — so both the names a document offers and the citations it
+ * makes are read from here.
  *
  * Blank lines rather than no lines, so what surrounded a block is still two
  * paragraphs and not one.
  */
 export function defenced(markdown) {
   const lines = []
-  let fence = null
-  for (const line of markdown.split('\n')) {
-    const [, marks, info] = FENCE.exec(line) ?? []
-    if (fence !== null) {
-      if (marks?.startsWith(fence) && info === '') fence = null
-      lines.push('')
-    } else if (marks !== undefined) {
-      fence = marks
-      lines.push('')
-    } else {
-      lines.push(line)
-    }
+  for (const part of walk(markdown)) {
+    if (part.code === undefined) lines.push(part.text)
+    else lines.push(...Array(part.code.length + (part.closed ? 2 : 1)).fill(''))
   }
   return lines.join('\n')
 }
@@ -184,6 +202,15 @@ export function anchors(markdown) {
     if (name !== undefined) found.add(key(name))
   }
   return found
+}
+
+/**
+ * The YAML with each comment line's `#` taken off, so a citation wrapped over
+ * two comment lines reads as one, the way `passages` reads a `//` comment. A
+ * line that is only a `#` becomes blank and ends the paragraph.
+ */
+export function uncommented(yaml) {
+  return yaml.replaceAll(/^[ \t]*#(?:[ \t]+|$)/gm, '')
 }
 
 /**

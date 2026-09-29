@@ -24,6 +24,7 @@
     "check:pack": "node scripts/check-pack.mjs",
     "check:citations": "node scripts/check-citations.mjs",
     "check:reference": "node scripts/check-reference.mjs",
+    "check:code-blocks": "node scripts/check-code-blocks.mjs",
     "check:links": "node scripts/check-links.mjs"
   },
   "devDependencies": {

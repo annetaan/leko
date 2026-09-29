@@ -29,6 +29,7 @@ import {
   links,
   paragraphs,
   slugs,
+  uncommented,
   unread,
 } from './citations.mjs'
 import { passages } from './comments.mjs'
@@ -36,8 +37,8 @@ import { passages } from './comments.mjs'
 /**
  * Markdown and YAML are read whole; a source file only through its comments.
  * A citation in YAML is in a comment anyway — `ci.yml` cites the rule beside
- * the step that checks it — and reading the file whole saves teaching this a
- * second grammar.
+ * the step that checks it — and reading the file whole, with only the `#`
+ * taken off, saves teaching this a second grammar.
  */
 const MARKDOWN = /\.mdx?$/i
 const WHOLE = /\.(mdx?|ya?ml)$/
@@ -47,7 +48,7 @@ const written = (source, file) => {
   if (!WHOLE.test(file)) return passages(source, file)
   // Markdown is the one of the two with fences to drop; YAML is read for its
   // comments, which carry none.
-  return MARKDOWN.test(file) ? paragraphs(defenced(source)) : paragraphs(source)
+  return paragraphs(MARKDOWN.test(file) ? defenced(source) : uncommented(source))
 }
 
 /**

@@ -90,7 +90,7 @@ two paths share is a story rather than a step they both point at, so no branch
 has to know how many steps came before it —
 [A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
 
-```ts
+```ts prelude="import type { LekoStory } from '@annetaan/leko'" prelude="import { careful, summary } from './stories'" prelude="declare const order: { path: 'careful' | 'quick' }"
 // src/stories.ts, below summary and careful
 export const quick = {
   id: 'quick',

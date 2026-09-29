@@ -1,0 +1,37 @@
+// The project every ts and tsx block on the site is compiled in, by
+// `pnpm check:code-blocks` — CONTRIBUTING.md, **Code blocks on the site**.
+//
+// The options are those of Vite's `vanilla-ts` template (create-vite 9.2.1),
+// which Getting started starts from, so a block passes here when it would pass
+// in the project a reader has. Three are added:
+//
+// - `strict`, which the template leaves to TypeScript 6's default, and the
+//   workspace runs 5.9, where the default is off.
+// - `jsx`, as `react-ts` sets it, for the tsx blocks.
+// - `customConditions`, so `@annetaan/leko` is read from the workspace's
+//   sources the way the site reads it, with no build first.
+//
+// And two are dropped, `noUnusedLocals` and `noUnusedParameters`, because a
+// block declares things it only shows.
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM"],
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noEmit": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "customConditions": ["development"]
+  },
+  "files": ["leko-instance.d.ts"],
+  "include": ["src"]
+}

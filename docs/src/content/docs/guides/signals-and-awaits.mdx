@@ -34,7 +34,7 @@ button is somebody trying. The order being saved is the thing that happened,
 and only the application knows when: after the request came back, not when the
 button was pressed. So the call goes where the application learns it.
 
-```ts
+```ts prelude="type Order = { lines: string[] }" prelude="declare function saveOrder(order: Order): Promise<void>"
 async function placeOrder(order: Order) {
   await saveOrder(order)
   leko.reached('order-saved')

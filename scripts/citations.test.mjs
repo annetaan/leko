@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { anchors, citations, defenced, links, paragraphs, slugs, unread } from './citations.mjs'
+import {
+  anchors,
+  citations,
+  defenced,
+  links,
+  paragraphs,
+  slugs,
+  uncommented,
+  unread,
+  walk,
+} from './citations.mjs'
 
 const headings = (text) => citations(text).map(({ heading }) => heading)
 
@@ -89,6 +99,21 @@ describe('paragraphs', () => {
   })
 })
 
+describe('uncommented', () => {
+  it('lets a citation wrap across YAML comment lines', () => {
+    const file =
+      '      # says it. CONTRIBUTING.md,\n      # **Code blocks on the site** says\n      - run: x\n'
+    expect(paragraphs(uncommented(file)).flatMap(citations)).toEqual([
+      { doc: 'CONTRIBUTING.md', heading: 'Code blocks on the site' },
+    ])
+  })
+
+  it('ends a paragraph at a comment line that is only a #', () => {
+    const file = '# the rest DESIGN.md argues\n#\n# under **Some heading** of the next\n'
+    expect(paragraphs(uncommented(file)).flatMap(citations)).toEqual([])
+  })
+})
+
 describe('unread', () => {
   it('reports a wording it did not read', () => {
     // The one in the tree: a colon, three real headings after it, and the
@@ -143,6 +168,24 @@ describe('defenced', () => {
     // it become one paragraph and one citation of a heading nobody wrote.
     const page = 'the rest is in DESIGN.md\n```\ncode\n```\n**Some bold opener** of what follows\n'
     expect(paragraphs(defenced(page)).flatMap(citations)).toEqual([])
+  })
+})
+
+describe('walk', () => {
+  it('yields a fence whose closing line carries an info string as code, not as its close', () => {
+    const page = 'before\n```md\n```js\ncode\n```\nafter'
+    expect([...walk(page)]).toEqual([
+      { line: 1, text: 'before' },
+      { line: 2, info: 'md', code: ['```js', 'code'], closed: true },
+      { line: 6, text: 'after' },
+    ])
+  })
+
+  it('yields a fence that runs to the end of the file as not closed', () => {
+    expect([...walk('text\n~~~ts\nconst a = 1\n')]).toEqual([
+      { line: 1, text: 'text' },
+      { line: 2, info: 'ts', code: ['const a = 1', ''], closed: false },
+    ])
   })
 })
 

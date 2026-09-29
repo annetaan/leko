@@ -13,7 +13,7 @@ and one that covers the page and points at nothing.
 
 ## LekoStory
 
-```ts
+```ts signature
 interface LekoStory {
   id: string
   steps: LekoStep[]
@@ -57,7 +57,7 @@ The steps, in the order they are shown. A story with none is refused by
 The story the tour goes on to when this one runs out of steps: a story, or a
 function that answers with one or with `undefined`.
 
-```ts
+```ts fragment
 next: summary
 next: () => (order.needsReview ? review : summary)
 ```
@@ -80,7 +80,7 @@ document takes it up with [`pickUp`](../leko/#pickup) —
 
 ### story.onEnter
 
-```ts
+```ts signature
 onEnter?: (story: LekoStory) => void
 ```
 
@@ -96,7 +96,7 @@ ends the tour, and `onLeave` still runs.
 
 ### story.onLeave
 
-```ts
+```ts signature
 onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
 ```
 
@@ -110,7 +110,7 @@ A promise it hands back is not waited for.
 
 ## LekoStep
 
-```ts
+```ts signature
 type LekoStep = LekoTargetedStep | LekoUntargetedStep
 ```
 
@@ -205,7 +205,7 @@ control appears —
 
 ### step.onEnter
 
-```ts
+```ts signature
 onEnter?: (step: LekoStep) => void
 ```
 
@@ -223,7 +223,7 @@ halfway may already have set something up.
 
 ### step.onLeave
 
-```ts
+```ts signature
 onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 ```
 
@@ -238,7 +238,7 @@ turn can stay open when `next` is the other one.
 
 ## LekoTargetedStep
 
-```ts
+```ts signature
 interface LekoTargetedStep {
   target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
   resolve?: 'first' | 'visible-first' | 'in-viewport-first'
@@ -266,7 +266,7 @@ a [`LekoRegion`](#lekoregion), where several elements become one hole by being
 named together, or a bare [`LekoTarget`](#lekotarget), which is the region of
 one element. A list never nests.
 
-```ts
+```ts prelude="import type { LekoStep } from '@annetaan/leko'"
 const steps: LekoStep[] = [
   // one hole
   { id: 'save', target: '#save' },
@@ -310,7 +310,7 @@ other —
 
 ### validate
 
-```ts
+```ts signature
 validate?: (targetEl: Element) => boolean
 ```
 
@@ -330,7 +330,7 @@ A refusal is never silent. The cutout shakes whether or not the step has an
 
 ### error
 
-```ts
+```ts signature
 error?: string | ((targetEl: Element) => string)
 ```
 
@@ -338,7 +338,7 @@ What to say when `validate` answers `false`. It is shown under `message` and
 never replaces it, so a user told they were wrong can still read what they
 were asked for.
 
-```ts
+```ts fragment
 error: 'That does not look like an email address yet.'
 error: (el) => `${(el as HTMLInputElement).value} is already taken.`
 ```
@@ -349,7 +349,7 @@ element `validate` was, and must be cheap and have no side effects.
 
 ## LekoUntargetedStep
 
-```ts
+```ts signature
 interface LekoUntargetedStep {
   target?: never
   resolve?: never
@@ -366,7 +366,7 @@ It is the step to write for a wait: give it `awaits`, start the work in
 `onEnter`, and the tour stands there with the page held until the application
 reports the name.
 
-```ts
+```ts prelude="import type { LekoUntargetedStep } from '@annetaan/leko'" prelude="declare function loadDraft(): Promise<void>"
 const waitForDraft: LekoUntargetedStep = {
   id: 'load-draft',
   message: 'Loading the draft order…',
@@ -383,14 +383,14 @@ control.
 
 ## LekoTarget
 
-```ts
+```ts signature
 type LekoTarget = string | (() => Element | null)
 ```
 
 Anything a step can point at: a CSS selector, or a function that hands back the
 element now, or `null` where there is none yet.
 
-```ts
+```ts fragment
 target: '#order-form'
 target: () => panel.shadowRoot?.querySelector('.send') ?? null
 target: () => sendRef.current
@@ -420,7 +420,7 @@ transforms included —
 
 ## LekoRegion
 
-```ts
+```ts signature
 interface LekoRegion {
   elements: LekoTarget | LekoTarget[]
   interactive?: boolean
@@ -431,7 +431,7 @@ One cutout, and whether the step opens it. A bare `LekoTarget` anywhere a
 region is wanted reads as `{ elements: target }`: one element, one hole, not
 opened.
 
-```ts
+```ts prelude="import type { LekoRegion } from '@annetaan/leko'"
 const save: LekoRegion = { elements: '#save', interactive: true }
 const quantity: LekoRegion = { elements: ['#quantity-label', '#quantity'] }
 ```
@@ -463,7 +463,7 @@ keyboard either —
 
 ## LekoShownRegion
 
-```ts
+```ts signature
 interface LekoShownRegion {
   elements: LekoTarget | LekoTarget[]
   interactive?: never
@@ -478,7 +478,7 @@ an object built somewhere else.
 
 ## LekoUrlAwait
 
-```ts
+```ts signature
 interface LekoUrlAwait {
   url: RegExp
 }
@@ -487,7 +487,7 @@ interface LekoUrlAwait {
 The other shape of [`awaits`](#awaits): the step moves on when the page's own
 URL changes to match `url`, with no call the application has to make.
 
-```ts
+```ts prelude="import type { LekoUrlAwait } from '@annetaan/leko'"
 const checkout: LekoUrlAwait = { url: /^\/checkout(?:[/?#]|$)/ }
 const hashRouted: LekoUrlAwait = { url: /^\/#\/checkout(?:[/?]|$)/ } // a hash router
 ```

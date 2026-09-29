@@ -37,7 +37,7 @@ same as under loose.
 
 ## LekoSignals
 
-```ts
+```ts signature
 interface LekoSignals {}
 ```
 
@@ -66,7 +66,7 @@ applies, no completion appears, and nothing says why —
 
 ## LekoStrict
 
-```ts
+```ts signature
 interface LekoStrict {}
 ```
 
@@ -92,7 +92,7 @@ that promise about the list rather than about the code —
 
 ## LekoKnownSignal
 
-```ts
+```ts signature
 type LekoKnownSignal = [keyof LekoSignals] extends [never]
   ? string
   : [keyof LekoStrict] extends [never]
@@ -109,7 +109,7 @@ leaves it alone.
 
 Under strict, write a story with `satisfies LekoStory`:
 
-```ts
+```ts prelude="import type { LekoStory } from '@annetaan/leko'"
 const story = {
   id: 'onboarding',
   steps: [{ id: 'save', target: 'button[type="submit"]', awaits: 'order-saved' }],
@@ -124,7 +124,7 @@ is right or wrong. `satisfies LekoStory`, or an annotation such as
 
 ## LekoSignal
 
-```ts
+```ts signature
 type LekoSignal = [keyof LekoSignals] extends [never] ? string : keyof LekoSignals | (string & {})
 ```
 
@@ -141,7 +141,7 @@ gathered from —
 interfaces. With Vite, its plugin writes the file before a build and keeps it
 current while the dev server runs:
 
-```ts
+```ts prelude="import { defineConfig } from 'vite'"
 import { lekoSignals } from '@annetaan/leko-codegen/vite'
 
 export default defineConfig({
