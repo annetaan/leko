@@ -90,9 +90,9 @@ user has not got yet. A step's own `onEnter` is the same job one level down.
 
 Whatever it hands back is dropped, so an `async` handler runs its first line
 here and the rest after the call that moved the tour has returned. A story
-whose setup has to finish before anything is measured starts the work here and
-puts a step that waits at the top of `steps`. A throw ends the tour, and
-`onLeave` still runs.
+whose setup has to finish before anything is measured puts a step that waits at
+the top of `steps`, and that step starts the work in its own `onEnter`. A throw
+ends the tour, and `onLeave` still runs.
 
 ### story.onLeave
 
