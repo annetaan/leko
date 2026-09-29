@@ -1,0 +1,158 @@
+---
+title: Setup and clear-up
+description: How a story and a step set up what they stand on in onEnter and take it away in onLeave, and why work that has to finish first is a step that waits rather than a promise.
+---
+
+A story and each of its steps can set up what they stand on in `onEnter` and
+take it away in `onLeave`. Setup that every step of a story stands on goes on
+the story, and setup that one step stands on goes on that step, each beside the
+`onLeave` that undoes it. Leko waits for no promise either hook hands back, so
+work that has to finish before a step is drawn is a step of its own that
+declares `awaits`.
+
+## A story sets up what every step stands on
+
+Put what every step of a story stands on in the story's `onEnter`, and what
+takes it away in the story's `onLeave`. Here a user with no project of their
+own is shown round a sample one.
+
+```ts
+// src/stories.ts
+import type { LekoStory } from '@annetaan/leko'
+
+export const projects = {
+  id: 'projects',
+  onEnter: () => showSampleProject(),
+  onLeave: () => hideSampleProject(),
+  steps: [
+    { id: 'board', target: '#board', message: 'Each card is one task in the project.' },
+    { id: 'members', target: '#members', message: 'These are the people working on it.' },
+  ],
+} satisfies LekoStory
+```
+
+`showSampleProject` and `hideSampleProject` are your application's own.
+
+`hideSampleProject` goes on the story rather than on `board`'s `onLeave`,
+where it would run as the tour moved to `members`, which points into the sample
+project too —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
+
+- **`hideSampleProject` runs however the tour ends,** even where
+  `showSampleProject` threw halfway —
+  [story.onLeave](../../reference/story-and-step/#storyonleave).
+- **A story that hands on through `next` can leave the sample project up** for
+  a successor that shows it too —
+  [next joins one story to the one after it](../several-short-stories/#next-joins-one-story-to-the-one-after-it).
+
+The order every hook runs in is under
+[The order the hooks run in](../../reference/story-and-step/#the-order-the-hooks-run-in).
+
+## A step sets up what it alone stands on
+
+Put what one step stands on in that step's `onEnter`, and what takes it away in
+its `onLeave`. Here the postcode and the city are in a delivery section that
+starts closed. Two steps point into it in turn, and the step after them points
+at the Confirm button outside it.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const steps: LekoStep[] = [
+  {
+    id: 'postcode',
+    target: '#postcode',
+    message: 'The postcode goes here.',
+    onEnter: () => openDelivery(),
+    onLeave: (_step, next) => {
+      if (next?.id !== 'city') closeDelivery()
+    },
+  },
+  {
+    id: 'city',
+    target: '#city',
+    message: 'And the city.',
+    onLeave: () => closeDelivery(),
+  },
+  { id: 'confirm', target: '#confirm', message: 'Then confirm the order.' },
+]
+```
+
+`openDelivery` and `closeDelivery` are your application's own.
+
+`onEnter` runs before the step's target is looked for, so `#postcode` is found
+inside the section `openDelivery` has just opened —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
+
+- **The section stays open from `postcode` to `city`.** `postcode`'s `onLeave`
+  is handed the step the tour moves to, and leaves the section open when that
+  is `city`.
+- **`city` opens nothing.** The tour reaches `city` only from `postcode`, with
+  the section already open —
+  [A story is atomic, and stories are short](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-story-is-atomic-and-stories-are-short).
+- **The section closes however the tour leaves it.** A tour that ends on
+  `postcode` hands its `onLeave` no step, and `city`'s `onLeave` runs on the
+  way to `confirm` or out of the tour, although `city` has no `onEnter` —
+  [step.onLeave](../../reference/story-and-step/#steponleave).
+
+## A wait is a step that declares awaits, not a promise
+
+Leko waits for no promise a hook hands back, and hands the step over to be
+drawn the moment its `onEnter` returns. Where a step's target exists only once
+some work has come back, such as rows loaded from the server, put a step before
+it that names no `target`, declares `awaits`, and starts the work in its own
+`onEnter`.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const steps: LekoStep[] = [
+  {
+    id: 'loading',
+    message: 'Loading the draft order…',
+    onEnter: () => void loadDraft(),
+    awaits: 'draft-loaded',
+  },
+  { id: 'lines', target: '#lines', message: 'These are the lines of the draft.' },
+]
+```
+
+`loadDraft` is your application's own, and calls
+`leko.reached('draft-loaded')` once the rows are on the page.
+
+While `loading` waits, the tour is running and accepts every call the
+application makes, where a hook held open until its promise settled would drop
+a `reached()` made in the meantime —
+[A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+
+- **`loading` starts the load itself,** rather than a step before it, for the
+  reason under
+  [A signal counts only once its step has been entered](../signals-and-awaits/#a-signal-counts-only-once-its-step-has-been-entered).
+- **`loading` counts as a step.** `index` and `story.steps.length` include it,
+  so a progress count that leaves it out comes from a table the application
+  keys by step id —
+  [A step that waits](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-step-that-waits).
+- **A story whose own setup has to come back first begins with a step like
+  `loading`** — [story.onEnter](../../reference/story-and-step/#storyonenter).
+
+What to do where the load can fail is under
+[LekoUntargetedStep](../../reference/story-and-step/#lekountargetedstep).
+
+## See it run
+
+The sandbox case
+[step-setup.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/step-setup.ts)
+has the shape of the example under
+[A step sets up what it alone stands on](#a-step-sets-up-what-it-alone-stands-on).
+The step that waits is the first of the two that share a section: it opens the
+closed section and loads an address into it, and its `onLeave` leaves the
+section open only for the postcode step after it. Pressing Next on the case's
+first step covers the page with no hole in it while the address loads, the
+postcode field is then lit inside the section the tour opened, and on the last
+step the section is closed again. Ending the tour while the address loads
+closes the section too.
+[story-setup.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/story-setup.ts)
+begins with a step that loads a draft order into its empty table, and the
+story's `onLeave` empties the table again when the tour ends, on whichever
+step. Its caption names the chapter each step belongs to, from a table the page
+keys by step id.

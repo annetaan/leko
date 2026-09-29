@@ -66,6 +66,11 @@ export const stepSetup: Case = {
             at('[data-details]').hidden = false
             void loadAddress()
           },
+
+          // DESIGN.md, **Every `onEnter` gets its `onLeave`**.
+          onLeave: (_step, next) => {
+            if (next?.id !== 'postcode') at('[data-details]').hidden = true
+          },
         },
         {
           id: 'postcode',
@@ -74,8 +79,9 @@ export const stepSetup: Case = {
           target: 'input[name="postcode"]',
           message: 'The tour opened the section, waited, and then measured.',
 
-          // The matching half. Without it the section stays open for the rest
-          // of the tour, and the user is left with a page the tour rearranged.
+          // The half that closes it once the tour is past the field. Without it
+          // the section stays open for the rest of the tour, and the user is
+          // left with a page the tour rearranged.
           onLeave: () => {
             at('[data-details]').hidden = true
           },

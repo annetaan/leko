@@ -23,7 +23,8 @@ exactly one thing moves it.
 - **`story.onEnter` runs first and `story.onLeave` runs last**, bracketing
   every step. Setup a whole story stands on belongs in the story's own hooks;
   clear-up written on the first step's `onLeave` fires the moment the tour
-  reaches step 2.
+  reaches step 2 —
+  [A story sets up what every step stands on](../guides/setup-and-clear-up/#a-story-sets-up-what-every-step-stands-on).
 - **Every ending is the whole ending.** The close control, `stop()`, running
   out of steps, a target that never turned up, a handler that threw — each
   tears the run down where it stands, and `onLeave` runs even for a step whose
@@ -73,4 +74,5 @@ step's `onStep` runs inside the single synchronous call that moved the tour —
 a press, a `reached()`, a `start()`, a URL change. Work that must finish
 before the next step makes sense is not a slow `onEnter`; it is a step of its
 own, with no `target` and an `awaits`, started by its own `onEnter` and ended
-by your code reporting in.
+by your code reporting in —
+[A wait is a step that declares awaits, not a promise](../guides/setup-and-clear-up/#a-wait-is-a-step-that-declares-awaits-not-a-promise).
