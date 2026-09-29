@@ -13,11 +13,15 @@
  * and each is held against its own reference directory alone, so a name one
  * product has is `unknown` on the other's pages.
  *
+ * The tour also has a stylesheet, and every default it declares has to be the
+ * fallback the code reads, for the promise the opening of
+ * `docs/src/content/docs/reference/css-custom-properties.mdx` makes.
+ *
  * The finding is in `reference.mjs`; this is the disk and the report.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path/posix'
-import { compare, consumed, exported } from './reference.mjs'
+import { compare, consumed, declared, defaults, exported } from './reference.mjs'
 
 const SURFACES = [
   {
@@ -25,6 +29,7 @@ const SURFACES = [
     entry: 'packages/leko/src/index.ts',
     sources: ['packages/spotlight/src', 'packages/presenter/src'],
     pages: 'docs/src/content/docs/reference',
+    stylesheet: 'packages/spotlight/src/leko.css',
   },
   {
     name: 'Leko Scroll',
@@ -66,9 +71,40 @@ for (const surface of SURFACES) {
     continue
   }
 
+  const reads = consumed(code(surface.sources))
   const known = {
     names: exported(readFileSync(surface.entry, 'utf8')),
-    properties: new Set(consumed(code(surface.sources)).keys()),
+    properties: new Set(reads.keys()),
+  }
+
+  let matching = ''
+  if (surface.stylesheet !== undefined) {
+    const stylesheet = declared(readFileSync(surface.stylesheet, 'utf8'))
+    const parted = defaults(stylesheet, reads)
+    const sources = surface.sources.join(' and ')
+    for (const finding of parted) {
+      if (finding.only === 'stylesheet')
+        console.error(
+          `${surface.stylesheet}: declares ${finding.name}, which the code in ${sources} never reads`,
+        )
+      else if (finding.only === 'code')
+        console.error(`${finding.name}, from ${sources}, has no default in ${surface.stylesheet}`)
+      else if (finding.fallback === undefined)
+        console.error(
+          `${finding.name}, from ${sources}, is read with no fallback, and ${surface.stylesheet} declares \`${finding.declared}\``,
+        )
+      else
+        console.error(
+          `${finding.name}: ${surface.stylesheet} declares \`${finding.declared}\`, and the code in ${sources} falls back to \`${finding.fallback}\``,
+        )
+    }
+    if (parted.length > 0) {
+      console.error(
+        `\n${surface.name}: stylesheet defaults that are not the code's fallbacks: ${parted.length}.`,
+      )
+      failed = true
+    }
+    matching = `, and ${stylesheet.size} stylesheet defaults, every one of them the code's fallback`
   }
   const pages = new Map(
     files.map((file) => [
@@ -96,7 +132,7 @@ for (const surface of SURFACES) {
   }
 
   passed.push(
-    `${surface.name}: ${known.names.size} names and ${known.properties.size} properties, every one of them on its reference.`,
+    `${surface.name}: ${known.names.size} names and ${known.properties.size} properties, every one of them on its reference${matching}.`,
   )
 }
 

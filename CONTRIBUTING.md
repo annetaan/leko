@@ -81,7 +81,9 @@ for Leko Scroll. `pnpm check:reference` holds each entry point,
 `packages/leko/src/index.ts` and `packages/leko/src/scroll.ts`, against its own
 directory, and fails on a name it exports, or a `--leko-*` property its code
 reads through `var()`, that is on none of that directory's pages. The
-properties are the ones the code reads, not the ones `leko.css` declares.
+properties are the ones the code reads, not the ones `leko.css` declares. It
+also fails where a default `leko.css` declares is not the fallback the code
+reads, or where only one of the two has a property.
 
 Every pull request's CI run carries an artifact named `docs-site`, which is the
 `docs/dist` that run built. Download it from the run's summary page and unzip it

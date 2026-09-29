@@ -1,0 +1,139 @@
+---
+title: Styling
+description: How a page gives what Leko draws its own look through the --leko-* custom properties, why the ring round a hole is the halo, what options set instead of CSS, and why the message and the way out go where Leko puts them.
+---
+
+Everything Leko draws takes its look from `--leko-*` custom properties that the
+page sets in its own stylesheet, and
+[CSS custom properties](../../reference/css-custom-properties/) lists them by
+the element each one styles. A rule of normal priority that sets the property
+Leko writes from one of them, on Leko's own element, loses to what Leko writes
+there. The ring round a hole is the halo. A hole's size and corners, how the
+tour moves and what its controls say are options rather than CSS. Leko chooses
+where the message sits and where the way out, the control that ends the tour,
+goes.
+
+## Set the custom property, not the property Leko writes from it
+
+Set `--leko-message-bg` to change the message's background, on `:root` or on
+`.leko-message`. A rule of normal priority that sets `background` on
+`.leko-message` loses to the value Leko writes on the element itself, and so
+does one on any other property Leko writes from a `--leko-*` one. Leko writes
+each of them there with the default as the `var()` fallback, so that a tour
+looks the same with `leko.css` and without it —
+[CSS custom properties](../../reference/css-custom-properties/).
+
+The block below restyles the scrim, the message and its next control from
+`:root`.
+
+```css
+:root {
+  --leko-scrim-color: rgb(3 12 22 / 0.58);
+
+  --leko-message-bg: #071523bb;
+  --leko-message-color: #eafcff;
+  --leko-message-border: 2px solid #2ee6ff;
+  --leko-message-radius: 12px;
+  --leko-message-shadow: 0 0 24px rgb(46 230 255 / 0.55), inset 0 0 10px rgb(46 230 255 / 0.35);
+  --leko-message-next-bg: #2ee6ff;
+  --leko-message-next-color: #06202e;
+}
+```
+
+Where else the properties can go, and where they do not reach, is under
+[Where to set them](../../reference/css-custom-properties/#where-to-set-them).
+
+## The ring round a hole is the halo
+
+Style a hole through `.leko-halo`, the frame Leko lays on each hole. A hole is
+where the scrim is not, so there is no element there for a rule to select, and
+the halo is the element Leko puts there for a page to style —
+[The halo](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-halo).
+
+```css
+.leko-halo {
+  --leko-halo-outline: 2px solid #ffd200;
+  --leko-halo-offset: 0px;
+  --leko-halo-shadow: 0 0 18px 4px rgb(255 210 0 / 0.55), inset 0 0 14px rgb(255 210 0 / 0.4);
+}
+
+.leko-halo:not([data-open]) {
+  --leko-halo-outline: 2px solid rgb(255 210 0 / 0.45);
+  --leko-halo-shadow: 0 0 12px 2px rgb(255 210 0 / 0.3);
+}
+```
+
+In the second rule, the holes a step only shows glow quieter than the hole it
+opened, which carries `data-open`.
+
+- **What the ring does while its hole moves to the next step** is
+  [`halo`](../../reference/create-leko/#halo).
+
+## The hole's size, the movement and the words are options
+
+A hole's size and corners, how the tour moves and the words on its controls are
+set on the instance, and all but the words can also be set on a step for that
+step alone.
+
+```ts
+import { createLeko, type LekoStep } from '@annetaan/leko'
+
+export const leko = createLeko({
+  padding: 4,
+  radius: 12,
+  duration: 480,
+  nextLabel: 'Continue',
+  closeLabel: 'Skip the tour',
+})
+
+const steps: LekoStep[] = [
+  { id: 'total', target: '#total', message: 'This is what the order comes to.' },
+  { id: 'avatar', target: '#avatar', message: 'Your picture goes here.', radius: 999 },
+]
+```
+
+- **`padding` and `radius` are numbers rather than CSS,** because the hole is a
+  mask Leko writes from the target's measured box, and no CSS reaches from an
+  element's box into a mask —
+  [Drawing](https://github.com/annetaan/leko/blob/main/DESIGN.md#drawing). On
+  a square avatar, `radius: 999` makes the hole a circle, because Leko holds a
+  hole's radius to half its shorter side.
+- **`duration` and `easing` set the movement, and the halo's fade stays
+  `--leko-halo-fade`,** because the fade is a transition the browser runs
+  rather than a movement Leko draws frame by frame —
+  [Settings, and where they are read from](https://github.com/annetaan/leko/blob/main/DESIGN.md#settings-and-where-they-are-read-from).
+- **The words are [`nextLabel`](../../reference/create-leko/#nextlabel) and
+  [`closeLabel`](../../reference/create-leko/#closelabel).**
+
+## Leko chooses where the message and the way out sit
+
+No property puts the message on one side of its hole or the way out in one
+corner. Beside a hole, the message takes a side with room for it, or the
+bottom where no side has room, chosen once per step from the part of the
+viewport the page leaves free —
+[The message](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-message).
+The way out takes a corner no hole covers, or the least covered one where every
+corner is —
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out).
+
+- **Name the page's own bars along an edge of the screen in
+  [`hostChrome`](../../reference/create-leko/#hostchrome),** and both keep off
+  them.
+- **Where the message docks instead,** and the one distance a page sets for
+  it, is under
+  [Where the message sits](../../reference/css-custom-properties/#where-the-message-sits).
+- **[`renderClose`](../../reference/create-leko/#renderclose) draws what goes
+  inside the way out,** and Leko still chooses its corner —
+  [Drawing the close control inside your app](../frameworks/#drawing-the-close-control-inside-your-app).
+
+## See it run
+
+The sandbox case
+[styled-tour.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/styled-tour.ts)
+applies the two stylesheets above as one, and prints that stylesheet in full on
+its page.
+Its first step shows the order summary with the quieter ring, and its second
+opens the voucher field with the ring at full glow.
+[halo-follows.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/halo-follows.ts)
+sets one ring for every hole and `halo: 'follow'`, and pressing Next slides the
+ring with the hole to the next row rather than fading it out and back.

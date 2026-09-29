@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { compare, consumed, exported, named } from './reference.mjs'
+import { compare, consumed, declared, defaults, exported, named } from './reference.mjs'
 
 const KNOWN = {
   names: new Set(['createLeko', 'LekoStory', 'LekoStep']),
@@ -15,6 +15,10 @@ const findings = (pages, known = KNOWN) => {
     ...unknown.map(({ file, name }) => `${file} unknown ${name}`),
   ]
 }
+
+/** What `defaults` finds over two `{ name: value }` objects. */
+const parted = (stylesheet, code) =>
+  defaults(new Map(Object.entries(stylesheet)), new Map(Object.entries(code)))
 
 /** A page that documents every name in `KNOWN`, and then `more`. */
 const whole = (more = '') => `
@@ -129,6 +133,64 @@ outline: 'var(--leko-z, 9999)',`
 const name = '--leko-halo-fade'
 style.setProperty('--leko-scrim-color', 'red')`
     expect([...consumed(source)]).toEqual([])
+  })
+})
+
+describe('declared', () => {
+  it('reads every --leko- declaration with its value, and not a comment beside it', () => {
+    const css = `:root {
+  /* --leko-z: 1; is how a page would set it */
+  --leko-scrim-color: rgb(0 0 0 / 0.45);
+  --leko-z : 9999; /* stacking order */
+  color: red;
+}`
+    expect([...declared(css)]).toEqual([
+      ['--leko-scrim-color', 'rgb(0 0 0 / 0.45)'],
+      ['--leko-z', '9999'],
+    ])
+  })
+
+  it('reads a value written over several lines as one line', () => {
+    const css = `:root {
+  --leko-message-shadow:
+    0 6px 24px
+    rgb(0 0 0 / 0.28);
+}`
+    expect([...declared(css)]).toEqual([['--leko-message-shadow', '0 6px 24px rgb(0 0 0 / 0.28)']])
+  })
+
+  it('throws on one property declared with two different values', () => {
+    const css = `:root { --leko-z: 9999; }
+.dark { --leko-z: 10000; }`
+    expect(() => declared(css)).toThrow('--leko-z')
+  })
+})
+
+describe('defaults', () => {
+  it('finds nothing where every default is the fallback', () => {
+    expect(parted({ '--leko-z': '9999' }, { '--leko-z': '9999' })).toEqual([])
+  })
+
+  it('reports a default that is not the fallback', () => {
+    expect(parted({ '--leko-z': '9999' }, { '--leko-z': '10000' })).toEqual([
+      { name: '--leko-z', declared: '9999', fallback: '10000' },
+    ])
+  })
+
+  it('reports a property the stylesheet declares and the code never reads', () => {
+    expect(
+      parted({ '--leko-z': '9999', '--leko-halo-fade': '160ms' }, { '--leko-z': '9999' }),
+    ).toEqual([{ name: '--leko-halo-fade', only: 'stylesheet' }])
+  })
+
+  it('reports a property the code reads and the stylesheet does not declare', () => {
+    expect(parted({}, { '--leko-z': '9999' })).toEqual([{ name: '--leko-z', only: 'code' }])
+  })
+
+  it('reports a property the code reads with no fallback', () => {
+    expect(parted({ '--leko-message-dock': '24px' }, { '--leko-message-dock': undefined })).toEqual(
+      [{ name: '--leko-message-dock', declared: '24px', fallback: undefined }],
+    )
   })
 })
 
