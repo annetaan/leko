@@ -42,6 +42,7 @@ export default defineConfig({
             { label: 'React, Vue and a plain script', slug: 'guides/frameworks' },
             { label: 'Signals and awaits', slug: 'guides/signals-and-awaits' },
             { label: 'Holes that are shown and holes that are open', slug: 'guides/holes' },
+            { label: 'Targets', slug: 'guides/targets' },
             { label: 'Several short stories', slug: 'guides/several-short-stories' },
             { label: 'Across a page load', slug: 'guides/across-a-page-load' },
             { label: 'Setup and clear-up', slug: 'guides/setup-and-clear-up' },

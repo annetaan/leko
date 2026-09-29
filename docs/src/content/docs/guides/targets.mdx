@@ -1,0 +1,176 @@
+---
+title: Targets
+description: How a step names what it points at, which of several matches it means, what happens when the target is not there yet or off screen, and why fixed and sticky targets need nothing of their own.
+---
+
+A step names its target with a CSS selector, or with a function where no
+selector reaches the element. Where a selector matches several elements, the
+step takes the first one the visitor can see. A target that is not on the page
+when its step arrives is waited for a moment, and one that is off screen stays
+there unless `scroll` asks for it to be brought in. A fixed or sticky target
+needs nothing of its own: its hole stays on it while the page scrolls.
+
+## A target is a selector, or a function that finds it
+
+Name a target with a selector wherever one can say which element you mean.
+Where none can, such as for a button inside a component's shadow root, hand a
+function that finds the element, or answers `null` where there is none. A
+target takes no element, because one handed over when the story is written
+may have been replaced by the time its step arrives —
+[A target is a question](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-target-is-a-question).
+
+Here the Send button is inside the open shadow root of a `send-button`
+element, which `document.querySelector` does not enter.
+
+```ts
+import type { LekoStep } from '@annetaan/leko'
+
+const steps: LekoStep[] = [
+  { id: 'total', target: '#total', message: 'This is what the order comes to.' },
+  {
+    id: 'send',
+    target: {
+      elements: () =>
+        document.querySelector('send-button')?.shadowRoot?.querySelector('button') ?? null,
+      interactive: true,
+    },
+    message: 'Send the order.',
+  },
+]
+```
+
+- **A function that hands back an element it kept cannot recover either,**
+  because the node the page replaced stays disconnected —
+  [Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+- **A shadow root changes nothing about the step.** The hole is cut, blocked
+  or opened, and the message is placed, the same as for any other target.
+- **A framework ref is a function too.** How to write one in React and Vue is
+  under [Refs as targets](../frameworks/#refs-as-targets).
+
+## Of several matches, the step takes the first the visitor can see
+
+Where a selector matches several elements, the step takes the first one the
+visitor could see and passes over a copy that is hidden. Where a compact
+layout for narrow windows puts a second Save button above the form and hides
+it on wide ones, a step pointed at the Save button gets the one on screen.
+Taking the first match whatever it looked like would cut a hole over a copy
+that is invisible but still laid out, draw the step and report nothing —
+[Which of several matches a selector means](https://github.com/annetaan/leko/blob/main/DESIGN.md#which-of-several-matches-a-selector-means).
+
+- **A step asks for another rule with `resolve`,** and the instance for every
+  step. What each value takes is under
+  [resolve](../../reference/story-and-step/#resolve).
+- **A step that opens the compact layout first gets the copy inside it,** as
+  [A target that is not there yet gets a moment](#a-target-that-is-not-there-yet-gets-a-moment)
+  explains.
+
+## A target that is not there yet gets a moment
+
+A step whose target is not on the page when it arrives waits 100 ms for it,
+and draws nothing new while it waits. A target that turns up in that time is
+drawn as though nothing had happened, and one that does not ends the tour with
+[`target-lost`](../../reference/problems/#target-lost). The wait is for a
+framework that has not finished rendering, and for nothing longer —
+[Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
+
+- **A target in a closed panel or tab** is opened in the step's `onEnter` —
+  [A step sets up what it alone stands on](../setup-and-clear-up/#a-step-sets-up-what-it-alone-stands-on).
+- **A target that appears only once a request comes back** gets a step before
+  it that waits for the request —
+  [A wait is a step that declares awaits, not a promise](../setup-and-clear-up/#a-wait-is-a-step-that-declares-awaits-not-a-promise).
+- **What happens to a target removed or hidden once its step is drawn** is
+  under
+  [LekoTarget](../../reference/story-and-step/#lekotarget).
+
+## A target off screen is brought into view only where scroll asks
+
+A step draws its target where the target is, and brings it into view only
+where `scroll` is on, for that step or for the instance. It is off by default,
+because where the page is scrolled to is the application's own state —
+[Bringing a target into view](https://github.com/annetaan/leko/blob/main/DESIGN.md#bringing-a-target-into-view).
+
+Here every step is brought into view except `more`, which asks the visitor to
+scroll to the end of the list themselves.
+
+```ts
+import { createLeko, type LekoStep } from '@annetaan/leko'
+
+export const leko = createLeko({ scroll: true })
+
+const steps: LekoStep[] = [
+  { id: 'total', target: '#total', message: 'This is what the order comes to.' },
+  {
+    id: 'more',
+    target: '#load-more',
+    message: 'Scroll to the end of the list, and load the next page from here.',
+    scroll: false,
+  },
+]
+```
+
+- **A target already on screen in full is left where it is,** even with
+  `scroll` on.
+- **What is moved, `'staged'` included, and when the step is drawn** are under
+  [scroll](../../reference/story-and-step/#scroll).
+- **Where `scroll` meets `resolve: 'in-viewport-first'`** is under
+  [resolve](../../reference/story-and-step/#resolve).
+
+## A fixed or sticky target keeps its hole as the page scrolls
+
+Point a step at a `position: fixed` or `position: sticky` element the way you
+point at any other. Its hole stays on it while the page scrolls.
+
+- **A fixed target's hole stays put while the page scrolls under it,** because
+  its layer is fixed to the viewport as the element is —
+  [Scrolling](https://github.com/annetaan/leko/blob/main/DESIGN.md#scrolling).
+- **A "fixed" element inside an ancestor with a transform scrolls with the
+  page, and its hole with it.** Leko asks the browser whether the viewport
+  still holds the element, rather than reading the stylesheet —
+  [Scrolling](https://github.com/annetaan/leko/blob/main/DESIGN.md#scrolling).
+- **A sticky target's hole follows it across its pin,** both ways, whether it
+  pins to the top of the page or of a panel, and whichever side of the pin the
+  step was drawn on. A pinned element moves against the page it sits in, so
+  Leko puts its hole back on each frame while the visitor scrolls, the one
+  target it does that for —
+  [Scrolling](https://github.com/annetaan/leko/blob/main/DESIGN.md#scrolling).
+
+## See it run
+
+The sandbox case
+[inside-shadow-dom.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/inside-shadow-dom.ts)
+names its Send button with a function, because the button is inside a shadow
+root. The line above the button counts the presses that reach it, and a press
+through the open hole on the second step adds one.
+
+[which-match.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/which-match.ts)
+has three copies of one Save button, the first of them in a compact layout
+hidden with `display: none`. `which-match-visible` asks for no rule and points
+at the copy on screen, and its second step opens the compact layout in
+`onEnter` and gets the copy inside it. `which-match-first` asks for `first`,
+takes the hidden copy, and ends with `target-lost`: the footer logs that its
+target never turned up.
+
+[target-not-there-yet.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/target-not-there-yet.ts)
+takes its row away in `arrives-late`'s `onEnter` and puts it back 60 ms later,
+and the step is drawn as though nothing had happened. Pressing Dismiss once it
+is drawn takes the row away, and the hole stays where it was.
+`never-arrives` points at nothing the page has, and after its moment the
+footer logs that its target never turned up.
+
+[scrolls-into-view.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/scrolls-into-view.ts)
+turns `scroll` on for the instance. Its first step moves nothing, because its
+target is already on screen, and its second glides the page to a card past the
+fold.
+[staged-scroll.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/staged-scroll.ts)
+reaches one row inside a list, inside a panel, down the page, twice:
+`one-movement` in one movement, and `one-at-a-time` with `'staged'`, the page
+first, then the panel, then the list.
+
+[sticky-header.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/sticky-header.ts)
+points twice at a button in a bar that pins to the top of the screen, once
+drawn before the bar pins and once after, and scrolling across the pin either
+way keeps the hole on the button. Its last step does the same for a table head
+pinned inside a scrolling panel.
+[fixed-chrome.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/fixed-chrome.ts)
+keeps the hole on its fixed Share button while the page scrolls, and the hole
+on a badge that a transform took back into the page scrolls with the badge.
