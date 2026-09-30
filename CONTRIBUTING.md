@@ -47,6 +47,27 @@ watches proves nothing about a library whose whole claim is that they do not.
 Behaviour a user would notice wants a case there, and each case says in one
 sentence what it proves.
 
+### What a case draws with, and what runs it
+
+Everything a case renders is styled by
+[`src/cases.css`](examples/sandbox/src/cases.css), and every rule there is
+scoped under `.case-root`, the element the case is mounted into. The rules read
+no token of the sandbox's own. They read ten properties that whoever hosts the
+case declares on its `.case-root`: the colours `--case-bg`, `--case-surface`,
+`--case-ink`, `--case-muted`, `--case-line`, `--case-accent`, `--case-flag` and
+`--case-flag-bg`, and `--case-inset-top` and `--case-inset-left`, which say how
+much of the viewport's top and left edge the host's own chrome covers. A case
+element fixed to the viewport keeps clear of that chrome by reading them.
+
+`.portal-close` is the one rule a case needs that stays in the sandbox's
+`style.css`. `close-through-a-portal.tsx` draws it into Leko's way out, which is
+outside any case's root.
+
+`runCase` in [`src/host.ts`](examples/sandbox/src/host.ts) is the only thing
+that runs a case: it makes the instance, mounts the case and wires the case's
+own step handler, and a host hands it its chrome and hooks rather than calling
+`createLeko` itself.
+
 `pnpm dev:scroll` serves [`examples/scroll/`](examples/scroll/), Leko Scroll's
 one long page, resolved from source the same way. It is a page to scroll rather
 than a set of cases, and [The example

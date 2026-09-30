@@ -8,8 +8,8 @@ export interface Case {
   proves: string
 
   /**
-   * What this case hands `createLeko`, for the few that prove an option. The
-   * sandbox's own hooks are added on top and cannot be taken over from here.
+   * What this case hands `createLeko`, for the few that prove an option.
+   * `runCase`'s hooks are added on top and cannot be taken over from here.
    */
   options?: LekoOptions
 
