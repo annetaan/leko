@@ -1,4 +1,4 @@
-import type { LekoStory } from '@annetaan/leko'
+import type { LekoOptions, LekoStory } from '@annetaan/leko'
 
 import { type Case, html } from '../case.js'
 
@@ -6,6 +6,12 @@ import { type Case, html } from '../case.js'
 // purpose: a morph between two similar boxes hides everything interesting about
 // it. The last one sits in the top right, which is where the control that ends
 // the tour wants to be, so stepping onto it moves that control somewhere else.
+//
+// The instance scrolls because on a phone the site's page is taller than the
+// screen, and several targets start below the fold or under the site's footer;
+// DESIGN.md, **The page's port is what the host's chrome leaves of the
+// viewport**. On a window where every target already shows nothing moves, so
+// this is still the case to reach for while working on the morph.
 
 // #region The story
 const story = {
@@ -36,12 +42,17 @@ const story = {
 } satisfies LekoStory
 // #endregion
 
+// #region The instance's options
+const options = { scroll: true } satisfies LekoOptions
+// #endregion
+
 export const stepping: Case = {
   id: 'stepping',
   title: 'Stepping around a page',
   proves:
     'The plain case, and the one to reach for while working on the morph: six ' +
     'targets of different shapes. The last gives the way out its corner back.',
+  options,
 
   mount(root) {
     const panel = html(`
