@@ -137,11 +137,12 @@ Chromium 151.0.7922.34, Firefox 153.0 and WebKit 605.1.15 (`Version/26.5`) at
 a viewport of 1280×800, identical on two runs. The installed Chrome
 (154.0.0.0, headless) agreed with Chromium in every cell.
 
-**Safari is still to be opened.** None of the tables above is Safari's; the
-WebKit column is Playwright's build, which is evidence about WebKit and
-nothing more. Until somebody opens the page in Safari and records what it
-says here, the claim that the inset spelling holds in Safari rests on that
-column alone.
+**Safari 26.5 (21624.2.5.11.4)** on macOS 26.5, opened by hand on 2026-10-01
+in Responsive Design Mode at 1280×800, agreed with the WebKit column in every
+cell of all six tables, extents and verdicts both: the inset spelling clear
+throughout, `position-area` on the hole only at the draw in a document that
+cannot scroll, and the inset without its `auto`s on the hole once the box is
+above it.
 
 ## What it does not answer
 
