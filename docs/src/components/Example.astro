@@ -61,13 +61,19 @@ const { id } = Astro.props
       onStatus: (line) => {
         status.textContent = line
       },
+      onProblem: () => {
+        footer.dataset['problem'] = ''
+      },
     })
 
     for (const story of running.stories) {
       const start = document.createElement('button')
       start.type = 'button'
       start.textContent = `start('${story.id}')`
-      start.addEventListener('click', () => running.start(story.id))
+      start.addEventListener('click', () => {
+        delete footer.dataset['problem']
+        running.start(story.id)
+      })
       starts.append(start)
     }
     stop.addEventListener('click', () => running.stop())

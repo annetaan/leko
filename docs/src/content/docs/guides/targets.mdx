@@ -147,12 +147,12 @@ at the copy on screen, and its second step opens the compact layout in
 takes the hidden copy, and ends with `target-lost`: the footer logs that its
 target never turned up.
 
-[target-not-there-yet.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/target-not-there-yet.ts)
+[A target that has not turned up yet](../../examples/target-not-there-yet/)
 takes its row away in `arrives-late`'s `onEnter` and puts it back 60 ms later,
 and the step is drawn as though nothing had happened. Pressing Dismiss once it
 is drawn takes the row away, and the hole stays where it was.
 `never-arrives` points at nothing the page has, and after its moment the
-footer logs that its target never turned up.
+footer says its target never turned up.
 
 [scrolls-into-view.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/scrolls-into-view.ts)
 turns `scroll` on for the instance. Its first step moves nothing, because its

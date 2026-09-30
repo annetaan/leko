@@ -48,4 +48,30 @@ export const groups: Group[] = [
       },
     ],
   },
+  {
+    label: 'Waiting',
+    items: [
+      {
+        id: 'async-completion',
+        label: 'Waiting on an async result',
+        line:
+          'A Save button whose step ends when the request comes back, 1200 ms after the ' +
+          'press, and not at the click.',
+      },
+      {
+        id: 'form-validation',
+        label: 'Form validation',
+        line:
+          'Two fields whose Next control is guarded by the page’s own check, so a bad email ' +
+          'or a short password is refused with an error under the instruction.',
+      },
+      {
+        id: 'target-not-there-yet',
+        label: 'A target that has not turned up yet',
+        line:
+          'One story whose row turns up in time and is drawn as though nothing happened, ' +
+          'and one whose target never turns up, so the tour stops and says so.',
+      },
+    ],
+  },
 ]

@@ -1,8 +1,35 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // The second constraint, in the smallest case that shows it. The step does not
 // advance because the button was clicked. It advances because the request the
 // click started came back, and the application said so.
+
+// #region The story
+const story = {
+  id: 'async-completion',
+  steps: [
+    {
+      id: 'save',
+      target: { elements: '[data-save]', interactive: true },
+      message: 'Save your changes. The tour waits for the request, not the click.',
+      // So there is no next control on this step, and no way past the work
+      // it exists to make somebody do. Which steps get one is derived from
+      // this and cannot be configured.
+      awaits: 'changes-saved',
+    },
+    {
+      id: 'saved',
+      target: '[data-status]',
+      message:
+        'The hole moved when the request came back, 1200ms after the ' +
+        'press. Nothing was listening to the click.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const asyncCompletion: Case = {
   id: 'async-completion',
   title: 'Waiting on an async result',
@@ -21,6 +48,8 @@ export const asyncCompletion: Case = {
     `)
     const button = panel.querySelector<HTMLButtonElement>('[data-save]')!
     const status = panel.querySelector<HTMLElement>('[data-status]')!
+
+    // #region What the page reports
     button.addEventListener('click', async () => {
       button.disabled = true
       status.textContent = 'Saving…'
@@ -32,31 +61,11 @@ export const asyncCompletion: Case = {
       // happened and never which step should move.
       leko.reached('changes-saved')
     })
+    // #endregion
+
     root.append(panel)
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'async-completion',
-      steps: [
-        {
-          id: 'save',
-          target: { elements: '[data-save]', interactive: true },
-          message: 'Save your changes. The tour waits for the request, not the click.',
-          // So there is no next control on this step, and no way past the work
-          // it exists to make somebody do. Which steps get one is derived from
-          // this and cannot be configured.
-          awaits: 'changes-saved',
-        },
-        {
-          id: 'saved',
-          target: '[data-status]',
-          message:
-            'The hole moved when the request came back, 1200ms after the ' +
-            'press. Nothing was listening to the click.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }
