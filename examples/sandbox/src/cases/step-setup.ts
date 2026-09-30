@@ -1,8 +1,64 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { at, html, type Case } from '../case.js'
 
 // The step's target does not exist when the story starts. The step before it
 // opens the section, starts the fetch behind it, and waits for the application
 // to report that the fetch came back. Only then does Leko look for the element.
+
+// #region The story
+const story = {
+  id: 'step-setup',
+  steps: [
+    {
+      id: 'intro',
+      target: '[data-open]',
+      message:
+        'The postcode field is inside this section, and the section is ' +
+        'closed. Press Next and watch who opens it.',
+    },
+    {
+      // A step with nothing to point at — DESIGN.md, **A step that waits**.
+      // Leko waits for no handler, so the wait is written here instead.
+      id: 'reading',
+      message: 'Reading the address off the account…',
+      awaits: 'address-loaded',
+
+      // DESIGN.md, **The wait starts the work it waits for, and that
+      // placement is the rule**.
+      onEnter: () => {
+        at('[data-details]').hidden = false
+        void loadAddress()
+      },
+
+      // DESIGN.md, **Every `onEnter` gets its `onLeave`**.
+      onLeave: (_step, next) => {
+        if (next?.id !== 'postcode') at('[data-details]').hidden = true
+      },
+    },
+    {
+      id: 'postcode',
+      // A selector, so this is genuinely resolved after the step above
+      // rather than captured while the story was being built.
+      target: 'input[name="postcode"]',
+      message: 'The tour opened the section, waited, and then measured.',
+
+      // The half that closes it once the tour is past the field. Without it
+      // the section stays open for the rest of the tour, and the user is
+      // left with a page the tour rearranged.
+      onLeave: () => {
+        at('[data-details]').hidden = true
+      },
+    },
+    {
+      id: 'confirm',
+      target: '[data-confirm]',
+      message: 'And the section is closed again, because onLeave closed it.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const stepSetup: Case = {
   id: 'step-setup',
   title: 'A step that sets its own scene',
@@ -31,6 +87,7 @@ export const stepSetup: Case = {
     })
     root.append(panel)
 
+    // #region What the page reports
     // The application's own function, written where the application would write
     // it — DESIGN.md, **Signals and steps**.
     loadAddress = async () => {
@@ -38,62 +95,12 @@ export const stepSetup: Case = {
       at('input[name="postcode"]').setAttribute('value', '150-0001')
       leko.reached('address-loaded')
     }
+    // #endregion
 
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'step-setup',
-      steps: [
-        {
-          id: 'intro',
-          target: '[data-open]',
-          message:
-            'The postcode field is inside this section, and the section is ' +
-            'closed. Press Next and watch who opens it.',
-        },
-        {
-          // A step with nothing to point at — DESIGN.md, **A step that waits**.
-          // Leko waits for no handler, so the wait is written here instead.
-          id: 'reading',
-          message: 'Reading the address off the account…',
-          awaits: 'address-loaded',
-
-          // DESIGN.md, **The wait starts the work it waits for, and that
-          // placement is the rule**.
-          onEnter: () => {
-            at('[data-details]').hidden = false
-            void loadAddress()
-          },
-
-          // DESIGN.md, **Every `onEnter` gets its `onLeave`**.
-          onLeave: (_step, next) => {
-            if (next?.id !== 'postcode') at('[data-details]').hidden = true
-          },
-        },
-        {
-          id: 'postcode',
-          // A selector, so this is genuinely resolved after the step above
-          // rather than captured while the story was being built.
-          target: 'input[name="postcode"]',
-          message: 'The tour opened the section, waited, and then measured.',
-
-          // The half that closes it once the tour is past the field. Without it
-          // the section stays open for the rest of the tour, and the user is
-          // left with a page the tour rearranged.
-          onLeave: () => {
-            at('[data-details]').hidden = true
-          },
-        },
-        {
-          id: 'confirm',
-          target: '[data-confirm]',
-          message: 'And the section is closed again, because onLeave closed it.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }
 
 let loadAddress: () => Promise<void> = async () => {}

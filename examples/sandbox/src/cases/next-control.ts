@@ -1,8 +1,45 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // The step nothing in the application can report. A field reads "Ourselves" now
 // and no code anywhere ran to say so — so this step ends with the control, and
 // the one after it, which waits for a save, does not have one to end it with.
+
+// #region The story
+const story = {
+  id: 'next-control',
+  steps: [
+    {
+      id: 'name',
+      target: { elements: 'input[name="name"]', interactive: true },
+      message: 'Give the project a name of your own, then press Next.',
+      // Pressing the control claims the moment has come and claims
+      // nothing about the state behind it, which is why a step with a
+      // control is the kind of step that can want a guard.
+      validate: (el) => {
+        const value = (el as HTMLInputElement).value.trim()
+        return value !== '' && value !== 'Untitled'
+      },
+      // Beside the instruction, not instead of it: a second failed
+      // attempt must still say what the step is asking for.
+      error: 'Still “Untitled”. Type something else first.',
+    },
+    {
+      id: 'save',
+      target: { elements: '[data-save]', interactive: true },
+      message: 'Now save it. No control on this one, and no guard. The save ends it.',
+      awaits: 'project-renamed',
+    },
+    {
+      id: 'saved',
+      target: '[data-status]',
+      message: 'The request came back, and that is what moved the story on.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const nextControl: Case = {
   id: 'next-control',
   title: 'Typing, and the control that follows it',
@@ -23,6 +60,7 @@ export const nextControl: Case = {
     const button = panel.querySelector<HTMLButtonElement>('[data-save]')!
     const status = panel.querySelector<HTMLElement>('[data-status]')!
 
+    // #region What the page reports
     // Nothing is reported while the name is typed, deliberately. Wiring an
     // `input` listener up to the tour is the guessing the library exists to
     // avoid, and it is what leaves the typing step with no way to end.
@@ -35,42 +73,11 @@ export const nextControl: Case = {
 
       leko.reached('project-renamed')
     })
+    // #endregion
 
     root.append(panel)
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'next-control',
-      steps: [
-        {
-          id: 'name',
-          target: { elements: 'input[name="name"]', interactive: true },
-          message: 'Give the project a name of your own, then press Next.',
-          // Pressing the control claims the moment has come and claims
-          // nothing about the state behind it, which is why a step with a
-          // control is the kind of step that can want a guard.
-          validate: (el) => {
-            const value = (el as HTMLInputElement).value.trim()
-            return value !== '' && value !== 'Untitled'
-          },
-          // Beside the instruction, not instead of it: a second failed
-          // attempt must still say what the step is asking for.
-          error: 'Still “Untitled”. Type something else first.',
-        },
-        {
-          id: 'save',
-          target: { elements: '[data-save]', interactive: true },
-          message: 'Now save it. No control on this one, and no guard. The save ends it.',
-          awaits: 'project-renamed',
-        },
-        {
-          id: 'saved',
-          target: '[data-status]',
-          message: 'The request came back, and that is what moved the story on.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

@@ -1,4 +1,59 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
+
+// #region The story
+const arrivesLate = {
+  id: 'arrives-late',
+  steps: [
+    {
+      id: 'notice',
+      /**
+       * Take the row away and put it back inside the window the arrival
+       * gets. This runs before the target is looked for, so the step
+       * arrives at a page that does not have its target — the same
+       * situation as a step whose target a framework is rendering right
+       * now, and staged the same way every time.
+       *
+       * The row is read here rather than closed over, because a case is
+       * mounted and unmounted while the story object stays the same. It
+       * has been dismissed if it is not there, and then this step is the
+       * one below with a different selector: nothing is drawn, and the
+       * tour stops when the 100ms is up.
+       */
+      onEnter: () => {
+        const row = document.querySelector('[data-notice]')
+        if (!row) return
+        const gap = document.createComment('rendering')
+        row.replaceWith(gap)
+        setTimeout(() => gap.replaceWith(row), 60)
+      },
+      // A selector, so the question is asked again on every batch the hunt
+      // hears while the row is away. A function handing back a node
+      // captured when the story was written cannot answer any differently
+      // the second time, and a target that may not be there yet is exactly
+      // where that matters.
+      target: { elements: '[data-notice]', interactive: true },
+      message:
+        'The row was not on the page when this step arrived, and the tour ' +
+        'waited for it rather than giving up. Press Dismiss to see where ' +
+        'that stops.',
+    },
+  ],
+} satisfies LekoStory
+
+const neverArrives = {
+  id: 'never-arrives',
+  steps: [
+    {
+      id: 'nothing-renders-this',
+      // Nothing on this page matches, and nothing is going to.
+      target: { elements: '[data-never-rendered]', interactive: true },
+      message: 'You will not see this: nothing is drawn while the target is looked for.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const targetNotThereYet: Case = {
   id: 'target-not-there-yet',
@@ -52,7 +107,7 @@ export const targetNotThereYet: Case = {
           <strong>And when it never turns up.</strong>
           <code>start('never-arrives')</code> points at a selector nothing on
           this page matches. Nothing is drawn, 100ms goes by, and the footer
-          logs <code>target-lost</code>.
+          says its target never turned up.
         </p>
       </div>
     `)
@@ -82,55 +137,5 @@ export const targetNotThereYet: Case = {
     }
   },
 
-  stories: [
-    {
-      id: 'arrives-late',
-      steps: [
-        {
-          id: 'notice',
-          /**
-           * Take the row away and put it back inside the window the arrival
-           * gets. This runs before the target is looked for, so the step
-           * arrives at a page that does not have its target — the same
-           * situation as a step whose target a framework is rendering right
-           * now, and staged the same way every time.
-           *
-           * The row is read here rather than closed over, because a case is
-           * mounted and unmounted while the story object stays the same. It
-           * has been dismissed if it is not there, and then this step is the
-           * one below with a different selector: nothing is drawn, and the
-           * tour stops when the 100ms is up.
-           */
-          onEnter: () => {
-            const row = document.querySelector('[data-notice]')
-            if (!row) return
-            const gap = document.createComment('rendering')
-            row.replaceWith(gap)
-            setTimeout(() => gap.replaceWith(row), 60)
-          },
-          // A selector, so the question is asked again on every batch the hunt
-          // hears while the row is away. A function handing back a node
-          // captured when the story was written cannot answer any differently
-          // the second time, and a target that may not be there yet is exactly
-          // where that matters.
-          target: { elements: '[data-notice]', interactive: true },
-          message:
-            'The row was not on the page when this step arrived, and the tour ' +
-            'waited for it rather than giving up. Press Dismiss to see where ' +
-            'that stops.',
-        },
-      ],
-    },
-    {
-      id: 'never-arrives',
-      steps: [
-        {
-          id: 'nothing-renders-this',
-          // Nothing on this page matches, and nothing is going to.
-          target: { elements: '[data-never-rendered]', interactive: true },
-          message: 'You will not see this: nothing is drawn while the target is looked for.',
-        },
-      ],
-    },
-  ],
+  stories: [arrivesLate, neverArrives],
 }

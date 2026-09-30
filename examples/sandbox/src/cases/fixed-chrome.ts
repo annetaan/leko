@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // Chrome an application pins to the viewport: a bar that stays while the page
@@ -14,6 +16,46 @@ import { type Case, html } from '../case.js'
 // included**. The strip at the right edge is there to be clicked at: it is
 // application chrome the step did not open, so a click must never reach it,
 // before the lock or after it.
+
+// #region The story
+const story = {
+  id: 'fixed-chrome',
+  steps: [
+    {
+      id: 'bar',
+      target: '[data-share]',
+      message:
+        'Scroll the page. The bar stays where it is, and so does the hole: ' +
+        'a fixed target gets a scrim that is fixed too, and nothing runs ' +
+        'while you scroll.',
+    },
+    {
+      id: 'badge',
+      target: '[data-badge]',
+      message:
+        'This badge says position: fixed too, and the transform on its ' +
+        'card took that away — it rides the page now. Scroll: the hole ' +
+        'rides with it. The engine is asked which of the two an element ' +
+        'is, not the stylesheet.',
+    },
+    {
+      id: 'gutter',
+      // Open, because the point of the step is what happens when it is
+      // pressed. The strip at the right edge is not, and that is the
+      // difference the step is about.
+      target: { elements: '[data-lock]', interactive: true },
+      message:
+        'Press this. The page stops scrolling, the way it would under a ' +
+        'modal, and where the scrollbars are the kind that take space its ' +
+        'scrollbar goes with it — no resize event fires for that. Try ' +
+        'clicking the strip at the right edge, where the scrollbar was: ' +
+        'the layer is sized past the layout viewport, so it still covers ' +
+        'the gutter and the click lands on nothing.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const fixedChrome: Case = {
   id: 'fixed-chrome',
   title: 'Chrome that does not scroll',
@@ -89,6 +131,7 @@ export const fixedChrome: Case = {
       probe.classList.add('reached')
       log.textContent = 'A click reached the strip at the right edge — the layer left a gap there.'
     })
+    // #region The page's own scroll lock
     // A scroll lock, the way an application does one for a modal — and what
     // takes the document scrollbar away. Application behaviour, and it says
     // nothing about a tour: the step that opens this button is the story's
@@ -99,6 +142,7 @@ export const fixedChrome: Case = {
       document.documentElement.style.overflow = locked ? '' : 'hidden'
       lock.textContent = locked ? 'Lock page scroll' : 'Unlock page scroll'
     })
+    // #endregion
     root.append(bar, page, probe)
     return () => {
       document.documentElement.style.overflow = ''
@@ -108,42 +152,5 @@ export const fixedChrome: Case = {
     }
   },
 
-  stories: [
-    {
-      id: 'fixed-chrome',
-      steps: [
-        {
-          id: 'bar',
-          target: '[data-share]',
-          message:
-            'Scroll the page. The bar stays where it is, and so does the hole: ' +
-            'a fixed target gets a scrim that is fixed too, and nothing runs ' +
-            'while you scroll.',
-        },
-        {
-          id: 'badge',
-          target: '[data-badge]',
-          message:
-            'This badge says position: fixed too, and the transform on its ' +
-            'card took that away — it rides the page now. Scroll: the hole ' +
-            'rides with it. The engine is asked which of the two an element ' +
-            'is, not the stylesheet.',
-        },
-        {
-          id: 'gutter',
-          // Open, because the point of the step is what happens when it is
-          // pressed. The strip at the right edge is not, and that is the
-          // difference the step is about.
-          target: { elements: '[data-lock]', interactive: true },
-          message:
-            'Press this. The page stops scrolling, the way it would under a ' +
-            'modal, and where the scrollbars are the kind that take space its ' +
-            'scrollbar goes with it — no resize event fires for that. Try ' +
-            'clicking the strip at the right edge, where the scrollbar was: ' +
-            'the layer is sized past the layout viewport, so it still covers ' +
-            'the gutter and the click lands on nothing.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

@@ -1,7 +1,8 @@
-import { createLeko, type Leko, type LekoStep, type LekoStory } from '@annetaan/leko'
+import type { LekoStep, LekoStory } from '@annetaan/leko'
 
 import { type Case, html } from './case.js'
 import { cases } from './cases/index.js'
+import { type Running, runCase } from './host.js'
 
 const app = document.querySelector<HTMLElement>('#app')!
 
@@ -33,7 +34,7 @@ app.append(
           <h2 data-title></h2>
           <p class="proves" data-proves></p>
         </header>
-        <div class="stage-body" data-root></div>
+        <div class="stage-body case-root" data-root></div>
       </main>
       <footer class="controls">
         <div class="log" data-log></div>
@@ -123,7 +124,7 @@ function applyPace(): void {
   speedPick.value = String(pace)
   // Inline on the root, so it outbids the default wherever that is declared.
   // The durations are fixed when the instance is made and the stories are
-  // handed over — the instance's on `createLeko`, a step's in `paced` — so
+  // handed over — the instance's in `runCase`, a step's in `paced` — so
   // picking a pace re-shows the case, and `show` reads `pace` for both.
   if (pace === 1) document.documentElement.style.removeProperty('--leko-halo-fade')
   else document.documentElement.style.setProperty('--leko-halo-fade', `${160 * pace}ms`)
@@ -171,47 +172,24 @@ function note(kind: 'call' | 'state' | 'step' | 'problem', text: string): void {
   logOut.scrollTop = logOut.scrollHeight
 }
 
-let teardown: (() => void) | undefined
-let leko: Leko | undefined
-let problem: string | undefined
 /** The case on screen. */
 let showing: Case | undefined
-/**
- * The showing case's stories at the footer's pace, which is where the start
- * buttons and `pickUp()` find a story.
- */
-let running: LekoStory[] = []
-/** The showing case's own step handler, if it asked for one. */
-let caseStep: ReturnType<NonNullable<Case['onStep']>> | undefined
+/** The showing case, run. */
+let running: Running | undefined
 
 /** The step `onStep` named last, which is what a host keeps if it wants a chain. */
 let told: LekoStep | undefined
 
-// Reading the instance from in here is the point of the test: if the hook fired
-// before Leko had finished moving, this would print the step it just left.
-function report(): void {
-  const state = leko?.state ?? 'idle'
+function report(line: string): void {
+  const state = running?.leko.state ?? 'idle'
   stateOut.textContent = state
   stateOut.dataset['state'] = state
-
-  const story = leko?.story
-  const step = leko?.step
-  // The position comes from the instance. Searching `steps` for `step` would
-  // count the wrong one in a story that shows the same step object twice.
-  const index = leko?.index
-  const where =
-    story && step && index !== undefined
-      ? `${story.id} ${index + 1}/${story.steps.length} · “${step.id}” — ${step.message ?? 'no message'}`
-      : 'No story running.'
-  // A diagnostic outlives the step it was reported during, because that step is
-  // usually still on screen waiting for the signal that got dropped.
-  noteOut.textContent = [where, problem].filter(Boolean).join('  ⟵  ')
+  noteOut.textContent = line
 }
 
 function show(next: Case): void {
-  leko?.stop()
-  problem = undefined
-  teardown?.()
+  running?.teardown()
+  running = undefined
 
   logOut.replaceChildren()
   opened = performance.now()
@@ -222,51 +200,26 @@ function show(next: Case): void {
     link.classList.toggle('is-current', link.dataset['case'] === next.id)
   }
 
-  // One instance per case, made before the page is mounted so the page can be
-  // given it — an application exports its instance and reports to that, rather
-  // than being handed a tour once one starts.
-  leko = createLeko({
-    // The case's own options first, so the sandbox's hooks below stay its own.
-    ...next.options,
-    // The footer's pace stretches whatever the case asked for. At ×1 this
-    // writes the same number the defaults would have landed on. A step's own
-    // is `paced`'s.
-    duration: (next.options?.duration ?? 320) * pace,
+  showing = next
+  const seen = new Map<LekoStory, LekoStory>()
+  const stories = next.stories.map((story) => paced(story, seen))
+  stageRoot.replaceChildren()
+  running = runCase(next, stageRoot, {
     // The sandbox is a host with chrome of its own: the footer console is
     // sticky and sits above the scrim, so a message that measured the whole
     // viewport landed in it. Named once here for every case, and a case that
     // mounts chrome of its own — `host-chrome.ts` — adds to the list rather
     // than replacing it.
-    hostChrome: ['.controls', ...[next.options?.hostChrome ?? []].flat()],
-    // Nothing is logged by the library, so this is where a project decides.
-    // The sandbox puts it in the footer, because a call that did nothing is
-    // exactly the thing a person reading a case wants to see.
-    onDiagnostic: (found) => {
-      if (found.kind === 'signal-dropped') {
-        // `awaits: { url }` has no `reached()` call to name — `found.name` is
-        // the pattern itself there (LekoProblem's `signal-dropped`).
-        problem =
-          typeof found.step.awaits === 'object'
-            ? `The URL changed to match ${found.name} while “${found.step.id}” was still being built, and was dropped.`
-            : `reached('${found.name}') arrived while “${found.step.id}” was still being built, and was dropped.`
-      } else if (found.kind === 'target-lost') {
-        problem = `Target for “${found.story.id} / ${found.step.id}” never turned up. The tour stopped rather than point at nothing.`
-      } else if (found.kind === 'call-refused') {
-        problem = 'start() arrived while Leko was inside the application, and was not acted on.'
-      } else if (found.kind === 'tour-running') {
-        problem = `start() was given “${found.story.id}” while “${found.running.id}” was running. Press stop() first: start() never ends a tour.`
-      } else if (found.kind === 'story-unknown') {
-        problem = `A previous page handed on “${found.id}”, and this page's pickUp() was not given that story.`
-      } else {
-        problem = `start() was given “${found.story.id}”, which has no steps in it.`
-      }
-      note('problem', problem)
-      report()
-    },
-    // The one hook that says where the tour got to, for however many stories a
-    // case registers, and it is told which story each time. A host whose
-    // stories live in several places writes exactly this and routes it, which
-    // is what the second line does.
+    chrome: ['.controls'],
+    // The footer's pace stretches whatever the case asked for. At ×1 this
+    // writes the same number the defaults would have landed on. A step's own
+    // is `paced`'s.
+    options: { duration: (next.options?.duration ?? 320) * pace },
+    stories,
+    onCall: (text) => note('call', text),
+    // A call that did nothing is exactly the thing a person reading a case
+    // wants to see.
+    onProblem: (text) => note('problem', text),
     onStep: (step, story) => {
       // The log reads as a chain, and `told` is the whole of what that costs a
       // host. Leko names the step it is on and nothing else, so the step it
@@ -280,25 +233,16 @@ function show(next: Case): void {
       // other way for a tour to stop being on.
       note('state', step ? 'running' : 'idle')
       told = step
-      report()
-      caseStep?.(step, story)
     },
+    onStatus: report,
   })
 
-  stageRoot.replaceChildren()
-  teardown = next.mount(stageRoot, leko)
-  caseStep = next.onStep?.(stageRoot, leko)
-
   starts.replaceChildren()
-  showing = next
-  const seen = new Map<LekoStory, LekoStory>()
-  running = next.stories.map((story) => paced(story, seen))
-  for (const story of running) {
+  for (const story of running.stories) {
     starts.append(
       html(`<button type="button" data-start="${story.id}">start('${story.id}')</button>`),
     )
   }
-  report()
 }
 
 /**
@@ -341,32 +285,11 @@ for (const item of cases) {
 // without naming a signal is the next control on the message, and that control
 // only exists on a step that declares no `awaits`. A button in this footer would
 // be one that ignores that.
-const actions: Record<string, () => void> = {
-  stop: () => {
-    note('call', 'stop()')
-    leko?.stop()
-  },
-}
-
 pick('.controls').addEventListener('click', (event) => {
   const el = event.target as HTMLElement
   const id = el.closest<HTMLElement>('[data-start]')?.dataset['start']
-  const story = running.find((one) => one.id === id)
-  if (story) {
-    problem = undefined
-    // Logged before the call rather than after, so the diagnostic a refused
-    // start makes sits under the call that made it. `start` returns nothing,
-    // and a call that came to nothing is a diagnostic on the next row.
-    note('call', `start('${story.id}')`)
-    leko?.start(story)
-  } else {
-    const action = el.closest<HTMLElement>('[data-action]')
-    if (!action) return
-    actions[action.dataset['action'] ?? '']?.()
-  }
-  // The note beside the chip carries the diagnostic, which nothing else here
-  // knows about.
-  report()
+  if (id !== undefined) running?.start(id)
+  else if (el.closest<HTMLElement>('[data-action="stop"]')) running?.stop()
 })
 
 function route(): void {
@@ -389,8 +312,4 @@ route()
 // Once per document, after the first case is up — the line an application
 // writes at startup. Not in `show()`: a case switch is not a page load, and
 // a call there would log a pickUp() on every switch and every pace change.
-if (leko && showing) {
-  note('call', `pickUp([${running.map((s) => `'${s.id}'`).join(', ')}])`)
-  leko.pickUp(running)
-  report()
-}
+running?.pickUp()

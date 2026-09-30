@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { at, type Case, html } from '../case.js'
 
 // The two states a `position: sticky` target has, and the hole crossing between
@@ -20,11 +22,67 @@ const rows = Array.from(
   (_, i) => `<tr><td>INV-${2100 + i}</td><td>${(i % 7) + 1} × licence</td><td>Sent</td></tr>`,
 ).join('')
 
+// #region The story
 /** Far enough past the bar's pin that nothing of the hero is left on screen. */
 const pastThePin = (): void => {
   const hero = at('.sticky-case .sticky-hero').getBoundingClientRect()
   window.scrollTo({ top: hero.bottom + window.scrollY + 240, behavior: 'instant' })
 }
+
+const story = {
+  id: 'sticky-header',
+  // The page and the panel both start where the first step needs them,
+  // however the last run left them.
+  onEnter() {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    at('.sticky-case [data-panel]').scrollTo({ top: 0, behavior: 'instant' })
+  },
+  steps: [
+    {
+      id: 'riding',
+      target: { elements: '[data-only-mine]', interactive: true },
+      message:
+        'The hero is still above the bar, so the bar is riding the page ' +
+        'and this hole is cut in the page. Scroll down until the bar ' +
+        'stops at the top of the screen: the hole comes with it across ' +
+        'the pin and stays on the button. Scroll back up and press Only ' +
+        'mine.',
+    },
+    {
+      id: 'pinned',
+      target: { elements: '[data-only-mine]', interactive: true },
+      // The application takes the page past the pin before the step is
+      // drawn, and the step is then drawn against where the page ended up
+      // — DESIGN.md, **The target is resolved after `onEnter` returns**. A
+      // scroll of Leko's own could not do this: it brings a target to the
+      // middle of the port, and the middle of the port is never past a
+      // pin. DESIGN.md, **"Past the pin" is not a second destination**.
+      onEnter: pastThePin,
+      message:
+        'The same button, drawn with the bar already pinned — so this ' +
+        'hole was cut on the viewport, the way a fixed target’s is. ' +
+        'Scroll back up past the hero, which is the other side of the ' +
+        'pin from where this was drawn: the hole rides down with the bar. ' +
+        'Press Only mine again.',
+    },
+    {
+      id: 'in-a-panel',
+      target: { elements: '[data-sort]', interactive: true },
+      scroll: true,
+      onEnter() {
+        at('.sticky-case [data-panel]').scrollTo({ top: 260, behavior: 'instant' })
+      },
+      message:
+        'This head is held against the top of the panel, not the screen, ' +
+        'so its hole is glued to the panel’s scrollport. Scroll the rows ' +
+        'inside the panel both ways — up past the pin, where the head ' +
+        'rides its own rows again, as well as down — and then the page ' +
+        'itself. The hole stays on the head through all of it. Press ' +
+        'Status to sort.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const stickyHeader: Case = {
   id: 'sticky-header',
@@ -106,59 +164,5 @@ export const stickyHeader: Case = {
     return () => page.remove()
   },
 
-  stories: [
-    {
-      id: 'sticky-header',
-      // The page and the panel both start where the first step needs them,
-      // however the last run left them.
-      onEnter() {
-        window.scrollTo({ top: 0, behavior: 'instant' })
-        at('.sticky-case [data-panel]').scrollTo({ top: 0, behavior: 'instant' })
-      },
-      steps: [
-        {
-          id: 'riding',
-          target: { elements: '[data-only-mine]', interactive: true },
-          message:
-            'The hero is still above the bar, so the bar is riding the page ' +
-            'and this hole is cut in the page. Scroll down until the bar ' +
-            'stops at the top of the screen: the hole comes with it across ' +
-            'the pin and stays on the button. Scroll back up and press Only ' +
-            'mine.',
-        },
-        {
-          id: 'pinned',
-          target: { elements: '[data-only-mine]', interactive: true },
-          // The application takes the page past the pin before the step is
-          // drawn, and the step is then drawn against where the page ended up
-          // — DESIGN.md, **The target is resolved after `onEnter` returns**. A
-          // scroll of Leko's own could not do this: it brings a target to the
-          // middle of the port, and the middle of the port is never past a
-          // pin. DESIGN.md, **"Past the pin" is not a second destination**.
-          onEnter: pastThePin,
-          message:
-            'The same button, drawn with the bar already pinned — so this ' +
-            'hole was cut on the viewport, the way a fixed target’s is. ' +
-            'Scroll back up past the hero, which is the other side of the ' +
-            'pin from where this was drawn: the hole rides down with the bar. ' +
-            'Press Only mine again.',
-        },
-        {
-          id: 'in-a-panel',
-          target: { elements: '[data-sort]', interactive: true },
-          scroll: true,
-          onEnter() {
-            at('.sticky-case [data-panel]').scrollTo({ top: 260, behavior: 'instant' })
-          },
-          message:
-            'This head is held against the top of the panel, not the screen, ' +
-            'so its hole is glued to the panel’s scrollport. Scroll the rows ' +
-            'inside the panel both ways — up past the pin, where the head ' +
-            'rides its own rows again, as well as down — and then the page ' +
-            'itself. The hole stays on the head through all of it. Press ' +
-            'Status to sort.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

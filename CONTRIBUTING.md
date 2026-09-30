@@ -47,6 +47,28 @@ watches proves nothing about a library whose whole claim is that they do not.
 Behaviour a user would notice wants a case there, and each case says in one
 sentence what it proves.
 
+### What a case draws with, and what runs it
+
+Everything a case renders is styled by
+[`src/cases.css`](examples/sandbox/src/cases.css), and every rule there is
+scoped under `.case-root`, the element the case is mounted into. The rules read
+no token of the sandbox's own. They read ten properties that whoever hosts the
+case declares on its `.case-root`: the colours `--case-bg`, `--case-surface`,
+`--case-ink`, `--case-muted`, `--case-line`, `--case-accent`, `--case-flag` and
+`--case-flag-bg`, and `--case-inset-top` and `--case-inset-left`, which say how
+much of the viewport's top and left edge the host's own chrome covers. A case
+element fixed or pinned to the viewport keeps clear of that chrome by reading
+them.
+
+`.portal-close` is the one rule a case needs that stays in the sandbox's
+`style.css`. `close-through-a-portal.tsx` draws it into Leko's way out, which is
+outside any case's root.
+
+`runCase` in [`src/host.ts`](examples/sandbox/src/host.ts) is the only thing
+that runs a case: it makes the instance, mounts the case and wires the case's
+own step handler, and a host hands it its chrome and hooks rather than calling
+`createLeko` itself.
+
 `pnpm dev:scroll` serves [`examples/scroll/`](examples/scroll/), Leko Scroll's
 one long page, resolved from source the same way. It is a page to scroll rather
 than a set of cases, and [The example
@@ -104,6 +126,41 @@ from the root, every one of them misses.
 The site is not published anywhere yet. Publishing waits for the release.
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) is the workflow
 that will publish it, and its header says what the release changes.
+
+### Examples on the site
+
+The site runs some of the sandbox's cases in place, one page each, under
+`/examples/<case-id>/`. [`docs/src/lib/examples.ts`](docs/src/lib/examples.ts)
+is the whole selection: the sidebar and the route both read it, so adding an
+example is one entry there, and regions in the case file. The one route,
+[`docs/src/pages/examples/[id].astro`](docs/src/pages/examples/[id].astro),
+shows the entry's line, the running case, then the case file's regions.
+[`docs/src/components/Example.astro`](docs/src/components/Example.astro) mounts
+the case and runs it through `runCase`, as
+[What a case draws with, and what runs it](#what-a-case-draws-with-and-what-runs-it)
+says every host does, and the site's `.case-root` in `docs.css` declares the
+ten properties.
+
+A region is a line `// #region <title>` and a line `// #endregion`, each on its
+own. The page shows every region in file order as a code block titled with its
+title, with the markers and the indent its lines share taken off. The first
+region is the story, titled `The story`, so a case the site shows declares its
+stories as `const … satisfies LekoStory` at the top level rather than inside the
+`Case`. A later region shows the page's side, most often the handler that
+calls `reached()`. [`scripts/regions.mjs`](scripts/regions.mjs) reads them, and
+the build fails on a file with no region, a region never closed, a region
+opened inside another and an `#endregion` with no region open.
+
+One example per page, because a case names its targets across the whole
+document, the way `at` in the sandbox's `case.ts` does, and `pickUp` is called
+once per document.
+
+The footer that starts and stops the stories is appended to `body`, not placed
+in the page's markup. Starlight gives `.main-pane` `isolation: isolate`, so
+nothing inside it can paint above Leko's scrim, which is on `body`; the footer
+has to be above it, because `stop()` is pressed while a tour runs. A case
+shown on the site has to hold up below 50rem as well, where Starlight has no
+sidebar beside the content.
 
 ### Code blocks on the site
 

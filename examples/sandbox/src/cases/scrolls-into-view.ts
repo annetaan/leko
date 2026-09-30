@@ -1,3 +1,5 @@
+import type { LekoOptions, LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // A target the viewer would have to go and find — DESIGN.md, **Bringing a
@@ -25,6 +27,91 @@ import { type Case, html } from '../case.js'
 // that had stopped working. That the message goes off screen instead of docking,
 // whenever no side of the hole has room on screen, is a gap of Leko's own rather
 // than something a case should be built around — annetaan/leko-archive#140.
+
+// #region The story
+const story = {
+  id: 'scrolls-into-view',
+  steps: [
+    {
+      id: 'already-here',
+      target: '[data-top]',
+      message:
+        'The setting is on for every step of this story, and this step ' +
+        'still moved nothing: the cutout was already showing in full, and ' +
+        'a page the viewer has settled is not re-centred because a step ' +
+        'happens to point at something already on it.',
+    },
+    {
+      id: 'far-below',
+      target: '[data-far]',
+      message:
+        'This card was past the fold, and it is now in the middle of the ' +
+        'screen rather than against the edge it came over. The page ' +
+        'glided and nothing was drawn until it stopped — watch the ' +
+        "previous hole ride the page on the way. The glide is Leko's own " +
+        'and grows with the distance, slowly enough to take in what ' +
+        'passes: scroll while it runs and it stops where you put the ' +
+        'page, and the step is drawn there.',
+    },
+    {
+      id: 'one-hole-two-cards',
+      target: { elements: ['[data-pair-upper]', '[data-pair-lower]'] },
+      message:
+        'One region of two cards, so one hole around both, and it is the ' +
+        'hole that is at the middle of the screen: the upper card sits ' +
+        'above the middle and the lower one below it by the same amount. ' +
+        'The hole is what the step is about, so the hole is what is ' +
+        'brought in — not the first card, with the second left to hang ' +
+        'wherever the gap puts it.',
+    },
+    {
+      id: 'tall-section',
+      target: '[data-tall]',
+      message:
+        'More than half the screen tall, so this one leads with its top ' +
+        'edge rather than being centred: the taller a hole is, the less ' +
+        'room there is on either side of it for this box, and a hole ' +
+        'taller than the screen leaves none. A top edge at the middle ' +
+        'always leaves exactly half a screen for the message, whatever ' +
+        'the target does below it.',
+    },
+    {
+      id: 'deep-row',
+      target: { elements: '[data-deep]', interactive: true },
+      message:
+        'Two ports moved: the list, set outright, and the page, glided. ' +
+        'Innermost first, because scrolling the list moves the row inside ' +
+        'the page too. The list is set rather than glided so that the ' +
+        "movement you follow is the page's alone: the list is not on " +
+        'screen while it scrolls, so nothing of its own is missed.',
+    },
+    {
+      id: 'the-last-row',
+      target: { elements: '[data-last-row]', interactive: true },
+      message:
+        'The last row, at the bottom of the list rather than the middle ' +
+        'of it: centring it would mean scrolling the list past its own ' +
+        'end, and where the content runs out is where the row stops. The ' +
+        'page did not move at all — the row is still whole on screen, and ' +
+        'a port that already holds the cutout is left alone.',
+    },
+    {
+      id: 'at-the-end',
+      target: '[data-bottom]',
+      message:
+        'The last card in this case. Where the page ends right after it, ' +
+        'the page stops where the content stops and the card rests below ' +
+        'the middle — the last row’s rule, one port out. Where the page ' +
+        'goes on, it comes to the middle like the card before it.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
+// #region The instance's options
+const options = { scroll: true } satisfies LekoOptions
+// #endregion
+
 export const scrollsIntoView: Case = {
   id: 'scrolls-into-view',
   title: 'A step that goes and gets its target',
@@ -38,7 +125,7 @@ export const scrollsIntoView: Case = {
     'region of several elements is brought in by its hole, not its first ' +
     'element.',
 
-  options: { scroll: true },
+  options,
 
   mount(root) {
     const rows = Array.from(
@@ -119,8 +206,8 @@ export const scrollsIntoView: Case = {
         <div class="milestone" data-bottom>
           <h3>The last thing on the page</h3>
           <p class="hint">
-            Nothing follows this card, which is what the last step is about:
-            centring it would mean scrolling past the end of the page, so the
+            Nothing in this case follows this card. Where nothing on the page
+            does either, centring it would mean scrolling past the end, so the
             page goes as far as it goes and the card comes to rest below the
             middle.
           </p>
@@ -131,83 +218,5 @@ export const scrollsIntoView: Case = {
     return () => page.remove()
   },
 
-  stories: [
-    {
-      id: 'scrolls-into-view',
-      steps: [
-        {
-          id: 'already-here',
-          target: '[data-top]',
-          message:
-            'The setting is on for every step of this story, and this step ' +
-            'still moved nothing: the cutout was already showing in full, and ' +
-            'a page the viewer has settled is not re-centred because a step ' +
-            'happens to point at something already on it.',
-        },
-        {
-          id: 'far-below',
-          target: '[data-far]',
-          message:
-            'This card was past the fold, and it is now in the middle of the ' +
-            'screen rather than against the edge it came over. The page ' +
-            'glided and nothing was drawn until it stopped — watch the ' +
-            "previous hole ride the page on the way. The glide is Leko's own " +
-            'and grows with the distance, slowly enough to take in what ' +
-            'passes: scroll while it runs and it stops where you put the ' +
-            'page, and the step is drawn there.',
-        },
-        {
-          id: 'one-hole-two-cards',
-          target: { elements: ['[data-pair-upper]', '[data-pair-lower]'] },
-          message:
-            'One region of two cards, so one hole around both, and it is the ' +
-            'hole that is at the middle of the screen: the upper card sits ' +
-            'above the middle and the lower one below it by the same amount. ' +
-            'The hole is what the step is about, so the hole is what is ' +
-            'brought in — not the first card, with the second left to hang ' +
-            'wherever the gap puts it.',
-        },
-        {
-          id: 'tall-section',
-          target: '[data-tall]',
-          message:
-            'More than half the screen tall, so this one leads with its top ' +
-            'edge rather than being centred: the taller a hole is, the less ' +
-            'room there is on either side of it for this box, and a hole ' +
-            'taller than the screen leaves none. A top edge at the middle ' +
-            'always leaves exactly half a screen for the message, whatever ' +
-            'the target does below it.',
-        },
-        {
-          id: 'deep-row',
-          target: { elements: '[data-deep]', interactive: true },
-          message:
-            'Two ports moved: the list, set outright, and the page, glided. ' +
-            'Innermost first, because scrolling the list moves the row inside ' +
-            'the page too. The list is set rather than glided so that the ' +
-            "movement you follow is the page's alone: the list is not on " +
-            'screen while it scrolls, so nothing of its own is missed.',
-        },
-        {
-          id: 'the-last-row',
-          target: { elements: '[data-last-row]', interactive: true },
-          message:
-            'The last row, at the bottom of the list rather than the middle ' +
-            'of it: centring it would mean scrolling the list past its own ' +
-            'end, and where the content runs out is where the row stops. The ' +
-            'page did not move at all — the row is still whole on screen, and ' +
-            'a port that already holds the cutout is left alone.',
-        },
-        {
-          id: 'at-the-end',
-          target: '[data-bottom]',
-          message:
-            'The same thing again, one port out: this card is the end of the ' +
-            'page, so the page has run out of scroll before the card reaches ' +
-            'the middle. It stops where the content stops, which is also why ' +
-            'the tour ends with nothing left below it.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

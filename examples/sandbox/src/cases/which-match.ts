@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // Three elements, one selector. Which of them a step means is the step's to
@@ -11,6 +13,68 @@ import { type Case, html } from '../case.js'
 // reach. And the third rule needs the viewer to have scrolled, which is why the
 // page is tall: what is in the viewport is a fact about where the page is, not
 // about the markup.
+
+// #region The story
+const firstMatch = {
+  id: 'which-match-first',
+  steps: [
+    {
+      // `first`, asked for: the compact copy, which has no box. A step
+      // whose target is not rendered is a step whose target is not there —
+      // `hidden-target.ts` is that half on its own.
+      id: 'the-first-match',
+      target: { elements: '[data-save]', interactive: true },
+      resolve: 'first',
+      message: 'This step is never drawn: its first match is the copy in the compact layout.',
+    },
+  ],
+} satisfies LekoStory
+
+const visibleMatch = {
+  id: 'which-match-visible',
+  steps: [
+    {
+      id: 'the-visible-match',
+      target: { elements: '[data-save]', interactive: true },
+      message:
+        'The compact copy has no box, so the default passed over it and the ' +
+        'hole is around the button on screen. Next opens the compact layout.',
+    },
+    {
+      id: 'the-revealed-match',
+      target: { elements: '[data-save]', interactive: true },
+      message:
+        'The compact layout was opened in this step’s onEnter, so by the ' +
+        'time the rule was applied its copy was the first one showing.',
+      onEnter: () => {
+        document.querySelector<HTMLElement>('[data-compact]')!.style.display = ''
+      },
+      onLeave: () => {
+        document.querySelector<HTMLElement>('[data-compact]')!.style.display = 'none'
+      },
+    },
+  ],
+} satisfies LekoStory
+
+const inViewportMatch = {
+  id: 'which-match-in-viewport',
+  steps: [
+    {
+      id: 'the-match-on-screen',
+      target: { elements: '[data-save]', interactive: true },
+      resolve: 'in-viewport-first',
+      // No `scroll`: the two do not combine, and DESIGN.md says why under
+      // **Which of several matches a selector means**. What is on screen is
+      // where the viewer left the page.
+      message:
+        'The first match with any of itself on screen. Start this story ' +
+        'from the top of the page and from the foot of the form, and it is ' +
+        'two different buttons.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const whichMatch: Case = {
   id: 'which-match',
   title: 'Which of several matches a step means',
@@ -47,7 +111,7 @@ export const whichMatch: Case = {
             <code>first</code>.</strong> So the selector means its first match,
             the compact one, and that one is not rendered: nothing is drawn, and
             the tour ends with <code>target-lost</code> after its moment of
-            waiting. The console below has it. The default would have passed it
+            waiting. The footer has it. The default would have passed it
             over.
           </p>
           <p class="hint">
@@ -98,62 +162,5 @@ export const whichMatch: Case = {
     }
   },
 
-  stories: [
-    {
-      id: 'which-match-first',
-      steps: [
-        {
-          // `first`, asked for: the compact copy, which has no box. A step
-          // whose target is not rendered is a step whose target is not there —
-          // `hidden-target.ts` is that half on its own.
-          id: 'the-first-match',
-          target: { elements: '[data-save]', interactive: true },
-          resolve: 'first',
-          message: 'This step is never drawn: its first match is the copy in the compact layout.',
-        },
-      ],
-    },
-    {
-      id: 'which-match-visible',
-      steps: [
-        {
-          id: 'the-visible-match',
-          target: { elements: '[data-save]', interactive: true },
-          message:
-            'The compact copy has no box, so the default passed over it and the ' +
-            'hole is around the button on screen. Next opens the compact layout.',
-        },
-        {
-          id: 'the-revealed-match',
-          target: { elements: '[data-save]', interactive: true },
-          message:
-            'The compact layout was opened in this step’s onEnter, so by the ' +
-            'time the rule was applied its copy was the first one showing.',
-          onEnter: () => {
-            document.querySelector<HTMLElement>('[data-compact]')!.style.display = ''
-          },
-          onLeave: () => {
-            document.querySelector<HTMLElement>('[data-compact]')!.style.display = 'none'
-          },
-        },
-      ],
-    },
-    {
-      id: 'which-match-in-viewport',
-      steps: [
-        {
-          id: 'the-match-on-screen',
-          target: { elements: '[data-save]', interactive: true },
-          resolve: 'in-viewport-first',
-          // No `scroll`: the two do not combine, and DESIGN.md says why under
-          // **Which of several matches a selector means**. What is on screen is
-          // where the viewer left the page.
-          message:
-            'The first match with any of itself on screen. Start this story ' +
-            'from the top of the page and from the foot of the form, and it is ' +
-            'two different buttons.',
-        },
-      ],
-    },
-  ],
+  stories: [firstMatch, visibleMatch, inViewportMatch],
 }

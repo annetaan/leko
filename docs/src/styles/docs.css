@@ -36,3 +36,92 @@
 .tour-start:hover {
   background: var(--sl-color-accent);
 }
+
+/* What a sandbox case reads from its host — CONTRIBUTING.md, **What a case
+   draws with, and what runs it**. A case inherits its base text, so the root
+   sets that too. `--sl-content-inline-start` is declared only at 50em and up,
+   where the sidebar is beside the content. */
+.example .case-root {
+  --case-bg: var(--sl-color-bg);
+  --case-surface: var(--sl-color-gray-6);
+  --case-ink: var(--sl-color-white);
+  --case-muted: var(--sl-color-gray-3);
+  --case-line: var(--sl-color-gray-5);
+  --case-accent: var(--sl-color-accent);
+  --case-flag: var(--sl-color-orange);
+  --case-flag-bg: var(--sl-color-orange-low);
+  --case-inset-top: calc(var(--sl-nav-height) + var(--sl-mobile-toc-height));
+  --case-inset-left: var(--sl-content-inline-start, 0px);
+  color: var(--case-ink);
+  font: 15px/1.6 var(--__sl-font);
+}
+
+/* An example's footer. Sticky under `body` rather than fixed, so it takes its
+   height in flow and never covers the end of the page — CONTRIBUTING.md,
+   **Examples on the site**, says why it is under `body` at all. */
+.example-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-inline-start: var(--sl-content-inline-start, 0px);
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+  background: var(--sl-color-gray-6);
+}
+
+body[data-mobile-menu-expanded] .example-footer {
+  display: none;
+}
+
+.example-starts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.example-footer button {
+  font: 600 var(--sl-text-sm) / 1.4 var(--__sl-font-mono);
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--sl-color-accent);
+  border-radius: 0.25rem;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  cursor: pointer;
+}
+
+.example-footer button:hover {
+  background: var(--sl-color-accent);
+}
+
+.example-status {
+  flex: 1 1 16rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* Below 50em the footer is kept to a fixed height. A step's message would wrap
+   the status to several lines there and cover the bottom of the case; Leko's
+   own box shows the message in full already. A problem is the one thing shown
+   in full, because a case's point can be the problem itself. */
+@media (max-width: 50em) {
+  .example-footer {
+    padding-block: 0.5rem;
+  }
+
+  .example-status {
+    flex-basis: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .example-footer[data-problem] .example-status {
+    white-space: normal;
+    text-overflow: clip;
+  }
+}

@@ -7,12 +7,13 @@ import type { LekoStep, LekoStory } from '@annetaan/leko'
 // exactly this when the case is showing.
 const CASE_ID = 'across-a-page-load'
 
+// #region The story
 // The storefront's last step waits for this, and only a real navigation
 // makes it true: a plain `<a href>` with the query string changed is a
 // cross-document load in every engine, so nothing here is a hash trick.
 const CHECKOUT_URL = /[?&]page=checkout(?:[&#]|$)/
 
-const storefront: LekoStory = {
+const storefront = {
   id: 'storefront',
   next: () => checkout,
   steps: [
@@ -30,9 +31,9 @@ const storefront: LekoStory = {
       awaits: { url: CHECKOUT_URL },
     },
   ],
-}
+} satisfies LekoStory
 
-const checkout: LekoStory = {
+const checkout = {
   id: 'checkout',
   steps: [
     {
@@ -53,7 +54,8 @@ const checkout: LekoStory = {
         'page starts nothing either.',
     },
   ],
-}
+} satisfies LekoStory
+// #endregion
 
 export const acrossAPageLoad: Case = {
   id: CASE_ID,
@@ -76,12 +78,13 @@ export const acrossAPageLoad: Case = {
   //   lands on a URL the note was kept at *and* one the pattern does not
   //   match, so this page cannot tell the two reasons apart; the wiring test
   //   that lands on the kept URL with a matching pattern is what isolates it.
-  // - A page with no Leko between the two. Every load of the sandbox runs
-  //   pickUp, so the note never outlives one navigation here.
+  // - A page with no Leko between the two. Every page that shows this case
+  //   runs pickUp, so the note never outlives one navigation here.
   // - Storage that throws, and real Safari.
 
   mount(root) {
     const page = new URLSearchParams(location.search).get('page')
+    const hash = location.hash
 
     // `[data-arrived]`'s inline `min-height: 3lh` holds its box to three
     // lines before `onStep` ever writes to it. The `summary` step's hole is
@@ -92,8 +95,10 @@ export const acrossAPageLoad: Case = {
     // and nothing afterwards re-reads layout to correct it, so the hole
     // would stay wrong for the whole step. A paragraph above a target must
     // not change height. Measured: three lines holds the footer-press
-    // branch's sentence down to about 660px; narrower than that it wraps to
-    // a fourth line and the hole is wrong again for the rest of the step.
+    // branch's sentence down to a 300px viewport on the site and to about
+    // 580px in the sandbox, whose rail takes 260px of it; narrower than that
+    // it wraps to a fourth line and the hole is wrong again for the rest of
+    // the step.
     //
     // Reserving space here rather than moving the box below every target:
     // measured at 1280 and 1000, the message anchored under `[data-summary]`
@@ -117,7 +122,7 @@ export const acrossAPageLoad: Case = {
                 <li>Enclosure, 2U × 4</li>
                 <li>Rail kit × 4</li>
               </ul>
-              <a href="./#${CASE_ID}" data-back-link>Back to the storefront</a>
+              <a href="./${hash}" data-back-link>Back to the storefront</a>
             </div>
           `)
         : html(`
@@ -132,7 +137,7 @@ export const acrossAPageLoad: Case = {
                 lands on is the one the note was kept at, so pickUp() takes
                 the note and starts nothing.
               </p>
-              <a href="?page=checkout#${CASE_ID}" data-checkout-link>Go to checkout</a>
+              <a href="?page=checkout${hash}" data-checkout-link>Go to checkout</a>
             </div>
           `)
 
@@ -162,23 +167,29 @@ export const acrossAPageLoad: Case = {
 
   stories: [storefront, checkout],
 
-  onStep: (root) => (step: LekoStep | undefined, story: LekoStory) => {
-    if (story.id !== 'checkout' || step?.id !== 'summary') return
-    const readout = root.querySelector<HTMLElement>('[data-arrived]')
-    if (!readout) return
-    // `index.html` loads `main.ts` as `<script type="module">`, which runs
-    // deferred: pickUp() runs before the `load` event, while
-    // `document.readyState` is still `'interactive'`. A press of the
-    // footer's start('checkout') necessarily comes after `load`, once
-    // `readyState` is `'complete'` — a fact, not a guess from a number that
-    // depends on the machine and the network.
-    const ms = Math.round(performance.now())
-    readout.textContent =
-      document.readyState === 'complete'
-        ? `“checkout” began ${ms}ms after this document’s navigation ` +
-          'started, after it had already finished loading — the footer’s ' +
-          'start(‘checkout’) began it.'
-        : `“checkout” began ${ms}ms after this document’s navigation ` +
-          'started, before it had finished loading — pickUp() began it.'
+  onStep: (root, leko) => {
+    // Both hosts call pickUp() in the turn that ran `runCase` — `Running.pickUp`
+    // in `host.ts` — so a step reported inside that turn, or a story running
+    // once it is over, is pickUp()'s, and one that begins later was pressed.
+    // The first step is reported from inside pickUp() itself in both engines,
+    // before any microtask, which is why this starts out true.
+    let pickedUp = true
+    queueMicrotask(() => {
+      pickedUp = leko.story?.id === 'checkout'
+    })
+    return (step: LekoStep | undefined, story: LekoStory) => {
+      if (!step) {
+        pickedUp = false
+        return
+      }
+      if (story.id !== 'checkout' || step.id !== 'summary') return
+      const readout = root.querySelector<HTMLElement>('[data-arrived]')
+      if (!readout) return
+      const ms = Math.round(performance.now())
+      readout.textContent = pickedUp
+        ? `pickUp() began “checkout”, ${ms}ms after this document’s navigation started.`
+        : `The footer’s start(‘checkout’) began “checkout”, ${ms}ms after this ` +
+          'document’s navigation started.'
+    }
   },
 }

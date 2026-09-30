@@ -1,4 +1,4 @@
-import { cubicBezier } from '@annetaan/leko'
+import { cubicBezier, type LekoOptions, type LekoStory } from '@annetaan/leko'
 
 import { type Case, html } from '../case.js'
 
@@ -19,7 +19,57 @@ import { type Case, html } from '../case.js'
 // It stays inside `[0, 1]` on purpose. A curve that overshoots is fine for a
 // morph and wrong for a glide, for the reason `LekoOptions.easing` gives, and
 // a sandbox case is not the place to leave that trap lying about.
+
+// #region The story
+const story = {
+  id: 'house-curve',
+  onEnter: () => window.scrollTo({ top: 0, behavior: 'instant' }),
+  steps: [
+    {
+      id: 'the-start',
+      target: { elements: '[data-lever]', interactive: true },
+      message:
+        'Nothing has moved yet. The curve this tour was given is on the ' +
+        'instance, so every movement from here follows it — the hole and ' +
+        'the page both.',
+    },
+    {
+      id: 'a-screen-away',
+      target: '[data-second]',
+      message:
+        'The page eased away from the top and eased into this card, and ' +
+        'the hole crossed the screen on the same curve at the same time. ' +
+        "Leko's own curve leaves at once and settles slowly; this one is " +
+        'slow at both ends, which is the whole difference and is the ' +
+        "application's to decide.",
+    },
+    {
+      id: 'further-still',
+      target: '[data-third]',
+      message:
+        'Further, and the same shape stretched over it: a longer trip ' +
+        'takes longer, and the pace it takes is the same rule. Scroll ' +
+        'during it and the glide stops where you put the page, exactly as ' +
+        'it does on the built-in curve.',
+    },
+    {
+      id: 'and-back',
+      target: { elements: '[data-first]' },
+      message:
+        'All the way back, so the trip is watched in the other direction ' +
+        'too. The curve is symmetric, so this looks like the way down ' +
+        'played backwards — which is what makes it obviously not the one ' +
+        'Leko ships.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
+// #region The instance's options
 const HOUSE = cubicBezier(0.83, 0, 0.17, 1)
+
+const options = { scroll: true, easing: HOUSE, duration: 480 } satisfies LekoOptions
+// #endregion
 
 export const hostEasing: Case = {
   id: 'host-easing',
@@ -32,7 +82,7 @@ export const hostEasing: Case = {
     "at both ends, which Leko's own is not, so the difference is visible " +
     'without a stopwatch.',
 
-  options: { scroll: true, easing: HOUSE, duration: 480 },
+  options,
 
   mount(root) {
     const page = html(`
@@ -73,48 +123,5 @@ export const hostEasing: Case = {
     return () => page.remove()
   },
 
-  stories: [
-    {
-      id: 'house-curve',
-      onEnter: () => window.scrollTo({ top: 0, behavior: 'instant' }),
-      steps: [
-        {
-          id: 'the-start',
-          target: { elements: '[data-lever]', interactive: true },
-          message:
-            'Nothing has moved yet. The curve this tour was given is on the ' +
-            'instance, so every movement from here follows it — the hole and ' +
-            'the page both.',
-        },
-        {
-          id: 'a-screen-away',
-          target: '[data-second]',
-          message:
-            'The page eased away from the top and eased into this card, and ' +
-            'the hole crossed the screen on the same curve at the same time. ' +
-            "Leko's own curve leaves at once and settles slowly; this one is " +
-            'slow at both ends, which is the whole difference and is the ' +
-            "application's to decide.",
-        },
-        {
-          id: 'further-still',
-          target: '[data-third]',
-          message:
-            'Further, and the same shape stretched over it: a longer trip ' +
-            'takes longer, and the pace it takes is the same rule. Scroll ' +
-            'during it and the glide stops where you put the page, exactly as ' +
-            'it does on the built-in curve.',
-        },
-        {
-          id: 'and-back',
-          target: { elements: '[data-first]' },
-          message:
-            'All the way back, so the trip is watched in the other direction ' +
-            'too. The curve is symmetric, so this looks like the way down ' +
-            'played backwards — which is what makes it obviously not the one ' +
-            'Leko ships.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

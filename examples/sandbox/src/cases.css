@@ -1,0 +1,590 @@
+/* Everything a case renders, for any host that runs one: CONTRIBUTING.md,
+   **What a case draws with, and what runs it**. */
+.case-root,
+.case-root * {
+  box-sizing: border-box;
+}
+
+.case-root .panel {
+  max-width: 680px;
+  padding: 20px 22px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+}
+
+/*
+ * An account menu, where a real page puts one. The step that points at it is
+ * there to show the End tour control giving that corner up.
+ */
+.case-root .corner {
+  position: fixed;
+  top: calc(var(--case-inset-top) + 16px);
+  right: 16px;
+}
+
+.case-root .panel h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.case-root .panel label {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--case-muted);
+}
+
+.case-root input {
+  padding: 8px 10px;
+  border: 1px solid var(--case-line);
+  border-radius: 6px;
+  background: var(--case-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.case-root button {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--case-accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.case-root button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.case-root .hint {
+  margin: 10px 0 0;
+  color: var(--case-muted);
+  font-size: 13px;
+}
+
+.case-root .grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.case-root .grid th,
+.case-root .grid td {
+  padding: 7px 10px;
+  border: 1px solid var(--case-line);
+  text-align: left;
+}
+
+.case-root .grid th {
+  background: color-mix(in srgb, var(--case-accent) 10%, transparent);
+}
+
+.case-root .summary {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--case-accent) 10%, transparent);
+}
+
+.case-root .summary-label,
+.case-root .summary-note {
+  color: var(--case-muted);
+  font-size: 12.5px;
+}
+
+.case-root .summary-value {
+  font-size: 22px;
+}
+
+.case-root .choices {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.case-root .panel label.checked {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.case-root .scroller {
+  height: 220px;
+  overflow: auto;
+  border: 1px solid var(--case-line);
+  border-radius: 8px;
+}
+
+.case-root .rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case-root .rows li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--case-line);
+  font-size: 13.5px;
+}
+
+/*
+ * Two rows one region names together, in `hidden-target`. They need a gap, so
+ * that the hole cut around one of them is plainly not the hole cut around both.
+ * Its own name rather than `.rows`, which is the list the two scroller cases
+ * render and which this would turn into a grid.
+ */
+.case-root .notice-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.case-root .notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--case-line);
+  border-radius: 8px;
+}
+
+.case-root .tiles {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.case-root .tile {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--case-accent) 10%, transparent);
+}
+
+.case-root .tile-label {
+  color: var(--case-muted);
+  font-size: 12.5px;
+}
+
+.case-root .tile-value {
+  font-size: 24px;
+}
+
+.case-root .tile-small {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  font-size: 18px;
+  color: var(--case-muted);
+}
+
+.case-root .panel .grid {
+  margin-bottom: 16px;
+}
+
+/*
+ * Editor chrome for the message-sides case, pinned to the viewport so the
+ * sides it demonstrates are the viewport's own edges. `top` and `bottom` are
+ * small on purpose: the side above and below a rail has to have less room
+ * than the message needs, or the box would take one of those sides instead of
+ * moving beside the rail. The lower end slides under the host's footer, which
+ * is declared chrome.
+ */
+.case-root .chrome {
+  position: fixed;
+  top: calc(var(--case-inset-top) + 12px);
+  bottom: 12px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+}
+
+.case-root .chrome-left {
+  left: calc(var(--case-inset-left) + 24px);
+  width: 56px;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  color: var(--case-muted);
+  font-size: 16px;
+}
+
+.case-root .chrome-right {
+  right: 24px;
+  width: 200px;
+  padding: 14px;
+  font-size: 13px;
+}
+
+.case-root .chrome-right h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.case-root .chrome-field {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+  color: var(--case-muted);
+  font-size: 12px;
+}
+
+.case-root .chrome-field output {
+  color: var(--case-ink);
+  font-size: 13px;
+}
+
+/* The flow of the same case, indented past the rails on both sides. */
+.case-root .between-rails {
+  margin-inline: 76px 212px;
+}
+
+.case-root .between-rails .filler {
+  max-width: 680px;
+  color: var(--case-muted);
+}
+
+/*
+ * At narrow widths the rails slim and move out to the edges so the flow between
+ * them stays readable. The box has no room beside either rail there whatever
+ * the rails measure — it is 320px wide, and `sideWithRoom` wants that and the
+ * gap on screen — so this rule does not try to fix that.
+ */
+@media (max-width: 50em) {
+  .case-root .chrome-left {
+    left: calc(var(--case-inset-left) + 8px);
+  }
+
+  .case-root .chrome-right {
+    right: 8px;
+    width: 120px;
+  }
+
+  .case-root .between-rails {
+    margin-inline: 56px 120px;
+  }
+}
+
+/* Whatever the screen's height, the card after this block starts under the
+   fold, which is what sends its message to the top side when the step draws. */
+.case-root .scroll-room {
+  min-height: 100vh;
+}
+
+.case-root .milestone {
+  max-width: 680px;
+  margin: 20px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--case-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--case-accent) 8%, var(--case-surface));
+}
+
+.case-root .milestone h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+/*
+ * Chrome pinned to the viewport, for `fixed-chrome.ts`: the page's actions,
+ * at the top right where an application keeps them, staying while the page
+ * scrolls under them. Kept small so the host's own heading stays readable.
+ */
+.case-root .topbar {
+  position: fixed;
+  top: calc(var(--case-inset-top) + 12px);
+  right: 28px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+  z-index: 1;
+}
+
+.case-root .tall-page .panel {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.case-root .tall-page .filler {
+  max-width: 680px;
+  color: var(--case-muted);
+}
+
+/*
+ * `host-chrome.ts`. The bubble is the application's own support widget, in the
+ * corner the way out prefers; the row is pinned just above the footer console,
+ * so the screen under it is nearly all the console's. Both are fixed, because
+ * what each step is about is a distance to a viewport edge.
+ */
+.case-root .support-bubble {
+  position: fixed;
+  top: calc(var(--case-inset-top) + 16px);
+  right: 24px;
+  padding: 10px 16px;
+  border: 1px solid var(--case-line);
+  border-radius: 999px;
+  background: var(--case-surface);
+  color: var(--case-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.case-root .pinned-row {
+  position: fixed;
+  left: calc(var(--case-inset-left) + 48px);
+  /* Clear of the console by a little, so the row itself is never under it and
+     the only thing arguing about that strip of screen is the message. */
+  bottom: 200px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+}
+
+.case-root .chrome-case .filler {
+  max-width: 680px;
+  color: var(--case-muted);
+}
+
+/*
+ * `way-out-on-top.ts`. The card's right edge is 110px in from the stage's, so
+ * the message centred on it, at its widest, reaches well into the corner the
+ * way out is drawn in, whatever width the control's label gives it.
+ */
+.case-root .way-out-card {
+  width: 150px;
+  margin: 24px 110px 24px auto;
+  padding: 16px 20px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+}
+
+.case-root .way-out-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.case-root .way-out-case .filler {
+  max-width: 680px;
+  color: var(--case-muted);
+}
+
+/* Room to scroll the card past the top of the screen. */
+.case-root .way-out-case {
+  padding-bottom: 100vh;
+}
+
+/*
+ * The space between the two cards of one region in `scrolls-into-view.ts`. It
+ * is inside the hole with them, and it is what would put the lower card half a
+ * gap low if the first card alone were brought in. Sized off the screen so the
+ * hole — two cards of some 100px each, the gap, and the padding — stays under
+ * half a scrollport at any height a laptop has, and the step is about a hole
+ * that is centred rather than one that leads with its top edge. A fixed gap
+ * tipped over at a 720px screen.
+ */
+.case-root .scroll-gap {
+  min-height: max(40px, 50vh - 300px);
+}
+
+/*
+ * Taller than the screen, which puts it over the half a scrollport at which a
+ * target stops being centred and leads with its top edge instead. That is what
+ * leaves the top half of the screen for the message, so this one needs no room
+ * made for it anywhere.
+ */
+.case-root .tall-section {
+  min-height: calc(100vh + 200px);
+}
+
+/*
+ * The outer of the two nested ports in `staged-scroll.ts`. Taller than the
+ * `.scroller` it holds, so that the list inside it is a box the panel has to
+ * scroll to rather than one it already shows — three ports deep is what makes
+ * the case, and two of them are inside this card.
+ */
+.case-root .staged-case .deep-scroller {
+  height: 320px;
+  padding: 0 14px;
+  overflow: auto;
+  border: 1px solid var(--case-line);
+  border-radius: 8px;
+}
+
+/*
+ * Room above and below the list, so the panel starts with the list off its own
+ * port and has somewhere to put it once it scrolls. Enough of it either side
+ * that the list can be centred rather than stopping where the content runs out,
+ * which is a rule `scrolls-into-view.ts` is about and this case is not.
+ */
+.case-root .staged-case .scroll-filler {
+  min-height: 260px;
+}
+
+/*
+ * The transform is the point: a common hint to promote a card to its own
+ * layer, and it makes the card the containing block of every fixed descendant.
+ */
+.case-root .lifted {
+  transform: translateZ(0);
+}
+
+/*
+ * The strip the document scrollbar's gutter sits in, for `fixed-chrome.ts`. A
+ * click here is the one thing that page counts: it is chrome no step opens, so
+ * a layer that stops short of the gutter shows up as a click that lands.
+ */
+.case-root .edge-probe {
+  position: fixed;
+  top: 40%;
+  right: 0;
+  width: 22px;
+  height: 140px;
+  padding: 0;
+  border: 1px solid var(--case-line);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: var(--case-surface);
+  color: var(--case-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.case-root .edge-probe span {
+  display: block;
+  writing-mode: vertical-rl;
+}
+
+.case-root .edge-probe.reached {
+  border-color: var(--case-flag);
+  background: var(--case-flag-bg);
+  color: var(--case-flag);
+}
+
+/* Fixed in the stylesheet, pinned to the card by the transform above. */
+.case-root .badge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--case-flag-bg);
+  color: var(--case-flag);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/*
+ * `sticky-header.ts`. Everything above the bar, and tall enough that the page
+ * spends a real scroll getting past it — the bar rides while any of this is
+ * still on screen and is held against the top of the screen afterwards, which
+ * is the pair of states the case is about.
+ */
+.case-root .sticky-case .sticky-hero {
+  min-height: 420px;
+  max-width: 680px;
+  padding-top: 40px;
+}
+
+/*
+ * At narrow widths the host's own content above the case pushes the bar below
+ * the fold, so the hero drops to what it holds and the bar is on screen for the
+ * first step. Getting past it still takes a real scroll: the host's content is
+ * above it too.
+ */
+@media (max-width: 50em) {
+  .case-root .sticky-case .sticky-hero {
+    min-height: 0;
+    padding: 0 0 12px;
+  }
+}
+
+/*
+ * The bar itself. It pins against the host's chrome, the way an application's
+ * filter bar pins under its own header. `--case-inset-top` is `0px` in the
+ * sandbox, which is the state the spike measured.
+ */
+.case-root .sticky-case .sticky-bar {
+  position: sticky;
+  top: var(--case-inset-top);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--case-line);
+  border-radius: 10px;
+  background: var(--case-surface);
+}
+
+.case-root .sticky-case .sticky-count {
+  margin-left: auto;
+  color: var(--case-muted);
+  font-size: 12px;
+}
+
+.case-root .sticky-case .sticky-bar button.on {
+  border-color: var(--case-accent);
+  color: var(--case-accent);
+}
+
+/*
+ * The second kind of pinned: a head held against a scrollport that is not the
+ * viewport. Short enough that a few rows scroll under it without the page
+ * moving at all.
+ */
+.case-root .sticky-case .sticky-panel {
+  height: 240px;
+  overflow: auto;
+  border: 1px solid var(--case-line);
+  border-radius: 8px;
+}
+
+.case-root .sticky-case .sticky-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.case-root .sticky-case .sticky-table th,
+.case-root .sticky-case .sticky-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--case-line);
+  text-align: left;
+}
+
+.case-root .sticky-case .sticky-head th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--case-surface);
+}
+
+/*
+ * `close-through-a-portal.tsx`. The colours are the case's palette and come
+ * inline from its React context; only the shape is here.
+ */
+.case-root .palette-panel {
+  border-width: 2px;
+}

@@ -1,0 +1,83 @@
+---
+/**
+ * A sandbox case, mounted into this page and run through `runCase`, with a
+ * footer of its own to start and stop its stories.
+ *
+ * One per page: a case names its targets across the whole document, and
+ * `pickUp` is once per document — CONTRIBUTING.md, **Examples on the site**.
+ */
+interface Props {
+  id: string
+}
+
+const { id } = Astro.props
+---
+
+<div class="example not-content" data-example={id}>
+  <div class="case-root" data-example-root></div>
+</div>
+
+<script>
+  import '@annetaan/leko/leko.css'
+  import '@leko-examples/sandbox/cases.css'
+  import type { Case } from '@leko-examples/sandbox/case'
+  import { runCase } from '@leko-examples/sandbox/host'
+
+  // `index.ts` imports the React cases, and the site has no React. The negative
+  // is spelled out in full because Vite resolves it against this file's
+  // directory, where `!**/index.ts` matches nothing.
+  const modules = import.meta.glob<Record<string, Case>>([
+    '../../../examples/sandbox/src/cases/*.ts',
+    '!../../../examples/sandbox/src/cases/index.ts',
+  ])
+
+  const example = document.querySelector<HTMLElement>('[data-example]')
+  if (example) {
+    const id = example.dataset['example']!
+    const root = example.querySelector<HTMLElement>('[data-example-root]')!
+    const load = modules[`../../../examples/sandbox/src/cases/${id}.ts`]
+    if (!load) throw new Error(`No case file for the example “${id}”`)
+    const kase = Object.values(await load()).find((one) => one.id === id)
+    if (!kase) throw new Error(`No case with the id “${id}” in its file`)
+
+    const footer = document.createElement('div')
+    footer.className = 'example-footer'
+    footer.dataset['exampleFooter'] = ''
+    const starts = document.createElement('span')
+    starts.className = 'example-starts'
+    const stop = document.createElement('button')
+    stop.type = 'button'
+    stop.textContent = 'stop()'
+    const status = document.createElement('span')
+    status.className = 'example-status'
+    status.setAttribute('aria-live', 'polite')
+    footer.append(starts, stop, status)
+    // Under `body`, after everything else, and not in the page's own markup:
+    // CONTRIBUTING.md, **Examples on the site**, says why.
+    document.body.append(footer)
+
+    const running = runCase(kase, root, {
+      chrome: ['header.header', '[data-example-footer]'],
+      onStatus: (line) => {
+        status.textContent = line
+      },
+      onProblem: () => {
+        footer.dataset['problem'] = ''
+      },
+    })
+
+    for (const story of running.stories) {
+      const start = document.createElement('button')
+      start.type = 'button'
+      start.textContent = `start('${story.id}')`
+      start.addEventListener('click', () => {
+        delete footer.dataset['problem']
+        running.start(story.id)
+      })
+      starts.append(start)
+    }
+    stop.addEventListener('click', () => running.stop())
+
+    running.pickUp()
+  }
+</script>

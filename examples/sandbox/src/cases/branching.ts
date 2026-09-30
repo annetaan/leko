@@ -12,6 +12,8 @@ import type { LekoStory } from '@annetaan/leko'
 // The footer is half the case: the counter restarts at 1/1 when the summary
 // begins, because Leko counts within one story and never across a tour.
 // “Step 4 of 6” is the application's arithmetic.
+
+// #region The story
 // What a branch assumes: nothing sent yet, and nothing read yet. Both are the
 // page's own state rather than a variable this file keeps, which is also where
 // the chosen path is kept.
@@ -108,6 +110,7 @@ const quick = {
     },
   ],
 } satisfies LekoStory
+// #endregion
 
 export const branching: Case = {
   id: 'branching',
@@ -148,6 +151,7 @@ export const branching: Case = {
     const checkbox = panel.querySelector<HTMLInputElement>('[data-checked]')!
     const status = panel.querySelector<HTMLElement>('[data-status]')!
 
+    // #region What the page reports
     // The page records which way it went and says that the choice was made.
     // Which story that opens is `intro`'s to answer, so neither branch is named
     // here and a third one would be added to `next` rather than to this file's
@@ -171,6 +175,7 @@ export const branching: Case = {
       // neither of them is named here.
       leko.reached('order-sent')
     })
+    // #endregion
 
     root.append(panel)
     return () => panel.remove()

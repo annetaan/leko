@@ -140,9 +140,8 @@ What to do where the load can fail is under
 
 ## See it run
 
-The sandbox case
-[step-setup.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/step-setup.ts)
-has the shape of the example under
+The example [A step that sets its own scene](../../examples/step-setup/) has
+the shape of the example under
 [A step sets up what it alone stands on](#a-step-sets-up-what-it-alone-stands-on).
 The step that waits is the first of the two that share a section: it opens the
 closed section and loads an address into it, and its `onLeave` leaves the
@@ -151,8 +150,8 @@ first step covers the page with no hole in it while the address loads, the
 postcode field is then lit inside the section the tour opened, and on the last
 step the section is closed again. Ending the tour while the address loads
 closes the section too.
-[story-setup.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/story-setup.ts)
-begins with a step that loads a draft order into its empty table, and the
-story's `onLeave` empties the table again when the tour ends, on whichever
-step. Its caption names the chapter each step belongs to, from a table the page
-keys by step id.
+[A story that sets its own scene](../../examples/story-setup/) begins with a
+step that loads a draft order into its empty table, and the story's `onLeave`
+empties the table again when the tour ends, on whichever step. Its caption
+names the chapter each step belongs to, from a table the page keys by step
+id.
