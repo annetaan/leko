@@ -197,8 +197,8 @@
  * sides it demonstrates are the viewport's own edges. `top` and `bottom` are
  * small on purpose: the side above and below a rail has to have less room
  * than the message needs, or the box would take one of those sides instead of
- * moving beside the rail. The lower end slides under the footer console,
- * which is tour chrome and stays above everything the page puts up.
+ * moving beside the rail. The lower end slides under the host's footer, which
+ * is declared chrome.
  */
 .case-root .chrome {
   position: fixed;
@@ -254,6 +254,27 @@
 .case-root .between-rails .filler {
   max-width: 680px;
   color: var(--case-muted);
+}
+
+/*
+ * At narrow widths the rails slim and move out to the edges so the flow between
+ * them stays readable. The box has no room beside either rail there whatever
+ * the rails measure — it is 320px wide, and `sideWithRoom` wants that and the
+ * gap on screen — so this rule does not try to fix that.
+ */
+@media (max-width: 50em) {
+  .case-root .chrome-left {
+    left: calc(var(--case-inset-left) + 8px);
+  }
+
+  .case-root .chrome-right {
+    right: 8px;
+    width: 120px;
+  }
+
+  .case-root .between-rails {
+    margin-inline: 56px 120px;
+  }
 }
 
 /* Whatever the screen's height, the card after this block starts under the

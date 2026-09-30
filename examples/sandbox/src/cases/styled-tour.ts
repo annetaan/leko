@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // Every pixel Leko draws reads a `--leko-*` token, and the halo exists so the
@@ -38,6 +40,28 @@ const THEME = `
   }
 `
 
+// #region The story
+const story = {
+  id: 'styled',
+  steps: [
+    {
+      id: 'order',
+      // Shown, not opened: the halo on this hole has no data-open, so it
+      // gets the quieter glow the stylesheet gives that state.
+      target: '[data-order]',
+      message: 'This is the order being paid for. The halo marks it without handing it over.',
+    },
+    {
+      id: 'voucher',
+      target: { elements: '[data-voucher]', interactive: true },
+      message: 'Type a voucher code. This hole is open, and its halo says so at full glow.',
+      validate: (el) => (el as HTMLInputElement).value.trim() !== '',
+      error: 'Nothing typed yet.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const styledTour: Case = {
   id: 'styled-tour',
   title: 'A tour in the host’s clothes',
@@ -49,7 +73,7 @@ export const styledTour: Case = {
 
   mount(root) {
     // What an application would put in its own stylesheet, scoped to this
-    // case's stay on screen only because the sandbox shows one case at a time.
+    // case's stay on screen only because a host shows one case at a time.
     const theme = html<HTMLStyleElement>(`<style>${THEME}</style>`)
     document.head.append(theme)
 
@@ -84,25 +108,5 @@ export const styledTour: Case = {
     }
   },
 
-  stories: [
-    {
-      id: 'styled',
-      steps: [
-        {
-          id: 'order',
-          // Shown, not opened: the halo on this hole has no data-open, so it
-          // gets the quieter glow the stylesheet gives that state.
-          target: '[data-order]',
-          message: 'This is the order being paid for. The halo marks it without handing it over.',
-        },
-        {
-          id: 'voucher',
-          target: { elements: '[data-voucher]', interactive: true },
-          message: 'Type a voucher code. This hole is open, and its halo says so at full glow.',
-          validate: (el) => (el as HTMLInputElement).value.trim() !== '',
-          error: 'Nothing typed yet.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

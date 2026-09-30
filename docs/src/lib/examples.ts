@@ -180,4 +180,31 @@ export const groups: Group[] = [
       },
     ],
   },
+  {
+    label: 'Looks',
+    items: [
+      {
+        id: 'styled-tour',
+        label: 'A tour in the host’s clothes',
+        line:
+          'One stylesheet of the page’s own restyles the scrim, the message and the halo, ' +
+          'with a quieter halo on the hole that is only shown.',
+      },
+      {
+        id: 'message-sides',
+        label: 'Which side the message takes',
+        line:
+          'Targets at each edge of the screen, between two fixed rails, and a step with ' +
+          'nothing to point at, so the message takes whichever side has room or docks at ' +
+          'the foot.',
+      },
+      {
+        id: 'host-easing',
+        label: 'A tour that moves the way the application does',
+        line:
+          'One curve on the instance, slow at both ends, eases both the hole and the page ' +
+          'on every trip down and back.',
+      },
+    ],
+  },
 ]
