@@ -74,4 +74,37 @@ export const groups: Group[] = [
       },
     ],
   },
+  {
+    label: 'Stories',
+    items: [
+      {
+        id: 'two-stories',
+        label: 'Two stories, one screen',
+        line:
+          'One Place the order button reports that the order went through, and only the ' +
+          'story waiting for that moves; the other story on the same screen stays put.',
+      },
+      {
+        id: 'branching',
+        label: 'A tour that branches',
+        line:
+          'Two buttons choose the way on, each way is a short story of its own, and both ' +
+          'hand the tour to a summary once the order is sent.',
+      },
+      {
+        id: 'story-setup',
+        label: 'A story that sets its own scene',
+        line:
+          'A story that loads a draft order into an empty table before its first hole is ' +
+          'drawn, and empties the table again when the tour ends.',
+      },
+      {
+        id: 'step-setup',
+        label: 'A step that sets its own scene',
+        line:
+          'A step that opens a closed section and waits for the address to load into it, ' +
+          'so the postcode field can be lit, and closes the section again afterwards.',
+      },
+    ],
+  },
 ]

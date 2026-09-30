@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { at, html, type Case } from '../case.js'
 
 /**
@@ -23,6 +25,61 @@ const DRAFT = `
   <tr><td>Rail kit</td><td>4</td></tr>
 `
 let loadDraft: () => Promise<void> = async () => {}
+
+// #region The story
+const story = {
+  id: 'story-setup',
+
+  // Runs before the first step is entered, and hands nothing back —
+  // DESIGN.md, **Whatever a handler hands back is dropped**. A load the
+  // first step needs is started by the step that waits for it.
+  onEnter: () => {
+    at('[data-chapter]').textContent = '—'
+  },
+
+  // The matching half, and the reason it is worth having one place for
+  // this: the draft outlives every step, so no step could own taking it
+  // away. `types.ts` says what `next` is here.
+  onLeave: (_story, next) => {
+    at('[data-chapter]').textContent = '—'
+    if (!next) at('[data-rows]').innerHTML = EMPTY
+  },
+
+  steps: [
+    {
+      // No target, so the page goes under with no hole in it — DESIGN.md,
+      // **A step that waits**.
+      id: 'loading',
+      message: 'Loading the draft order…',
+      awaits: 'draft-loaded',
+      // DESIGN.md, **The wait starts the work it waits for, and that
+      // placement is the rule**.
+      onEnter: () => void loadDraft(),
+    },
+    {
+      id: 'lines',
+      // Both rows, as one cutout. The sentence below says rows, and a
+      // selector matching several takes the first, so naming the two
+      // corners is what makes the screen agree with the message.
+      target: { elements: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'] },
+      message:
+        'These rows did not exist when Start was pressed. The step ' +
+        'before this one loaded them and waited before anything was ' +
+        'measured.',
+    },
+    {
+      id: 'quantity',
+      target: 'input[name="quantity"]',
+      message: 'Same chapter, worked out from the step id by the page rather than by Leko.',
+    },
+    {
+      id: 'submit',
+      target: '[data-submit]',
+      message: 'A new chapter. Press Next once more and the draft is cleared.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const storySetup: Case = {
   id: 'story-setup',
@@ -53,70 +110,19 @@ export const storySetup: Case = {
     `)
     root.append(panel)
 
+    // #region What the page reports
     // The application's own function — DESIGN.md, **Signals and steps**.
     loadDraft = async () => {
       await new Promise((resolve) => setTimeout(resolve, 600))
       at('[data-rows]').innerHTML = DRAFT
       leko.reached('draft-loaded')
     }
+    // #endregion
 
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'story-setup',
-
-      // Runs before the first step is entered, and hands nothing back —
-      // DESIGN.md, **Whatever a handler hands back is dropped**. A load the
-      // first step needs is started by the step that waits for it.
-      onEnter: () => {
-        at('[data-chapter]').textContent = '—'
-      },
-
-      // The matching half, and the reason it is worth having one place for
-      // this: the draft outlives every step, so no step could own taking it
-      // away. `types.ts` says what `next` is here.
-      onLeave: (_story, next) => {
-        at('[data-chapter]').textContent = '—'
-        if (!next) at('[data-rows]').innerHTML = EMPTY
-      },
-
-      steps: [
-        {
-          // No target, so the page goes under with no hole in it — DESIGN.md,
-          // **A step that waits**.
-          id: 'loading',
-          message: 'Loading the draft order…',
-          awaits: 'draft-loaded',
-          // DESIGN.md, **The wait starts the work it waits for, and that
-          // placement is the rule**.
-          onEnter: () => void loadDraft(),
-        },
-        {
-          id: 'lines',
-          // Both rows, as one cutout. The sentence below says rows, and a
-          // selector matching several takes the first, so naming the two
-          // corners is what makes the screen agree with the message.
-          target: { elements: ['[data-rows] tr:first-child', '[data-rows] tr:last-child'] },
-          message:
-            'These rows did not exist when Start was pressed. The step ' +
-            'before this one loaded them and waited before anything was ' +
-            'measured.',
-        },
-        {
-          id: 'quantity',
-          target: 'input[name="quantity"]',
-          message: 'Same chapter, worked out from the step id by the page rather than by Leko.',
-        },
-        {
-          id: 'submit',
-          target: '[data-submit]',
-          message: 'A new chapter. Press Next once more and the draft is cleared.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 
   // Chapters, entirely in application code: a table from step id to the name of
   // the group it belongs to, read where the caption is drawn. Leko grows no

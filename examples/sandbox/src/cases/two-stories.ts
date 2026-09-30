@@ -1,8 +1,53 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // The reason a call site names what happened rather than asking for the next
 // step. One button, one line of instrumentation, two stories that pass through
 // this screen — and the signal moves whichever of them was waiting for it.
+
+// #region The story
+const firstOrder = {
+  id: 'first-order',
+  steps: [
+    {
+      id: 'quantity',
+      target: { elements: 'input[name="quantity"]', interactive: true },
+      message: 'How many you want. Change it if you like, then press Next.',
+    },
+    {
+      id: 'place',
+      target: { elements: '[data-place]', interactive: true },
+      message: 'Place the order. This step is waiting for “order-placed”.',
+      awaits: 'order-placed',
+    },
+    {
+      id: 'receipt',
+      target: '[data-status]',
+      message: 'And the order went through. That is what ended the last step.',
+    },
+  ],
+} satisfies LekoStory
+
+const whatYouPay = {
+  id: 'what-you-pay',
+  steps: [
+    {
+      id: 'tax',
+      target: ['[data-tax]', '[data-total]'],
+      message:
+        'Tax, worked out from the quantity. Press the button — this story ' +
+        'declares no signal, so “order-placed” does nothing here.',
+    },
+    {
+      id: 'total',
+      target: '[data-total]',
+      message: 'And this is what you actually pay.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const twoStories: Case = {
   id: 'two-stories',
   title: 'Two stories, one screen',
@@ -27,6 +72,7 @@ export const twoStories: Case = {
     const button = panel.querySelector<HTMLButtonElement>('[data-place]')!
     const status = panel.querySelector<HTMLElement>('[data-status]')!
 
+    // #region What the page reports
     button.addEventListener('click', async () => {
       button.disabled = true
       status.textContent = 'Placing…'
@@ -39,49 +85,11 @@ export const twoStories: Case = {
       // listening is not this function's business.
       leko.reached('order-placed')
     })
+    // #endregion
 
     root.append(panel)
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'first-order',
-      steps: [
-        {
-          id: 'quantity',
-          target: { elements: 'input[name="quantity"]', interactive: true },
-          message: 'How many you want. Change it if you like, then press Next.',
-        },
-        {
-          id: 'place',
-          target: { elements: '[data-place]', interactive: true },
-          message: 'Place the order. This step is waiting for “order-placed”.',
-          awaits: 'order-placed',
-        },
-        {
-          id: 'receipt',
-          target: '[data-status]',
-          message: 'And the order went through. That is what ended the last step.',
-        },
-      ],
-    },
-    {
-      id: 'what-you-pay',
-      steps: [
-        {
-          id: 'tax',
-          target: ['[data-tax]', '[data-total]'],
-          message:
-            'Tax, worked out from the quantity. Press the button — this story ' +
-            'declares no signal, so “order-placed” does nothing here.',
-        },
-        {
-          id: 'total',
-          target: '[data-total]',
-          message: 'And this is what you actually pay.',
-        },
-      ],
-    },
-  ],
+  stories: [firstOrder, whatYouPay],
 }
