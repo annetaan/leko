@@ -130,3 +130,48 @@ test.runIf(anchors)('keep does nothing for a docked or hidden box', () => {
   expect(message.element.style.cssText).toBe(hidden)
   expect(told).toEqual(['bottom'])
 })
+
+// The box is measured before the new side is written, under the one the last
+// step held. `width: max-content` is what keeps that from mattering: without
+// it, a held `left: anchor(right)` shrinks the box to the space beside the old
+// marker, and every engine here then chooses `top`.
+test.runIf(anchors)('a box is measured free of the side the last step held', () => {
+  const root = document.documentElement
+  const room = { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+
+  const marker = document.createElement('div')
+  Object.assign(marker.style, { position: 'fixed', width: '0', height: '0' })
+  marker.style.setProperty('anchor-name', MESSAGE_ANCHOR)
+  document.body.append(marker)
+  made.push(marker)
+  let hole = row(100)
+  const told: string[] = []
+  const at = (side: string) => {
+    told.push(side)
+    const x = side === 'right' ? hole.x + hole.width : hole.x + hole.width / 2
+    const y = side === 'bottom' ? hole.y + hole.height : hole.y + hole.height / 2
+    Object.assign(marker.style, { left: `${x}px`, top: `${y}px` })
+  }
+
+  const message = new Message(() => {})
+  made.push({ remove: () => message.destroy() })
+  const long = {
+    text: 'Press the button to save the order, then wait for it to be confirmed.',
+    error: undefined,
+    next: undefined,
+  }
+  message.show(long, [hole], GAP, room, at)
+  const free = message.element.offsetHeight
+
+  // Nearly the room's height and 200px short of its right edge: the short
+  // words fit only on the right, and the marker is left 200px from the edge.
+  hole = { x: 0, y: 20, width: room.width - 200, height: room.height - 40 }
+  message.show(content, [hole], GAP, room, at)
+  expect(told.at(-1)).toBe('right')
+
+  // Exactly enough under the row for the long words at their own width, and
+  // not for them squeezed into the 200px the last step's side leaves.
+  hole = row(room.height - free - GAP - 40)
+  message.show(long, [hole], GAP, room, at)
+  expect(told.at(-1)).toBe('bottom')
+})
