@@ -146,7 +146,10 @@ export function drawn(): string {
       document.querySelector<HTMLElement>('.leko-message'),
       'left',
       'top',
-      'position-area',
+      'bottom',
+      'right',
+      'justify-self',
+      'align-self',
       'margin-top',
       'margin-right',
       'margin-bottom',
@@ -154,6 +157,15 @@ export function drawn(): string {
     )}`,
     `close: ${at(closer(), 'left', 'top')}`,
   ].join('\n')
+}
+
+/** The side of its hole a message is held on, read from the inset that carries `anchor()`. */
+export function sideOf(el: HTMLElement): 'bottom' | 'top' | 'right' | 'left' | undefined {
+  const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' } as const
+  const inset = (['top', 'bottom', 'left', 'right'] as const).find((name) =>
+    el.style.getPropertyValue(name).startsWith('anchor('),
+  )
+  return inset && opposite[inset]
 }
 
 /**

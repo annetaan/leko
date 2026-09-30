@@ -1635,9 +1635,31 @@ JS on every scroll again.
 
 JS picks the side once per step, and the distance to the furthest cutout
 becomes a margin, so the message clears every hole rather than only the one it
-is anchored beside. `position-try-fallbacks` covers what a measurement could
-not — a target scrolled towards the edge after the step began — and is an
-enhancement on top of that choice, not the mechanism.
+is anchored beside.
+
+**The box is laid against the marker with an inset, never inside an area.** Its
+inner edge sits on the marker through `top: anchor(bottom)` or its mirror, with
+`anchor-center` along the edge and `auto` on the other three insets, and
+nothing then moves it back across that line, in any event and in any engine
+[`spike/an-anchored-box-out-of-room/`](spike/an-anchored-box-out-of-room/)
+measured. `position-area` can put the box on the hole: an engine may shift a
+box that overflows its area back inside the viewport, and when the area is the
+strip between the hole and the edge of the screen, that shift lands the box on
+the hole. When an engine shifts differs, and none is safe. In a document that
+cannot scroll, all three shift at the draw. After that, Chromium shifts, with
+fallbacks set, on any relayout of the box; Firefox on any layout of it; WebKit
+only at the draw. Fallbacks cannot help: the marker sits on the edge of the
+side the box took, so every flip crosses that edge onto the hole too, and the
+message sets no `position-try-fallbacks`.
+
+The price is plain: where its side has no room, the box runs off the screen
+rather than onto the hole. The `auto`s are part of the spelling. A popover's UA
+style is `inset: 0`, and with only `bottom: anchor(top)` written the `top: 0`
+still holds, so a box above its hole is laid against the top of the viewport
+rather than against the marker — in WebKit, on the hole. The spike does not
+cover Safari: it is still to be opened there, and the claim rests on
+Playwright's WebKit. Nor does it measure the horizontal sides, which are the
+same spelling on the other axis.
 
 **The side is chosen from the room a host left, not from the whole viewport**,
 and so is the foot the box docks to. A side with two hundred pixels under a
@@ -1849,8 +1871,9 @@ CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places
 the message beside a cutout and does nothing else, so it degrades rather than
 fails: without it the message docks to the foot of the viewport, which is
 plainer than being beside the hole and never points at the wrong place.
-`@position-try` and `position-try-fallbacks` need Safari 26+, so neither may
-carry anything on its own.
+The message uses neither `@position-try` nor `position-try-fallbacks`, and
+**The message** says why. What it asks for is `anchor()` in an inset and
+`anchor-center`, and where either is missing it docks.
 
 The Navigation API a URL-waiting step's fallback exists for is present on the
 top of Chrome, Firefox and Safari alike — `'navigation' in window` was `true`

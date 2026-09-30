@@ -21,6 +21,7 @@ import {
   said,
   scrim,
   shown,
+  sideOf,
   start,
   stopped,
   TICK,
@@ -832,14 +833,55 @@ test("the message's anchor follows a sticky hole and the side does not change", 
   await framed()
 
   const before = marker().style.top
-  const side = messageBox().style.getPropertyValue('position-area')
+  const side = sideOf(messageBox())
 
   window.scrollTo(0, 900)
   await within(() => marker().style.top !== before, 30, 'the anchor never moved with the hole')
   // The side is a discrete choice made once a step — DESIGN.md, **The message**
   // — so what follows the hole is the point the message hangs off, not the
   // decision about where to hang it.
-  expect(messageBox().style.getPropertyValue('position-area')).toBe(side)
+  expect(sideOf(messageBox())).toBe(side)
+  window.scrollTo(0, 0)
+})
+
+test('the message never covers a sticky target it opened once the target pins', async () => {
+  // Near the foot of the screen at the draw, so the message goes above the bar;
+  // past the pin, the loop writes the marker and the box is laid out again.
+  // Held inside an area, Chromium and Firefox then slide it onto the bar —
+  // DESIGN.md, **The message**.
+  const block = keep(document.createElement('div'))
+  const lead = document.createElement('div')
+  const height = innerHeight - 60
+  lead.style.height = `${height}px`
+  const bar = document.createElement('button')
+  bar.textContent = 'filters'
+  Object.assign(bar.style, { position: 'sticky', top: '0', display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '3000px'
+  block.append(lead, bar, tail)
+  document.body.append(block)
+  window.scrollTo(0, 0)
+
+  start([
+    { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
+  ])
+  await framed()
+  await within(() => messageBox()?.style.visibility === 'visible', 30, 'the message never showed')
+  expect(sideOf(messageBox())).toBe('top')
+
+  const before = marker().style.top
+  window.scrollTo(0, height + 600)
+  await within(() => marker().style.top !== before, 30, 'the anchor never moved with the hole')
+  await frame()
+
+  const note = messageBox().getBoundingClientRect()
+  const hole = bar.getBoundingClientRect()
+  const covers =
+    note.left < hole.right &&
+    hole.left < note.right &&
+    note.top < hole.bottom &&
+    hole.top < note.bottom
+  expect(covers).toBe(false)
   window.scrollTo(0, 0)
 })
 

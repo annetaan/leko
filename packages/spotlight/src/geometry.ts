@@ -182,9 +182,9 @@ export type Side = (typeof SIDES)[number]
 /**
  * The side of `box` with room for something of `size`, `gap` clear of it.
  *
- * `room` rather than the viewport — DESIGN.md, **The message**. Falls back to
- * `bottom` when nothing fits, which is when the browser's own fallbacks — where
- * it has them — get their turn.
+ * `room` rather than the viewport, and `bottom` when nothing fits, where the
+ * box is then held off the hole and runs off the screen. DESIGN.md argues both
+ * under **The message**.
  */
 export function sideWithRoom(
   box: Rect,
@@ -210,8 +210,8 @@ export function sideWithRoom(
 /**
  * The midpoint of one side of `box`, which is where the message's anchor goes.
  *
- * The edge rather than the middle: the anchor has no area, so `position-area`
- * lays the message out from this point alone, and a point in the middle of the
+ * The edge rather than the middle: the anchor has no area, so the message is
+ * laid against this point alone, and a point in the middle of the
  * hole would put the message over half of it. DESIGN.md, **The message anchors
  * to a marker, never to the target**.
  */

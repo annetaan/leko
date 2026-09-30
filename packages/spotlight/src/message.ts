@@ -10,12 +10,22 @@ const FADE = 120
  * viewport coordinates, so the value written has to mean the same thing those
  * measurements did, whatever the writing mode.
  */
-const AREA: Record<Side, string> = {
-  bottom: 'bottom center',
-  top: 'top center',
-  right: 'right center',
-  left: 'left center',
-}
+const INSET = {
+  bottom: ['top', 'anchor(bottom)'],
+  top: ['bottom', 'anchor(top)'],
+  right: ['left', 'anchor(right)'],
+  left: ['right', 'anchor(left)'],
+} as const
+
+const INSETS = ['top', 'bottom', 'left', 'right'] as const
+
+/** The alignment that centres the box along the edge it is held against. */
+const ALONG = {
+  bottom: 'justifySelf',
+  top: 'justifySelf',
+  right: 'alignSelf',
+  left: 'alignSelf',
+} as const
 
 const MARGIN = {
   bottom: 'marginTop',
@@ -41,7 +51,9 @@ export interface MessageContent {
  * it is missing the message still has to appear — see {@link Message.dock}.
  */
 const canAnchor = (): boolean =>
-  CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
+  CSS.supports('anchor-name: --a') &&
+  CSS.supports('top: anchor(bottom)') &&
+  CSS.supports('justify-self: anchor-center')
 
 /**
  * The step's message, placed beside its cutout.
@@ -281,16 +293,11 @@ export class Message {
     room: Rect,
     at: ((side: Side) => void) | undefined,
   ): void {
-    const style = this.element.style
     const box = union(cutouts)
     // No cutouts, or nowhere to put the anchor, is a step that points at
     // nothing: there is no hole to sit beside, so the box goes where it goes
     // when the browser cannot track one either.
     if (!this.anchored || !box || !at) return this.dock(room)
-
-    for (const margin of MARGINS) style[margin] = '0px'
-    for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''
-    style.translate = ''
 
     // The side is chosen from what is on screen, and the anchor point is then
     // put on that edge of the cutout. **The whole of the clearance is the gap.**
@@ -299,9 +306,29 @@ export class Message {
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
     const side = sideWithRoom(box, size, room, gap)
     at(side)
-    style.setProperty('position-anchor', MESSAGE_ANCHOR)
-    style.setProperty('position-area', AREA[side])
+    this.hold(side, gap)
+  }
+
+  /**
+   * Lay the box against the marker on `side`, `gap` away from it, with an inset
+   * rather than inside an area, so no engine moves it back across the edge onto
+   * the hole — DESIGN.md, **The message**.
+   */
+  private hold(side: Side, gap: number): void {
+    const style = this.element.style
+    for (const margin of MARGINS) style[margin] = '0px'
     style[MARGIN[side]] = `${gap}px`
+    // `auto`, not cleared: a popover's UA style is `inset: 0`, and a box above
+    // its hole is then laid against the top of the viewport, and in WebKit
+    // onto the hole. `spike/an-anchored-box-out-of-room/` has the row.
+    const [inset, edge] = INSET[side]
+    for (const other of INSETS) style[other] = 'auto'
+    style[inset] = edge
+    style.justifySelf = ''
+    style.alignSelf = ''
+    style[ALONG[side]] = 'anchor-center'
+    style.translate = ''
+    style.setProperty('position-anchor', MESSAGE_ANCHOR)
 
     // Whether a browser may take an anchored box away on its own. The initial
     // value is already this, so an engine that reads the property the way the
@@ -319,14 +346,6 @@ export class Message {
     // drops, which is the degradation wanted anyway. No test holds this down:
     // Playwright's WebKit paints the box with or without it.
     style.setProperty('position-visibility', 'always')
-
-    // An enhancement, not the mechanism: `@position-try` and this property need
-    // Safari 26, and the side picked above is already the one with room.
-    // DESIGN.md, **The message**. A flip swaps the margins with the area, so
-    // the clearance written above survives it.
-    if (CSS.supports('position-try-fallbacks: flip-block')) {
-      style.setProperty('position-try-fallbacks', 'flip-block, flip-inline')
-    }
   }
 
   /**
@@ -345,10 +364,12 @@ export class Message {
    */
   private dock(room: Rect): void {
     const style = this.element.style
-    style.removeProperty('position-area')
     for (const margin of MARGINS) style[margin] = '0px'
+    style.justifySelf = ''
+    style.alignSelf = ''
     style.left = `${room.x + room.width / 2}px`
     style.top = `calc(${room.y + room.height}px - var(--leko-message-dock, 24px))`
+    style.right = 'auto'
     style.bottom = 'auto'
     style.translate = '-50% -100%'
   }
