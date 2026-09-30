@@ -107,4 +107,23 @@ export const groups: Group[] = [
       },
     ],
   },
+  {
+    label: 'Pages',
+    items: [
+      {
+        id: 'follow-a-link',
+        label: 'A step that waits for a URL',
+        line:
+          'Two links with no handler written for the tour, one through a small router and ' +
+          'one a plain hash link, and each step moves because the URL came to match.',
+      },
+      {
+        id: 'across-a-page-load',
+        label: 'A tour that crosses a page load',
+        line:
+          'A plain link loads a new page, and the tour carries on there from the first step ' +
+          'of the story the last page named.',
+      },
+    ],
+  },
 ]

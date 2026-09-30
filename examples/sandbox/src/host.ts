@@ -33,7 +33,11 @@ export interface Running {
   stories: LekoStory[]
   start(id: string): void
   stop(): void
-  /** Once per document, after the case is mounted. */
+  /**
+   * Once per document, in the same turn that ran `runCase`, before anything can
+   * be pressed — `across-a-page-load.ts` tells a picked-up start from a pressed
+   * one by that.
+   */
   pickUp(): void
   teardown(): void
 }
