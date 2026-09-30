@@ -70,6 +70,9 @@ a jump would be wrong says `scroll: false`.
   nested several scrollers deep.
 - `false` leaves the page where it is.
 
+The page's middle is the middle of what [`hostChrome`](#hostchrome) leaves of
+the screen, so a target is not brought to rest under a footer the host named.
+
 The page glides rather than jumps, for at least `duration`, and a visitor who
 scrolls during the glide takes it over. With `duration: 0` or reduced motion
 each scrollport is set outright. A step with no target, or a
@@ -199,13 +202,15 @@ createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
 ```
 
 It is read every time a step is drawn, so a bar that is not on the page at that
-moment claims nothing. It moves three things: which side of a cutout the
-message takes, where a message with no cutout sits, and which corner the
-control that ends the tour goes in.
+moment claims nothing. It moves four things: which side of a cutout the
+message takes, where a message with no cutout sits, which corner the control
+that ends the tour goes in, and, on a step that scrolls, the middle the page
+brings its target to.
 
-Name chrome that sits against an edge of the screen. For the message, each box
-is read as a band along the edge it is nearest, so something floating clear of
-every edge reserves nothing and a message can still land on it. The control
+Name chrome that sits against an edge of the screen. For the message and for
+the scroll, each box is read as a band along the edge it is nearest, so
+something floating clear of every edge reserves nothing: a message can still
+land on it, and a target be brought to rest under it. The control
 that ends the tour dodges the boxes themselves —
 [A host's own chrome is named once, and every reader takes the boxes](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-hosts-own-chrome-is-named-once-and-every-reader-takes-the-boxes).
 

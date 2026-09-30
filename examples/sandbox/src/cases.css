@@ -344,12 +344,8 @@
   cursor: pointer;
 }
 
-.case-root .pinned-row {
-  position: fixed;
-  left: calc(var(--case-inset-left) + 48px);
-  /* Clear of the console by a little, so the row itself is never under it and
-     the only thing arguing about that strip of screen is the message. */
-  bottom: 200px;
+.case-root .pinned-row,
+.case-root .buried-row {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -357,6 +353,26 @@
   border: 1px solid var(--case-line);
   border-radius: 10px;
   background: var(--case-surface);
+}
+
+.case-root .pinned-row {
+  position: fixed;
+  left: calc(var(--case-inset-left) + 48px);
+  /* Clear of the console by a little, so the row itself is never under it and
+     the only thing arguing about that strip of screen is the message. */
+  bottom: 200px;
+}
+
+/* Wholly under the console at the top of the page: the console is the log's
+   116px and a control row's, so it stands taller than the 150px this is up
+   from the foot. Absolute against the initial containing block, since nothing
+   between the stage and the root is positioned, and the padding is what gives
+   the page somewhere to scroll to. */
+.case-root .buried {
+  position: absolute;
+  top: calc(100vh - 150px);
+  left: calc(var(--case-inset-left) + 48px);
+  padding-bottom: 100vh;
 }
 
 .case-root .chrome-case .filler {

@@ -4,6 +4,7 @@ import {
   chainOf,
   originOf,
   rectWithin,
+  roomIn,
   sameSurface,
   type Surface,
   surfaceChain,
@@ -423,4 +424,11 @@ test('two glued surfaces are the same one only when they name the same scroller'
   )
   expect(sameSurface({ kind: 'viewport' }, { kind: 'document' })).toBe(false)
   expect(sameSurface({ kind: 'viewport' }, { kind: 'viewport' })).toBe(true)
+})
+
+test('roomIn with no chrome is the layout viewport', () => {
+  // A host that names no chrome has the whole of it, so everything placed in
+  // the room lands where it did before there was a room to place it in.
+  const root = document.documentElement
+  expect(roomIn([])).toEqual({ x: 0, y: 0, width: root.clientWidth, height: root.clientHeight })
 })

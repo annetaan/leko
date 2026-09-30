@@ -1,13 +1,15 @@
 import { type Case, html } from '../case.js'
 
-// What a host says once about its own chrome, and the three things it moves.
+// What a host says once about its own chrome, and the four things it moves.
 // The sandbox's footer is already named for every case — `main.ts` — and this
 // one adds a support bubble of its own to the top right corner, which is the
 // corner the way out prefers.
 //
-// Every step here is about a box of Leko's that used to land on one of the two.
-// Turn the naming off in `main.ts` and watch each of them land back on it:
-// that is the state annetaan/leko-archive#141 described.
+// Every step here is about something of Leko's that used to land on or under
+// one of the two. Turn the naming off in `main.ts` and watch each of them land
+// back on it: that is the state annetaan/leko-archive#141 described. With the
+// naming off, the last step does not move the page at all, because the row is
+// inside the viewport and the port already holds it. That is #52.
 export const hostChrome: Case = {
   id: 'host-chrome',
   title: 'Chrome the host says is its own',
@@ -15,8 +17,10 @@ export const hostChrome: Case = {
   proves:
     "Naming a host's own chrome once keeps every box Leko draws off it: the " +
     'message takes a side with room that can actually be seen, the docked ' +
-    'message sits above the footer rather than under it, and the way out ' +
-    'takes a corner the support bubble does not own.',
+    'message sits above the footer rather than under it, the way out ' +
+    'takes a corner the support bubble does not own, and a step that ' +
+    'scrolls brings its target out from under the footer rather than ' +
+    'counting it as on screen.',
 
   options: {
     // Added to the sandbox's own footer rather than replacing it, so this case
@@ -65,11 +69,21 @@ export const hostChrome: Case = {
       window.setTimeout(() => leko.reached('test-sent'), 1600)
     })
 
-    root.append(support, page, row)
+    const buried = html(`
+      <div class="buried" data-buried-wrap>
+        <div class="buried-row" data-buried>
+          <span>Monthly report</span>
+          <button type="button">Preview</button>
+        </div>
+      </div>
+    `)
+
+    root.append(support, page, row, buried)
     return () => {
       support.remove()
       page.remove()
       row.remove()
+      buried.remove()
     }
   },
 
@@ -102,6 +116,16 @@ export const hostChrome: Case = {
             'And the way out, up in the corner: the Help bubble is named ' +
             'chrome too, so the control that ends the tour has moved to the ' +
             'other side rather than sitting on top of it.',
+        },
+        {
+          id: 'buried',
+          target: '[data-buried]',
+          scroll: true,
+          message:
+            'This row was under the console. The step asks for a scroll and ' +
+            'the console is named chrome, so the row is brought to the middle ' +
+            'of what the console leaves. Unnamed, the row counts as on ' +
+            'screen and the page stays put.',
         },
       ],
     },

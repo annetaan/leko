@@ -12,13 +12,11 @@
  * making.
  */
 export {
-  chromeInsets,
   cubicBezier,
   type Cutout,
   ease,
   type Easing,
   grow,
-  inset,
   type Rect,
   type Side,
   union,
@@ -31,9 +29,9 @@ export { type HaloMode, Scrim } from './scrim.js'
 export { bringIntoView, type Glide, type ScrollMode } from './glide.js'
 export {
   chainOf,
-  layoutViewport,
   paddingBoxWithin,
   portsOf,
+  roomIn,
   sameSurface,
   type Surface,
   withinSurface,

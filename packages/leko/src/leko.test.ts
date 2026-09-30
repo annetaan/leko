@@ -1009,6 +1009,41 @@ test('a step that says nothing about scrolling leaves the page where it was', as
   window.scrollTo(0, 0)
 })
 
+/** A footer of the host's, fixed along the bottom 150px of the screen. */
+const footer = (): HTMLElement =>
+  box('footer', { left: '0', bottom: '0', width: '100%', height: '150px' })
+
+test("a step that scrolls brings its target clear of the host's chrome", async () => {
+  // On screen at a standing start, and under the footer: the whole viewport
+  // would hold it, and only the room the footer leaves does not. DESIGN.md,
+  // **The page's port is what the host's chrome leaves of the viewport**.
+  const chrome = footer()
+  const target = belowTheFold(port().height - 100)
+
+  start([{ id: 'under', target: { elements: () => target, interactive: true }, scroll: true }], {
+    hostChrome: () => chrome,
+  })
+  await framed()
+
+  const r = target.getBoundingClientRect()
+  expect(r.bottom).toBeLessThan(chrome.getBoundingClientRect().top)
+  expect((r.top + r.bottom) / 2).toBeCloseTo((port().height - 150) / 2, -1)
+  window.scrollTo(0, 0)
+})
+
+test("a target under the host's chrome is drawn where it is when nothing asked for a scroll", async () => {
+  const chrome = footer()
+  const target = belowTheFold(port().height - 100)
+
+  start([{ id: 'under', target: { elements: () => target, interactive: true } }], {
+    hostChrome: () => chrome,
+  })
+  await framed()
+
+  expect(window.scrollY).toBe(0)
+  window.scrollTo(0, 0)
+})
+
 test("the step's padding is part of the box the page is brought to", async () => {
   // Which box leads with its top edge, and where that edge goes, is arithmetic
   // `geometry.test.ts` asks of `scrollDelta` — this is the wiring: that the

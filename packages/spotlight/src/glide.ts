@@ -71,22 +71,32 @@ export type ScrollMode = 'direct' | 'staged'
  * checks it, and a hole spread across scrollers lands wherever scrolling the
  * first element's puts the rest.
  *
- * `room` is the hole's own overhang — the step's `padding` — so what is brought
- * in is the cutout rather than the bare box, and `scroll-margin` on the first
- * element wins over it wherever it asks for more. DESIGN.md,
+ * `padding` is the hole's own overhang, so what is brought in is the cutout
+ * rather than the bare box, and `scroll-margin` on the first element wins over
+ * it wherever it asks for more. DESIGN.md,
  * **`scroll-margin` on the target wins over the step's `padding`**.
+ *
+ * `room` is the document's port: what the host's chrome leaves of the viewport,
+ * which is `roomIn` in `surface.ts`. A nested panel's port is its own client
+ * box whatever `room` says. DESIGN.md,
+ * **The page's port is what the host's chrome leaves of the viewport**.
  */
 export function bringIntoView(
   lit: readonly [Element, ...Element[]],
-  room: number,
+  padding: number,
   duration: number,
   mode: ScrollMode,
   easing: Easing,
+  room: Rect,
 ): Glide | undefined {
   return mode === 'staged'
-    ? staged(lit, room, duration, easing)
-    : direct(lit, room, duration, easing)
+    ? staged(lit, padding, duration, easing, room)
+    : direct(lit, padding, duration, easing, room)
 }
+
+/** The port a surface brings a box into. The document's is the room the host left. */
+const portIn = (surface: Surface, room: Rect): Rect | undefined =>
+  surface.kind === 'document' ? room : scrollportOf(surface)
 
 /**
  * The page glides and every panel inside it is set outright, innermost first.
@@ -106,14 +116,15 @@ export function bringIntoView(
  */
 function direct(
   lit: readonly [Element, ...Element[]],
-  room: number,
+  padding: number,
   duration: number,
   easing: Easing,
+  room: Rect,
 ): Glide | undefined {
   const [anchor] = lit
-  const asked = roomAround(anchor, room)
+  const asked = roomAround(anchor, padding)
   for (const surface of surfaceChain(anchor)) {
-    const port = scrollportOf(surface)
+    const port = portIn(surface, room)
     if (!port) continue
     const delta = scrollDelta(outset(around(lit), asked), port)
     if (delta.x === 0 && delta.y === 0) continue
@@ -152,16 +163,17 @@ function direct(
  */
 function staged(
   lit: readonly [Element, ...Element[]],
-  room: number,
+  padding: number,
   duration: number,
   easing: Easing,
+  room: Rect,
 ): Glide | undefined {
   const [anchor] = lit
   const ports = surfaceChain(anchor).flatMap((surface) => {
-    const port = scrollportOf(surface)
+    const port = portIn(surface, room)
     return port ? [{ surface, port, from: offsetOf(surface), limit: limitOf(surface) }] : []
   })
-  const destinations = scrollStages(outset(around(lit), roomAround(anchor, room)), ports)
+  const destinations = scrollStages(outset(around(lit), roomAround(anchor, padding)), ports)
   const stages = ports
     .map(({ surface, from }, i) => ({ surface, from, to: destinations[i]! }))
     .filter(({ from, to }) => to.x !== from.x || to.y !== from.y)
