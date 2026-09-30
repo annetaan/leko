@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { follow } from './follow.js'
-import type { Cutout } from './geometry.js'
+import { type Cutout, sameCutouts } from './geometry.js'
 
 // The loop on its own, with the page's part of it faked: a plain `EventTarget`
 // for a port and a function for the boxes. What is pinned here is when it runs
@@ -44,6 +44,7 @@ test('a scroll starts it, and it parks once the boxes stop moving', async () => 
     () => boxes,
     (cutouts) => written.push(cutouts),
     [port],
+    sameCutouts,
   )
 
   // Nothing has scrolled, so there is no frame to spend.
@@ -83,6 +84,7 @@ test('it writes nothing while the boxes are still', async () => {
     () => [hole(0)],
     (cutouts) => written.push(cutouts),
     [port],
+    sameCutouts,
   )
 
   // A scroll that leaves the target where the draw found it — a port scrolled
@@ -103,6 +105,7 @@ test('stop() takes the listeners off', async () => {
     () => boxes,
     (cutouts) => written.push(cutouts),
     [port],
+    sameCutouts,
   )
 
   following.stop()
@@ -122,6 +125,7 @@ test('a target that has left the page stops it, and what was drawn stays drawn',
     () => boxes,
     (cutouts) => written.push(cutouts),
     [port],
+    sameCutouts,
   )
 
   boxes = undefined
@@ -134,4 +138,34 @@ test('a target that has left the page stops it, and what was drawn stays drawn',
   port.dispatchEvent(new Event('scroll'))
   await tick(4)
   expect(written).toHaveLength(0)
+})
+
+test('stillness is judged by the predicate it is given', async () => {
+  vi.useFakeTimers()
+  const port = new EventTarget()
+  interface Reading {
+    judged: number
+    carried: number
+  }
+  let now: Reading = { judged: 0, carried: 0 }
+  const written: Reading[] = []
+  follow(
+    { judged: 0, carried: 0 },
+    () => now,
+    (reading) => written.push(reading),
+    [port],
+    (a, b) => a.judged === b.judged,
+  )
+
+  // What the predicate does not look at is not a change.
+  now = { judged: 0, carried: 5 }
+  port.dispatchEvent(new Event('scroll'))
+  await tick(4)
+  expect(written).toHaveLength(0)
+
+  // What it does look at is, and the write carries the rest as it is now.
+  now = { judged: 1, carried: 7 }
+  port.dispatchEvent(new Event('scroll'))
+  await tick(4)
+  expect(written).toEqual([{ judged: 1, carried: 7 }])
 })

@@ -54,7 +54,10 @@ const appears = () => vi.waitUntil(visible)
  * The tests that are about *being beside it* say so rather than failing on a
  * browser that degraded.
  */
-const anchors = CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
+const anchors =
+  CSS.supports('anchor-name: --a') &&
+  CSS.supports('top: anchor(bottom)') &&
+  CSS.supports('justify-self: anchor-center')
 
 test('the step message is on screen, and above the scrim', async () => {
   box('target', { left: '100px', top: '100px', width: '160px', height: '48px' })
@@ -131,6 +134,72 @@ test.runIf(anchors)(
     expect(overlaps(note, rect(second))).toBe(false)
   },
 )
+
+test.runIf(anchors)(
+  'the message stays off an opened hole when its words change after a scroll',
+  async () => {
+    // In the document's own scroll rather than fixed, so the scroll carries the
+    // marker and the box above it off the top of the screen. Chromium with
+    // fallbacks set, and Firefox, then shift a box held inside an area back onto
+    // the hole the next time it is laid out, which the error is — DESIGN.md,
+    // **The message**.
+    const block = keep(document.createElement('div'))
+    const lead = document.createElement('div')
+    const height = innerHeight - 80
+    lead.style.height = `${height}px`
+    const target = document.createElement('button')
+    target.textContent = 'target'
+    Object.assign(target.style, { display: 'block', height: '48px' })
+    const tail = document.createElement('div')
+    tail.style.height = '3000px'
+    block.append(lead, target, tail)
+    document.body.append(block)
+    window.scrollTo(0, 0)
+
+    start([
+      {
+        id: 'one',
+        target: { elements: () => target, interactive: true },
+        message: 'Type your name.',
+        validate: () => false,
+        error: 'A name, not a number.',
+      },
+      { id: 'two', target: { elements: () => target, interactive: true } },
+    ])
+    await framed()
+    await appears()
+    // Above, because the target starts too near the foot for the box to fit below.
+    expect(rect(message()!).bottom).toBeLessThanOrEqual(rect(target).top)
+
+    window.scrollTo(0, height - 40)
+    await frame()
+    press()
+    await framed()
+
+    expect(error()?.textContent).toBe('A name, not a number.')
+    expect(overlaps(rect(message()!), rect(target))).toBe(false)
+    window.scrollTo(0, 0)
+  },
+)
+
+test.runIf(anchors)('the message stays off a hole where no side has room', async () => {
+  // Every engine shifts a box held inside an area onto the hole at the draw,
+  // where the document cannot scroll. Held with an inset, it runs off the
+  // screen instead — DESIGN.md, **The message**.
+  const target = box('target', {
+    left: '8px',
+    top: '40px',
+    width: 'calc(100vw - 16px)',
+    height: 'calc(100vh - 80px)',
+  })
+  start([
+    { id: 'one', target: { elements: () => target, interactive: true }, message: 'Press it.' },
+  ])
+  await framed()
+  await appears()
+
+  expect(overlaps(rect(message()!), rect(target))).toBe(false)
+})
 
 test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {
   // No selector reaches in here, and neither does an `anchor-name` — DESIGN.md,

@@ -31,6 +31,7 @@ tell you what you are allowed to assume.
 | [`a-cross-document-navigation/`](a-cross-document-navigation/) | What can a document being left still say — does `pagehide` fire before the next document's script runs, does a `sessionStorage` write made there survive to be read, and does the same-document mechanism ever fire for a navigation that leaves the document? |
 | [`a-hole-at-a-fractional-edge/`](a-hole-at-a-fractional-edge/) | Do a mask hole and a box laid on it meet at a fractional edge, and on what rectangle do they? |
 | [`a-render-before-the-frame/`](a-render-before-the-frame/) | Does a render beat the next frame? |
+| [`an-anchored-box-out-of-room/`](an-anchored-box-out-of-room/) | Where does an anchored box go once the side it is on has no room, and can it be kept from sliding onto the hole? |
 
 ## Reading them
 

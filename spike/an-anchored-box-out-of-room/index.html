@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Where does an anchored box go once its side has no room?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 24px 24px 40px;
+    font: 14px/1.6 system-ui, sans-serif;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 26px 0 6px; }
+  p, li { margin: 0 0 12px; max-width: 76ch; color: #666; }
+  @media (prefers-color-scheme: dark) { p, li { color: #a8a8a8; } }
+
+  /* Where every case is drawn. While the page measures, everything else on it
+     is taken out of the layout, and `#flow`, an empty block in the flow,
+     alone decides how tall the document is: exactly one viewport where the
+     document must not be able to scroll, three for the rest. Whether the
+     document can scroll decides what two engines do at the draw, so it is set
+     per event rather than left to however long the prose is. The stage is
+     laid over the top of the document, so an offset on it is a viewport
+     offset at scroll 0. */
+  #stage { position: absolute; top: 0; left: 0; right: 0; height: 0; pointer-events: none; }
+  #stage[hidden], #flow[hidden] { display: none; }
+  body.measuring { padding: 0; }
+  body.measuring > :not(#stage, #box, #flow) { display: none; }
+
+  /* The hole. Painted, not cut: whether the box lands on it is a question of
+     two rectangles, and nothing here has to be seen through. */
+  #hole {
+    position: absolute; left: calc(50% - 200px); width: 400px;
+    background: #2f6fed33; outline: 2px solid #2f6fed; outline-offset: -2px;
+  }
+
+  /* Zero-area, exactly as Leko's is, and in the scrolling document, where
+     Leko's lives. It sits on the edge of the hole the box is beside. */
+  #marker { position: absolute; left: 50%; width: 0; height: 0; anchor-name: --spike-marker; }
+
+  /* The box. A popover, as Leko's message is, so it is in the top layer and
+     fixed to the viewport, with the UA's `inset: 0` and `margin: auto` until a
+     spelling says otherwise. */
+  #box {
+    width: 280px; margin: 0; padding: 12px 16px;
+    border: none; border-radius: 8px;
+    background: #fff; color: #16181d;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+    font: 500 14px/1.5 system-ui, sans-serif;
+    position-anchor: --spike-marker;
+    position-visibility: always;
+  }
+
+  table { border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  th, td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid #8883; white-space: nowrap; }
+  td { font-family: ui-monospace, monospace; }
+  th { font-weight: 600; }
+  .yes { color: #0a7d32; font-weight: 700; }
+  .no { color: #c62828; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .yes { color: #6ee79b; } .no { color: #ff8a80; } }
+  button {
+    padding: 7px 13px; border: 1px solid transparent; border-radius: 6px;
+    background: #2f6fed; color: #fff; font: inherit; cursor: pointer;
+  }
+  .readout { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Where does an anchored box go once the side it is on has no room?</h1>
+<p>
+  A box anchored to a zero-area marker on the edge of a hole is meant to stay
+  on that side of the edge, whatever the scroll does. The question is what the
+  browser does once that side has no room for it — at the draw, after a
+  scroll, after the box's words change, and after the marker is moved by a
+  style write, the way a loop that follows a pinned target moves it — and
+  whether any spelling keeps the box off the hole in all of them.
+</p>
+<p>Four spellings, each drawn and put through the same six events:</p>
+<ul>
+  <li>
+    <strong>area</strong> — <code>position-area: bottom center</code> (or
+    <code>top center</code>) with the gap as a margin toward the hole.
+  </li>
+  <li>
+    <strong>area + fallbacks</strong> — the same, plus
+    <code>position-try-fallbacks: flip-block, flip-inline</code>.
+  </li>
+  <li>
+    <strong>inset</strong> — <code>top: anchor(bottom)</code> (or
+    <code>bottom: anchor(top)</code>) with
+    <code>justify-self: anchor-center</code>, <code>auto</code> on the other
+    three insets, the same margin, and no fallbacks.
+  </li>
+  <li>
+    <strong>inset, no autos</strong> — the same without the
+    <code>auto</code>s, so the popover's UA <code>inset: 0</code> holds the
+    other three edges.
+  </li>
+</ul>
+<p>
+  Every cell is the box's vertical extent on screen and a verdict:
+  <strong>on the hole</strong> where the box and the hole overlap at all, and
+  <strong>clear</strong> where they do not. A box that is clear may still be
+  off screen; that is the price the question is about, and the extent says
+  where it went.
+</p>
+
+<p><button id="measure">Measure</button> <span id="env" class="readout"></span></p>
+
+<h2>The events</h2>
+<p>
+  The first three are the same draw: the hole runs from 40px below the top of
+  the viewport to 40px above its foot, the box is drawn below it, and no side
+  has room. They differ only in the document around it.
+</p>
+<ol>
+  <li>
+    <strong>no room, cannot scroll</strong> — the document is exactly one
+    viewport tall.
+  </li>
+  <li>
+    <strong>no room, at scroll 0</strong> — the document is three viewports
+    tall, made so by a block in its flow, and has not been scrolled. Events 3
+    to 6 are in this document too.
+  </li>
+  <li>
+    <strong>no room, scrolled first</strong> — the same document, scrolled by
+    a viewport's height before the draw, with the hole at the same place on
+    screen.
+  </li>
+  <li>
+    <strong>scrolled out of room</strong> — at scroll 0, a 200px hole drawn
+    400px down with the box above it, where there is room, and the document
+    then scrolled until the hole's top edge is 40px from the top of the
+    viewport.
+  </li>
+  <li>
+    <strong>words changed</strong> — after that, the box's text is replaced
+    with a longer one, so it is laid out again.
+  </li>
+  <li>
+    <strong>marker moved</strong> — event 4 drawn afresh, and then, instead of
+    the words changing, the hole and the marker both moved 20px up by writing
+    their <code>top</code>, with no scroll.
+  </li>
+</ol>
+<table id="verdicts"></table>
+
+<div id="stage" hidden>
+  <div id="hole"></div>
+  <div id="marker"></div>
+</div>
+<div id="box" popover="manual"></div>
+<div id="flow" hidden></div>
+
+<script>
+const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+const round = (n) => Math.round(n)
+const GAP = 12
+const SHORT = 'Choose a filter to narrow the list. The rows below follow it.'
+const LONG =
+  SHORT +
+  ' This sentence was added after the scroll, so the box is laid out again at a new height' +
+  ' while its side still has no room.'
+
+const stage = document.getElementById('stage')
+const hole = document.getElementById('hole')
+const marker = document.getElementById('marker')
+const box = document.getElementById('box')
+const flow = document.getElementById('flow')
+
+const spellings = [
+  { key: 'area', label: 'area' },
+  { key: 'fallbacks', label: 'area + fallbacks' },
+  { key: 'inset', label: 'inset' },
+  { key: 'bare', label: 'inset, no autos' },
+]
+const events = [
+  'no room, cannot scroll',
+  'no room, at scroll 0',
+  'no room, scrolled first',
+  'scrolled out of room',
+  'words changed',
+  'marker moved',
+]
+
+const MARGIN = { bottom: 'marginTop', top: 'marginBottom' }
+
+function spell(key, side) {
+  const s = box.style
+  for (const p of ['position-area', 'position-try-fallbacks', 'justify-self', 'top', 'bottom', 'left', 'right'])
+    s.removeProperty(p)
+  s.margin = '0px'
+  s[MARGIN[side]] = `${GAP}px`
+  if (key === 'area' || key === 'fallbacks') {
+    s.setProperty('position-area', `${side} center`)
+    if (key === 'fallbacks') s.setProperty('position-try-fallbacks', 'flip-block, flip-inline')
+  } else {
+    // The `auto`s are what the fourth spelling leaves out, to show they are
+    // not decoration: without them the popover's UA `inset: 0` holds the
+    // other three edges.
+    if (key === 'inset') s.top = s.bottom = s.left = s.right = 'auto'
+    if (side === 'bottom') s.setProperty('top', 'anchor(bottom)')
+    else s.setProperty('bottom', 'anchor(top)')
+    s.setProperty('justify-self', 'anchor-center')
+  }
+}
+
+// Puts the hole and the marker at `y` px below the top of the viewport while
+// the document is scrolled to `scroll`.
+function holeAt(scroll, y, height, side) {
+  const top = scroll + y
+  hole.style.top = `${top}px`
+  hole.style.height = `${height}px`
+  marker.style.top = `${side === 'bottom' ? top + height : top}px`
+}
+
+function cell() {
+  const b = box.getBoundingClientRect()
+  const h = hole.getBoundingClientRect()
+  const overlaps =
+    Math.min(b.bottom, h.bottom) - Math.max(b.top, h.top) > 0.5 &&
+    Math.min(b.right, h.right) - Math.max(b.left, h.left) > 0.5
+  return {
+    box: [round(b.top), round(b.bottom)],
+    hole: [round(h.top), round(h.bottom)],
+    marker: round(marker.getBoundingClientRect().top),
+    scrolls: document.documentElement.scrollHeight > innerHeight,
+    onHole: overlaps,
+  }
+}
+
+async function scrollPage(y) {
+  window.scrollTo(0, y)
+  await settle()
+  await settle()
+}
+
+async function draw(key, side) {
+  box.hidePopover()
+  box.textContent = SHORT
+  spell(key, side)
+  box.showPopover()
+  await settle()
+  await settle()
+}
+
+// Sets how far the document can scroll: `pages` viewports tall in all, and
+// made that tall by content in the flow.
+async function documentOf(pages) {
+  flow.style.height = `${innerHeight * pages}px`
+  await settle()
+}
+
+async function run(key) {
+  const H = innerHeight
+  const cells = []
+
+  // 1–3. No side has room at the draw. The box is drawn below a hole that
+  // leaves 40px at the foot of the viewport, and is taller than that.
+  const noRoom = async (pages, scroll) => {
+    await documentOf(pages)
+    await scrollPage(scroll)
+    holeAt(scroll, 40, H - 80, 'bottom')
+    await draw(key, 'bottom')
+    cells.push(cell())
+  }
+  await noRoom(1, 0)
+  await noRoom(3, 0)
+  await noRoom(3, H)
+
+  // 4. Room above at the draw, and then none after a scroll.
+  const outOfRoom = async () => {
+    await documentOf(3)
+    await scrollPage(0)
+    holeAt(0, 400, 200, 'top')
+    await draw(key, 'top')
+    await scrollPage(360)
+  }
+  await outOfRoom()
+  cells.push(cell())
+
+  // 5. The words change after that.
+  box.textContent = LONG
+  await settle()
+  await settle()
+  cells.push(cell())
+
+  // 6. Event 4 again, and then the marker is moved by a style write, the hole
+  // with it. From a fresh draw, so that nothing 5 did is carried into it.
+  await outOfRoom()
+  holeAt(window.scrollY, 20, 200, 'top')
+  await settle()
+  await settle()
+  cells.push(cell())
+
+  box.hidePopover()
+  return cells
+}
+
+// One at a time: the page measures itself on load and again on the button, and
+// `run.mjs` asks as well. Two of these interleaved would read each other's
+// scroll.
+let running = Promise.resolve()
+function measure() {
+  running = running.then(read)
+  return running
+}
+
+async function read() {
+  const supported = {
+    anchor: CSS.supports('anchor-name: --a'),
+    area: CSS.supports('position-area: bottom center'),
+    inset: CSS.supports('top: anchor(bottom)') && CSS.supports('justify-self: anchor-center'),
+    fallbacks: CSS.supports('position-try-fallbacks: flip-block'),
+  }
+  stage.hidden = flow.hidden = false
+  document.body.classList.add('measuring')
+  const rows = []
+  for (const s of spellings) rows.push({ label: s.label, key: s.key, cells: await run(s.key) })
+  document.body.classList.remove('measuring')
+  stage.hidden = flow.hidden = true
+  await scrollPage(0)
+  const all = { viewport: `${innerWidth}×${innerHeight}`, supported, rows }
+  render(all)
+  return all
+}
+
+function render(all) {
+  const head =
+    '<tr><th>spelling</th>' + events.map((e, i) => `<th>${i + 1}. ${e}</th>`).join('') + '</tr>'
+  const holes =
+    '<tr><td>the hole</td>' +
+    all.rows[0].cells.map((c) => `<td>${c.hole[0]}–${c.hole[1]}</td>`).join('') +
+    '</tr><tr><td>the document scrolls</td>' +
+    all.rows[0].cells.map((c) => `<td>${c.scrolls ? 'yes' : 'no'}</td>`).join('') +
+    '</tr>'
+  const body = all.rows
+    .map(
+      (r) =>
+        `<tr><td>${r.label}</td>` +
+        r.cells
+          .map(
+            (c) =>
+              `<td class="${c.onHole ? 'no' : 'yes'}">${c.box[0]}–${c.box[1]} · ${c.onHole ? 'on the hole' : 'clear'}</td>`,
+          )
+          .join('') +
+        '</tr>',
+    )
+    .join('')
+  const missing = Object.entries(all.supported)
+    .filter(([, yes]) => !yes)
+    .map(([name]) => name)
+  document.getElementById('verdicts').innerHTML =
+    head +
+    holes +
+    body +
+    `<tr><td>viewport</td><td colspan="${events.length}">${all.viewport}` +
+    (missing.length ? ` — not supported here: ${missing.join(', ')}` : '') +
+    '</td></tr>'
+}
+
+document.getElementById('env').textContent = navigator.userAgent
+document.getElementById('measure').addEventListener('click', () => void measure())
+window.spikeAnchoredBox = { measure }
+void measure()
+</script>
+
+</body>
+</html>

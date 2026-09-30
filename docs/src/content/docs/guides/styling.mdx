@@ -109,8 +109,9 @@ const steps: LekoStep[] = [
 
 No property puts the message on one side of its hole or the way out in one
 corner. Beside a hole, the message takes a side with room for it, or the
-bottom where no side has room, chosen once per step from the part of the
-viewport the page leaves free —
+bottom where no side has room. It is chosen when the step is drawn, from the
+part of the viewport the page leaves free, and chosen again for a sticky target
+once the side it has runs out of room —
 [The message](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-message).
 The way out takes a corner no hole covers, or the least covered one where every
 corner is —

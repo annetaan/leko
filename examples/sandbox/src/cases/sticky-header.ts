@@ -45,8 +45,9 @@ const story = {
         'The hero is still above the bar, so the bar is riding the page ' +
         'and this hole is cut in the page. Scroll down until the bar ' +
         'stops at the top of the screen: the hole comes with it across ' +
-        'the pin and stays on the button. Scroll back up and press Only ' +
-        'mine.',
+        'the pin and stays on the button, and once there is no room above ' +
+        'the bar this message moves below it. Scroll back up and press ' +
+        'Only mine.',
     },
     {
       id: 'pinned',
@@ -91,7 +92,8 @@ export const stickyHeader: Case = {
     'A sticky target is drawn in flow while it rides and glued to its ' +
     'scrollport once it pins, and a frame loop keeps the hole under it either ' +
     'way — so the hole follows the target across the pin whichever side of it ' +
-    'the step was drawn on.',
+    'the step was drawn on, and the message moves to a side with room when ' +
+    'the one it had runs out.',
 
   mount(root) {
     const page = html(`

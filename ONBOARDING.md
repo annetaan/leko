@@ -227,7 +227,7 @@ This is the trace worth walking with the files open. The application calls
 | 10 | `scrim.ts` `block` | Puts the blocking rectangles where the cutouts are not |
 | 11 | `plan.ts` the `morphed` event, then `presenter.ts` `say` | The morph finished, so the plan owes the words — whatever the step has been told by now — and `say` puts them beside the hole |
 | 12 | `message.ts` `Message.show` | Fills the box, opens the popover, takes the anchor |
-| 13 | `message.ts` `place` | Picks a side from viewport measurements and writes `position-area` |
+| 13 | `message.ts` `place` | Picks a side; writes its inset |
 | 14 | `plan.ts` the `drawn` event, then `machine.ts` `perform` | Owes the report and makes it. The instance's `onStep`, told which story |
 
 Steps 5 and 14 are the pair to hold on to. The move is reported after it

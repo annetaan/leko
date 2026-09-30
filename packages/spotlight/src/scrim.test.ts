@@ -189,7 +189,7 @@ test('a follow armed during a morph waits for the morph to end', async () => {
   let asked = 0
   scrim.follow(() => {
     asked += 1
-    return [hole(200)]
+    return { cutouts: [hole(200)], onScreen: [hole(200)] }
   }, [port])
 
   scrim.morph([hole(100)], MORPH, ease)
@@ -212,7 +212,7 @@ test('a shake gives the follow back when it ends', async () => {
   let asked = 0
   scrim.follow(() => {
     asked += 1
-    return [hole(200)]
+    return { cutouts: [hole(200)], onScreen: [hole(200)] }
   }, [port])
   scrim.set([hole(0)])
 

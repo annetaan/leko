@@ -11,6 +11,7 @@ import {
   type MessageContent,
   paddingBoxWithin,
   portsOf,
+  type Reading,
   type Rect,
   type ResolveMode,
   resolveTarget,
@@ -557,25 +558,31 @@ export class DomPresenter implements Presenter<LekoWorld> {
     for (const layer of this.layers) layer.resize()
     this.cutOuterLayers(outer)
     if (sticky && holes.length > 0) {
-      inner.follow(() => this.holesNow(step, holes, inner), portsOf(chain))
+      inner.follow(
+        () => this.holesNow(step, holes, inner),
+        portsOf(chain),
+        (now) => this.popovers?.message.keep(now),
+      )
     }
     return { inner, holes, resolved, onScreen, chrome, room: roomIn(chrome), seen }
   }
 
   /**
    * Where this step's holes are on screen right now, in the innermost layer's
-   * own space — the question a frame of the follow puts to the page, and the
-   * same two lines {@link measure} asks in its read pass.
+   * own space and on screen, from the same read — the question a frame of the
+   * follow puts to the page, and the same two lines {@link measure} asks in its
+   * read pass.
    *
    * `undefined` where the target has left the page, which is what stops the
    * loop. The elements are asked rather than the step's `target` resolved
    * again: a hole is the elements the draw found, and a step is not re-resolved
    * between draws.
    */
-  private holesNow(step: LekoStep, holes: readonly Hole[], inner: Scrim): Cutout[] | undefined {
+  private holesNow(step: LekoStep, holes: readonly Hole[], inner: Scrim): Reading | undefined {
     const gone = holes.some(({ elements }) => elements.some((el) => !el.isConnected))
     if (gone) return undefined
-    return withinSurface(inner.surface, this.cutouts(step, holes))
+    const onScreen = this.cutouts(step, holes)
+    return { cutouts: withinSurface(inner.surface, onScreen), onScreen }
   }
 
   /** Size every standing layer to its surface as it is now. Reads all, then writes all. */

@@ -1,4 +1,4 @@
-import { type Rect, type Side, sideWithRoom, union } from './geometry.js'
+import { type Rect, type Side, SIDES, sideWithRoom, union } from './geometry.js'
 import { prefersReducedMotion } from './motion.js'
 import { MESSAGE_ANCHOR } from './scrim.js'
 
@@ -10,12 +10,22 @@ const FADE = 120
  * viewport coordinates, so the value written has to mean the same thing those
  * measurements did, whatever the writing mode.
  */
-const AREA: Record<Side, string> = {
-  bottom: 'bottom center',
-  top: 'top center',
-  right: 'right center',
-  left: 'left center',
-}
+const INSET = {
+  bottom: ['top', 'anchor(bottom)'],
+  top: ['bottom', 'anchor(top)'],
+  right: ['left', 'anchor(right)'],
+  left: ['right', 'anchor(left)'],
+} as const
+
+const INSETS = ['top', 'bottom', 'left', 'right'] as const
+
+/** The alignment that centres the box along the edge it is held against. */
+const ALONG = {
+  bottom: 'justifySelf',
+  top: 'justifySelf',
+  right: 'alignSelf',
+  left: 'alignSelf',
+} as const
 
 const MARGIN = {
   bottom: 'marginTop',
@@ -41,7 +51,9 @@ export interface MessageContent {
  * it is missing the message still has to appear — see {@link Message.dock}.
  */
 const canAnchor = (): boolean =>
-  CSS.supports('anchor-name: --a') && CSS.supports('position-area: bottom center')
+  CSS.supports('anchor-name: --a') &&
+  CSS.supports('top: anchor(bottom)') &&
+  CSS.supports('justify-self: anchor-center')
 
 /**
  * The step's message, placed beside its cutout.
@@ -53,7 +65,8 @@ const canAnchor = (): boolean =>
  * Scrolling is still nobody's job here: an anchor-positioned element is offset
  * by the scroll of everything between it and its anchor, by the browser, with no
  * script involved. JS only picks the *side* — once per step, from measurements
- * it already has — and the browser keeps it there.
+ * it already has, and again where a sticky target's follow leaves it no room,
+ * {@link Message.keep} — and the browser keeps it there.
  *
  * **What it anchors to is a marker of Leko's own, never the target.** The scrim
  * owns it and puts it on the edge of the cutout; see `Scrim.anchorAt`.
@@ -69,6 +82,20 @@ export class Message {
   private open = false
   private shown = false
   private pressed = false
+  /**
+   * What the box was placed beside a hole with, kept so {@link keep} can judge
+   * the side again without reading layout, or `undefined` while it is docked,
+   * hidden or not yet placed.
+   */
+  private placed:
+    | {
+        side: Side
+        gap: number
+        room: Rect
+        size: { width: number; height: number }
+        at: (side: Side) => void
+      }
+    | undefined
 
   /**
    * `next` is called when the control is pressed. The box knows nothing about
@@ -190,6 +217,8 @@ export class Message {
     room: Rect,
     at?: (side: Side) => void,
   ): void {
+    // Before `fill`, so its words do not re-measure a box `place` is about to.
+    this.placed = undefined
     this.fill(content)
     this.mount()
     this.place(cutouts, gap, room, at)
@@ -245,16 +274,49 @@ export class Message {
     el.style.display = on ? display : 'none'
   }
 
-  /** Replace the instruction without moving anything. */
+  /**
+   * Replace the instruction without moving anything. The size a later
+   * {@link keep} judges with follows the words.
+   */
   setText(text: string): void {
     this.text.textContent = text
     Message.toggle(this.text, text !== '', 'block')
+    this.resize()
   }
 
-  /** Replace the reason the last attempt failed, without moving anything. */
+  /**
+   * Replace the reason the last attempt failed, without moving anything. The
+   * size a later {@link keep} judges with follows the words.
+   */
   setError(error: string): void {
     this.error.textContent = error
     Message.toggle(this.error, error !== '', 'block')
+    this.resize()
+  }
+
+  /** One read per change of words, and never on the scroll path. */
+  private resize(): void {
+    if (!this.placed) return
+    this.placed.size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
+  }
+
+  /**
+   * Called on a frame of a sticky target's follow that moved the holes, with
+   * where they are now on screen. The box keeps its side while that side has
+   * room, and otherwise takes the first side that has. Reads no layout: the
+   * size is the one the words last left and the room is the draw's. DESIGN.md,
+   * **A sticky target's hole is corrected on a frame loop, and that is the only
+   * exception to the ban**.
+   */
+  keep(onScreen: readonly Rect[]): void {
+    const placed = this.placed
+    const box = union(onScreen)
+    if (!placed || !box) return
+    const side = sideWithRoom(box, placed.size, placed.room, placed.gap, [placed.side, ...SIDES])
+    if (side === placed.side) return
+    placed.side = side
+    placed.at(side)
+    this.hold(side, placed.gap)
   }
 
   /**
@@ -266,6 +328,7 @@ export class Message {
    * cutout has arrived.
    */
   hide(): void {
+    this.placed = undefined
     Object.assign(this.element.style, {
       transition: '',
       visibility: 'hidden',
@@ -281,16 +344,11 @@ export class Message {
     room: Rect,
     at: ((side: Side) => void) | undefined,
   ): void {
-    const style = this.element.style
     const box = union(cutouts)
     // No cutouts, or nowhere to put the anchor, is a step that points at
     // nothing: there is no hole to sit beside, so the box goes where it goes
     // when the browser cannot track one either.
     if (!this.anchored || !box || !at) return this.dock(room)
-
-    for (const margin of MARGINS) style[margin] = '0px'
-    for (const inset of ['left', 'top', 'right', 'bottom'] as const) style[inset] = ''
-    style.translate = ''
 
     // The side is chosen from what is on screen, and the anchor point is then
     // put on that edge of the cutout. **The whole of the clearance is the gap.**
@@ -299,9 +357,30 @@ export class Message {
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
     const side = sideWithRoom(box, size, room, gap)
     at(side)
-    style.setProperty('position-anchor', MESSAGE_ANCHOR)
-    style.setProperty('position-area', AREA[side])
+    this.hold(side, gap)
+    this.placed = { side, gap, room, size, at }
+  }
+
+  /**
+   * Lay the box against the marker on `side`, `gap` away from it, with an inset
+   * rather than inside an area, so no engine moves it back across the edge onto
+   * the hole — DESIGN.md, **The message**.
+   */
+  private hold(side: Side, gap: number): void {
+    const style = this.element.style
+    for (const margin of MARGINS) style[margin] = '0px'
     style[MARGIN[side]] = `${gap}px`
+    // `auto`, not cleared: a popover's UA style is `inset: 0`, and a box above
+    // its hole is then laid against the top of the viewport, and in WebKit
+    // onto the hole. `spike/an-anchored-box-out-of-room/` has the row.
+    const [inset, edge] = INSET[side]
+    for (const other of INSETS) style[other] = 'auto'
+    style[inset] = edge
+    style.justifySelf = ''
+    style.alignSelf = ''
+    style[ALONG[side]] = 'anchor-center'
+    style.translate = ''
+    style.setProperty('position-anchor', MESSAGE_ANCHOR)
 
     // Whether a browser may take an anchored box away on its own. The initial
     // value is already this, so an engine that reads the property the way the
@@ -319,14 +398,6 @@ export class Message {
     // drops, which is the degradation wanted anyway. No test holds this down:
     // Playwright's WebKit paints the box with or without it.
     style.setProperty('position-visibility', 'always')
-
-    // An enhancement, not the mechanism: `@position-try` and this property need
-    // Safari 26, and the side picked above is already the one with room.
-    // DESIGN.md, **The message**. A flip swaps the margins with the area, so
-    // the clearance written above survives it.
-    if (CSS.supports('position-try-fallbacks: flip-block')) {
-      style.setProperty('position-try-fallbacks', 'flip-block, flip-inline')
-    }
   }
 
   /**
@@ -344,16 +415,20 @@ export class Message {
    * on that line is its lower edge.
    */
   private dock(room: Rect): void {
+    this.placed = undefined
     const style = this.element.style
-    style.removeProperty('position-area')
     for (const margin of MARGINS) style[margin] = '0px'
+    style.justifySelf = ''
+    style.alignSelf = ''
     style.left = `${room.x + room.width / 2}px`
     style.top = `calc(${room.y + room.height}px - var(--leko-message-dock, 24px))`
+    style.right = 'auto'
     style.bottom = 'auto'
     style.translate = '-50% -100%'
   }
 
   destroy(): void {
+    this.placed = undefined
     if (this.open) this.element.hidePopover?.()
     this.open = false
     this.element.remove()

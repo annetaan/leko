@@ -21,6 +21,7 @@ import {
   said,
   scrim,
   shown,
+  sideOf,
   start,
   stopped,
   TICK,
@@ -737,6 +738,25 @@ function stickyBar(): HTMLElement {
   return bar
 }
 
+/**
+ * A bar 60px from the foot of the screen at the draw, so the message goes above
+ * it, with a long page under it to scroll.
+ */
+function footBar(position: 'sticky' | 'static'): { bar: HTMLElement; lead: number } {
+  const block = keep(document.createElement('div'))
+  const lead = document.createElement('div')
+  const height = innerHeight - 60
+  lead.style.height = `${height}px`
+  const bar = document.createElement('button')
+  bar.textContent = 'filters'
+  Object.assign(bar.style, { position, top: '0', display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '3000px'
+  block.append(lead, bar, tail)
+  document.body.append(block)
+  return { bar, lead: height }
+}
+
 const marker = (): HTMLElement => document.querySelector<HTMLElement>('.leko-anchor')!
 const messageBox = (): HTMLElement => document.querySelector<HTMLElement>('.leko-message')!
 
@@ -822,7 +842,7 @@ test('a sticky head in a panel keeps its hole on both sides of its pin', async (
   expect(centre(head)).toBe(head)
 })
 
-test("the message's anchor follows a sticky hole and the side does not change", async () => {
+test('the message keeps its side across the pin while that side still has room', async () => {
   const bar = stickyBar()
   window.scrollTo(0, 0)
 
@@ -832,14 +852,90 @@ test("the message's anchor follows a sticky hole and the side does not change", 
   await framed()
 
   const before = marker().style.top
-  const side = messageBox().style.getPropertyValue('position-area')
+  const side = sideOf(messageBox())
 
   window.scrollTo(0, 900)
   await within(() => marker().style.top !== before, 30, 'the anchor never moved with the hole')
-  // The side is a discrete choice made once a step — DESIGN.md, **The message**
-  // — so what follows the hole is the point the message hangs off, not the
-  // decision about where to hang it.
-  expect(messageBox().style.getPropertyValue('position-area')).toBe(side)
+  // The side is kept while it still has room — DESIGN.md, the sticky follow
+  // under **A sticky target's hole is corrected on a frame loop, and that is
+  // the only exception to the ban** — so what follows the hole is the point
+  // the message hangs off, not the decision about where to hang it.
+  expect(sideOf(messageBox())).toBe(side)
+  window.scrollTo(0, 0)
+})
+
+test('the message never covers a sticky target it opened once the target pins', async () => {
+  // Near the foot of the screen at the draw, so the message goes above the bar;
+  // past the pin, the loop writes the marker and the box is laid out again.
+  // Held inside an area, Chromium and Firefox then slide it onto the bar —
+  // DESIGN.md, **The message**.
+  const { bar, lead: height } = footBar('sticky')
+  window.scrollTo(0, 0)
+
+  start([
+    { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
+  ])
+  await framed()
+  await within(() => messageBox()?.style.visibility === 'visible', 30, 'the message never showed')
+  expect(sideOf(messageBox())).toBe('top')
+
+  const before = marker().style.top
+  window.scrollTo(0, height + 600)
+  await within(() => marker().style.top !== before, 30, 'the anchor never moved with the hole')
+  await frame()
+
+  const note = messageBox().getBoundingClientRect()
+  const hole = bar.getBoundingClientRect()
+  const covers =
+    note.left < hole.right &&
+    hole.left < note.right &&
+    note.top < hole.bottom &&
+    hole.top < note.bottom
+  expect(covers).toBe(false)
+  window.scrollTo(0, 0)
+})
+
+test("a pinned target's message moves to a side with room", async () => {
+  // Above the bar at the draw, and past the pin the bar is at the top of the
+  // screen with nothing above it: a side kept there would be off the screen.
+  const { bar, lead } = footBar('sticky')
+  window.scrollTo(0, 0)
+
+  start([
+    { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
+  ])
+  await framed()
+  await within(() => messageBox()?.style.visibility === 'visible', 30, 'the message never showed')
+  expect(sideOf(messageBox())).toBe('top')
+
+  window.scrollTo(0, lead + 600)
+  await within(() => sideOf(messageBox()) === 'bottom', 30, 'the message never moved below')
+  await frame()
+
+  const note = messageBox().getBoundingClientRect()
+  const hole = bar.getBoundingClientRect()
+  expect(note.top).toBeGreaterThanOrEqual(hole.bottom)
+  expect(note.top).toBeGreaterThanOrEqual(0)
+  expect(note.bottom).toBeLessThanOrEqual(innerHeight)
+  window.scrollTo(0, 0)
+})
+
+test("an in-flow target's message keeps its side on a scroll", async () => {
+  // Nobody moves the marker of an in-flow target but the browser, so nobody
+  // chooses the side again: the message leaves with the hole.
+  const { bar, lead } = footBar('static')
+  window.scrollTo(0, 0)
+
+  start([
+    { id: 'one', target: { elements: () => bar, interactive: true }, message: 'Pick a filter' },
+  ])
+  await framed()
+  await within(() => messageBox()?.style.visibility === 'visible', 30, 'the message never showed')
+  expect(sideOf(messageBox())).toBe('top')
+
+  window.scrollTo(0, lead - 20)
+  for (let n = 0; n < 6; n++) await frame()
+  expect(sideOf(messageBox())).toBe('top')
   window.scrollTo(0, 0)
 })
 
