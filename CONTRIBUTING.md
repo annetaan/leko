@@ -57,7 +57,8 @@ case declares on its `.case-root`: the colours `--case-bg`, `--case-surface`,
 `--case-ink`, `--case-muted`, `--case-line`, `--case-accent`, `--case-flag` and
 `--case-flag-bg`, and `--case-inset-top` and `--case-inset-left`, which say how
 much of the viewport's top and left edge the host's own chrome covers. A case
-element fixed to the viewport keeps clear of that chrome by reading them.
+element fixed or pinned to the viewport keeps clear of that chrome by reading
+them.
 
 `.portal-close` is the one rule a case needs that stays in the sandbox's
 `style.css`. `close-through-a-portal.tsx` draws it into Leko's way out, which is

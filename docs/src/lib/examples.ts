@@ -162,6 +162,22 @@ export const groups: Group[] = [
           'Each step brings its target to the middle of the screen before it is drawn, and ' +
           'leaves the page alone when the target is already showing.',
       },
+      {
+        id: 'sticky-header',
+        label: 'A bar that pins, and a table head that pins inside a panel',
+        line:
+          'One filter button lit twice, once before its bar pins to the top of the screen and ' +
+          'once after, and a table head pinned inside a scrolling panel; the hole stays on each ' +
+          'across the pin.',
+      },
+      {
+        id: 'fixed-chrome',
+        label: 'Chrome that does not scroll',
+        line:
+          'A fixed Share button whose hole stays put while the page scrolls, a fixed badge a ' +
+          'transform took back into the page whose hole rides with it, and a scroll lock ' +
+          'pressed mid-step.',
+      },
     ],
   },
 ]

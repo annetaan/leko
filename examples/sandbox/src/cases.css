@@ -279,7 +279,7 @@
 /*
  * Chrome pinned to the viewport, for `fixed-chrome.ts`: the page's actions,
  * at the top right where an application keeps them, staying while the page
- * scrolls under them. Kept small so the stage's own heading stays readable.
+ * scrolls under them. Kept small so the host's own heading stays readable.
  */
 .case-root .topbar {
   position: fixed;
@@ -486,14 +486,29 @@
 }
 
 /*
- * The bar itself. `top: 0` with no inset of its own, which is what a filter bar
- * or a table head is, and the state the spike measured.
+ * At narrow widths the host's own content above the case pushes the bar below
+ * the fold, so the hero drops to what it holds and the bar is on screen for the
+ * first step. Getting past it still takes a real scroll: the host's content is
+ * above it too.
+ */
+@media (max-width: 50em) {
+  .case-root .sticky-case .sticky-hero {
+    min-height: 0;
+    padding: 0 0 12px;
+  }
+}
+
+/*
+ * The bar itself. It pins against the host's chrome, the way an application's
+ * filter bar pins under its own header. `--case-inset-top` is `0px` in the
+ * sandbox, which is the state the spike measured.
  */
 .case-root .sticky-case .sticky-bar {
   position: sticky;
-  top: 0;
+  top: var(--case-inset-top);
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
   padding: 10px 14px;
