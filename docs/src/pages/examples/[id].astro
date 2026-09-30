@@ -1,0 +1,42 @@
+---
+import { Code } from '@astrojs/starlight/components'
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+import { regions } from '../../../../scripts/regions.mjs'
+import Example from '../../components/Example.astro'
+import { type Example as Entry, groups } from '../../lib/examples.ts'
+
+/**
+ * One page per example, each running one sandbox case beside the regions of its
+ * file — CONTRIBUTING.md, **Examples on the site**.
+ */
+
+export function getStaticPaths() {
+  return groups
+    .flatMap((group) => group.items)
+    .map((entry) => ({ params: { id: entry.id }, props: { entry } }))
+}
+
+const { entry } = Astro.props as { entry: Entry }
+
+// Left out as Example.astro leaves it out, and for the same reason.
+const sources = import.meta.glob<string>(
+  ['../../../../examples/sandbox/src/cases/*.ts', '!../../../../examples/sandbox/src/cases/index.ts'],
+  { query: '?raw', import: 'default' },
+)
+const file = `${entry.id}.ts`
+const source = sources[`../../../../examples/sandbox/src/cases/${file}`]
+if (!source) throw new Error(`No case file for the example “${entry.id}”: ${file}`)
+
+let parts
+try {
+  parts = regions(await source())
+} catch (error) {
+  throw new Error(`${file}: ${(error as Error).message}`, { cause: error })
+}
+---
+
+<StarlightPage frontmatter={{ title: entry.label, description: entry.line, tableOfContents: false }}>
+  <p>{entry.line}</p>
+  <Example id={entry.id} />
+  {parts.map((part) => <Code code={part.code} lang="ts" title={part.title} />)}
+</StarlightPage>

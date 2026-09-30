@@ -1,9 +1,41 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // Nothing gates these steps. The targets differ in size, shape and position on
 // purpose: a morph between two similar boxes hides everything interesting about
 // it. The last one sits in the top right, which is where the control that ends
 // the tour wants to be, so stepping onto it moves that control somewhere else.
+
+// #region The story
+const story = {
+  id: 'stepping',
+  steps: [
+    { id: 'title', target: '[data-step="title"]', message: 'A short, wide target.' },
+    { id: 'wide', target: '[data-step="wide"]', message: 'A tall card, off to the left.' },
+    {
+      id: 'small',
+      target: '[data-step="small"]',
+      message: 'Something small, so the corners have to hold up.',
+    },
+    {
+      id: 'row',
+      target: '[data-step="row"]',
+      message: 'A full-width row, back down the page.',
+    },
+    { id: 'button', target: '[data-step="button"]', message: 'And the button at the end.' },
+    {
+      id: 'corner',
+      target: '[data-step="corner"]',
+      message:
+        'An account menu, in the corner the End tour control wants. A ' +
+        'control left on top of a cutout takes back the interaction the ' +
+        'hole exists to allow, so it gives the corner up.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const stepping: Case = {
   id: 'stepping',
   title: 'Stepping around a page',
@@ -39,32 +71,5 @@ export const stepping: Case = {
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'stepping',
-      steps: [
-        { id: 'title', target: '[data-step="title"]', message: 'A short, wide target.' },
-        { id: 'wide', target: '[data-step="wide"]', message: 'A tall card, off to the left.' },
-        {
-          id: 'small',
-          target: '[data-step="small"]',
-          message: 'Something small, so the corners have to hold up.',
-        },
-        {
-          id: 'row',
-          target: '[data-step="row"]',
-          message: 'A full-width row, back down the page.',
-        },
-        { id: 'button', target: '[data-step="button"]', message: 'And the button at the end.' },
-        {
-          id: 'corner',
-          target: '[data-step="corner"]',
-          message:
-            'An account menu, in the corner the End tour control wants. A ' +
-            'control left on top of a cutout takes back the interaction the ' +
-            'hole exists to allow, so it gives the corner up.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

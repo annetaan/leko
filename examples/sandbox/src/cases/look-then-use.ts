@@ -1,8 +1,39 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // Both halves of what a cutout means, one after the other. A hole always shows
 // what is under it. Whether the pointer and Tab get there is the step's to say,
 // and the answer is no unless it says so.
+
+// #region The story
+const story = {
+  id: 'look-then-use',
+  steps: [
+    {
+      id: 'plan',
+      // No `interactive`, which is the default and the point. The card is
+      // lit because the sentence is about it, and a click on it now would
+      // change the very thing being explained.
+      target: '[data-plan]',
+      message:
+        'This is what you are paying. Try pressing Change plan — the ' +
+        'counter below stays at zero, because this step is explaining ' +
+        'rather than asking.',
+    },
+    {
+      id: 'name',
+      target: { elements: '[data-name]', interactive: true },
+      // The other half. The step wants something done to the page, so it
+      // says so, and the field takes the typing.
+      message: 'Now type a name. This step opened its hole, so the field is yours.',
+      validate: (el) => (el as HTMLInputElement).value.trim() !== '',
+      error: 'Nothing typed yet.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
+
 export const lookThenUse: Case = {
   id: 'look-then-use',
   title: 'A hole to read, then a hole to use',
@@ -69,31 +100,5 @@ export const lookThenUse: Case = {
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'look-then-use',
-      steps: [
-        {
-          id: 'plan',
-          // No `interactive`, which is the default and the point. The card is
-          // lit because the sentence is about it, and a click on it now would
-          // change the very thing being explained.
-          target: '[data-plan]',
-          message:
-            'This is what you are paying. Try pressing Change plan — the ' +
-            'counter below stays at zero, because this step is explaining ' +
-            'rather than asking.',
-        },
-        {
-          id: 'name',
-          target: { elements: '[data-name]', interactive: true },
-          // The other half. The step wants something done to the page, so it
-          // says so, and the field takes the typing.
-          message: 'Now type a name. This step opened its hole, so the field is yours.',
-          validate: (el) => (el as HTMLInputElement).value.trim() !== '',
-          error: 'Nothing typed yet.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

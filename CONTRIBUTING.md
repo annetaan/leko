@@ -126,6 +126,41 @@ The site is not published anywhere yet. Publishing waits for the release.
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) is the workflow
 that will publish it, and its header says what the release changes.
 
+### Examples on the site
+
+The site runs some of the sandbox's cases in place, one page each, under
+`/examples/<case-id>/`. [`docs/src/lib/examples.ts`](docs/src/lib/examples.ts)
+is the whole selection: the sidebar and the route both read it, so adding an
+example is one entry there, and regions in the case file. The one route,
+[`docs/src/pages/examples/[id].astro`](docs/src/pages/examples/[id].astro),
+shows the entry's line, the running case, then the case file's regions.
+[`docs/src/components/Example.astro`](docs/src/components/Example.astro) mounts
+the case and runs it through `runCase`, as
+[What a case draws with, and what runs it](#what-a-case-draws-with-and-what-runs-it)
+says every host does, and the site's `.case-root` in `docs.css` declares the
+ten properties.
+
+A region is a line `// #region <title>` and a line `// #endregion`, each on its
+own. The page shows every region in file order as a code block titled with its
+title, with the markers and the indent its lines share taken off. The first
+region is the story, titled `The story`, so a case the site shows declares its
+stories as `const … satisfies LekoStory` at the top level rather than inside the
+`Case`. A later region shows the page's side, most often the handler that
+calls `reached()`. [`scripts/regions.mjs`](scripts/regions.mjs) reads them, and
+the build fails on a file with no region, a region never closed, a region
+opened inside another and an `#endregion` with no region open.
+
+One example per page, because a case names its targets across the whole
+document, the way `at` in the sandbox's `case.ts` does, and `pickUp` is called
+once per document.
+
+The footer that starts and stops the stories is appended to `body`, not placed
+in the page's markup. Starlight gives `.main-pane` `isolation: isolate`, so
+nothing inside it can paint above Leko's scrim, which is on `body`; the footer
+has to be above it, because `stop()` is pressed while a tour runs. A case
+shown on the site has to hold up below 50rem as well, where Starlight has no
+sidebar beside the content.
+
 ### Code blocks on the site
 
 `pnpm check:code-blocks` compiles every ` ```ts ` and ` ```tsx ` block in

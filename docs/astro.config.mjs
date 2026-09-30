@@ -2,6 +2,8 @@
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
+import { groups } from './src/lib/examples.ts'
+
 const base = '/leko'
 
 // English only, deliberately. `README.ja.md` translates the opening of the
@@ -47,10 +49,20 @@ export default defineConfig({
             { label: 'Across a page load', slug: 'guides/across-a-page-load' },
             { label: 'Setup and clear-up', slug: 'guides/setup-and-clear-up' },
             { label: 'Styling', slug: 'guides/styling' },
+            { label: 'The lifecycle', slug: 'lifecycle' },
           ],
         },
-        { label: 'How it works', items: [{ label: 'The lifecycle', slug: 'lifecycle' }] },
-        { label: 'Proving the ground', items: [{ label: 'Playground', slug: 'playground' }] },
+        {
+          label: 'Examples',
+          items: [
+            { label: 'Playground', slug: 'playground' },
+            ...groups.map((group) => ({
+              label: group.label,
+              collapsed: true,
+              items: group.items.map(({ id, label }) => ({ label, link: `/examples/${id}/` })),
+            })),
+          ],
+        },
         {
           label: 'Reference',
           items: [

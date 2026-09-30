@@ -1,4 +1,23 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
+
+// #region The story
+const story = {
+  id: 'linked-regions',
+  steps: [
+    {
+      id: 'winning-amount',
+      // Two entries, so two cutouts. One element each here. Several
+      // elements named in one region's `elements` get unioned into one
+      // hole instead, which is what the sandbox case `adjacent-columns`
+      // shows.
+      target: ['[data-row]', '[data-summary]'],
+      message: 'This row is where the figure above comes from.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const linkedRegions: Case = {
   id: 'linked-regions',
@@ -30,19 +49,5 @@ export const linkedRegions: Case = {
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'linked-regions',
-      steps: [
-        {
-          id: 'winning-amount',
-          // Two entries, so two cutouts. One element each here. Several
-          // elements named in one region's `elements` get unioned into one
-          // hole instead, which is what `adjacent-columns` shows.
-          target: ['[data-row]', '[data-summary]'],
-          message: 'This row is where the figure above comes from.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }
