@@ -2,14 +2,11 @@ import type { Handoff, Host, Presenter } from '@annetaan/leko-machine'
 import {
   bringIntoView,
   chainOf,
-  chromeInsets,
   Close,
   type Cutout,
   ease,
   FocusRing,
   grow,
-  inset,
-  layoutViewport,
   Message,
   type MessageContent,
   paddingBoxWithin,
@@ -18,6 +15,7 @@ import {
   type ResolveMode,
   resolveTarget,
   resolveTargets,
+  roomIn,
   sameSurface,
   Scrim,
   type ScrollMode,
@@ -309,20 +307,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
     return resolveTargets(Array.isArray(named) ? named : [named], 'first').map(screenBox)
   }
 
-  /**
-   * The part of the page left for what Leko draws.
-   *
-   * The layout viewport, because everything placed from this is
-   * `position: fixed` and the boxes it is compared against came from
-   * `getBoundingClientRect` — `layoutViewport` is where that is argued. The
-   * scrim goes the other way and is sized past it on purpose: DESIGN.md, **That
-   * layer is sized past the layout viewport on purpose, gutter included**.
-   */
-  private static roomIn(chrome: readonly Rect[]): Rect {
-    const viewport = layoutViewport()
-    return inset(viewport, chromeInsets(viewport.width, viewport.height, chrome))
-  }
-
   // ---------------------------------------------------------- what the machine calls
 
   show(step: LekoStep, animate: boolean): void {
@@ -569,7 +553,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
     if (sticky && holes.length > 0) {
       inner.follow(() => this.holesNow(step, holes, inner), portsOf(chain))
     }
-    return { inner, holes, resolved, onScreen, chrome, room: DomPresenter.roomIn(chrome), seen }
+    return { inner, holes, resolved, onScreen, chrome, room: roomIn(chrome), seen }
   }
 
   /**
@@ -724,7 +708,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
       content,
       onScreen,
       gap,
-      measured?.room ?? DomPresenter.roomIn(chrome),
+      measured?.room ?? roomIn(chrome),
       // The side, and never the point: the scrim holds the holes the point is
       // taken from, so a hole a follow moves takes the marker with it.
       // Absent where there is no scrim to hang the anchor in, or no hole to

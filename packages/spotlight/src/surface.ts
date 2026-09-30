@@ -10,7 +10,15 @@
  * viewport, so its layer is too**.
  */
 
-import { heldAgainst, inset, type Point, type Rect, shift, type StickyInsets } from './geometry.js'
+import {
+  chromeInsets,
+  heldAgainst,
+  inset,
+  type Point,
+  type Rect,
+  shift,
+  type StickyInsets,
+} from './geometry.js'
 
 /**
  * What carries a layer of the scrim when the page moves.
@@ -198,6 +206,21 @@ const asked = (value: string): number | null => {
 export function layoutViewport(): Rect {
   const root = document.documentElement
   return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight }
+}
+
+/**
+ * The layout viewport with the host's chrome taken off it: the room the host
+ * left, which is where the presenter may put its message.
+ *
+ * The layout viewport, because what is placed in this is `position: fixed`
+ * and the boxes it is compared against came from `getBoundingClientRect` —
+ * {@link layoutViewport} is where that is argued. The scrim goes the other way
+ * and is sized past it on purpose: DESIGN.md, **That layer is sized past the
+ * layout viewport on purpose, gutter included**.
+ */
+export function roomIn(chrome: readonly Rect[]): Rect {
+  const viewport = layoutViewport()
+  return inset(viewport, chromeInsets(viewport.width, viewport.height, chrome))
 }
 
 /**
