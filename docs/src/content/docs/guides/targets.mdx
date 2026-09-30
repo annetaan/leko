@@ -133,18 +133,18 @@ point at any other. Its hole stays on it while the page scrolls.
 
 ## See it run
 
-The sandbox case
-[inside-shadow-dom.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/inside-shadow-dom.ts)
+The example
+[A target inside a shadow root](../../examples/inside-shadow-dom/)
 names its Send button with a function, because the button is inside a shadow
 root. The line above the button counts the presses that reach it, and a press
 through the open hole on the second step adds one.
 
-[which-match.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/which-match.ts)
+[Which of several matches a step means](../../examples/which-match/)
 has three copies of one Save button, the first of them in a compact layout
 hidden with `display: none`. `which-match-visible` asks for no rule and points
 at the copy on screen, and its second step opens the compact layout in
 `onEnter` and gets the copy inside it. `which-match-first` asks for `first`,
-takes the hidden copy, and ends with `target-lost`: the footer logs that its
+takes the hidden copy, and ends with `target-lost`: the footer says its
 target never turned up.
 
 [A target that has not turned up yet](../../examples/target-not-there-yet/)
@@ -154,7 +154,7 @@ is drawn takes the row away, and the hole stays where it was.
 `never-arrives` points at nothing the page has, and after its moment the
 footer says its target never turned up.
 
-[scrolls-into-view.ts](https://github.com/annetaan/leko/blob/main/examples/sandbox/src/cases/scrolls-into-view.ts)
+[A step that goes and gets its target](../../examples/scrolls-into-view/)
 turns `scroll` on for the instance. Its first step moves nothing, because its
 target is already on screen, and its second glides the page to a card past the
 fold.

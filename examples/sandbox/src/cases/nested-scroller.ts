@@ -1,4 +1,19 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
+
+// #region The story
+const story = {
+  id: 'nested-scroller',
+  steps: [
+    {
+      id: 'deep-row',
+      target: { elements: '[data-deep]', interactive: true },
+      message: 'Scroll the list. The cutout should stay on this row.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const nestedScroller: Case = {
   id: 'nested-scroller',
@@ -23,21 +38,15 @@ export const nestedScroller: Case = {
       </div>
     `)
     root.append(panel)
-    const deep = panel.querySelector<HTMLElement>('[data-deep]')
-    deep?.scrollIntoView({ block: 'center' })
+    // `scrollIntoView` would scroll the host's page as well.
+    const scroller = panel.querySelector<HTMLElement>('.scroller')!
+    const deep = panel.querySelector<HTMLElement>('[data-deep]')!
+    scroller.scrollTop =
+      deep.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top -
+      (scroller.clientHeight - deep.offsetHeight) / 2
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'nested-scroller',
-      steps: [
-        {
-          id: 'deep-row',
-          target: { elements: '[data-deep]', interactive: true },
-          message: 'Scroll the list. The cutout should stay on this row.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

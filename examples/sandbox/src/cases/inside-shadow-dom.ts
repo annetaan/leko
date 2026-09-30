@@ -1,3 +1,5 @@
+import type { LekoStory } from '@annetaan/leko'
+
 import { type Case, html } from '../case.js'
 
 // A target no selector can name.
@@ -46,8 +48,33 @@ class SendButton extends HTMLElement {
 
 if (!customElements.get(SEND)) customElements.define(SEND, SendButton)
 
+// #region The story
 /** The component on the page, or `null` before it is mounted. */
 const component = (): SendButton | null => document.querySelector<SendButton>(SEND)
+
+const story = {
+  id: 'inside-shadow-dom',
+  steps: [
+    {
+      id: 'total',
+      target: '[data-total]',
+      message: 'An ordinary target, named by a selector. Press Next.',
+    },
+    {
+      id: 'send',
+      // The whole case. `document.querySelector('button')` finds nothing
+      // here, and neither would any other string: the element is behind a
+      // boundary only its host can cross.
+      target: { elements: () => component()?.button ?? null, interactive: true },
+      message:
+        'This button lives inside a shadow root. The step names it with a ' +
+        'function, because there is no selector that reaches it. Press it ' +
+        'through the hole — the boundary changes nothing about the cutout, ' +
+        'and nothing about where this box sits either.',
+    },
+  ],
+} satisfies LekoStory
+// #endregion
 
 export const insideShadowDom: Case = {
   id: 'inside-shadow-dom',
@@ -96,28 +123,5 @@ export const insideShadowDom: Case = {
     return () => panel.remove()
   },
 
-  stories: [
-    {
-      id: 'inside-shadow-dom',
-      steps: [
-        {
-          id: 'total',
-          target: '[data-total]',
-          message: 'An ordinary target, named by a selector. Press Next.',
-        },
-        {
-          id: 'send',
-          // The whole case. `document.querySelector('button')` finds nothing
-          // here, and neither would any other string: the element is behind a
-          // boundary only its host can cross.
-          target: { elements: () => component()?.button ?? null, interactive: true },
-          message:
-            'This button lives inside a shadow root. The step names it with a ' +
-            'function, because there is no selector that reaches it. Press it ' +
-            'through the hole — the boundary changes nothing about the cutout, ' +
-            'and nothing about where this box sits either.',
-        },
-      ],
-    },
-  ],
+  stories: [story],
 }

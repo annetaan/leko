@@ -126,4 +126,42 @@ export const groups: Group[] = [
       },
     ],
   },
+  {
+    label: 'Targets',
+    items: [
+      {
+        id: 'which-match',
+        label: 'Which of several matches a step means',
+        line:
+          'Three Save buttons match one selector, and three stories each point at them ' +
+          'under a different rule, one of them the default.',
+      },
+      {
+        id: 'nested-scroller',
+        label: 'A target inside its own scroller',
+        line: 'A row deep inside a scrolling list, whose hole stays on it while the list scrolls.',
+      },
+      {
+        id: 'inside-shadow-dom',
+        label: 'A target inside a shadow root',
+        line:
+          'A button no selector can reach, named with a function, and pressed through the ' +
+          'hole like any other.',
+      },
+      {
+        id: 'svg-target',
+        label: 'A shape inside an SVG',
+        line:
+          'A hole cut around a shape in a scaled SVG diagram, and the shape itself takes ' +
+          'the click that moves the step.',
+      },
+      {
+        id: 'scrolls-into-view',
+        label: 'A step that goes and gets its target',
+        line:
+          'Each step brings its target to the middle of the screen before it is drawn, and ' +
+          'leaves the page alone when the target is already showing.',
+      },
+    ],
+  },
 ]
