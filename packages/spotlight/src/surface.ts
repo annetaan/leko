@@ -210,7 +210,9 @@ export function layoutViewport(): Rect {
 
 /**
  * The layout viewport with the host's chrome taken off it: the room the host
- * left, which is where the presenter may put its message.
+ * left, which is where the presenter may put its message and, on a step that
+ * scrolls, the page's port — DESIGN.md, **The page's port is what the host's
+ * chrome leaves of the viewport**.
  *
  * The layout viewport, because what is placed in this is `position: fixed`
  * and the boxes it is compared against came from `getBoundingClientRect` —

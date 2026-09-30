@@ -325,6 +325,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * through {@link reveal} and must not scroll again, the viewer having had
    * every right to move the page since.
    *
+   * The host's chrome is read here too, on a step that scrolls and before the
+   * page moves, so the page's port is what the chrome leaves of the viewport —
+   * DESIGN.md, **The page's port is what the host's chrome leaves of the
+   * viewport**.
+   *
    * `undefined` from `bringIntoView` means there was nothing to wait for — the
    * delta decides, and DESIGN.md has when it is zero under **Bringing a target
    * into view**. A glide means the page is moving, and its landing comes back
@@ -347,6 +352,7 @@ export class DomPresenter implements Presenter<LekoWorld> {
           duration,
           mode,
           easing,
+          roomIn(this.chromeBoxes()),
         )
       : undefined
     if (glide) {

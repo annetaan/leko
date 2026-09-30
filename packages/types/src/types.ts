@@ -272,10 +272,11 @@ interface LekoStepBase {
    *
    * Say `true` and every scrollport carrying the target centres the step's
    * first cutout in itself — the hole around every element that region names,
-   * not its first element — before anything is measured. A cutout more than
-   * half the port tall leads with its top edge instead. One already inside is
-   * left alone, and one near the end of the content lands as near as the
-   * content allows. Later regions stay where they are.
+   * not its first element — before anything is measured. The page's middle is
+   * the middle of what {@link LekoOptions.hostChrome} leaves of the screen. A
+   * cutout more than half the port tall leads with its top edge instead. One
+   * already inside is left alone, and one near the end of the content lands as
+   * near as the content allows. Later regions stay where they are.
    *
    * `true` is `'direct'` and is what `true` has always meant: the page is
    * glided rather than jumped, the step is drawn once it has stopped, and a
@@ -821,22 +822,25 @@ export interface LekoOptions {
    * createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
    * ```
    *
-   * It moves three things: which side of a cutout the message takes, where the
-   * message sits when it has no cutout to sit beside, and which corner the
-   * control that ends the tour goes in.
+   * It moves four things: which side of a cutout the message takes, where the
+   * message sits when it has no cutout to sit beside, which corner the control
+   * that ends the tour goes in, and, on a step that scrolls, the middle the
+   * page brings its target to.
    *
-   * **Name chrome that sits against an edge of the screen.** For the two
-   * readers that want an inset, each box is read as a band along the edge it is
-   * nearest, so a footer, a bar or a corner widget reserves a little more than
-   * itself. Something floating clear of every edge is not a band and reserves
-   * nothing, and a message can still land on it — DESIGN.md argues why that is
-   * the better of the two ways to be wrong, under **A host's own chrome is
-   * named once, and every reader takes the boxes**. The control that ends the
-   * tour takes the boxes themselves and dodges any of them.
+   * **Name chrome that sits against an edge of the screen.** For the three
+   * readers that want an inset — the message, in both places, and the page's
+   * scroll — each box is read as a band along the edge it is nearest, so a
+   * footer, a bar or a corner widget reserves a little more than itself.
+   * Something floating clear of every edge is not a band and reserves nothing,
+   * and a message can still land on it, or a target be brought to rest under
+   * it — DESIGN.md argues why that is the better of the two ways to be wrong,
+   * under **A host's own chrome is named once, and every reader takes the
+   * boxes**. The control that ends the tour takes the boxes themselves and
+   * dodges any of them.
    *
    * **It does not make the chrome usable.** The scrim blocks whatever the step
    * did not open, and naming an element here says only where Leko's own boxes
-   * may not go.
+   * may not go and where the page is scrolled to.
    */
   hostChrome?: LekoTarget | LekoTarget[]
 

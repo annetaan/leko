@@ -1404,6 +1404,25 @@ tour is for.
   scrollport on the target's surface chain centres the cutout in itself,
   innermost first, with the box measured again for each — scrolling an inner
   scroller moves the target inside every port outside it.
+- **The page's port is what the host's chrome leaves of the viewport.** The
+  document's port is `roomIn`: the layout viewport less `chromeInsets` of the
+  `hostChrome` boxes, the same room the message is placed into. A target the
+  chrome covers is therefore not held — `scrollDelta` answers non-zero — and is
+  brought to the middle of what is left, and a target more than half the room
+  tall leads with its top edge at the room's middle. A host that names nothing
+  gets the layout viewport, as before. **Only the document's port is
+  narrowed.** A nested panel's port is its own client box in both modes:
+  `'direct'` sets a panel before the page moves, and `scrollStages` measures
+  each port against its on-screen box, so either way a panel still below the
+  fold, intersected with the room, would be empty. A page that does not scroll,
+  whose panel runs under the footer, is left where it is — that is a limit.
+  The chrome is read once, in the arrival and before the page moves: a read at
+  an arrival, not during the viewer's scroll. That assumes the named chrome
+  stays where it is on screen while the page moves, fixed or sticky to an
+  edge, which is what **A host's own chrome is named once, and every reader
+  takes the boxes** says to name; chrome that rides the page is measured where
+  it stood. And it is off unless `scroll` asks: without it, a hole under the
+  chrome is drawn there, like one below the fold.
 - **What is brought in is the first region's hole, not its first element.** A
   region of several elements cuts one hole around all of them, and the hole is
   what the step is about, so the union of the region is what is measured
@@ -1448,15 +1467,16 @@ tour is for.
   be clamped in the fold, from that port's own limit, which is why those limits
   are read up front and handed in with the ports.
 - **`scroll-margin` on the target wins over the step's `padding`** wherever it
-  asks for more. How much of an application's own sticky chrome is in the way is
-  a thing the application knows and Leko cannot guess; the padding is only the
-  floor, because the hole itself overhangs the element by that much. It is the
-  box the margin asks for that gets centred, so a margin on one side alone leans
-  the target away from that side, which is how a host keeps a step's message
-  clear of chrome it owns. A margin big enough to take the box over half the
-  port tips it into leading with its top edge, and the room asked for below is
-  then whatever is left of the screen: a box that does not fit cannot be given
-  clearance on its far side.
+  asks for more. Chrome named in `hostChrome` is already off the page's port;
+  `scroll-margin` stays the application's word for chrome it did not name, or
+  for one target alone. The padding is only the floor, because the hole itself
+  overhangs the element by that much. It is the box the margin asks for that
+  gets centred, so a margin on one side alone leans the target away from that
+  side, which is how a host keeps a step's message clear of chrome it owns. A
+  margin big enough to take the box over half the port tips it into leading
+  with its top edge, and the room asked for below is then whatever is left of
+  the screen: a box that does not fit cannot be given clearance on its far
+  side.
 - **A `position: fixed` target is not scrolled.** Its chain is the viewport
   alone, which has nowhere to go. A sticky target that has pinned skips its own
   port for the same reason — scrolling the port it is held against does not
@@ -1639,16 +1659,19 @@ Three boxes Leko draws are placed from the viewport: the message beside a
 cutout, the message docked where there is no cutout, and the way out in a
 corner no hole covers. A host with a sticky footer, a top bar or a support
 widget gets all three on top of its own controls, because the viewport is the
-only thing they ever measured.
+only thing they ever measured. So does a fourth reader, the middle a step that
+scrolls brings its target to, which would land the target under the footer:
+**The page's port is what the host's chrome leaves of the viewport**.
 
 `hostChrome` is what a host says about that, and it is **a list of targets, not
 an inset**. Two inputs for one fact is the arrangement where a footer that
 changes height leaves one of them stale, and the boxes are the more precise of
 the two: the way out already takes a list of rectangles to dodge, so a support
 widget in one corner is added to that list and costs nothing, where an inset
-would reserve a band the width of the screen for it. What the other two readers
-need — how deep each edge is spoken for — is arithmetic on the boxes, and
-`chromeInsets` is it. So the inset is derived per draw and never written down.
+would reserve a band the width of the screen for it. What the other three
+readers need — how deep each edge is spoken for — is arithmetic on the boxes,
+and `chromeInsets` is it. So the inset is derived per draw and never written
+down.
 
 **Each box becomes a band along the edge it is nearest**, as deep as it reaches
 from that edge. Each axis nominates one edge, so a box claims two only where
@@ -1683,12 +1706,12 @@ right now claims nothing and one that grew is read at its new height — **A
 target is a question**, and **The page is measured when a step is drawn, and
 not again**. The reads sit with the others, after the layers are mounted and
 before anything is written: **A draw mounts its layers, then reads, then
-writes**.
+writes**. An arrival that scrolls reads them once more, before the page moves.
 
-**Placement is all it does.** The scrim still blocks whatever the step did not
-open, so naming an element here does not make it usable; the sandbox's
-`host-chrome.ts` is the case, and the footer it declares is chrome the sandbox
-paints above the scrim itself.
+**Placement is all it does**, the scroll's destination included. The scrim
+still blocks whatever the step did not open, so naming an element here does not
+make it usable; the sandbox's `host-chrome.ts` is the case, and the footer it
+declares is chrome the sandbox paints above the scrim itself.
 
 ## The packages, and the seam between them
 
