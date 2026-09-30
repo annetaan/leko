@@ -185,12 +185,17 @@ export type Side = (typeof SIDES)[number]
  * `room` rather than the viewport, and `bottom` when nothing fits, where the
  * box is then held off the hole and runs off the screen. DESIGN.md argues both
  * under **The message**.
+ *
+ * The sides are tried in `order`, and its first is also the answer when nothing
+ * fits, which is how a caller keeps a side: by putting it first. `place` passes
+ * nothing, so the fallback there stays `bottom`.
  */
 export function sideWithRoom(
   box: Rect,
   size: { width: number; height: number },
   room: Rect,
   gap: number,
+  order: readonly [Side, ...Side[]] = SIDES,
 ): Side {
   const free: Record<Side, number> = {
     bottom: room.y + room.height - (box.y + box.height),
@@ -204,7 +209,7 @@ export function sideWithRoom(
     right: size.width + gap,
     left: size.width + gap,
   }
-  return SIDES.find((side) => free[side] >= need[side]) ?? 'bottom'
+  return order.find((side) => free[side] >= need[side]) ?? order[0]
 }
 
 /**

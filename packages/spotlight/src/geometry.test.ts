@@ -31,6 +31,7 @@ import {
   scrollStages,
   segmentAt,
   shift,
+  SIDES,
   stickySlack,
   sideWithRoom,
   type StickyInsets,
@@ -710,10 +711,27 @@ test('a taller message beside a lower row goes the same way', () => {
 })
 
 test('no side has room, and bottom is still the answer', () => {
-  // The browser's own fallbacks get their turn from there.
+  // The box is then held off the hole and runs off the screen — DESIGN.md,
+  // **The message**.
   const wide = rect(0, 0, 1280, 621)
 
   expect(sideWithRoom(wide, { width: 320, height: 194 }, room, 16)).toBe('bottom')
+})
+
+test('sideWithRoom tries the sides in the order it is given', () => {
+  // 381px above the row and 381px below it, so either fits.
+  const row = rect(560, 381, 160, 38)
+  const note = { width: 320, height: 194 }
+  const viewport = rect(0, 0, 1280, 800)
+
+  expect(sideWithRoom(row, note, viewport, 16, ['top', ...SIDES])).toBe('top')
+  expect(sideWithRoom(row, note, viewport, 16)).toBe('bottom')
+})
+
+test('sideWithRoom falls back to the first side it is given', () => {
+  const wide = rect(0, 0, 1280, 621)
+
+  expect(sideWithRoom(wide, { width: 320, height: 194 }, room, 16, ['left', ...SIDES])).toBe('left')
 })
 
 test('a corner rect sits inside the viewport, gap in from both edges', () => {

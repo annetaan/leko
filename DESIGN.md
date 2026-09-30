@@ -1063,16 +1063,23 @@ and writes the layers, **at step boundaries, never per frame**.
     changes the page under the tour. A measurement cannot: it is late by a
     frame and never wrong.
   - **A frame writes the mask, the blocking rectangles, the halo boxes and the
-    anchor marker, and nothing else.** The target is not resolved again, the
-    surface chain is not walked again, no layer is measured or resized, the
-    outer layers' holes stay where layout left them, the host's chrome is not
-    re-read, and nothing is asked that forces a layout — the halos are moved
-    rather than placed, because placing them commits a style through
-    `offsetWidth`. The blocking is written *with* the mask rather than ahead of
-    it, unlike the morph's: hit-testing lagging the paint under the viewer's
-    own pointer is the cost that ruled the compositor out in the first place.
-    The message's side and the way out's corner are not chosen again, for the
-    reasons under **The message** and **The way out**.
+    anchor marker, and tells the message where the holes are.** The target is
+    not resolved again, the surface chain is not walked again, no layer is
+    measured or resized, the outer layers' holes stay where layout left them,
+    the host's chrome is not re-read, and nothing is asked that forces a layout
+    — the halos are moved rather than placed, because placing them commits a
+    style through `offsetWidth`. The blocking is written *with* the mask rather
+    than ahead of it, unlike the morph's: hit-testing lagging the paint under
+    the viewer's own pointer is the cost that ruled the compositor out in the
+    first place. The way out's corner is not chosen again, for the reasons under
+    **The way out**. The message's side is chosen again on a frame that moves
+    the hole, and only there: kept while it still has room, otherwise the first
+    side that has room, judged from the boxes the frame already read, the size
+    the box had when its words last changed, and the room the draw read, so no
+    read is added to the frame. A pinned target stays on screen while the page
+    goes past it, so a side chosen while it rode can stay without room for as
+    long as the page is scrolled. These are the frames on which Leko, not the
+    browser, moves the marker.
   - **The cost is a frame of lag, and on a page nobody is scrolling it is not
     even that.** The loop is started by a `scroll` on one of the ports the
     chain named, and parks after two frames of boxes that have not moved. An
@@ -1633,9 +1640,11 @@ scrim goes: the scroller would clip it at its own edge, and the edge is where a
 message needs room. It cannot be positioned from measurements either — that is
 JS on every scroll again.
 
-JS picks the side once per step, and the distance to the furthest cutout
-becomes a margin, so the message clears every hole rather than only the one it
-is anchored beside.
+JS picks the side once per step, and again on a frame of the sticky follow that
+leaves the side it has no room — **A sticky target's hole is corrected on a
+frame loop, and that is the only exception to the ban** — and the distance to
+the furthest cutout becomes a margin, so the message clears every hole rather
+than only the one it is anchored beside.
 
 **The box is laid against the marker with an inset, never inside an area.** Its
 inner edge sits on the marker through `top: anchor(bottom)` or its mirror, with
@@ -1653,7 +1662,8 @@ side the box took, so every flip crosses that edge onto the hole too, and the
 message sets no `position-try-fallbacks`.
 
 The price is plain: where its side has no room, the box runs off the screen
-rather than onto the hole. The `auto`s are part of the spelling. A popover's UA
+rather than onto the hole. A pinned target's is moved to a side that has room,
+under the sticky follow. The `auto`s are part of the spelling. A popover's UA
 style is `inset: 0`, and with only `bottom: anchor(top)` written the `top: 0`
 still holds, so a box above its hole is laid against the top of the viewport
 rather than against the marker — in WebKit, on the hole. The spike does not

@@ -50,3 +50,83 @@ test.runIf(anchors)('a docked box keeps nothing of the side it was held on', () 
   expect(Math.abs(note.left + note.width / 2 - room.width / 2)).toBeLessThan(1)
   expect(Math.abs(note.bottom - (room.height - 24))).toBeLessThan(1)
 })
+
+// `keep`, on its own: the side judged again from boxes it is handed, with the
+// size the words last left and the room the draw read.
+
+const tall = { x: 0, y: 0, width: 400, height: 800 }
+const GAP = 8
+
+/**
+ * A box the tour would make, with the sides `at` was told kept for the test to
+ * read.
+ */
+const keeper = () => {
+  const message = new Message(() => {})
+  made.push({ remove: () => message.destroy() })
+  const told: string[] = []
+  const at = (side: string) => {
+    told.push(side)
+  }
+  return { message, told, at }
+}
+
+const row = (y: number) => ({ x: 100, y, width: 200, height: 40 })
+
+test.runIf(anchors)('keep moves the box to the first side with room once its own has none', () => {
+  const { message, told, at } = keeper()
+  message.show(content, [row(100)], GAP, tall, at)
+  expect(told).toEqual(['bottom'])
+
+  message.keep([row(tall.height - 40)])
+  expect(message.element.style.bottom).toBe('anchor(top)')
+  expect(message.element.style.top).toBe('auto')
+  expect(told).toEqual(['bottom', 'top'])
+})
+
+test.runIf(anchors)('keep leaves a side that still has room', () => {
+  const { message, told, at } = keeper()
+  // 40px under the row, so the draw puts it on top.
+  message.show(content, [row(tall.height - 80)], GAP, tall, at)
+  expect(told).toEqual(['top'])
+
+  // Now both sides fit, and bottom comes first in the default order: the side
+  // it has is kept anyway.
+  message.keep([row(tall.height / 2)])
+  expect(message.element.style.bottom).toBe('anchor(top)')
+  expect(told).toEqual(['top'])
+})
+
+test.runIf(anchors)('keep judges room at the height the words have now', () => {
+  const { message, told, at } = keeper()
+  message.show(content, [row(100)], GAP, tall, at)
+  const oneLine = message.element.offsetHeight
+
+  // Exactly enough under the row for the box as it is.
+  const hole = row(tall.height - oneLine - GAP - 40)
+  message.show(content, [hole], GAP, tall, at)
+  expect(told.at(-1)).toBe('bottom')
+
+  // Several lines of error on the next attempt, with the hole where it was.
+  message.setError('That did not work. Check the fields marked in red, then try once more.')
+  expect(message.element.offsetHeight).toBeGreaterThan(oneLine)
+
+  message.keep([hole])
+  expect(told.at(-1)).toBe('top')
+})
+
+test.runIf(anchors)('keep does nothing for a docked or hidden box', () => {
+  const { message, told, at } = keeper()
+  message.show(content, [], GAP, tall, at)
+  const docked = message.element.style.cssText
+  message.keep([row(tall.height - 40)])
+  expect(message.element.style.cssText).toBe(docked)
+  expect(told).toEqual([])
+
+  message.show(content, [row(100)], GAP, tall, at)
+  message.hide()
+  const hidden = message.element.style.cssText
+  message.keep([row(tall.height - 40)])
+  expect(message.element.style.cssText).toBe(hidden)
+  expect(told).toEqual(['bottom'])
+})

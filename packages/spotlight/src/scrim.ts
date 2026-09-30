@@ -10,6 +10,7 @@ import {
   maskLayers,
   padCutouts,
   type Rect,
+  sameCutouts,
   segmentAt,
   type Side,
   union,
@@ -30,6 +31,16 @@ export const MESSAGE_ANCHOR = '--leko-message-anchor'
  * modes under **The halo**.
  */
 export type HaloMode = 'return' | 'follow'
+
+/**
+ * What a frame of a follow reads: the holes in this layer's space, and the same
+ * boxes on screen. Both from one read pass, because a second would force a
+ * layout.
+ */
+export interface Reading {
+  cutouts: Cutout[]
+  onScreen: Cutout[]
+}
 
 /**
  * A single full-size element with the cutouts clipped out of it.
@@ -140,9 +151,14 @@ export class Scrim {
    * target the page can move under it, or `undefined` on every other step.
    * Armed and taken down by whoever draws — see {@link follow}.
    */
-  private reading: (() => Cutout[] | undefined) | undefined
+  private reading: (() => Reading | undefined) | undefined
   /** The ports {@link reading}'s answer can be changed by; see {@link follow}. */
   private ports: readonly EventTarget[] = []
+  /**
+   * Told where the holes are on screen on each frame of a follow that moved
+   * them.
+   */
+  private moved: ((onScreen: readonly Rect[]) => void) | undefined
   /**
    * The loop itself while it is armed, held beside {@link frame} because it is
    * the same kind of thing: a handle on frames this layer has running, in the
@@ -282,11 +298,11 @@ export class Scrim {
    * Put the anchor point on `side` of the holes, in this scrim's coordinates.
    *
    * The side and not the point, because the point moves with the holes and the
-   * side does not: it is chosen once a step, from how much room is on screen —
-   * DESIGN.md, **The message** — and every write of the cutouts puts the marker
-   * back on that same side of wherever they have got to. So a hole a follow is
-   * correcting takes its message with it without the message picking a new side
-   * every frame.
+   * side does not: it is chosen at the draw, from how much room is on screen —
+   * DESIGN.md, **The message** — and again only on a frame of a follow that
+   * leaves it no room. The message decides that, and this is told the side.
+   * Every write of the cutouts puts the marker back on the side it was last
+   * told, wherever they have got to.
    */
   anchorTo(side: Side): void {
     this.side = side
@@ -516,11 +532,16 @@ export class Scrim {
    * target's hole is corrected on a frame loop, and that is the only exception
    * to the ban**.
    */
-  follow(read: (() => Cutout[] | undefined) | undefined, ports: readonly EventTarget[] = []): void {
+  follow(
+    read: (() => Reading | undefined) | undefined,
+    ports: readonly EventTarget[] = [],
+    moved?: (onScreen: readonly Rect[]) => void,
+  ): void {
     this.following?.stop()
     this.following = undefined
     this.reading = read
     this.ports = ports
+    this.moved = moved
   }
 
   /**
@@ -534,17 +555,22 @@ export class Scrim {
    */
   private trail(): void {
     if (!this.reading || this.following) return
-    this.following = follow(
-      this.cutouts,
+    // Only the layer's boxes decide stillness, so a riding target the browser
+    // carries costs no writes. `onScreen` is never read for that, so the start
+    // has none.
+    this.following = follow<Reading>(
+      { cutouts: this.cutouts, onScreen: [] },
       this.reading,
-      (cutouts) => this.moveTo(cutouts),
+      (now) => this.moveTo(now),
       this.ports,
+      (a, b) => sameCutouts(a.cutouts, b.cutouts),
     )
   }
 
   /**
    * One frame of a follow: the holes, the blocking, the halos and the marker,
-   * all where the page has just said the target is.
+   * all where the page has just said the target is, and the message told where
+   * the holes now are on screen.
    *
    * **Not {@link set}.** That fades the halos in through {@link revealHalos},
    * which reads `offsetWidth` to commit a style, and a forced layout every
@@ -555,7 +581,7 @@ export class Scrim {
    * hole is under the viewer's pointer the whole time, and hit-testing lagging
    * the paint is exactly what a compositor-side answer would have cost.
    */
-  private moveTo(cutouts: Cutout[]): void {
+  private moveTo({ cutouts, onScreen }: Reading): void {
     this.cutouts = cutouts
     this.paint(cutouts)
     this.block(cutouts)
@@ -566,6 +592,7 @@ export class Scrim {
       if (framed.length === this.halos.length) this.slideHalos(framed)
       else this.placeHalos(cutouts)
     }
+    this.moved?.(onScreen)
     this.markAnchor()
   }
 
@@ -907,6 +934,7 @@ export class Scrim {
     // `halt` stops the loop; this is what keeps it from being started again by
     // a run that is still to settle.
     this.reading = undefined
+    this.moved = undefined
     this.halt()
     this.element.remove()
     this.blocking.remove()

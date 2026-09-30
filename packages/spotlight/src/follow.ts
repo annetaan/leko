@@ -9,11 +9,9 @@
  * **The zero-JS answer is `animation-timeline: scroll()`, and it was not taken**.
  *
  * Like `glide.ts`, this knows nothing about scrims or steps: it is handed a
- * question to ask the page, somewhere to put the answer, and the ports whose
- * scrolling could change it.
+ * question to ask the page, somewhere to put the answer, what counts as the
+ * answer having changed, and the ports whose scrolling could change it.
  */
-
-import { type Cutout, sameCutouts } from './geometry.js'
 
 /** A follow that is armed: how to take it down. */
 export interface Follow {
@@ -46,22 +44,23 @@ const STILL_FRAMES = 2
  * Nothing starts a frame but a `scroll` on one of the ports. On a page nobody
  * is scrolling this costs one passive listener per port and not a frame.
  */
-export function follow(
-  from: readonly Cutout[],
-  read: () => Cutout[] | undefined,
-  write: (cutouts: Cutout[]) => void,
+export function follow<T>(
+  from: T,
+  read: () => T | undefined,
+  write: (now: T) => void,
   ports: readonly EventTarget[],
+  same: (a: T, b: T) => boolean,
 ): Follow {
   let frame: number | undefined
   let stopped = false
-  let last: readonly Cutout[] = from
+  let last: T = from
   let still = 0
 
   const tick = (): void => {
     frame = undefined
     const now = read()
     if (!now) return stop()
-    if (sameCutouts(last, now)) {
+    if (same(last, now)) {
       still += 1
     } else {
       still = 0
