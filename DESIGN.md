@@ -1666,10 +1666,9 @@ rather than onto the hole. A pinned target's is moved to a side that has room,
 under the sticky follow. The `auto`s are part of the spelling. A popover's UA
 style is `inset: 0`, and with only `bottom: anchor(top)` written the `top: 0`
 still holds, so a box above its hole is laid against the top of the viewport
-rather than against the marker — in WebKit, on the hole. The spike does not
-cover Safari: it is still to be opened there, and the claim rests on
-Playwright's WebKit. Nor does it measure the horizontal sides, which are the
-same spelling on the other axis.
+rather than against the marker — in WebKit and Safari, on the hole. The spike
+does not measure the horizontal sides, which are the same spelling on the
+other axis.
 
 **The side is chosen from the room a host left, not from the whole viewport**,
 and so is the foot the box docks to. A side with two hundred pixels under a
