@@ -8,8 +8,9 @@ import { type Case, html } from '../case.js'
 // Every step here is about something of Leko's that used to land on or under
 // one of the two. Turn the naming off in `main.ts` and watch each of them land
 // back on it: that is the state annetaan/leko-archive#141 described. With the
-// naming off, the last step does not move the page at all, because the row is
-// inside the viewport and the port already holds it. That is #52.
+// naming off, the `under` step's box sits on the console: that is #55. And the
+// last step does not move the page at all, because the row is inside the
+// viewport and the port already holds it. That is #52.
 export const hostChrome: Case = {
   id: 'host-chrome',
   title: 'Chrome the host says is its own',
@@ -18,9 +19,10 @@ export const hostChrome: Case = {
     "Naming a host's own chrome once keeps every box Leko draws off it: the " +
     'message takes a side with room that can actually be seen, the docked ' +
     'message sits above the footer rather than under it, the way out ' +
-    'takes a corner the support bubble does not own, and a step that ' +
-    'scrolls brings its target out from under the footer rather than ' +
-    'counting it as on screen.',
+    'takes a corner the support bubble does not own, a step that does not ' +
+    'scroll lays its message above the footer when its target is under it, ' +
+    'and a step that scrolls brings its target out from under the footer ' +
+    'rather than counting it as on screen.',
 
   options: {
     // Added to the sandbox's own footer rather than replacing it, so this case
@@ -118,14 +120,24 @@ export const hostChrome: Case = {
             'other side rather than sitting on top of it.',
         },
         {
+          id: 'under',
+          target: '[data-buried]',
+          message:
+            'The row this step points at is under the console, and the ' +
+            'step does not ask for a scroll, so its hole is cut under the ' +
+            'console, where the row is. The box is laid above the console ' +
+            'rather than on it. Unnamed, the console would have this box on ' +
+            'top of it.',
+        },
+        {
           id: 'buried',
           target: '[data-buried]',
           scroll: true,
           message:
-            'This row was under the console. The step asks for a scroll and ' +
-            'the console is named chrome, so the row is brought to the middle ' +
-            'of what the console leaves. Unnamed, the row counts as on ' +
-            'screen and the page stays put.',
+            'The same row, and this step asks for a scroll. The console is ' +
+            'named chrome, so the row is brought to the middle of what the ' +
+            'console leaves. Unnamed, the row counts as on screen and the ' +
+            'page stays put.',
         },
       ],
     },
