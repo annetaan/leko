@@ -17,6 +17,8 @@ import {
   outset,
   type Point,
   type Rect,
+  type Room,
+  roomRect,
   scrollDelta,
   scrollStages,
   union,
@@ -76,10 +78,10 @@ export type ScrollMode = 'direct' | 'staged'
  * it wherever it asks for more. DESIGN.md,
  * **`scroll-margin` on the target wins over the step's `padding`**.
  *
- * `room` is the document's port: what the host's chrome leaves of the viewport,
- * which is `roomIn` in `surface.ts`. A nested panel's port is its own client
- * box whatever `room` says. DESIGN.md,
- * **The page's port is what the host's chrome leaves of the viewport**.
+ * `room` is what `roomIn` in `surface.ts` hands every reader, and the
+ * document's port is {@link roomRect} of it: what the host's chrome leaves of
+ * the viewport. A nested panel's port is its own client box whatever `room`
+ * says. DESIGN.md, **The page's port is what the host's chrome leaves of the viewport**.
  */
 export function bringIntoView(
   lit: readonly [Element, ...Element[]],
@@ -87,7 +89,7 @@ export function bringIntoView(
   duration: number,
   mode: ScrollMode,
   easing: Easing,
-  room: Rect,
+  room: Room,
 ): Glide | undefined {
   return mode === 'staged'
     ? staged(lit, padding, duration, easing, room)
@@ -95,8 +97,8 @@ export function bringIntoView(
 }
 
 /** The port a surface brings a box into. The document's is the room the host left. */
-const portIn = (surface: Surface, room: Rect): Rect | undefined =>
-  surface.kind === 'document' ? room : scrollportOf(surface)
+const portIn = (surface: Surface, room: Room): Rect | undefined =>
+  surface.kind === 'document' ? roomRect(room) : scrollportOf(surface)
 
 /**
  * The page glides and every panel inside it is set outright, innermost first.
@@ -119,7 +121,7 @@ function direct(
   padding: number,
   duration: number,
   easing: Easing,
-  room: Rect,
+  room: Room,
 ): Glide | undefined {
   const [anchor] = lit
   const asked = roomAround(anchor, padding)
@@ -166,7 +168,7 @@ function staged(
   padding: number,
   duration: number,
   easing: Easing,
-  room: Rect,
+  room: Room,
 ): Glide | undefined {
   const [anchor] = lit
   const ports = surfaceChain(anchor).flatMap((surface) => {

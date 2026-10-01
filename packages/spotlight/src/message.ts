@@ -1,4 +1,12 @@
-import { type Rect, type Side, SIDES, sideWithRoom, union } from './geometry.js'
+import {
+  type Rect,
+  type Room,
+  roomRect,
+  type Side,
+  SIDES,
+  sideWithRoom,
+  union,
+} from './geometry.js'
 import { prefersReducedMotion } from './motion.js'
 import { MESSAGE_ANCHOR } from './scrim.js'
 
@@ -91,7 +99,7 @@ export class Message {
     | {
         side: Side
         gap: number
-        room: Rect
+        room: Room
         size: { width: number; height: number }
         at: (side: Side) => void
       }
@@ -207,14 +215,15 @@ export class Message {
    * as long as the two move together — which they do, being cut from the same
    * scrim.
    *
-   * `room` is the part of the page the box may go in, in the same coordinates
-   * as the cutouts — DESIGN.md, **The message**.
+   * `room` is the layout viewport and the bands the host's chrome claims of
+   * it, in the same coordinates as the cutouts; the box may go in what the
+   * bands leave — DESIGN.md, **The message**.
    */
   show(
     content: MessageContent,
     cutouts: Rect[],
     gap: number,
-    room: Rect,
+    room: Room,
     at?: (side: Side) => void,
   ): void {
     // Before `fill`, so its words do not re-measure a box `place` is about to.
@@ -341,7 +350,7 @@ export class Message {
   private place(
     cutouts: Rect[],
     gap: number,
-    room: Rect,
+    room: Room,
     at: ((side: Side) => void) | undefined,
   ): void {
     const box = union(cutouts)
@@ -402,7 +411,7 @@ export class Message {
 
   /**
    * Where the browser cannot track an anchor, the message goes to the foot of
-   * `room` and stays there.
+   * the room and stays there.
    *
    * The alternative — placing it beside the cutout from measurements, and
    * leaving it — would be a message that points at the right place until the
@@ -414,14 +423,15 @@ export class Message {
    * the room. `translate` carries the box up by its own height, so what lands
    * on that line is its lower edge.
    */
-  private dock(room: Rect): void {
+  private dock(room: Room): void {
     this.placed = undefined
+    const space = roomRect(room)
     const style = this.element.style
     for (const margin of MARGINS) style[margin] = '0px'
     style.justifySelf = ''
     style.alignSelf = ''
-    style.left = `${room.x + room.width / 2}px`
-    style.top = `calc(${room.y + room.height}px - var(--leko-message-dock, 24px))`
+    style.left = `${space.x + space.width / 2}px`
+    style.top = `calc(${space.y + space.height}px - var(--leko-message-dock, 24px))`
     style.right = 'auto'
     style.bottom = 'auto'
     style.translate = '-50% -100%'

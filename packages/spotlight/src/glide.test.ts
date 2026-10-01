@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
 
-import { ease, type Rect } from './geometry.js'
+import { ease, type Room, roomRect } from './geometry.js'
 import { bringIntoView, type Glide } from './glide.js'
 import { layoutViewport } from './surface.js'
 
@@ -108,14 +108,17 @@ function nested(style: Partial<CSSStyleDeclaration> = {}): {
   return { panel, row }
 }
 
-/** The page's port where the host named no chrome. */
-const viewport = (): Rect => layoutViewport()
+/** The room where the host named no chrome. */
+const viewport = (): Room => ({
+  viewport: layoutViewport(),
+  chrome: { top: 0, right: 0, bottom: 0, left: 0 },
+})
 
-/** The page's port where the host's chrome takes the bottom `band` px of the screen. */
-const clearOf = (band: number): Rect => {
-  const all = viewport()
-  return { ...all, height: all.height - band }
-}
+/** The room where the host's chrome takes the bottom `band` px of the screen. */
+const clearOf = (band: number): Room => ({
+  viewport: layoutViewport(),
+  chrome: { top: 0, right: 0, bottom: band, left: 0 },
+})
 
 /** Where a box sits on screen, down the page. */
 const middleOf = (el: Element): number => {
@@ -520,7 +523,7 @@ test("the page's port is the room it is handed, not the whole viewport", async (
   // On screen, so the whole viewport would hold it and nothing would move.
   const glide = watch(bringIntoView([card], 0, DURATION, 'direct', ease, room))
   await until(glide.settled, past(STAGE) + 40, 'the glide never settled')
-  expect(middleOf(card)).toBeCloseTo(room.height / 2, -1)
+  expect(middleOf(card)).toBeCloseTo(roomRect(room).height / 2, -1)
 })
 
 test('a card the room already holds is not scrolled', () => {
@@ -540,7 +543,7 @@ test('a staged scroll brings the box into the room too', async () => {
 
   const glide = watch(bringIntoView([card], 0, DURATION, 'staged', ease, room))
   await until(glide.settled, past(STAGE) + 40, 'the staged glide never settled')
-  expect(middleOf(card)).toBeCloseTo(room.height / 2, -1)
+  expect(middleOf(card)).toBeCloseTo(roomRect(room).height / 2, -1)
 })
 
 test("a nested panel's port is its own client box, whatever the room", () => {
@@ -554,5 +557,5 @@ test("a nested panel's port is its own client box, whatever the room", () => {
   // in the room: the room narrowed the page and nothing else.
   const port = panel.getBoundingClientRect()
   expect(middleOf(row)).toBeCloseTo(port.top + port.height / 2, -1)
-  expect(middleOf(row)).toBeCloseTo(room.height / 2, -1)
+  expect(middleOf(row)).toBeCloseTo(roomRect(room).height / 2, -1)
 })

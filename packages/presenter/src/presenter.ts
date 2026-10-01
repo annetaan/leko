@@ -17,6 +17,7 @@ import {
   resolveTarget,
   resolveTargets,
   roomIn,
+  type Room,
   sameSurface,
   Scrim,
   type ScrollMode,
@@ -112,8 +113,8 @@ interface Measured {
   onScreen: Cutout[]
   /** Where the host said its own chrome is, on screen — {@link DomPresenter.chromeBoxes}. */
   chrome: Rect[]
-  /** The viewport with those boxes taken off it, which is where the message may go. */
-  room: Rect
+  /** The viewport and the bands those boxes claim of it; the message goes in what is left. */
+  room: Room
   /** The visible box in `inner`'s space, for the opening; read here so that `converge` writes only. */
   seen: Rect
 }

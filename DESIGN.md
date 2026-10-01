@@ -1412,8 +1412,9 @@ tour is for.
   innermost first, with the box measured again for each — scrolling an inner
   scroller moves the target inside every port outside it.
 - **The page's port is what the host's chrome leaves of the viewport.** The
-  document's port is `roomIn`: the layout viewport less `chromeInsets` of the
-  `hostChrome` boxes, the same room the message is placed into. A target the
+  document's port is `roomRect` of `roomIn`: the layout viewport less
+  `chromeInsets` of the `hostChrome` boxes, the same room the message is placed
+  into. A target the
   chrome covers is therefore not held — `scrollDelta` answers non-zero — and is
   brought to the middle of what is left, and a target more than half the room
   tall leads with its top edge at the room's middle. A host that names nothing
@@ -1673,11 +1674,12 @@ other axis.
 **The side is chosen from the room a host left, not from the whole viewport**,
 and so is the foot the box docks to. A side with two hundred pixels under a
 sticky footer has no room at all, and a box docked twenty-four pixels off the
-foot of the viewport is docked inside the footer. `sideWithRoom` therefore takes
-a rect rather than measuring the viewport itself, and where a host has named
-nothing that rect is the layout viewport — the box being placed is
-`position: fixed`, so that is what it is laid out against — and a page with no
-chrome to declare is placed exactly as it always was.
+foot of the viewport is docked inside the footer. `sideWithRoom` therefore
+takes the room `roomIn` hands every reader rather than measuring the viewport
+itself: the layout viewport — the box being placed is `position: fixed`, so
+that is what it is laid out against — and the bands the chrome claims of it.
+Where a host has named nothing the bands are zero, and a page with no chrome
+to declare is placed exactly as it always was.
 
 **The core has no third-party runtime dependencies and must stay that way.** A
 scalar tween is all this needs, and a dependency here is a licensing and

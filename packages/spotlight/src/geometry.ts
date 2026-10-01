@@ -114,6 +114,17 @@ export function inset(rect: Rect, room: Insets): Rect {
   }
 }
 
+/** The layout viewport, and how deep the host's chrome claims each edge of it. */
+export interface Room {
+  viewport: Rect
+  chrome: Insets
+}
+
+/** What the host's chrome leaves of the viewport, as one rect. */
+export function roomRect(room: Room): Rect {
+  return inset(room.viewport, room.chrome)
+}
+
 /**
  * The nearer of two opposite edges and how deep the box reaches from it, or
  * nothing where the box sits exactly between them.
@@ -182,9 +193,10 @@ export type Side = (typeof SIDES)[number]
 /**
  * The side of `box` with room for something of `size`, `gap` clear of it.
  *
- * `room` rather than the viewport, and `bottom` when nothing fits, where the
- * box is then held off the hole and runs off the screen. DESIGN.md argues both
- * under **The message**.
+ * What fits is judged against {@link roomRect} of `room` rather than the bare
+ * viewport, and `bottom` is the answer when nothing fits, where the box is then
+ * held off the hole and runs off the screen. DESIGN.md argues both under
+ * **The message**.
  *
  * The sides are tried in `order`, and its first is also the answer when nothing
  * fits, which is how a caller keeps a side: by putting it first. `place` passes
@@ -193,15 +205,16 @@ export type Side = (typeof SIDES)[number]
 export function sideWithRoom(
   box: Rect,
   size: { width: number; height: number },
-  room: Rect,
+  room: Room,
   gap: number,
   order: readonly [Side, ...Side[]] = SIDES,
 ): Side {
+  const space = roomRect(room)
   const free: Record<Side, number> = {
-    bottom: room.y + room.height - (box.y + box.height),
-    top: box.y - room.y,
-    right: room.x + room.width - (box.x + box.width),
-    left: box.x - room.x,
+    bottom: space.y + space.height - (box.y + box.height),
+    top: box.y - space.y,
+    right: space.x + space.width - (box.x + box.width),
+    left: box.x - space.x,
   }
   const need: Record<Side, number> = {
     bottom: size.height + gap,

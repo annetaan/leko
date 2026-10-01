@@ -18,13 +18,14 @@ import {
   hasArea,
   heldAgainst,
   overlaps,
-  inset,
   holeImage,
   lerpCutouts,
   maskLayers,
   outset,
   padCutouts,
   type Rect,
+  type Room,
+  roomRect,
   sameCutouts,
   scrollDelta,
   STICKY_SLACK,
@@ -681,15 +682,22 @@ test('chrome with no part of it on screen claims nothing', () => {
 
 test('the room is the viewport with the bands taken off', () => {
   const viewport = rect(0, 0, 1280, 800)
+  const chrome = chromeInsets(1280, 800, [FOOTER])
 
-  expect(inset(viewport, chromeInsets(1280, 800, [FOOTER]))).toEqual(rect(0, 0, 1280, 621))
+  expect(roomRect({ viewport, chrome })).toEqual(rect(0, 0, 1280, 621))
 })
 
 // The side the message takes. annetaan/leko-archive#141's table is the case: a
 // hole in the middle of the screen with 200px under it, and a footer that owns
 // 179 of them.
 
-const room = inset(rect(0, 0, 1280, 800), chromeInsets(1280, 800, [FOOTER]))
+const room = { viewport: rect(0, 0, 1280, 800), chrome: chromeInsets(1280, 800, [FOOTER]) }
+
+/** A room the host's chrome claims none of. */
+const bare = (viewport: Rect): Room => ({
+  viewport,
+  chrome: { top: 0, right: 0, bottom: 0, left: 0 },
+})
 
 test('a side is chosen from the room, not the viewport', () => {
   // A row centred on screen, and the box that goes beside it: 435..629 when it
@@ -697,7 +705,7 @@ test('a side is chosen from the room, not the viewport', () => {
   const row = rect(560, 381, 160, 38)
   const note = { width: 320, height: 194 }
 
-  expect(sideWithRoom(row, note, rect(0, 0, 1280, 800), 16)).toBe('bottom')
+  expect(sideWithRoom(row, note, bare(rect(0, 0, 1280, 800)), 16)).toBe('bottom')
   expect(sideWithRoom(row, note, room, 16)).toBe('top')
 })
 
@@ -722,7 +730,7 @@ test('sideWithRoom tries the sides in the order it is given', () => {
   // 381px above the row and 381px below it, so either fits.
   const row = rect(560, 381, 160, 38)
   const note = { width: 320, height: 194 }
-  const viewport = rect(0, 0, 1280, 800)
+  const viewport = bare(rect(0, 0, 1280, 800))
 
   expect(sideWithRoom(row, note, viewport, 16, ['top', ...SIDES])).toBe('top')
   expect(sideWithRoom(row, note, viewport, 16)).toBe('bottom')
