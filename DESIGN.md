@@ -1895,9 +1895,15 @@ already convinced.
 
 The cutout needs CSS masking with several layers and `mask-composite`, and an
 SVG in a `data:` URL as a mask image. **The floor this implies has not been
-measured. Do not quote one until it has.** The source also uses ES2023 array
-methods, a lower floor of its own. What has been checked is the top: Chrome 152,
-Firefox 153 and Safari 26 all draw it ([`spike/overlapping-holes/`](spike/overlapping-holes/)).
+measured. Do not quote one until it has.**
+[`spike/the-support-floor/`](spike/the-support-floor/) is the page it is
+measured on: [What Leko calls](spike/the-support-floor/README.md#what-leko-calls)
+is every browser feature the shipped code uses, each marked required or
+optional, and [Measuring a floor](spike/the-support-floor/README.md#measuring-a-floor)
+is how a release is judged. **Shipped code that uses a browser feature not on
+that list adds it to the page first**, so the list stays the whole of what a
+floor is measured against. What has been checked so far is the newest
+releases, which [Seen on](spike/the-support-floor/README.md#seen-on) records.
 
 CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places
 the message beside a cutout and does nothing else, so it degrades rather than

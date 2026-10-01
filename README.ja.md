@@ -141,7 +141,6 @@ API呼び出しが解決した後、バリデーションに合格した後な�
 
 | | |
 | --- | --- |
-| [Status](README.md#status) | どこまで動いていて、何がこれからか |
 | [Browser support](README.md#browser-support) | 必要な CSS 機能と、無い場合の振る舞い |
 | [About the name](README.md#about-the-name) | Leko という名前の由来 |
 | [DESIGN.md](DESIGN.md) | なぜこの形なのか。規則ごとに、そうさせたブラウザの挙動が併記してあります |

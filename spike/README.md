@@ -32,6 +32,7 @@ tell you what you are allowed to assume.
 | [`a-hole-at-a-fractional-edge/`](a-hole-at-a-fractional-edge/) | Do a mask hole and a box laid on it meet at a fractional edge, and on what rectangle do they? |
 | [`a-render-before-the-frame/`](a-render-before-the-frame/) | Does a render beat the next frame? |
 | [`an-anchored-box-out-of-room/`](an-anchored-box-out-of-room/) | Where does an anchored box go once the side it is on has no room, and can it be kept from sliding onto the hole? |
+| [`the-support-floor/`](the-support-floor/) | Can this browser run Leko? |
 
 ## Reading them
 

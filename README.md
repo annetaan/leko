@@ -257,23 +257,6 @@ takes an empty Vite project to a lit page, and
 and custom property. `pnpm dev:scroll` serves
 [`examples/scroll/`](examples/scroll/), one long page lit end to end.
 
-## Status
-
-| Milestone | State |
-| --- | --- |
-| Cutout rendering, several cutouts per step | ✅ Working |
-| Animation (converge-in, step-to-step morphing) | ✅ Working |
-| Step state (`steps`, `validate`, transitions) | ✅ Working |
-| Placing the step message beside its cutout | ✅ Working |
-| Advancing on a named signal instead of on position | ✅ Working |
-| Several stories on one instance, one of them running | ✅ Working |
-| Signal names gathered from the call sites, offered on `awaits` | ✅ Working |
-| A next control on the message, on steps that await nothing | ✅ Working |
-| A control that ends the tour, on screen for as long as it runs | ✅ Working |
-| Reading `state`, and every crossing of it on `onStep` | ✅ Working |
-| Advancing on a URL change | ✅ Working |
-| Carrying a tour across a page load, to the story the next document runs | ✅ Working |
-
 ## Browser support
 
 The cutout needs CSS masking with several layers and `mask-composite`. The floor
@@ -301,8 +284,8 @@ same fallback sentence about `pushState` bounds the same-document half.
   Start here if you are going to change something.
 - **[DESIGN.md](DESIGN.md)** is why the code is shaped the way it is. Each rule
   sits next to the browser behaviour that forced it.
-- **[`spike/`](spike/)** is the evidence. Three standalone pages, no build step
-  and no Leko, each answering one question about what a browser actually does.
+- **[`spike/`](spike/)** is the evidence. Standalone pages, no build step and
+  no Leko, each answering one question about what a browser actually does.
   Open one and watch the answer.
 - **[`examples/sandbox/`](examples/sandbox/)** is the situations a tour has to
   survive, one per case, each stating what it proves.
