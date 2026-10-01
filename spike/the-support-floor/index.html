@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Can this browser run Leko?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 20px 24px 40px; font: 14px/22px system-ui, sans-serif; }
+  h1 { font-size: 17px; line-height: 26px; margin: 0 0 6px; }
+  h2 { font-size: 14px; line-height: 22px; margin: 16px 0 6px; }
+  p  { margin: 0 0 10px; max-width: 70ch; }
+  code { font-family: ui-monospace, monospace; font-size: 12px; }
+  #env { white-space: pre-wrap; font-size: 11px; line-height: 16px; color: #888; margin: 12px 0 0; }
+
+  .layout { display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: flex-start; }
+  .left { flex: 0 1 520px; }
+
+  /*
+   * One flat saturated ground, so a hole reads as bright magenta and the scrim
+   * as dimmed magenta, and the red channel alone tells the two apart.
+   */
+  .surface { position: relative; width: 240px; height: 160px; background: #f0f; overflow: hidden; }
+
+  /* Dimmed the way both products dim, in the colour both default to. */
+  .scrim { position: absolute; left: 0; top: 0; width: 240px; height: 160px; background: rgb(0 0 0 / 0.45); }
+
+  #verdicts { font: 13px/20px ui-monospace, monospace; margin: 10px 0 0; white-space: pre-wrap; }
+  #verdicts .yes { color: #178a3a; font-weight: 600; }
+  #verdicts .no { color: #c22; font-weight: 600; }
+
+  table { border-collapse: collapse; font-size: 12px; line-height: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 1px 8px; border-bottom: 1px solid #8883; }
+  tr.group td { font-weight: 600; padding-top: 4px; }
+  td.yes { color: #178a3a; font-weight: 600; }
+  td.no { color: #c22; font-weight: 600; }
+  td.eye { color: #b57500; font-weight: 600; }
+</style>
+<script>
+  // Filled by the two module probes below, which the classic script cannot
+  // write: a module that does not parse runs nothing, so a flag left unset is
+  // a construct the engine does not have.
+  window.__syntax = {}
+</script>
+<script type="module">window.__syntax.tla = true; await null</script>
+<script type="module">window.__syntax.meta = !!import.meta</script>
+</head>
+<body>
+
+<div class="layout">
+<div class="left">
+  <h1>Can this browser run Leko?</h1>
+  <p>
+    Every browser feature the shipped code of the tour and of Leko Scroll uses,
+    asked of this browser. An item is <strong>required</strong> where the code
+    uses it unchecked, so an engine without it throws, or draws a scrim with
+    no hole or no dimming; it is <strong>optional</strong> where the code
+    checks for it first, or only listens for it. <code>README.md</code> beside
+    this page names the file and the symbol behind each.
+  </p>
+
+  <h2>The hole</h2>
+  <div class="surface" id="surface"><div class="scrim" id="scrim"></div></div>
+  <p style="margin-top: 8px">
+    Two square holes cut the way Leko cuts them, overlapping by 20px. A browser
+    that runs Leko shows one bright magenta shape, 100 by 60, in the dimmed
+    panel. <code>run.mjs</code> reads it from a screenshot; opened by hand,
+    judge it by eye.
+  </p>
+
+  <div id="verdicts"></div>
+  <div id="env"></div>
+</div>
+
+<table>
+  <thead><tr><th>item</th><th>needed by</th><th>result</th></tr></thead>
+  <tbody id="results"></tbody>
+</table>
+</div>
+
+<script>
+  // ES2017 syntax and no newer API outside a try, so that a release below the
+  // floor still parses this and says what it lacks.
+
+  // --- The mask, as `maskLayers` and `holeImage` in
+  // packages/spotlight/src/geometry.ts write it.
+
+  var round = function (n) { return Math.round(n * 100) / 100 }
+  var clamp = function (n, max) { return Math.min(Math.max(0, n), Math.max(0, max)) }
+
+  function holeImage(cutout, clip) {
+    clip = clip || cutout
+    var w = round(Math.max(0, cutout.width))
+    var h = round(Math.max(0, cutout.height))
+    var r = round(clamp(cutout.radius, Math.min(w, h) / 2))
+    var width = round(Math.max(0, clip.width))
+    var height = round(Math.max(0, clip.height))
+    var x = round(cutout.x - clip.x)
+    var y = round(cutout.y - clip.y)
+    var svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+      `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="black"/></svg>`
+    return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+  }
+
+  function clipToSurface(width, height, cutout) {
+    var x = clamp(cutout.x, width)
+    var y = clamp(cutout.y, height)
+    return Object.assign({}, cutout, {
+      x: x,
+      y: y,
+      width: clamp(cutout.x + cutout.width, width) - x,
+      height: clamp(cutout.y + cutout.height, height) - y,
+    })
+  }
+
+  function maskLayers(width, height, cutouts) {
+    var holes = cutouts
+      .map(function (cutout) { return { cutout: cutout, clip: clipToSurface(width, height, cutout) } })
+      .filter(function (h) { return h.clip.width > 0 && h.clip.height > 0 })
+    return {
+      image: ['linear-gradient(black, black)']
+        .concat(holes.map(function (h) { return holeImage(h.cutout, h.clip) })).join(', '),
+      position: ['0 0']
+        .concat(holes.map(function (h) { return `${round(h.clip.x)}px ${round(h.clip.y)}px` })).join(', '),
+      composite: ['subtract'].concat(holes.map(function () { return 'add' })).join(', '),
+    }
+  }
+
+  var A = { x: 40, y: 50, width: 60, height: 60, radius: 8, interactive: true }
+  var B = { x: 80, y: 50, width: 60, height: 60, radius: 8, interactive: false }
+  var layers = maskLayers(240, 160, [A, B])
+  // Written as `Scrim.paint` writes it: unprefixed, camel-cased, at once.
+  Object.assign(document.getElementById('scrim').style, {
+    maskImage: layers.image,
+    maskPosition: layers.position,
+    maskComposite: layers.composite,
+    maskRepeat: 'no-repeat',
+  })
+
+  // --- Probes. Each answers true or false and never throws.
+
+  // One argument is a condition, two are a property and a value, the way
+  // `CSS.supports` itself takes them.
+  var supports = function () {
+    return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' &&
+      CSS.supports.apply(CSS, arguments)
+  }
+  var has = function (object, name) { return object !== undefined && object !== null && name in object }
+  var proto = function (ctor) { return typeof window[ctor] === 'function' ? window[ctor].prototype : undefined }
+
+  var syntax = [
+    ['arrow functions', 'var f = (a) => a'],
+    ['class extends', 'class A {} class B extends A { constructor() { super() } }'],
+    ['let and const', 'let a = 1; const b = 2'],
+    ['template literals', 'var a = `x${1}`'],
+    ['destructuring', 'var { a, b: [c] } = { a: 1, b: [2] }'],
+    ['spread', 'Math.max(...[1]); var a = [...[1]]'],
+    ['generators', 'function* g() { yield 1 }'],
+    ['for…of', 'for (var x of []) {}'],
+    ['**', 'var a = 2 ** 3'],
+    ['async and await', 'async function f() { await null }'],
+    ['object rest and spread', 'var { a, ...r } = { a: 1 }; var o = { ...r }'],
+    ['for await', 'async function f() { for await (const x of []) {} }'],
+    ['async generators', 'async function* g() { yield 1 }'],
+    ['RegExp named groups', 'var r = /(?<a>x)/'],
+    ['RegExp lookbehind', 'var r = /(?<=a)b/'],
+    ['RegExp s flag', 'var r = /./s'],
+    ['optional catch binding', 'try {} catch {}'],
+    ['?.', 'var o = null; o?.a; o?.(); o?.[0]'],
+    ['??', 'var a = null ?? 1'],
+    ['BigInt literals', 'var a = 1n'],
+    ['dynamic import', "function f() { return import('x') }"],
+    ['logical assignment', 'var a; a ||= 1; a &&= 2; a ??= 3'],
+    ['numeric separators', 'var a = 1_000'],
+    ['class fields', 'class A { a = 1; static b = 2 }'],
+    ['private fields', 'class A { #x = 1; m() { return this.#x } }'],
+    ['private methods', 'class A { #m() {} n() { this.#m() } }'],
+    ['private accessors', 'class A { get #a() { return 1 } m() { return this.#a } }'],
+    ['static blocks', 'class A { static {} }'],
+    ['#x in', 'class A { #x; static has(o) { return #x in o } }'],
+    ['RegExp d flag', 'var r = /a/d'],
+  ].map(function (pair) {
+    return {
+      name: pair[0],
+      test: function () {
+        // Compiled and never called: the question is whether it parses.
+        try { new Function(pair[1]); return true } catch (e) { return false }
+      },
+    }
+  }).concat([
+    { name: 'top-level await', test: function () { return window.__syntax.tla === true } },
+    { name: 'import.meta', test: function () { return window.__syntax.meta === true } },
+  ])
+
+  // An options object honoured, not read as a number: an element scrolled to
+  // 5 by one, on a scroller made for the purpose.
+  var scrollsWithOptions = function () {
+    var outer = document.createElement('div')
+    outer.style.cssText = 'position:absolute;left:-200px;top:0;width:50px;height:50px;overflow:scroll'
+    outer.innerHTML = '<div style="height:200px"></div>'
+    document.body.appendChild(outer)
+    try {
+      outer.scrollTo({ top: 5 })
+      return outer.scrollTop === 5
+    } finally {
+      document.body.removeChild(outer)
+    }
+  }
+
+  var canStore = function () {
+    window.sessionStorage.setItem('leko-support-floor', '1')
+    window.sessionStorage.removeItem('leko-support-floor')
+    return true
+  }
+
+  var BOTH = ['tour', 'scroll']
+  var TOUR = ['tour']
+  var SCROLL = ['scroll']
+
+  // `css` probes the value inside each `var()` fallback, since `CSS.supports`
+  // accepts any `var()` whatever it falls back to, and then the `var()` itself.
+  var items = [
+    { group: 'Required', name: 'mask', entries: BOTH, required: true, mask: true, parts: [
+      { name: 'mask-image', test: function () { return supports('mask-image', layers.image) } },
+      { name: 'mask-position', test: function () { return supports('mask-position', layers.position) } },
+      { name: 'mask-repeat', test: function () { return supports('mask-repeat', 'no-repeat') } },
+      { name: 'mask-composite', test: function () { return supports('mask-composite', layers.composite) } },
+    ] },
+    { name: 'css', entries: BOTH, required: true, parts: [
+      { name: 'translate', test: function () { return supports('translate', '-50% -100%') } },
+      { name: 'inset', entries: SCROLL, test: function () { return supports('inset', '0') } },
+      { name: 'rgb() with / alpha', test: function () { return supports('background', 'rgb(0 0 0 / 0.45)') } },
+      { name: 'min() with calc()', test: function () { return supports('max-width', 'min(320px, calc(100vw - 32px))') } },
+      { name: 'var() with a fallback', test: function () {
+        return supports('max-width', 'var(--leko-message-max-width, min(320px, calc(100vw - 32px)))')
+      } },
+    ] },
+    { name: 'syntax', note: 'to ES2023, which adds only a hashbang', entries: BOTH, required: true, parts: syntax },
+    { name: 'toSorted', entries: TOUR, required: true, test: function () { return has(Array.prototype, 'toSorted') } },
+    { name: 'toReversed', entries: TOUR, required: true, test: function () { return has(Array.prototype, 'toReversed') } },
+    { name: 'Array.prototype.at', entries: SCROLL, required: true, test: function () { return has(Array.prototype, 'at') } },
+    { name: 'ResizeObserver', entries: TOUR, required: true, test: function () { return typeof ResizeObserver === 'function' } },
+    { name: 'MutationObserver', entries: TOUR, required: true, test: function () { return typeof MutationObserver === 'function' } },
+
+    { group: 'Required, baseline', name: 'matchMedia', entries: BOTH, required: true, test: function () { return typeof window.matchMedia === 'function' } },
+    { name: 'performance.now', entries: BOTH, required: true, test: function () { return typeof performance !== 'undefined' && typeof performance.now === 'function' } },
+    { name: 'requestAnimationFrame', entries: BOTH, required: true, test: function () { return typeof requestAnimationFrame === 'function' } },
+    { name: 'cancelAnimationFrame', entries: BOTH, required: true, test: function () { return typeof cancelAnimationFrame === 'function' } },
+    { name: 'getComputedStyle', entries: BOTH, required: true, test: function () { return typeof getComputedStyle === 'function' } },
+    { name: 'getClientRects', entries: BOTH, required: true, test: function () { return has(proto('Element'), 'getClientRects') } },
+    { name: 'CSS.supports', entries: TOUR, required: true, test: function () { return typeof CSS !== 'undefined' && typeof CSS.supports === 'function' } },
+    { name: 'queueMicrotask', entries: TOUR, required: true, test: function () { return typeof queueMicrotask === 'function' } },
+    { name: 'composedPath', entries: TOUR, required: true, test: function () { return has(proto('Event'), 'composedPath') } },
+    { name: 'scrollTo with options', entries: TOUR, required: true, test: scrollsWithOptions },
+    { name: 'toggleAttribute', entries: TOUR, required: true, test: function () { return has(proto('Element'), 'toggleAttribute') } },
+    { name: 'isConnected', entries: BOTH, required: true, test: function () { return has(proto('Node'), 'isConnected') } },
+    { name: 'flatMap', entries: BOTH, required: true, test: function () { return has(Array.prototype, 'flatMap') } },
+    { name: 'Math.hypot', entries: TOUR, required: true, test: function () { return typeof Math.hypot === 'function' } },
+    { name: 'append', entries: BOTH, required: true, test: function () { return has(proto('Element'), 'append') } },
+    { name: 'prepend', entries: TOUR, required: true, test: function () { return has(proto('Element'), 'prepend') } },
+    { name: 'remove', entries: BOTH, required: true, test: function () { return has(proto('Element'), 'remove') } },
+    { name: 'matches', entries: TOUR, required: true, test: function () { return has(proto('Element'), 'matches') } },
+    { name: 'NodeList iteration', entries: BOTH, required: true, test: function () {
+      return typeof Symbol === 'function' && typeof NodeList.prototype[Symbol.iterator] === 'function'
+    } },
+    { name: 'DOMRect x and y', entries: TOUR, required: true, test: function () {
+      var r = document.body.getBoundingClientRect()
+      return typeof r.x === 'number' && typeof r.y === 'number'
+    } },
+    { name: 'document.fonts', entries: SCROLL, required: true, test: function () {
+      return has(document, 'fonts') && typeof document.fonts.ready.then === 'function'
+    } },
+
+    { group: 'Optional', name: 'popover', entries: TOUR, required: false, test: function () { return has(proto('HTMLElement'), 'showPopover') } },
+    { name: 'anchor', entries: TOUR, required: false, test: function () {
+      return supports('anchor-name: --a') && supports('top: anchor(bottom)') && supports('justify-self: anchor-center')
+    } },
+    { name: 'navigation', entries: TOUR, required: false, test: function () { return 'navigation' in window } },
+    { name: 'checkVisibility', entries: TOUR, required: false, test: function () { return has(proto('Element'), 'checkVisibility') } },
+    { name: 'sessionStorage', entries: TOUR, required: false, test: canStore },
+    { name: 'pagehide', entries: TOUR, required: false, test: function () { return 'onpagehide' in window } },
+    { name: 'pageshow', entries: TOUR, required: false, test: function () { return 'onpageshow' in window } },
+    { name: 'popstate', entries: TOUR, required: false, test: function () { return 'onpopstate' in window } },
+    { name: 'hashchange', entries: TOUR, required: false, test: function () { return 'onhashchange' in window } },
+  ]
+
+  var ask = function (test) {
+    try { return test() === true } catch (e) { return false }
+  }
+
+  // Each item's answer: `present`, or `missing` with the parts that are, and
+  // for `mask` what the pixels said or that they were not read.
+  function judge(pixels) {
+    return items.map(function (item) {
+      var missing = item.parts
+        ? item.parts.filter(function (p) { return !ask(p.test) })
+        : ask(item.test) ? [] : [{ name: item.name }]
+      var result = {
+        name: item.name,
+        group: item.group,
+        note: item.note,
+        entries: item.entries,
+        required: item.required,
+        // Per entry point, the parts it needs that are missing.
+        missing: {},
+        status: missing.length ? 'missing' : 'present',
+        detail: item.parts && missing.length ? missing.map(function (p) { return p.name }).join(', ') : '',
+      }
+      item.entries.forEach(function (entry) {
+        result.missing[entry] = missing
+          .filter(function (p) { return !p.entries || p.entries.indexOf(entry) >= 0 })
+          .map(function (p) { return p.name })
+      })
+      // A no from `CSS.supports` can be trusted; a yes cannot, which is why
+      // the pixels decide when there are pixels.
+      if (item.mask && !missing.length) {
+        if (!pixels) {
+          result.status = 'eye'
+        } else if (pixels !== 'cuts') {
+          result.status = 'missing'
+          result.detail = pixels
+          BOTH.forEach(function (entry) { result.missing[entry] = [pixels] })
+        } else {
+          result.status = 'cuts'
+        }
+      }
+      return result
+    })
+  }
+
+  function verdicts(rows) {
+    var line = function (entry) {
+      var missing = []
+      rows.forEach(function (r) {
+        if (!r.required || r.entries.indexOf(entry) < 0) return
+        var parts = r.missing[entry]
+        if (!parts.length) return
+        missing.push(parts.length === 1 && parts[0] === r.name ? r.name : `${r.name} (${parts.join(', ')})`)
+      })
+      return missing.length ? `missing ${missing.join(', ')}` : 'required all present'
+    }
+    var optional = rows.filter(function (r) { return !r.required })
+    var present = optional.filter(function (r) { return r.status === 'present' }).map(function (r) { return r.name })
+    var absent = optional.filter(function (r) { return r.status !== 'present' }).map(function (r) { return r.name })
+    return {
+      tour: line('tour'),
+      scroll: line('scroll'),
+      optional: `${present.join(', ') || 'none'} / missing ${absent.join(', ') || 'none'}`,
+    }
+  }
+
+  var said = {
+    present: ['yes', 'present'],
+    missing: ['no', 'missing'],
+    cuts: ['yes', 'cuts'],
+    eye: ['eye', 'CSS.supports says yes; judge by eye'],
+  }
+  var label = { tour: 'tour', scroll: 'Scroll' }
+
+  function render(rows, v) {
+    var body = document.getElementById('results')
+    body.textContent = ''
+    rows.forEach(function (r) {
+      if (r.group) {
+        var g = document.createElement('tr')
+        g.className = 'group'
+        var gd = document.createElement('td')
+        gd.colSpan = 3
+        gd.textContent = r.group
+        g.appendChild(gd)
+        body.appendChild(g)
+      }
+      var tr = document.createElement('tr')
+      var name = document.createElement('td')
+      name.textContent = r.note ? `${r.name}, ${r.note}` : r.name
+      var by = document.createElement('td')
+      by.textContent = r.entries.length === 2 ? 'both' : label[r.entries[0]]
+      var result = document.createElement('td')
+      result.className = said[r.status][0]
+      result.textContent = r.detail ? `${said[r.status][1]}: ${r.detail}` : said[r.status][1]
+      tr.appendChild(name)
+      tr.appendChild(by)
+      tr.appendChild(result)
+      body.appendChild(tr)
+    })
+    var out = document.getElementById('verdicts')
+    out.textContent = ''
+    ;[['tour', v.tour], ['scroll', v.scroll], ['optional', v.optional]].forEach(function (pair) {
+      var div = document.createElement('div')
+      var span = document.createElement('span')
+      if (pair[0] !== 'optional') span.className = pair[1] === 'required all present' ? 'yes' : 'no'
+      span.textContent = pair[1]
+      div.appendChild(document.createTextNode(`${pair[0]}: `))
+      div.appendChild(span)
+      out.appendChild(div)
+    })
+  }
+
+  function report(pixels) {
+    var rows = judge(pixels)
+    var v = verdicts(rows)
+    render(rows, v)
+    return { ua: navigator.userAgent, viewport: `${innerWidth}×${innerHeight}`, verdicts: v, rows: rows }
+  }
+
+  // --- The pixel read, the way spike/a-hole-at-a-fractional-edge/ does it.
+
+  // The red channel of the ground is 255 and of the dimmed ground 140; a
+  // sample above the halfway mark is bare.
+  var BARE_ABOVE = (255 + 140) / 2
+
+  async function read(dataUrl) {
+    var place = document.getElementById('surface').getBoundingClientRect()
+    var img = new Image()
+    img.src = dataUrl
+    await img.decode()
+    var canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    var g = canvas.getContext('2d', { willReadFrequently: true })
+    g.drawImage(img, 0, 0)
+    var data = g.getImageData(0, 0, canvas.width, canvas.height).data
+    var scale = canvas.width / innerWidth
+    var bare = function (x, y) {
+      var px = Math.round((place.left + x) * scale)
+      var py = Math.round((place.top + y) * scale)
+      return data[(py * canvas.width + px) * 4] > BARE_ABOVE
+    }
+    var pixels =
+      bare(200, 20) ? 'no scrim'
+        : !bare(60, 80) || !bare(120, 80) ? 'no hole'
+          : !bare(90, 80) ? 'no union'
+            : 'cuts'
+    return report(pixels)
+  }
+
+  document.getElementById('env').textContent =
+    `${navigator.userAgent}\nviewport ${innerWidth}×${innerHeight}, devicePixelRatio ${window.devicePixelRatio}`
+
+  // On load, which comes after the module probes have run.
+  window.addEventListener('load', function () { report(undefined) })
+
+  window.spikeSupportFloor = { read: read }
+</script>
+</body>
+</html>
