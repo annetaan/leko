@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from 'vitest'
 
+import type { Rect, Room } from './geometry.js'
 import { Message } from './message.js'
 import { MESSAGE_ANCHOR } from './scrim.js'
 
@@ -17,6 +18,12 @@ const anchors =
   CSS.supports('anchor-name: --a') &&
   CSS.supports('top: anchor(bottom)') &&
   CSS.supports('justify-self: anchor-center')
+
+/** A room the host's chrome claims none of. */
+const bare = (viewport: Rect): Room => ({
+  viewport,
+  chrome: { top: 0, right: 0, bottom: 0, left: 0 },
+})
 
 const content = { text: 'Nothing to point at.', error: undefined, next: undefined }
 
@@ -39,12 +46,12 @@ test.runIf(anchors)('a docked box keeps nothing of the side it was held on', () 
   // Against the right edge and nearly the room's height, so the only side with
   // room is the left, which is held with `right: anchor(left)`.
   const hole = { x: room.width - 120, y: 20, width: 100, height: room.height - 40 }
-  message.show(content, [hole], 8, room, () => {
+  message.show(content, [hole], 8, bare(room), () => {
     Object.assign(marker.style, { left: `${hole.x}px`, top: `${hole.y + hole.height / 2}px` })
   })
   expect(message.element.style.right).toBe('anchor(left)')
 
-  message.show(content, [], 8, room)
+  message.show(content, [], 8, bare(room))
 
   const note = message.element.getBoundingClientRect()
   expect(Math.abs(note.left + note.width / 2 - room.width / 2)).toBeLessThan(1)
@@ -75,7 +82,7 @@ const row = (y: number) => ({ x: 100, y, width: 200, height: 40 })
 
 test.runIf(anchors)('keep moves the box to the first side with room once its own has none', () => {
   const { message, told, at } = keeper()
-  message.show(content, [row(100)], GAP, tall, at)
+  message.show(content, [row(100)], GAP, bare(tall), at)
   expect(told).toEqual(['bottom'])
 
   message.keep([row(tall.height - 40)])
@@ -87,7 +94,7 @@ test.runIf(anchors)('keep moves the box to the first side with room once its own
 test.runIf(anchors)('keep leaves a side that still has room', () => {
   const { message, told, at } = keeper()
   // 40px under the row, so the draw puts it on top.
-  message.show(content, [row(tall.height - 80)], GAP, tall, at)
+  message.show(content, [row(tall.height - 80)], GAP, bare(tall), at)
   expect(told).toEqual(['top'])
 
   // Now both sides fit, and bottom comes first in the default order: the side
@@ -99,12 +106,12 @@ test.runIf(anchors)('keep leaves a side that still has room', () => {
 
 test.runIf(anchors)('keep judges room at the height the words have now', () => {
   const { message, told, at } = keeper()
-  message.show(content, [row(100)], GAP, tall, at)
+  message.show(content, [row(100)], GAP, bare(tall), at)
   const oneLine = message.element.offsetHeight
 
   // Exactly enough under the row for the box as it is.
   const hole = row(tall.height - oneLine - GAP - 40)
-  message.show(content, [hole], GAP, tall, at)
+  message.show(content, [hole], GAP, bare(tall), at)
   expect(told.at(-1)).toBe('bottom')
 
   // Several lines of error on the next attempt, with the hole where it was.
@@ -115,15 +122,39 @@ test.runIf(anchors)('keep judges room at the height the words have now', () => {
   expect(told.at(-1)).toBe('top')
 })
 
+/** {@link tall} with a footer 200px deep, so the room ends at 600. */
+const footed = { viewport: tall, chrome: { top: 0, right: 0, bottom: 200, left: 0 } }
+
+test.runIf(anchors)('a box beside a hole under the chrome is held that far off its marker', () => {
+  const { message, told, at } = keeper()
+  // The hole's top is 100px under the room's foot, so the box is laid GAP off
+  // the room's foot rather than off the hole.
+  message.show(content, [row(700)], GAP, footed, at)
+  expect(told).toEqual(['top'])
+  expect(message.element.style.bottom).toBe('anchor(top)')
+  expect(message.element.style.marginBottom).toBe('108px')
+})
+
+test.runIf(anchors)('keep holds the box further off as the hole goes under the chrome', () => {
+  const { message, told, at } = keeper()
+  message.show(content, [row(560)], GAP, footed, at)
+  expect(told).toEqual(['top'])
+  expect(message.element.style.marginBottom).toBe(`${GAP}px`)
+
+  message.keep([row(650)])
+  expect(told).toEqual(['top'])
+  expect(message.element.style.marginBottom).toBe('58px')
+})
+
 test.runIf(anchors)('keep does nothing for a docked or hidden box', () => {
   const { message, told, at } = keeper()
-  message.show(content, [], GAP, tall, at)
+  message.show(content, [], GAP, bare(tall), at)
   const docked = message.element.style.cssText
   message.keep([row(tall.height - 40)])
   expect(message.element.style.cssText).toBe(docked)
   expect(told).toEqual([])
 
-  message.show(content, [row(100)], GAP, tall, at)
+  message.show(content, [row(100)], GAP, bare(tall), at)
   message.hide()
   const hidden = message.element.style.cssText
   message.keep([row(tall.height - 40)])
@@ -160,18 +191,18 @@ test.runIf(anchors)('a box is measured free of the side the last step held', () 
     error: undefined,
     next: undefined,
   }
-  message.show(long, [hole], GAP, room, at)
+  message.show(long, [hole], GAP, bare(room), at)
   const free = message.element.offsetHeight
 
   // Nearly the room's height and 200px short of its right edge: the short
   // words fit only on the right, and the marker is left 200px from the edge.
   hole = { x: 0, y: 20, width: room.width - 200, height: room.height - 40 }
-  message.show(content, [hole], GAP, room, at)
+  message.show(content, [hole], GAP, bare(room), at)
   expect(told.at(-1)).toBe('right')
 
   // Exactly enough under the row for the long words at their own width, and
   // not for them squeezed into the 200px the last step's side leaves.
   hole = row(room.height - free - GAP - 40)
-  message.show(long, [hole], GAP, room, at)
+  message.show(long, [hole], GAP, bare(room), at)
   expect(told.at(-1)).toBe('bottom')
 })

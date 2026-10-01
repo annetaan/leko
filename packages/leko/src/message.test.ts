@@ -288,6 +288,66 @@ test.runIf(anchors)('the message clears chrome the host declared', async () => {
   expect(overlaps(rect(message()!), rect(bar))).toBe(false)
 })
 
+/**
+ * A target in the document's own flow, `lead` px down a page that can scroll,
+ * and a footer of the host's own over the foot of the viewport.
+ */
+const flowing = (lead: number) => {
+  const block = keep(document.createElement('div'))
+  const above = document.createElement('div')
+  above.style.height = `${lead}px`
+  const target = document.createElement('button')
+  target.textContent = 'target'
+  Object.assign(target.style, { display: 'block', height: '40px' })
+  const tail = document.createElement('div')
+  tail.style.height = '3000px'
+  block.append(above, target, tail)
+  document.body.append(block)
+  window.scrollTo(0, 0)
+  const bar = footer()
+  start([{ id: 'one', target: { elements: () => target, interactive: true }, message: 'Here.' }], {
+    hostChrome: () => bar,
+  })
+  return { target, bar }
+}
+
+test.runIf(anchors)(
+  'the message clears chrome that covers its target, on a step that does not scroll',
+  async () => {
+    // #55: the target is under the bar and the step does not move the page, so
+    // the hole is drawn there and the box is laid off the room's foot instead.
+    const { target, bar } = flowing(innerHeight - 50)
+    await framed()
+    await appears()
+
+    expect(scrollY).toBe(0)
+    const note = rect(message()!)
+    expect(overlaps(note, rect(bar))).toBe(false)
+    expect(overlaps(note, rect(target))).toBe(false)
+    expect(note.bottom).toBeLessThanOrEqual(rect(bar).top)
+    window.scrollTo(0, 0)
+  },
+)
+
+test.runIf(anchors)(
+  'a target below the fold keeps its message beside it once scrolled to',
+  async () => {
+    // Drawn wholly past the viewport, where the box is over no chrome, so it is
+    // held the gap off the hole and the scroll brings the two up together.
+    const lead = innerHeight + 400
+    const { target } = flowing(lead)
+    await framed()
+    await appears()
+
+    window.scrollTo(0, lead - (innerHeight - CHROME) / 2)
+    await frame()
+    // The default padding, then the gap.
+    const off = rect(target).top - 8 - 8 - rect(message()!).bottom
+    expect(Math.abs(off), `the box is ${off}px further off the hole`).toBeLessThanOrEqual(1)
+    window.scrollTo(0, 0)
+  },
+)
+
 test("the docked message sits above the host's chrome", async () => {
   const bar = footer()
   // No target, so there is no hole to sit beside and the box docks — the other

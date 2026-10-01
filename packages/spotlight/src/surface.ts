@@ -16,6 +16,7 @@ import {
   inset,
   type Point,
   type Rect,
+  type Room,
   shift,
   type StickyInsets,
 } from './geometry.js'
@@ -209,10 +210,10 @@ export function layoutViewport(): Rect {
 }
 
 /**
- * The layout viewport with the host's chrome taken off it: the room the host
- * left, which is where the presenter may put its message and, on a step that
- * scrolls, the page's port — DESIGN.md, **The page's port is what the host's
- * chrome leaves of the viewport**.
+ * The layout viewport and the bands the host's chrome claims of it: the room
+ * the host left, which is where the presenter may put its message and, on a
+ * step that scrolls, the page's port — DESIGN.md, **The page's port is what the
+ * host's chrome leaves of the viewport**. As one rect, it is `roomRect`.
  *
  * The layout viewport, because what is placed in this is `position: fixed`
  * and the boxes it is compared against came from `getBoundingClientRect` —
@@ -220,9 +221,9 @@ export function layoutViewport(): Rect {
  * and is sized past it on purpose: DESIGN.md, **That layer is sized past the
  * layout viewport on purpose, gutter included**.
  */
-export function roomIn(chrome: readonly Rect[]): Rect {
+export function roomIn(chrome: readonly Rect[]): Room {
   const viewport = layoutViewport()
-  return inset(viewport, chromeInsets(viewport.width, viewport.height, chrome))
+  return { viewport, chrome: chromeInsets(viewport.width, viewport.height, chrome) }
 }
 
 /**

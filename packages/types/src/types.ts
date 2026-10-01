@@ -822,7 +822,7 @@ export interface LekoOptions {
    * createLeko({ hostChrome: ['.app-footer', '#support-bubble'] })
    * ```
    *
-   * It moves four things: which side of a cutout the message takes, where the
+   * It moves four things: where beside a cutout the message sits, where the
    * message sits when it has no cutout to sit beside, which corner the control
    * that ends the tour goes in, and, on a step that scrolls, the middle the
    * page brings its target to.

@@ -18,6 +18,7 @@ export {
   type Easing,
   grow,
   type Rect,
+  type Room,
   type Side,
   union,
 } from './geometry.js'

@@ -1072,11 +1072,12 @@ and writes the layers, **at step boundaries, never per frame**.
     than ahead of it, unlike the morph's: hit-testing lagging the paint under
     the viewer's own pointer is the cost that ruled the compositor out in the
     first place. The way out's corner is not chosen again, for the reasons under
-    **The way out**. The message's side is chosen again on a frame that moves
-    the hole, and only there: kept while it still has room, otherwise the first
-    side that has room, judged from the boxes the frame already read, the size
-    the box had when its words last changed, and the room the draw read, so no
-    read is added to the frame. A pinned target stays on screen while the page
+    **The way out**. The message's side, and how far off the hole it is held,
+    are chosen again on a frame that moves the hole, and only there: kept
+    while it still has room, otherwise the first side that has room, judged
+    from the boxes the frame already read, the size the box had when its words
+    last changed, and the room the draw read, so no read is added to the
+    frame. A pinned target stays on screen while the page
     goes past it, so a side chosen while it rode can stay without room for as
     long as the page is scrolled. These are the frames on which Leko, not the
     browser, moves the marker.
@@ -1412,8 +1413,9 @@ tour is for.
   innermost first, with the box measured again for each — scrolling an inner
   scroller moves the target inside every port outside it.
 - **The page's port is what the host's chrome leaves of the viewport.** The
-  document's port is `roomIn`: the layout viewport less `chromeInsets` of the
-  `hostChrome` boxes, the same room the message is placed into. A target the
+  document's port is `roomRect` of `roomIn`: the layout viewport less
+  `chromeInsets` of the `hostChrome` boxes, the same room the message is placed
+  into. A target the
   chrome covers is therefore not held — `scrollDelta` answers non-zero — and is
   brought to the middle of what is left, and a target more than half the room
   tall leads with its top edge at the room's middle. A host that names nothing
@@ -1429,7 +1431,8 @@ tour is for.
   edge, which is what **A host's own chrome is named once, and every reader
   takes the boxes** says to name; chrome that rides the page is measured where
   it stood. And it is off unless `scroll` asks: without it, a hole under the
-  chrome is drawn there, like one below the fold.
+  chrome is drawn there, like one below the fold, and its message is still
+  held clear of the chrome — **The message**.
 - **What is brought in is the first region's hole, not its first element.** A
   region of several elements cuts one hole around all of them, and the hole is
   what the step is about, so the union of the region is what is measured
@@ -1641,10 +1644,11 @@ message needs room. It cannot be positioned from measurements either — that is
 JS on every scroll again.
 
 JS picks the side once per step, and again on a frame of the sticky follow that
-leaves the side it has no room — **A sticky target's hole is corrected on a
-frame loop, and that is the only exception to the ban** — and the distance to
-the furthest cutout becomes a margin, so the message clears every hole rather
-than only the one it is anchored beside.
+moves the hole — **A sticky target's hole is corrected on a frame loop, and
+that is the only exception to the ban**. The marker sits on the edge of the
+union of every hole the step cut, so a box laid the gap off it clears them all
+rather than only the one it is anchored beside. The margin is that gap, and
+more where the edge is under the host's chrome, as below.
 
 **The box is laid against the marker with an inset, never inside an area.** Its
 inner edge sits on the marker through `top: anchor(bottom)` or its mirror, with
@@ -1661,23 +1665,42 @@ only at the draw. Fallbacks cannot help: the marker sits on the edge of the
 side the box took, so every flip crosses that edge onto the hole too, and the
 message sets no `position-try-fallbacks`.
 
-The price is plain: where its side has no room, the box runs off the screen
-rather than onto the hole. A pinned target's is moved to a side that has room,
-under the sticky follow. The `auto`s are part of the spelling. A popover's UA
-style is `inset: 0`, and with only `bottom: anchor(top)` written the `top: 0`
-still holds, so a box above its hole is laid against the top of the viewport
-rather than against the marker — in WebKit and Safari, on the hole. The spike
-does not measure the horizontal sides, which are the same spelling on the
-other axis.
+The price is plain: where its side has no room, the box runs out of the room,
+off the screen or over the host's chrome, rather than onto the hole. A pinned
+target's is moved to a side that has room, under the sticky follow. The `auto`s
+are part of the spelling. A popover's UA style is `inset: 0`, and with only
+`bottom: anchor(top)` written the `top: 0` still holds, so a box above its hole
+is laid against the top of the viewport rather than against the marker — in
+WebKit and Safari, on the hole. The spike does not measure the horizontal sides,
+which are the same spelling on the other axis. And a box to the left or right of
+a hole is centred on the hole's edge, so it can still reach a top bar or a
+footer above or below it. Moving it along the edge rests on how `anchor-center`
+shifts a box, which that spike does not answer, and that is a limit.
 
 **The side is chosen from the room a host left, not from the whole viewport**,
 and so is the foot the box docks to. A side with two hundred pixels under a
 sticky footer has no room at all, and a box docked twenty-four pixels off the
-foot of the viewport is docked inside the footer. `sideWithRoom` therefore takes
-a rect rather than measuring the viewport itself, and where a host has named
-nothing that rect is the layout viewport — the box being placed is
-`position: fixed`, so that is what it is laid out against — and a page with no
-chrome to declare is placed exactly as it always was.
+foot of the viewport is docked inside the footer. `sideWithRoom` therefore
+takes the room `roomIn` hands every reader rather than measuring the viewport
+itself: the layout viewport — the box being placed is `position: fixed`, so
+that is what it is laid out against — and the bands the chrome claims of it.
+Where a host has named nothing the bands are zero, and a page with no chrome
+to declare is placed exactly as it always was.
+
+**A box beside a hole under the chrome is laid off the room's edge, not the
+hole's.** A step that does not scroll draws a target under the chrome where it
+is, and a box laid the gap off an edge under a band starts inside the band. So
+where the hole's edge is past the room's edge, under the band on the far edge of
+the viewport, the box is laid the gap off the room's edge instead, the margin
+growing by the distance between the two edges. It grows from the gap with no
+step as the hole's edge crosses the room's, so a hole the sticky follow carries
+under the band takes its box along without a jump. The marker stays on the
+hole's edge, so the browser still carries the box on every scroll. With no
+chrome the bands have no depth and nothing changes. A box that would sit wholly
+past the viewport touches no chrome and is left beside its hole: laid off the
+room's edge it would ride a screen away from it. `sideWithRoom` gives the side
+and the margin as one answer, so the margin written is the one the side was
+judged with.
 
 **The core has no third-party runtime dependencies and must stay that way.** A
 scalar tween is all this needs, and a dependency here is a licensing and
