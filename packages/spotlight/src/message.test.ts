@@ -122,6 +122,30 @@ test.runIf(anchors)('keep judges room at the height the words have now', () => {
   expect(told.at(-1)).toBe('top')
 })
 
+/** {@link tall} with a footer 200px deep, so the room ends at 600. */
+const footed = { viewport: tall, chrome: { top: 0, right: 0, bottom: 200, left: 0 } }
+
+test.runIf(anchors)('a box beside a hole under the chrome is held that far off its marker', () => {
+  const { message, told, at } = keeper()
+  // The hole's top is 100px under the room's foot, so the box is laid GAP off
+  // the room's foot rather than off the hole.
+  message.show(content, [row(700)], GAP, footed, at)
+  expect(told).toEqual(['top'])
+  expect(message.element.style.bottom).toBe('anchor(top)')
+  expect(message.element.style.marginBottom).toBe('108px')
+})
+
+test.runIf(anchors)('keep holds the box further off as the hole goes under the chrome', () => {
+  const { message, told, at } = keeper()
+  message.show(content, [row(560)], GAP, footed, at)
+  expect(told).toEqual(['top'])
+  expect(message.element.style.marginBottom).toBe(`${GAP}px`)
+
+  message.keep([row(650)])
+  expect(told).toEqual(['top'])
+  expect(message.element.style.marginBottom).toBe('58px')
+})
+
 test.runIf(anchors)('keep does nothing for a docked or hidden box', () => {
   const { message, told, at } = keeper()
   message.show(content, [], GAP, bare(tall), at)

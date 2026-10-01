@@ -72,9 +72,9 @@ const canAnchor = (): boolean =>
  *
  * Scrolling is still nobody's job here: an anchor-positioned element is offset
  * by the scroll of everything between it and its anchor, by the browser, with no
- * script involved. JS only picks the *side* — once per step, from measurements
- * it already has, and again where a sticky target's follow leaves it no room,
- * {@link Message.keep} — and the browser keeps it there.
+ * script involved. JS only picks the *side*, and how far off the hole — once
+ * per step, from measurements it already has, and again on a frame of a sticky
+ * target's follow, {@link Message.keep} — and the browser keeps it there.
  *
  * **What it anchors to is a marker of Leko's own, never the target.** The scrim
  * owns it and puts it on the edge of the cutout; see `Scrim.anchorAt`.
@@ -92,12 +92,13 @@ export class Message {
   private pressed = false
   /**
    * What the box was placed beside a hole with, kept so {@link keep} can judge
-   * the side again without reading layout, or `undefined` while it is docked,
+   * the side and the margin again without reading layout, or `undefined` while it is docked,
    * hidden or not yet placed.
    */
   private placed:
     | {
         side: Side
+        margin: number
         gap: number
         room: Room
         size: { width: number; height: number }
@@ -311,8 +312,9 @@ export class Message {
 
   /**
    * Called on a frame of a sticky target's follow that moved the holes, with
-   * where they are now on screen. The box keeps its side while that side has
-   * room, and otherwise takes the first side that has. Reads no layout: the
+   * where they are now on screen. The side, and how far off the hole the box is
+   * held, are judged again: the box keeps its side while that side has room,
+   * and otherwise takes the first side that has. Reads no layout: the
    * size is the one the words last left and the room is the draw's. DESIGN.md,
    * **A sticky target's hole is corrected on a frame loop, and that is the only
    * exception to the ban**.
@@ -321,11 +323,12 @@ export class Message {
     const placed = this.placed
     const box = union(onScreen)
     if (!placed || !box) return
-    const side = sideWithRoom(box, placed.size, placed.room, placed.gap, [placed.side, ...SIDES])
-    if (side === placed.side) return
-    placed.side = side
-    placed.at(side)
-    this.hold(side, placed.gap)
+    const next = sideWithRoom(box, placed.size, placed.room, placed.gap, [placed.side, ...SIDES])
+    if (next.side === placed.side && next.margin === placed.margin) return
+    if (next.side !== placed.side) placed.at(next.side)
+    placed.side = next.side
+    placed.margin = next.margin
+    this.hold(next.side, next.margin)
   }
 
   /**
@@ -360,25 +363,26 @@ export class Message {
     if (!this.anchored || !box || !at) return this.dock(room)
 
     // The side is chosen from what is on screen, and the anchor point is then
-    // put on that edge of the cutout. **The whole of the clearance is the gap.**
-    // What is being anchored to is the edge itself rather than the target
-    // inside it, so there is no padding left to make up for here.
+    // put on that edge of the cutout. What is being anchored to is the edge
+    // itself rather than the target inside it, so the clearance is the gap,
+    // and more only where that edge is under the host's chrome — DESIGN.md,
+    // **The message**.
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
-    const side = sideWithRoom(box, size, room, gap)
+    const { side, margin } = sideWithRoom(box, size, room, gap)
     at(side)
-    this.hold(side, gap)
-    this.placed = { side, gap, room, size, at }
+    this.hold(side, margin)
+    this.placed = { side, margin, gap, room, size, at }
   }
 
   /**
-   * Lay the box against the marker on `side`, `gap` away from it, with an inset
+   * Lay the box against the marker on `side`, `margin` away from it, with an inset
    * rather than inside an area, so no engine moves it back across the edge onto
    * the hole — DESIGN.md, **The message**.
    */
-  private hold(side: Side, gap: number): void {
+  private hold(side: Side, margin: number): void {
     const style = this.element.style
-    for (const margin of MARGINS) style[margin] = '0px'
-    style[MARGIN[side]] = `${gap}px`
+    for (const each of MARGINS) style[each] = '0px'
+    style[MARGIN[side]] = `${margin}px`
     // `auto`, not cleared: a popover's UA style is `inset: 0`, and a box above
     // its hole is then laid against the top of the viewport, and in WebKit
     // onto the hole. `spike/an-anchored-box-out-of-room/` has the row.

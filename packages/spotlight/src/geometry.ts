@@ -190,17 +190,75 @@ export function chromeInsets(width: number, height: number, chrome: readonly Rec
 export const SIDES = ['bottom', 'top', 'right', 'left'] as const
 export type Side = (typeof SIDES)[number]
 
+/** Where the message goes beside a hole: the side, and how far off its edge. */
+export interface Beside {
+  side: Side
+  margin: number
+}
+
 /**
- * The side of `box` with room for something of `size`, `gap` clear of it.
+ * How far off `box`'s edge on `side` something of `size` is laid: `gap` off the
+ * room's edge where the hole's edge is past it, under the chrome band on the
+ * far edge of the viewport, and otherwise `gap`. The margin grows from `gap`
+ * with no step, as the hole's edge crosses the room's. A band of no depth is
+ * no band, and a box wholly past the viewport is under none.
+ */
+const clearance = (
+  box: Rect,
+  side: Side,
+  size: { width: number; height: number },
+  room: Room,
+  gap: number,
+): number => {
+  const { viewport, chrome } = room
+  const bottom = viewport.y + viewport.height
+  const right = viewport.x + viewport.width
+  // The hole's edge, the box's length away from it, which way away is, and
+  // the band it is laid towards.
+  const { edge, length, away, start, end } = {
+    top: { edge: box.y, length: size.height, away: -1, start: bottom - chrome.bottom, end: bottom },
+    bottom: {
+      edge: box.y + box.height,
+      length: size.height,
+      away: 1,
+      start: viewport.y,
+      end: viewport.y + chrome.top,
+    },
+    left: { edge: box.x, length: size.width, away: -1, start: right - chrome.right, end: right },
+    right: {
+      edge: box.x + box.width,
+      length: size.width,
+      away: 1,
+      start: viewport.x,
+      end: viewport.x + chrome.left,
+    },
+  }[side]
+  if (end - start <= 0) return gap
+  // The band's edge nearer the hole is where the room begins on this side. The
+  // band is taken to run `gap` further towards the hole, so the push starts
+  // where the hole's edge crosses the room's rather than where the box reaches
+  // the band, which would count the gap twice and jump by it.
+  const begins = away < 0 ? start : end
+  const [low, high] = away < 0 ? [start - gap, end] : [start, end + gap]
+  const near = edge + away * gap
+  const far = near + away * length
+  const overlap = Math.min(Math.max(near, far), high) - Math.max(Math.min(near, far), low)
+  return overlap > 0 ? gap + away * (begins - edge) : gap
+}
+
+/**
+ * The side of `box` with room for something of `size`, and how far off its
+ * edge to hold it.
  *
- * What fits is judged against {@link roomRect} of `room` rather than the bare
- * viewport, and `bottom` is the answer when nothing fits, where the box is then
- * held off the hole and runs off the screen. DESIGN.md argues both under
- * **The message**.
+ * Each side is measured from where the room begins rather than from the hole's
+ * edge, so the margin is `gap`, and more where that edge is under the host's
+ * chrome. What fits is judged against {@link roomRect} of `room` rather than
+ * the bare viewport, and where nothing fits the box runs out of the room rather
+ * than onto the hole. DESIGN.md argues all three under **The message**.
  *
  * The sides are tried in `order`, and its first is also the answer when nothing
  * fits, which is how a caller keeps a side: by putting it first. `place` passes
- * nothing, so the fallback there stays `bottom`.
+ * nothing, so the fallback there stays `bottom`, with the margin of its own.
  */
 export function sideWithRoom(
   box: Rect,
@@ -208,21 +266,23 @@ export function sideWithRoom(
   room: Room,
   gap: number,
   order: readonly [Side, ...Side[]] = SIDES,
-): Side {
+): Beside {
   const space = roomRect(room)
-  const free: Record<Side, number> = {
-    bottom: space.y + space.height - (box.y + box.height),
-    top: box.y - space.y,
-    right: space.x + space.width - (box.x + box.width),
-    left: box.x - space.x,
+  const fits: Record<Side, (margin: number) => boolean> = {
+    bottom: (m) => box.y + box.height + m + size.height <= space.y + space.height,
+    top: (m) => box.y - m - size.height >= space.y,
+    right: (m) => box.x + box.width + m + size.width <= space.x + space.width,
+    left: (m) => box.x - m - size.width >= space.x,
   }
-  const need: Record<Side, number> = {
-    bottom: size.height + gap,
-    top: size.height + gap,
-    right: size.width + gap,
-    left: size.width + gap,
-  }
-  return order.find((side) => free[side] >= need[side]) ?? order[0]
+  const beside = (side: Side): Beside => ({
+    side,
+    margin: clearance(box, side, size, room, gap),
+  })
+  const fallback = beside(order[0])
+  return (
+    [fallback, ...order.slice(1).map(beside)].find(({ side, margin }) => fits[side](margin)) ??
+    fallback
+  )
 }
 
 /**
