@@ -163,52 +163,57 @@ All the tour's; Scroll has none.
 
 ## Seen on
 
-| item | needed by | Chromium | Firefox | WebKit | Chrome |
-| --- | --- | --- | --- | --- | --- |
-| `mask` | both | cuts | cuts | cuts | cuts |
-| `css` | both | present | present | present | present |
-| `syntax` | both | present | present | present | present |
-| `toSorted` | tour | present | present | present | present |
-| `toReversed` | tour | present | present | present | present |
-| `Array.prototype.at` | scroll | present | present | present | present |
-| `ResizeObserver` | tour | present | present | present | present |
-| `MutationObserver` | tour | present | present | present | present |
-| `matchMedia` | both | present | present | present | present |
-| `performance.now` | both | present | present | present | present |
-| `requestAnimationFrame` | both | present | present | present | present |
-| `cancelAnimationFrame` | both | present | present | present | present |
-| `getComputedStyle` | both | present | present | present | present |
-| `getClientRects` | both | present | present | present | present |
-| `CSS.supports` | tour | present | present | present | present |
-| `queueMicrotask` | tour | present | present | present | present |
-| `composedPath` | tour | present | present | present | present |
-| `scrollTo with options` | tour | present | present | present | present |
-| `toggleAttribute` | tour | present | present | present | present |
-| `isConnected` | both | present | present | present | present |
-| `flatMap` | both | present | present | present | present |
-| `Math.hypot` | tour | present | present | present | present |
-| `append` | both | present | present | present | present |
-| `prepend` | tour | present | present | present | present |
-| `remove` | both | present | present | present | present |
-| `matches` | tour | present | present | present | present |
-| `NodeList iteration` | both | present | present | present | present |
-| `DOMRect x and y` | tour | present | present | present | present |
-| `document.fonts` | scroll | present | present | present | present |
-| `popover` | tour | present | present | present | present |
-| `anchor` | tour | present | present | present | present |
-| `navigation` | tour | present | present | present | present |
-| `checkVisibility` | tour | present | present | present | present |
-| `sessionStorage` | tour | present | present | present | present |
-| `pagehide` | tour | present | present | present | present |
-| `pageshow` | tour | present | present | present | present |
-| `popstate` | tour | present | present | present | present |
-| `hashchange` | tour | present | present | present | present |
+| item | needed by | Chromium | Firefox | WebKit | Chrome | Safari |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mask` | both | cuts | cuts | cuts | cuts | by eye: cuts |
+| `css` | both | present | present | present | present | present |
+| `syntax` | both | present | present | present | present | present |
+| `toSorted` | tour | present | present | present | present | present |
+| `toReversed` | tour | present | present | present | present | present |
+| `Array.prototype.at` | scroll | present | present | present | present | present |
+| `ResizeObserver` | tour | present | present | present | present | present |
+| `MutationObserver` | tour | present | present | present | present | present |
+| `matchMedia` | both | present | present | present | present | present |
+| `performance.now` | both | present | present | present | present | present |
+| `requestAnimationFrame` | both | present | present | present | present | present |
+| `cancelAnimationFrame` | both | present | present | present | present | present |
+| `getComputedStyle` | both | present | present | present | present | present |
+| `getClientRects` | both | present | present | present | present | present |
+| `CSS.supports` | tour | present | present | present | present | present |
+| `queueMicrotask` | tour | present | present | present | present | present |
+| `composedPath` | tour | present | present | present | present | present |
+| `scrollTo with options` | tour | present | present | present | present | present |
+| `toggleAttribute` | tour | present | present | present | present | present |
+| `isConnected` | both | present | present | present | present | present |
+| `flatMap` | both | present | present | present | present | present |
+| `Math.hypot` | tour | present | present | present | present | present |
+| `append` | both | present | present | present | present | present |
+| `prepend` | tour | present | present | present | present | present |
+| `remove` | both | present | present | present | present | present |
+| `matches` | tour | present | present | present | present | present |
+| `NodeList iteration` | both | present | present | present | present | present |
+| `DOMRect x and y` | tour | present | present | present | present | present |
+| `document.fonts` | scroll | present | present | present | present | present |
+| `popover` | tour | present | present | present | present | present |
+| `anchor` | tour | present | present | present | present | present |
+| `navigation` | tour | present | present | present | present | present |
+| `checkVisibility` | tour | present | present | present | present | present |
+| `sessionStorage` | tour | present | present | present | present | present |
+| `pagehide` | tour | present | present | present | present | present |
+| `pageshow` | tour | present | present | present | present | present |
+| `popstate` | tour | present | present | present | present | present |
+| `hashchange` | tour | present | present | present | present | present |
 
 All four print `tour: required all present` and `scroll: required all
 present`, with `mask` read from the pixels. Chromium 151.0.7922.34, Firefox
 153.0, WebKit 605.1.15 (`Version/26.5`) and Chrome 154.0.8037.92, through
 Playwright 1.62.1 at a viewport of 1280×800 and a `deviceScaleFactor` of 1, on
 2026-10-01. Playwright's WebKit stands in for no Safari version.
+
+**Safari 26.5 (21624.2.5.11.4)** on macOS 26.5, opened by hand on 2026-10-01,
+showed `tour: required all present` and `scroll: required all present` with
+every optional item present, and the hole was judged by eye: one bright
+rounded shape in the dimmed ground, the two holes cut as a union.
 
 ## Measuring a floor
 
