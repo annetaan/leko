@@ -207,7 +207,7 @@ pnpm typecheck       # tsc --noEmit across workspace packages, and the type test
 pnpm lint            # oxlint
 pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
-pnpm check:pack      # what a published package would import, and whether its manifest's paths are packed
+pnpm check:pack      # what a published package would import, whether its paths are packed and the two share a version; leaves tarballs/
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:reference # whether every exported name and --leko-* property the code reads is on its product's reference
 pnpm check:code-blocks # whether every ts and tsx block on the site compiles against the workspace
@@ -301,11 +301,18 @@ published with `pnpm publish`, and a `prepublishOnly` script refuses
 `npm publish`.
 
 `pnpm check:pack` is the check for both. It packs each public package with
-`pnpm pack` and reads the tarball. It fails on a bare import the packed
+`pnpm pack` into `tarballs/` at the root, emptying it first and leaving what it
+checked there, and reads the tarball. It fails on a bare import the packed
 manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
 names and the tarball does not carry, and on a `publishConfig.exports` that has
 drifted from `exports` with `development` taken out. Run it after anything that
 changes what a package imports, how it is built or what its manifest exports.
+
+It also fails when the public packages do not share one version, or when one
+names another as a dependency or peer with anything but that version. What
+`@annetaan/leko-codegen` writes is an augmentation of `@annetaan/leko`'s types,
+and one written against another version's shape does not fail: the completion
+just goes away.
 
 ## Before opening a pull request
 

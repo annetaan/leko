@@ -1,8 +1,10 @@
 /*
- * What a packed manifest names, and whether the tarball carries it.
+ * What a packed manifest names, whether the tarball carries it, and whether
+ * the public packages agree on one version.
  *
- * A manifest and a set of paths in and findings out, so `pack.test.mjs` drives
- * it directly and `check-pack.mjs` is left with pnpm, tar and the report.
+ * Manifests and paths in and findings out, so `pack.test.mjs` drives it
+ * directly and `check-pack.mjs` is left with pnpm, tar and the report. Most of
+ * it reads one package; `mismatched` reads every public manifest at once.
  */
 
 /** The exports tree with every `name` key taken out, the other keys left in their order. */
@@ -43,4 +45,31 @@ export function unpacked(manifest, files) {
   return ['main', 'types', 'bin', 'exports']
     .flatMap((field) => [...leaves(manifest[field], field)])
     .filter(({ target }) => !files.has(inPackage(target)))
+}
+
+/** The fields that declare a dependency. `devDependencies` is not installed. */
+export const DEPENDS = ['dependencies', 'peerDependencies', 'optionalDependencies']
+
+/**
+ * Where the public packages fail to move as one, given every public packed
+ * manifest. A `versions` finding, once, when they carry more than one version;
+ * a `range` finding for each place one names another in `DEPENDS` with
+ * anything but that package's version exactly. A package that is not in
+ * `manifests` is not public here and is not judged.
+ */
+export function mismatched(manifests) {
+  const versions = Object.fromEntries(manifests.map(({ name, version }) => [name, version]))
+  const findings = []
+  if (new Set(Object.values(versions)).size > 1) findings.push({ kind: 'versions', versions })
+  for (const manifest of manifests) {
+    for (const field of DEPENDS) {
+      for (const [dependency, range] of Object.entries(manifest[field] ?? {})) {
+        if (dependency === manifest.name || !Object.hasOwn(versions, dependency)) continue
+        const version = versions[dependency]
+        if (range !== version)
+          findings.push({ kind: 'range', name: manifest.name, field, dependency, range, version })
+      }
+    }
+  }
+  return findings
 }
