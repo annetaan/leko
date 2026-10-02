@@ -350,6 +350,10 @@ npm test
 git diff --exit-code
 ```
 
+CI runs the lines from `npm ci` on in
+[`.github/actions/smoke/action.yml`](.github/actions/smoke/action.yml), on the
+tarballs its `pack` job wrote with the first two lines.
+
 Both tarballs go in one `npm install`. Neither is in `smoke/package.json`, and
 a second `--no-save` install removes the package the first one added as
 extraneous. `npm ci` removes them too, so install them again after it.
@@ -360,7 +364,8 @@ extraneous. `npm ci` removes them too, so install them again after it.
 pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:reference && pnpm check:code-blocks && pnpm check:links && pnpm model && pnpm test
 ```
 
-CI runs the same eleven, with `format:check` in place of `format`.
+CI runs the same eleven, with `format:check` in place of `format`, and runs
+the smoke project on the tarballs `pnpm check:pack` wrote, in jobs of their own.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

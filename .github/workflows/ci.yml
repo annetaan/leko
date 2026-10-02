@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 jobs:
   check:
@@ -35,9 +36,6 @@ jobs:
           name: docs-site
           path: docs/dist
           retention-days: 14
-      # A tarball can be broken while every other check here is green.
-      # CONTRIBUTING.md, **What `@annetaan/leko` ships** says how it was twice.
-      - run: pnpm check:pack
       # A link in the documentation site that does not land still builds, and
       # nothing else here fails on it. `docs/src/lib/href.ts` says why a link
       # written by hand is the one that goes wrong.
@@ -85,3 +83,42 @@ jobs:
       - run: pnpm format:check
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test
+
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@annetaan/leko..." --filter "@annetaan/leko-codegen..." build
+      # A tarball can be broken while every other check here is green.
+      # CONTRIBUTING.md, **What `@annetaan/leko` ships** says how it was twice.
+      - run: pnpm check:pack
+      # What `smoke` installs below, and what `release.yml`'s `publish` publishes.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tarballs
+          path: tarballs/
+          if-no-files-found: error
+          retention-days: 14
+
+  # A job of its own so it starts without waiting for the three-browser suite
+  # in `check`, and `check` stays inside its ten minutes.
+  smoke:
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v8
+        with:
+          name: tarballs
+          path: tarballs
+      - uses: ./.github/actions/smoke
+        with:
+          specs: '../tarballs/*.tgz'
