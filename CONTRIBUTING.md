@@ -314,6 +314,46 @@ names another as a dependency or peer with anything but that version. What
 and one written against another version's shape does not fail: the completion
 just goes away.
 
+### The smoke project
+
+[`smoke/`](smoke/) is a project made with `create-vite`'s `vanilla-ts`
+template, outside the pnpm workspace and installed with npm, the way somebody
+following Getting started would make one. Its tour is one step: it lights a
+Save button and waits for the save to report `profile-saved`. It installs the
+two tarballs `pnpm check:pack` left in `tarballs/`, so it asks about what would
+be published rather than about the workspace.
+
+`src/leko-signals.d.ts` is committed, and `npm test` starts by deleting it.
+Then it runs `vite build`, whose plugin is the codegen in the tarball and
+writes the file again, then `tsc`, then Playwright on Chromium against both the
+dev server and the preview server. Each catches something different:
+
+- `tsc` reads the file the codegen just wrote. `src/typo.ts` holds a
+  `@ts-expect-error` that holds only while that augmentation applies, so a
+  codegen that writes nothing, or writes it somewhere else, fails here, and so
+  does an augmentation the leko in the tarball no longer reads.
+- `git diff --exit-code` after the run fails on a file that was not written
+  back, and on one written with a different content. A change to either
+  package that moves what a consumer gets shows up here.
+- Playwright checks that the tour is drawn, the save ends it, and nothing logs
+  an error. It opens the dev server because that is the one that stopped at
+  `Failed to resolve import`, above, while `vite build` passed.
+
+```bash
+pnpm --filter "@annetaan/leko..." --filter "@annetaan/leko-codegen..." build
+pnpm check:pack
+cd smoke
+npm ci
+npm install --no-save ../tarballs/*.tgz
+npx playwright install chromium
+npm test
+git diff --exit-code
+```
+
+Both tarballs go in one `npm install`. Neither is in `smoke/package.json`, and
+a second `--no-save` install removes the package the first one added as
+extraneous. `npm ci` removes them too, so install them again after it.
+
 ## Before opening a pull request
 
 ```bash
