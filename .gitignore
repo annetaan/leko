@@ -30,6 +30,9 @@ spike/**/shots-*/
 # Astro's generated types and content store, rewritten on every build
 docs/.astro/
 
+# what pnpm check:pack packed and checked, for whatever installs or publishes it next
+tarballs/
+
 _apalache-out/
 
 *.code-workspace

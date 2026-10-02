@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { unpacked, withoutCondition } from './pack.mjs'
+import { mismatched, unpacked, withoutCondition } from './pack.mjs'
 
 describe('unpacked', () => {
   it('names an export target the tarball does not carry', () => {
@@ -91,5 +91,53 @@ describe('withoutCondition', () => {
     })
     expect(Object.keys(stripped['.'])).toEqual(['import', 'default'])
     expect(Object.keys(stripped['.'].import)).toEqual(['types', 'default'])
+  })
+})
+
+const leko = { name: '@annetaan/leko', version: '0.1.0' }
+const codegen = (peer, extra = {}) => ({
+  name: '@annetaan/leko-codegen',
+  version: '0.1.0',
+  peerDependencies: { typescript: '>=5.5.0', vite: '>=5.0.0', '@annetaan/leko': peer },
+  ...extra,
+})
+
+const peerFinding = (range) => ({
+  kind: 'range',
+  name: '@annetaan/leko-codegen',
+  field: 'peerDependencies',
+  dependency: '@annetaan/leko',
+  range,
+  version: '0.1.0',
+})
+
+describe('mismatched', () => {
+  it('passes packages that share a version and pin each other to it', () => {
+    expect(mismatched([leko, codegen('0.1.0')])).toEqual([])
+  })
+
+  it('names packages that carry different versions', () => {
+    const behind = { ...codegen('0.1.0'), version: '0.0.0' }
+    expect(mismatched([leko, behind])).toEqual([
+      {
+        kind: 'versions',
+        versions: { '@annetaan/leko': '0.1.0', '@annetaan/leko-codegen': '0.0.0' },
+      },
+    ])
+  })
+
+  it('names a peer on a public package that is not its exact version', () => {
+    expect(mismatched([leko, codegen('^0.1.0')])).toEqual([peerFinding('^0.1.0')])
+    expect(mismatched([leko, codegen('workspace:*')])).toEqual([peerFinding('workspace:*')])
+  })
+
+  it('ignores a dependency on a package that is not public here', () => {
+    const manifest = { ...leko, dependencies: { '@annetaan/leko-machine': 'workspace:*' } }
+    expect(mismatched([manifest, codegen('0.1.0')])).toEqual([])
+  })
+
+  it('does not read devDependencies', () => {
+    const manifest = codegen('0.1.0', { devDependencies: { '@annetaan/leko': '0.0.0' } })
+    expect(mismatched([leko, manifest])).toEqual([])
   })
 })

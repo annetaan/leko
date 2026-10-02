@@ -207,7 +207,7 @@ pnpm typecheck       # tsc --noEmit across workspace packages, and the type test
 pnpm lint            # oxlint
 pnpm format          # oxfmt --write
 pnpm format:check    # oxfmt --check, which is what CI runs
-pnpm check:pack      # what a published package would import, and whether its manifest's paths are packed
+pnpm check:pack      # what a published package would import, whether its paths are packed and the two share a version; leaves tarballs/
 pnpm check:citations # whether every citation of a heading can be read and lands, by name or link
 pnpm check:reference # whether every exported name and --leko-* property the code reads is on its product's reference
 pnpm check:code-blocks # whether every ts and tsx block on the site compiles against the workspace
@@ -296,16 +296,99 @@ passed. Following Getting started in an empty Vite project is what found it.
 
 So each public package also has a `publishConfig.exports`, the same tree with
 `development` taken out, and that is the `exports` its tarball carries. pnpm
-writes it into the packed manifest and npm does not, so a package here is
-published with `pnpm publish`, and a `prepublishOnly` script refuses
-`npm publish`.
+writes it into the packed manifest and npm does not, so pnpm packs, and that
+tarball is what goes to the registry (**The release**, below). `npm publish` in
+a package directory would pack again with npm, so a `prepublishOnly` script
+refuses it. Publishing a tarball runs no lifecycle script, so the release's
+`npm publish <tarball>` gets through.
 
 `pnpm check:pack` is the check for both. It packs each public package with
-`pnpm pack` and reads the tarball. It fails on a bare import the packed
+`pnpm pack` into `tarballs/` at the root, emptying it first and leaving what it
+checked there, and reads the tarball. It fails on a bare import the packed
 manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
 names and the tarball does not carry, and on a `publishConfig.exports` that has
 drifted from `exports` with `development` taken out. Run it after anything that
 changes what a package imports, how it is built or what its manifest exports.
+
+It also fails when the public packages do not share one version, or when one
+names another as a dependency or peer with anything but that version. What
+`@annetaan/leko-codegen` writes is an augmentation of `@annetaan/leko`'s types,
+and one written against another version's shape does not fail: the completion
+just goes away.
+
+### The smoke project
+
+[`smoke/`](smoke/) is a project made with `create-vite`'s `vanilla-ts`
+template, outside the pnpm workspace and installed with npm, the way somebody
+following Getting started would make one. Its tour is one step: it lights a
+Save button and waits for the save to report `profile-saved`. It installs the
+two tarballs `pnpm check:pack` left in `tarballs/`, so it asks about what would
+be published rather than about the workspace.
+
+`src/leko-signals.d.ts` is committed, and `npm test` starts by deleting it.
+Then it runs `vite build`, whose plugin is the codegen in the tarball and
+writes the file again, then `tsc`, then Playwright on Chromium against both the
+dev server and the preview server. Each catches something different:
+
+- `tsc` reads the file the codegen just wrote. `src/typo.ts` holds a
+  `@ts-expect-error` that holds only while that augmentation applies, so a
+  codegen that writes nothing, or writes it somewhere else, fails here, and so
+  does an augmentation the leko in the tarball no longer reads.
+- `git diff --exit-code` after the run fails on a file that was not written
+  back, and on one written with a different content. A change to either
+  package that moves what a consumer gets shows up here.
+- Playwright checks that the tour is drawn, the save ends it, and nothing logs
+  an error. It opens the dev server because that is the one that stopped at
+  `Failed to resolve import`, above, while `vite build` passed.
+
+```bash
+pnpm --filter "@annetaan/leko..." --filter "@annetaan/leko-codegen..." build
+pnpm check:pack
+cd smoke
+npm ci
+npm install --no-save ../tarballs/*.tgz
+npx playwright install chromium
+npm test
+git diff --exit-code
+```
+
+CI runs the lines from `npm ci` on in
+[`.github/actions/smoke/action.yml`](.github/actions/smoke/action.yml), on the
+tarballs its `pack` job wrote with the first two lines.
+[`release.yml`](.github/workflows/release.yml) runs the same action against the
+registry after it publishes.
+
+Both tarballs go in one `npm install`. Neither is in `smoke/package.json`, and
+a second `--no-save` install removes the package the first one added as
+extraneous. `npm ci` removes them too, so install them again after it.
+
+### The release
+
+`@annetaan/leko` and `@annetaan/leko-codegen` share one version and one
+`v<version>` tag, and are always published together. The paragraph above about
+the one version `pnpm check:pack` holds them to says why.
+
+Pushing the tag runs [`release.yml`](.github/workflows/release.yml), in four
+jobs, each waiting for the one before.
+
+`check-tag` fails unless the tag is `v` followed by the version in
+`packages/leko/package.json`. It also refuses a prerelease version, since npm
+publishes one only under a dist-tag and nothing here picks one yet.
+
+`ci` is all of `ci.yml`, run on the tagged commit, the smoke project included.
+
+`publish` publishes the `tarballs` artifact that `ci`'s `pack` job checked,
+with `npm publish <tarball> --provenance`, and npm's OIDC exchange with GitHub
+stands in for a token. It has no checkout, so those two tarballs are all it
+can publish. `@annetaan/leko` goes first, so a run that stops part-way never
+leaves a codegen whose peer is missing, and a version already on the registry
+is skipped, so re-running the failed jobs finishes the release.
+
+`smoke` waits for the registry to serve both versions, then runs the smoke
+project's action on them, installed from the registry this time.
+
+What has to be true before the first tag is in the comment at the top of
+`release.yml`.
 
 ## Before opening a pull request
 
@@ -313,7 +396,8 @@ changes what a package imports, how it is built or what its manifest exports.
 pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm check:pack && pnpm check:citations && pnpm check:reference && pnpm check:code-blocks && pnpm check:links && pnpm model && pnpm test
 ```
 
-CI runs the same eleven, with `format:check` in place of `format`.
+CI runs the same eleven, with `format:check` in place of `format`, and runs
+the smoke project on the tarballs `pnpm check:pack` wrote, in jobs of their own.
 
 Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org)
 — `feat(core):`, `fix(core):`, `docs:`, `test:`, `build:`. Say in the body what

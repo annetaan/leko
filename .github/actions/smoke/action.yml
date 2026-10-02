@@ -1,0 +1,44 @@
+name: Smoke
+description: Install both packages into the smoke project and run its tests.
+# CONTRIBUTING.md, **The smoke project** says what this asks of the packages
+# and what each step catches. The caller checks the repository out first.
+
+inputs:
+  specs:
+    description: >-
+      What `npm install --no-save` installs into `smoke/`: the two tarball
+      paths relative to `smoke/`, or two registry specs.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v5
+      with:
+        node-version-file: .node-version
+        cache: npm
+        cache-dependency-path: smoke/package-lock.json
+    - name: Install the smoke project
+      shell: bash
+      working-directory: smoke
+      run: npm ci
+    - name: Install both packages
+      shell: bash
+      working-directory: smoke
+      env:
+        SPECS: ${{ inputs.specs }}
+      # After `npm ci`, never before: CONTRIBUTING.md, **The smoke project**.
+      # Unquoted so the shell splits two specs and expands a glob.
+      run: npm install --no-save $SPECS
+    - name: Install Chromium
+      shell: bash
+      working-directory: smoke
+      run: npx playwright install --with-deps chromium
+    - name: Run the smoke tests
+      shell: bash
+      working-directory: smoke
+      run: npm test
+    - name: Check the generated vocabulary was written back unchanged
+      shell: bash
+      working-directory: smoke
+      run: git diff --exit-code
