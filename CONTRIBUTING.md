@@ -296,9 +296,11 @@ passed. Following Getting started in an empty Vite project is what found it.
 
 So each public package also has a `publishConfig.exports`, the same tree with
 `development` taken out, and that is the `exports` its tarball carries. pnpm
-writes it into the packed manifest and npm does not, so a package here is
-published with `pnpm publish`, and a `prepublishOnly` script refuses
-`npm publish`.
+writes it into the packed manifest and npm does not, so pnpm packs, and that
+tarball is what goes to the registry (**The release**, below). `npm publish` in
+a package directory would pack again with npm, so a `prepublishOnly` script
+refuses it. Publishing a tarball runs no lifecycle script, so the release's
+`npm publish <tarball>` gets through.
 
 `pnpm check:pack` is the check for both. It packs each public package with
 `pnpm pack` into `tarballs/` at the root, emptying it first and leaving what it
@@ -353,10 +355,40 @@ git diff --exit-code
 CI runs the lines from `npm ci` on in
 [`.github/actions/smoke/action.yml`](.github/actions/smoke/action.yml), on the
 tarballs its `pack` job wrote with the first two lines.
+[`release.yml`](.github/workflows/release.yml) runs the same action against the
+registry after it publishes.
 
 Both tarballs go in one `npm install`. Neither is in `smoke/package.json`, and
 a second `--no-save` install removes the package the first one added as
 extraneous. `npm ci` removes them too, so install them again after it.
+
+### The release
+
+`@annetaan/leko` and `@annetaan/leko-codegen` share one version and one
+`v<version>` tag, and are always published together. The paragraph above about
+the one version `pnpm check:pack` holds them to says why.
+
+Pushing the tag runs [`release.yml`](.github/workflows/release.yml), in four
+jobs, each waiting for the one before.
+
+`check-tag` fails unless the tag is `v` followed by the version in
+`packages/leko/package.json`. It also refuses a prerelease version, since npm
+publishes one only under a dist-tag and nothing here picks one yet.
+
+`ci` is all of `ci.yml`, run on the tagged commit, the smoke project included.
+
+`publish` publishes the `tarballs` artifact that `ci`'s `pack` job checked,
+with `npm publish <tarball> --provenance`, and npm's OIDC exchange with GitHub
+stands in for a token. It has no checkout, so those two tarballs are all it
+can publish. `@annetaan/leko` goes first, so a run that stops part-way never
+leaves a codegen whose peer is missing, and a version already on the registry
+is skipped, so re-running the failed jobs finishes the release.
+
+`smoke` waits for the registry to serve both versions, then runs the smoke
+project's action on them, installed from the registry this time.
+
+What has to be true before the first tag is in the comment at the top of
+`release.yml`.
 
 ## Before opening a pull request
 
