@@ -10,10 +10,6 @@
 
 ---
 
-> [!WARNING]
-> **Lekoはまだリリースされていません。** このリポジトリは現在活発に開発が進められており、
-> APIは予告なく変更される可能性があります。本番環境での使用は避けてください。
-
 ## なぜ新しいツアーライブラリが必要なのか？
 
 どのツアーライブラリも、強調表示対象の上に透明なレイヤーを重ねます。
@@ -32,8 +28,15 @@ Show  → user watches     Do  → user performs
 
 ## 使い方
 
-Lekoはまだnpmには登録されていません。
-今すぐ動作を確認するには、このリポジトリをクローンして `pnpm dev` を実行してください。
+インストール:
+
+```sh
+npm install @annetaan/leko
+```
+
+[Getting started](https://annetaan.github.io/leko/getting-started/) では、空のViteプロジェクトからツアーを画面に出すまでを案内しています。
+ツアーが耐えなければならない状況を試すには、このリポジトリをクローンして `pnpm dev` を実行してください。
+[`examples/sandbox/`](examples/sandbox/) にその状況が揃っていて、1つずつ自分で操作できます。
 
 以下は簡単なLekoの導入例です。
 
