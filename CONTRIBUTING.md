@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for looking. Leko is pre-release, so the API still moves; issues that
-report a broken assumption are as useful as pull requests.
+Thanks for looking. Leko is at 0.x, so the API still moves; issues that report
+a broken assumption are as useful as pull requests.
 
 This file is the commands and the rules. [ONBOARDING.md](ONBOARDING.md) is the
 code: which file to open first, what each package is for, and one trace
@@ -386,8 +386,19 @@ is skipped, so re-running the failed jobs finishes the release.
 `smoke` waits for the registry to serve both versions, then runs the smoke
 project's action on them, installed from the registry this time.
 
-What has to be true before the first tag is in the comment at the top of
-`release.yml`.
+To release, set `version` in `packages/leko/package.json` and
+`packages/codegen/package.json` to the new version, merge that to `main`, and
+push `v<version>` on the merged commit. Then write the GitHub Release for the
+tag by hand: one paragraph on what the version does, a list of what changed,
+and the pull requests. There is no CHANGELOG file; the Releases are the
+changelog.
+
+Under 0.x a caret range stops at the next minor, so `^0.1.0` takes nothing
+from `0.2.0` up. A change that breaks the API is therefore a minor bump, and a
+fix is a patch.
+
+What publishing rests on outside this repository, and what each of those has
+to stay, is in the comment at the top of `release.yml`.
 
 ## Before opening a pull request
 

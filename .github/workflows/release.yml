@@ -2,18 +2,17 @@ name: Release
 
 # Pushing a `v<version>` tag publishes `@annetaan/leko` and
 # `@annetaan/leko-codegen` at that version. CONTRIBUTING.md, **The release**
-# says what each job does.
+# says how a version is cut and what each job does.
 #
-# What has to be true before the first tag, as npm stood when this was written:
+# What publishing rests on outside this repository, as npm stood when this was
+# written:
 #
-# 1. `@annetaan/leko-codegen@0.0.0` is on the registry, published by hand as a
-#    placeholder with no code, the way `@annetaan/leko@0.0.0` was. npm sets up
-#    a trusted publisher only on a package that already exists.
-# 2. Trusted Publishing is configured on npmjs.com for both packages:
-#    GitHub Actions, repository `annetaan/leko`, workflow `release.yml`, no
-#    environment.
-# 3. The repository is public. npm's provenance refuses a private source
-#    repository.
+# - Trusted Publishing on npmjs.com names, for both packages, GitHub Actions,
+#   repository `annetaan/leko`, workflow `release.yml` and no environment.
+#   Renaming this file, or giving `publish` an environment, stops npm trusting
+#   the run until that setting is changed to match.
+# - The repository is public. npm's provenance refuses a private source
+#   repository.
 on:
   push:
     tags: ['v*']

@@ -229,5 +229,5 @@ is the procedure.
 
 ## Status
 
-Pre-release. Nothing is published beyond a `0.0.0` placeholder, so the API can
-change freely.
+Released, at 0.x. The API can still change; CONTRIBUTING.md, **The release**
+says how a version goes out and what a change that breaks the API bumps.
