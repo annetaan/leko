@@ -3,13 +3,11 @@ title: Getting started
 description: From an empty Vite project to a three-step tour on screen, with a step that waits for the app to report that a save finished.
 ---
 
-import PreReleaseInstall from '../../components/PreReleaseInstall.astro'
-
 This page starts from an empty Vite project and ends with a three-step tour on
 its page. The middle step lights a Save button and moves on only when the app
 reports that the save finished, which is the thing Leko is for.
 
-You need git and Node 24.
+You need Node 24.
 
 ## Make an empty project
 
@@ -23,7 +21,10 @@ If npm asks to install `create-vite`, answer `y`.
 
 ## Install Leko
 
-<PreReleaseInstall project="my-tour" codegen />
+```sh
+npm install @annetaan/leko
+npm install -D @annetaan/leko-codegen
+```
 
 ## Create the instance
 
