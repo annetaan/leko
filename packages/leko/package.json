@@ -1,6 +1,6 @@
 {
   "name": "@annetaan/leko",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The spotlight you can click through. Product tours that cut a real hole in the overlay, so the user interacts with your actual UI.",
   "keywords": [
     "onboarding",

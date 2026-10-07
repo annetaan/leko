@@ -17,14 +17,10 @@ This package reads your project, collects every name a `reached()` call reports,
 and writes them out as types. After that your editor offers them on `awaits`,
 and a name nothing reports stops compiling.
 
-> [!WARNING]
-> **Not released yet.** The published version is a `0.0.0` placeholder and the
-> API will change without notice.
-
 ## Use it
 
 ```bash
-pnpm add -D @annetaan/leko-codegen
+npm install -D @annetaan/leko-codegen
 ```
 
 With Vite, add the plugin and forget about it. It writes the file before a
