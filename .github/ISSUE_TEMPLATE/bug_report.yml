@@ -32,6 +32,20 @@ body:
       required: true
 
   - type: input
+    id: leko
+    attributes:
+      label: '@annetaan/leko version'
+      description: >
+        `npm ls @annetaan/leko` in your project, or `main` and the commit for a
+        checkout of this repository. A fix ships in the newest release only, so
+        a report against an older one may already be fixed. If
+        `@annetaan/leko-codegen` is involved, it is released at the same version
+        and peers on exactly this one, so this field covers it too.
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
     id: browser
     attributes:
       label: Browser and exact version

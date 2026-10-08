@@ -14,10 +14,6 @@
 
 ---
 
-> [!WARNING]
-> **Leko is not released yet.** This repository is under active development and
-> the API will change without notice. Do not use it in production.
-
 ## Why another tour library?
 
 Every tour library puts a transparent layer over the element it highlights.
@@ -39,9 +35,17 @@ Show  → user watches     Do  → user performs
 
 ## What it looks like
 
-Leko is not on npm yet. To watch it work today, clone this repository and run
-`pnpm dev`. [`examples/sandbox/`](examples/sandbox/) holds the situations a
-tour has to survive, and you drive each one yourself.
+Install it:
+
+```sh
+npm install @annetaan/leko
+```
+
+[Getting started](https://annetaan.github.io/leko/getting-started/) takes an
+empty Vite project to a tour on screen. To try the situations a tour has to
+survive, clone this repository and run `pnpm dev`:
+[`examples/sandbox/`](examples/sandbox/) holds them, and you drive each one
+yourself.
 
 Here is a story about ordering something.
 
@@ -251,7 +255,7 @@ import { createScroll } from '@annetaan/leko/scroll'
 createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
 ```
 
-[Getting started with Leko Scroll](docs/src/content/docs/scroll/getting-started.mdx)
+[Getting started with Leko Scroll](https://annetaan.github.io/leko/scroll/getting-started/)
 takes an empty Vite project to a lit page, and
 [its reference](docs/src/content/docs/scroll/reference/) covers every option
 and custom property. `pnpm dev:scroll` serves
@@ -259,10 +263,13 @@ and custom property. `pnpm dev:scroll` serves
 
 ## Browser support
 
-The cutout needs CSS masking with several layers and `mask-composite`. The floor
-that implies has not been measured yet, so no version table is published here.
-One will land with the first release. Chrome 152, Firefox 153 and Safari 26 all
-draw it.
+The cutout needs CSS masking with several layers and `mask-composite`. The
+oldest release of each browser that runs it has not been measured, so no
+version table is published here.
+[`spike/the-support-floor/`](spike/the-support-floor/) is where it will be
+measured, and opened in a browser it says whether that browser can run Leko.
+So far it has been checked on the newest releases, which
+[Seen on](spike/the-support-floor/README.md#seen-on) records.
 
 [CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
 (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside

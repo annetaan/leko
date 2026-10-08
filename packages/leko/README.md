@@ -5,10 +5,6 @@
 Product tours that cut a real hole in the overlay, so the user interacts with
 your actual UI instead of watching a picture of it.
 
-> [!WARNING]
-> **Not released yet.** The published version is a `0.0.0` placeholder and the
-> API will change without notice. Do not use it in production.
-
 Every other tour library puts a transparent layer over the thing it highlights.
 That layer eats the clicks and the keystrokes, so the best it can do is *point
 at* a button and say "click here."
@@ -22,6 +18,12 @@ Say so with `interactive` on the step's region. It is off by default, because
 most steps of a tour explain what is already on screen, and a click on one of
 those can take the user off the page the next step points at. Those holes are
 shown and not handed over.
+
+Install it:
+
+```sh
+npm install @annetaan/leko
+```
 
 ```ts
 import { createLeko, type LekoStory } from '@annetaan/leko'
@@ -115,7 +117,7 @@ import { createScroll } from '@annetaan/leko/scroll'
 createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
 ```
 
-[Getting started with Leko Scroll](https://github.com/annetaan/leko/blob/main/docs/src/content/docs/scroll/getting-started.mdx)
+[Getting started with Leko Scroll](https://annetaan.github.io/leko/scroll/getting-started/)
 takes an empty Vite project to a lit page, and
 [its reference](https://github.com/annetaan/leko/tree/main/docs/src/content/docs/scroll/reference)
 covers every option and custom property.
@@ -125,8 +127,13 @@ is one long page lit end to end.
 ## Browser support
 
 The cutout needs CSS masking with several layers and `mask-composite`. The
-floor that implies has not been measured yet, so no version table is
-published here — one will land with the first release rather than before it.
+oldest release of each browser that runs it has not been measured, so no
+version table is published here.
+[`spike/the-support-floor/`](https://github.com/annetaan/leko/tree/main/spike/the-support-floor)
+is where it will be measured, and opened in a browser it says whether that
+browser can run Leko. So far it has been checked on the newest releases, which
+[Seen on](https://github.com/annetaan/leko/blob/main/spike/the-support-floor/README.md#seen-on)
+records.
 
 CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the
 step message beside its cutout and nothing else, so it degrades rather than

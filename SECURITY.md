@@ -37,6 +37,5 @@ sets `anchor-name` on an element the host page named. Things worth reporting:
 
 ## Supported versions
 
-None yet. Leko is pre-release and nothing is published beyond a `0.0.0`
-placeholder, so fixes land on `main` and nowhere else. This section will get a
-table when there is a release to put in it.
+Only the newest release. A fix ships as a new release and is never backported
+to an older one; CONTRIBUTING.md, **The release** says what it bumps.

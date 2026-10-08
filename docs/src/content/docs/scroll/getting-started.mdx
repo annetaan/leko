@@ -3,8 +3,6 @@ title: Getting started with Leko Scroll
 description: From an empty Vite project to a long page that lights one target after another as the reader scrolls.
 ---
 
-import PreReleaseInstall from '../../../components/PreReleaseInstall.astro'
-
 Leko Scroll lights a long page target by target as the reader scrolls. There is
 no story, no steps and nothing to click past: the light follows the scroll, and
 the page underneath stays usable the whole time. It is a product of its own
@@ -15,7 +13,7 @@ says how the two differ.
 This page starts from an empty Vite project and ends with a long page lit as
 you scroll it.
 
-You need git and Node 24.
+You need Node 24.
 
 ## Make an empty project
 
@@ -29,11 +27,9 @@ If npm asks to install `create-vite`, answer `y`.
 
 ## Install Leko
 
-<PreReleaseInstall project="my-page" />
-
-If you followed [Getting started](../../getting-started/) and made `my-page/`
-beside `my-tour/`, `leko-packages/` already holds the tarball, so the last two
-lines are all you need.
+```sh
+npm install @annetaan/leko
+```
 
 ## Light a long page
 
