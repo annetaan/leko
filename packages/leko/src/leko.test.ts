@@ -16,6 +16,7 @@ import {
   holes,
   keep,
   control,
+  PATIENCE,
   pause,
   press,
   said,
@@ -1910,7 +1911,7 @@ const inset = (): number =>
 // Wait until the way out is `width` wide and 16px in from the right. Real time
 // rather than frames or a taken clock: a fake clock does not drive a
 // ResizeObserver, and a frame can stall for the reason `TICK` records.
-async function placedAt(width: number, what: string, cap = 8000): Promise<void> {
+async function placedAt(width: number, what: string, cap = PATIENCE): Promise<void> {
   const began = performance.now()
   while (closer()!.offsetWidth !== width || Math.abs(inset() - 16) > 1) {
     if (performance.now() - began > cap) {
