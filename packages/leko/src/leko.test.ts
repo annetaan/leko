@@ -296,7 +296,7 @@ test('a target that fades in from opacity 0 is found when the grace runs out', a
   // the look on the frame, and once more as the grace runs out — DESIGN.md,
   // **Which of several matches a selector means**.
   expect(scrim()).toBeNull()
-  await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
+  await vi.waitUntil(() => centre(target) === target, { timeout: PATIENCE, interval: TICK })
 })
 
 test('a target still at opacity 0 when the grace runs out is lost', async () => {
@@ -316,7 +316,7 @@ test('a target still at opacity 0 when the grace runs out is lost', async () => 
   await framed()
   expect(scrim()).toBeNull()
 
-  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: PATIENCE, interval: TICK })
 
   expect(scrim()).toBeNull()
   expect(problems).toEqual([expect.objectContaining({ kind: 'target-lost' })])

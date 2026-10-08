@@ -214,7 +214,7 @@ export const TICK = 16
 
 /**
  * How long a wait on the page in real time goes on before it calls the page
- * stuck.
+ * stuck, in the suite that runs the tour in all three browsers.
  *
  * Long, because a frame on the two-core CI runner can stall for seconds, for
  * the reason {@link TICK} records. And because a first draw costs more than
