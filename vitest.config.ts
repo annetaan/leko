@@ -46,13 +46,10 @@ export default defineConfig({
           name: 'leko',
           include: ['packages/leko/src/leko.test.ts', 'packages/leko/src/message.test.ts'],
           browser: browsers(),
-          // Vitest's default of 5s is not enough for the tests about a step that
-          // scrolls, on CI. Those wait for animations the browser owns — a
-          // morph, and a smooth scroll whose length is the engine's — and this
-          // suite puts three browsers on a two-core runner, where `harness.ts`
-          // records what one animation frame has been seen to cost there. What
-          // that costs a healthy machine is nothing: every one of those tests
-          // waits on the thing it is about and returns as soon as it happens.
+          // Vitest's default of 5s is shorter than one wait on the page, and
+          // `PATIENCE` in `packages/leko/src/harness.ts` says why it is that long.
+          // What this costs a healthy machine is nothing: every wait returns as
+          // soon as the thing it is about happens.
           testTimeout: 20_000,
         },
       },
@@ -111,7 +108,8 @@ export default defineConfig({
           ],
           browser: browsers(),
           // Every test here waits on a frame loop, and this suite puts three
-          // browsers on a two-core runner — the reason the `leko` project gives.
+          // browsers on a two-core runner, where a frame costs what `TICK` in
+          // `packages/leko/src/harness.ts` records.
           testTimeout: 20_000,
         },
       },

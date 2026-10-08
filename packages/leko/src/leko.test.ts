@@ -16,6 +16,7 @@ import {
   holes,
   keep,
   control,
+  PATIENCE,
   pause,
   press,
   said,
@@ -295,7 +296,7 @@ test('a target that fades in from opacity 0 is found when the grace runs out', a
   // the look on the frame, and once more as the grace runs out — DESIGN.md,
   // **Which of several matches a selector means**.
   expect(scrim()).toBeNull()
-  await vi.waitUntil(() => centre(target) === target, { timeout: 2000 })
+  await vi.waitUntil(() => centre(target) === target, { timeout: PATIENCE, interval: TICK })
 })
 
 test('a target still at opacity 0 when the grace runs out is lost', async () => {
@@ -315,7 +316,7 @@ test('a target still at opacity 0 when the grace runs out is lost', async () => 
   await framed()
   expect(scrim()).toBeNull()
 
-  await vi.waitUntil(() => leko.state === 'idle', { timeout: 5000 })
+  await vi.waitUntil(() => leko.state === 'idle', { timeout: PATIENCE, interval: TICK })
 
   expect(scrim()).toBeNull()
   expect(problems).toEqual([expect.objectContaining({ kind: 'target-lost' })])
@@ -1910,7 +1911,7 @@ const inset = (): number =>
 // Wait until the way out is `width` wide and 16px in from the right. Real time
 // rather than frames or a taken clock: a fake clock does not drive a
 // ResizeObserver, and a frame can stall for the reason `TICK` records.
-async function placedAt(width: number, what: string, cap = 8000): Promise<void> {
+async function placedAt(width: number, what: string, cap = PATIENCE): Promise<void> {
   const began = performance.now()
   while (closer()!.offsetWidth !== width || Math.abs(inset() - 16) > 1) {
     if (performance.now() - began > cap) {

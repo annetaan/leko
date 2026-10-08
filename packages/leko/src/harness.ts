@@ -212,6 +212,19 @@ export const framed = (): Promise<void> => frame()
  */
 export const TICK = 16
 
+/**
+ * How long a wait on the page in real time goes on before it calls the page
+ * stuck, in the suite that runs the tour in all three browsers.
+ *
+ * Long, because a frame on the two-core CI runner can stall for seconds, for
+ * the reason {@link TICK} records. And because a first draw costs more than
+ * that suggests: in Playwright's WebKit on Linux, the first frame that paints a
+ * document-tall scrim compiles Mesa's shaders, about 600ms on an idle two-core
+ * machine with an empty shader cache, and CI always starts with an empty one.
+ * On a loaded runner that first frame alone takes more than a second.
+ */
+export const PATIENCE = 8000
+
 /** A plain wait, for a test that has to look at something mid-flight. */
 export const pause = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms))
@@ -287,7 +300,7 @@ export async function until(is: () => boolean, frames: number, what: string): Pr
  * what it is about. That is exactly what happened on a loaded CI runner, where
  * a 320ms morph took longer than this used to wait.
  */
-export async function shown(within = 8000): Promise<void> {
+export async function shown(within = PATIENCE): Promise<void> {
   const began = performance.now()
   while (!said() || !control()) {
     if (performance.now() - began > within) {
@@ -321,7 +334,7 @@ export async function shown(within = 8000): Promise<void> {
  * `a step that asks for staged leaves its panel until the page has landed`
  * does.
  */
-export async function stopped(cap = 8000): Promise<void> {
+export async function stopped(cap = PATIENCE): Promise<void> {
   const began = performance.now()
   let last = window.scrollY
   let still = 0

@@ -1,6 +1,20 @@
 import { expect, test, vi } from 'vitest'
 
-import { begin, box, control, frame, framed, keep, press, shown, start } from './harness.js'
+import {
+  begin,
+  box,
+  clocked,
+  control,
+  frame,
+  framed,
+  keep,
+  PATIENCE,
+  press,
+  said,
+  start,
+  TICK,
+  until,
+} from './harness.js'
 
 // Where the box beside the hole ends up, and what it has in it. Anchor
 // positioning is the feature engines disagree about most here, so these run in
@@ -45,9 +59,12 @@ const gap = (a: DOMRect, b: DOMRect): number =>
  * first style recalculation after the change, and on a busy machine the frames
  * run out before that happens. Measured at exactly 0 on a cold browser and
  * between 0.16 and 0.32 on eight warm runs after it, which is a race rather
- * than a number to raise.
+ * than a number to raise. So it waits in real time, as long as {@link PATIENCE}.
  */
-const appears = () => vi.waitUntil(visible)
+const appears = () =>
+  vi.waitUntil(visible, { timeout: PATIENCE, interval: TICK }).catch(() => {
+    throw new Error(`the message never showed within ${PATIENCE}ms`)
+  })
 
 /**
  * Anchor positioning is allowed to be missing — DESIGN.md, **Browser support**.
@@ -461,6 +478,7 @@ test('a hole with no area takes its place from its own region, not a morph lefto
   // A real duration, because that is what makes a padded list: a morph that
   // does not animate sets the step's own holes and there is nothing to leave
   // behind.
+  clocked()
   const left = box('left', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const right = box('right', { left: '800px', top: '100px', width: '120px', height: '40px' })
   const nothing = box('nothing', {
@@ -488,12 +506,11 @@ test('a hole with no area takes its place from its own region, not a morph lefto
     ],
     { duration: 320 },
   )
-  await shown()
+  await until(said, 32, 'the first step never said its words')
   press()
   // The words arrive with the anchor: both are the `say` that waits for the
-  // morph to land. Not {@link shown}, which a hidden message satisfies — it
-  // keeps its control in the DOM while it is away.
-  await vi.waitUntil(() => words() === 'Second.')
+  // morph to land.
+  await until(() => words() === 'Second.', 32, 'the second step never said its words')
 
   expect(at().x).toBeCloseTo(400, 0)
   expect(at().y).toBeCloseTo(300, 0)
