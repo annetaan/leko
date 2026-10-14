@@ -318,6 +318,72 @@ describe('a URL, and the step waiting for it', () => {
     expect(tour.step?.id).toBe('b')
   })
 
+  test("a navigation matching the first step, made from inside the story's onEnter, is dropped and reported", () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    const pattern = /^\/checkout/
+    const first: Step = { id: 'first', target: 'first', awaits: { url: pattern } }
+    tour = staging(
+      {
+        id: 'story',
+        steps: [first, { id: 'second', target: 'second' }],
+        onEnter: () => navigate(tour, '/checkout'),
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+
+    expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step: first }])
+    expect(tour.step?.id).toBe('first')
+  })
+
+  test('a navigation matching the first step, made from inside its own onEnter, is dropped and reported', () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    const pattern = /^\/checkout/
+    const first: Step = {
+      id: 'first',
+      target: 'first',
+      awaits: { url: pattern },
+      onEnter: () => navigate(tour, '/checkout'),
+    }
+    tour = staging(
+      { id: 'story', steps: [first, { id: 'second', target: 'second' }] },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+
+    expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step: first }])
+    expect(tour.step?.id).toBe('first')
+  })
+
+  test("the presenter is asked to listen before the story's onEnter runs, again for a story next hands on to, and only after the one before was torn down", () => {
+    const seen: { story: string; listened: number; torn: number }[] = []
+    const record = (story: Story): void =>
+      void seen.push({ story: story.id, listened: drawing().listened, torn: drawing().torn })
+    const after: Story = {
+      id: 'after',
+      steps: [{ id: 'b', target: 'second' }],
+      onEnter: record,
+    }
+    const tour = staging({
+      id: 'before',
+      next: after,
+      steps: [{ id: 'a', target: 'first' }],
+      onEnter: record,
+    })
+
+    begin(tour, 'before')
+    press(tour)
+
+    expect(seen).toEqual([
+      { story: 'before', listened: 1, torn: 0 },
+      { story: 'after', listened: 2, torn: 1 },
+    ])
+  })
+
   test('a navigation while idle costs nothing and says nothing', () => {
     const problems: Problem<Fixture>[] = []
     const tour = machine({ onDiagnostic: (problem) => problems.push(problem) })

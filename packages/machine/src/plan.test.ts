@@ -305,15 +305,22 @@ describe('starting', () => {
     expect(owed(outcome)).toEqual(['diagnose'])
   })
 
-  test('puts the position up before the story is asked to open, and draws nothing for it', () => {
+  test('puts the position up and listens before the story is asked to open, and draws nothing for it', () => {
     const outcome = put(nothing(), { kind: 'start', story })
 
     expect(outcome.core.position).toEqual({ story, index: 0 })
-    expect(outcome.effects).toEqual([])
+    expect(outcome.effects).toEqual([{ kind: 'listen' }])
 
     const opened = put(outcome.core, outcome.next!)
     expect(opened.core.phase).toBe('story')
     expect(owed(opened)).toEqual(['callStoryEnter'])
+  })
+
+  test('a story next hands the tour to listens again, once the ending before it has reported', () => {
+    const outcome = put({ ...nothing(), phase: 'ending' }, { kind: 'startInto', story: other })
+
+    expect(outcome.effects).toEqual([{ kind: 'listen' }])
+    expect(outcome.next?.kind).toBe('openStory')
   })
 
   test("a fresh object under the running story's name is turned down like any other", () => {
@@ -324,6 +331,43 @@ describe('starting', () => {
     expect(started.core).toEqual(running())
     expect(started.next).toBeUndefined()
     expect(owed(started)).toEqual(['diagnose'])
+  })
+})
+
+describe('a URL, and the step waiting for it', () => {
+  // DESIGN.md, **A URL is a signal the page reports**.
+
+  const pattern = /^\/checkout/
+  const waiting: Step = { id: 'w', target: 'first', awaits: { url: pattern } }
+  const checkout: Story = { id: 'checkout', steps: [waiting, second] }
+
+  test('navigated matching the first step owes signal-dropped from story and step, and moves on only from ready', () => {
+    const answers = Object.fromEntries(
+      (['story', 'step', 'ready'] as const).map((phase) => {
+        const before: C = { ...nothing(), position: { story: checkout, index: 0 }, phase }
+        const outcome = put(before, { kind: 'navigated', url: '/checkout' })
+        return [
+          phase,
+          {
+            effects: outcome.effects,
+            index: outcome.core.position?.index,
+            next: outcome.next?.kind,
+          },
+        ]
+      }),
+    )
+
+    const dropped = [
+      {
+        kind: 'diagnose',
+        problem: { kind: 'signal-dropped', name: String(pattern), step: waiting },
+      },
+    ]
+    expect(answers).toEqual({
+      story: { effects: dropped, index: 0, next: undefined },
+      step: { effects: dropped, index: 0, next: undefined },
+      ready: { effects: [], index: 1, next: 'entering' },
+    })
   })
 })
 
