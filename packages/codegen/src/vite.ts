@@ -1,6 +1,8 @@
-import type { Plugin } from 'vite'
+import type { Plugin, ResolvedConfig } from 'vite'
 
-import { generate, type Options, watch } from './generate.js'
+import { generate, type Options, type Report, watch } from './generate.js'
+import type { Site } from './scan.js'
+import { changed, message } from './unread.js'
 
 /**
  * Keep `leko-signals.d.ts` current while `vite dev` runs, and write it once
@@ -15,28 +17,53 @@ import { generate, type Options, watch } from './generate.js'
  * changed rather than the project. Vite is not asked to reload anything: the
  * file that changed is a declaration file, which no bundle contains and no
  * browser ever sees.
+ *
+ * Through Vite's logger it prints the `reached()` calls the scan could not
+ * read, and an `out` the project does not include, when the dev server starts
+ * or a build begins, and again only when they change — `changed` in
+ * `unread.ts` says what a change is.
  */
 export function lekoSignals(options: Options = {}): Plugin {
   let stop: (() => void) | undefined
+  let config: ResolvedConfig | undefined
+  let told: Site[] = []
+  let outside = false
+  const remedy = options.strict === false ? null : 'pass strict: false'
+
+  const tell = (report: Report): void => {
+    if (!config) return
+    if (!report.included && !outside) {
+      config.logger.warn(
+        `[leko-signals] ${report.out} is outside the project, so nothing compiles it ` +
+          `and no completion ever appears. Add it to the tsconfig's include.`,
+      )
+    }
+    outside = !report.included
+    const was = told
+    told = report.result.dynamic
+    if (changed(was, told) && told.length > 0) {
+      config.logger.warn(
+        `[leko-signals] ${message(told, { from: config.root, remedy }).join('\n')}`,
+      )
+    }
+  }
 
   return {
     name: 'leko-signals',
 
-    configureServer(server) {
+    configResolved(resolved) {
+      config = resolved
+    },
+
+    configureServer() {
       stop?.()
-      stop = watch(options, (report) => {
-        if (report.included) return
-        server.config.logger.warn(
-          `[leko-signals] ${report.out} is outside the project, so nothing compiles it ` +
-            `and no completion ever appears. Add it to the tsconfig's include.`,
-        )
-      })
+      stop = watch(options, tell)
     },
 
     buildStart() {
       // `configureServer` never runs for a build, and a build should not be the
       // one place the vocabulary is allowed to be stale.
-      if (!stop) generate(options)
+      if (!stop) tell(generate(options))
     },
 
     closeBundle() {

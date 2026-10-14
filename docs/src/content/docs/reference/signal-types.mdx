@@ -161,9 +161,11 @@ narrowed to a union of literals gives each of its arms. A `reached` on anything
 that is not Leko's is not counted. Anything whose type is plain `string` cannot
 be read: a `let`, a function parameter, a template with a hole in it.
 
-Only the command prints the calls it could not read, with the file and line of
-each; the Vite plugin does not. A project with any such call wants `--loose`,
-or a block written by hand naming what they report.
+Both print every call they could not read, with the file and line of each: the
+command each time it runs, and under `--watch` each time it writes; the plugin
+when the dev server starts or a build begins, and again when such a call is
+added or removed. A project with any such call wants `--loose` (`strict: false`
+on the plugin), or a block written by hand naming what they report.
 
 What it writes, trimmed:
 

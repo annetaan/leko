@@ -856,8 +856,8 @@ declaration file augmenting two interfaces the core exports empty,
   shipped.**
 - The generator asks the compiler rather than the text, so a name kept in a
   constant counts from a file away. A name built at runtime cannot be gathered;
-  the `leko-signals` command prints every such call rather than passing over
-  it — the Vite plugin does not — and a project with any of them wants
+  the generator prints every such call rather than passing over it, from the
+  command and the Vite plugin alike, and a project with any of them wants
   `--loose`.
 - **Strict on `awaits`, never on `reached()` — the asymmetry is the design.** A
   name in `awaits` missing from the vocabulary is a step waiting for a report
@@ -870,8 +870,8 @@ declaration file augmenting two interfaces the core exports empty,
   `include`. In a file with no `import` or `export` of its own, `declare
   module` declares an ambient module instead: no completion appears, and no
   error explains why. A file outside `include` fails the same silent way. The
-  generator checks its own output against the project after writing it and says
-  so, because nothing else will.
+  generator checks its own output against the project and says so, because
+  nothing else will.
 
 ## What Leko does not do
 

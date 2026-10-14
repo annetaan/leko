@@ -17,7 +17,11 @@ export interface Options {
 export interface Report {
   out: string
   content: string
-  /** Whether what is on disk differs from what the scan produced. */
+  /**
+   * Whether what was on disk before this run differs from what the scan
+   * produced, so a report from `generate` or `watch` that says so is one that
+   * wrote.
+   */
   stale: boolean
   /**
    * Whether the project actually reads the file that was written.
@@ -112,11 +116,12 @@ export function generate(options: Options = {}): Report {
 /**
  * Keep the declaration file up to date while the project is being edited.
  *
- * `ts.createWatchProgram` reuses the program between edits, so a keystroke costs
- * the files that changed rather than the whole project. Returns the function
- * that stops it.
+ * `onReport` runs after every program, whether or not it wrote, and `stale`
+ * says which. `ts.createWatchProgram` reuses the program between edits, so a
+ * keystroke costs the files that changed rather than the whole project. Returns
+ * the function that stops it.
  */
-export function watch(options: Options = {}, onWrite?: (report: Report) => void): () => void {
+export function watch(options: Options = {}, onReport?: (report: Report) => void): () => void {
   const { config, out } = locate(options)
   const strict = options.strict ?? true
   const host = ts.createWatchCompilerHost(
@@ -131,14 +136,20 @@ export function watch(options: Options = {}, onWrite?: (report: Report) => void)
   )
   host.afterProgramCreate = (builder) => {
     const program = builder.getProgram()
-    const answer = report(out, scan(program, ts), strict, true)
-    if (!answer.stale) return
+    // A program that writes nothing was built with the file already on disk, so
+    // its root names can be trusted without parsing the tsconfig on every save.
+    const included = program.getRootFileNames().some((name) => resolve(name) === out)
+    const answer = report(out, scan(program, ts), strict, included)
+    if (!answer.stale) {
+      onReport?.(answer)
+      return
+    }
     mkdirSync(dirname(answer.out), { recursive: true })
     writeFileSync(answer.out, answer.content, 'utf8')
     // Asked once the file is on disk. The first program of a run was built
     // before there was anything to take in, and reporting from that one calls
     // every first run a mistake.
-    onWrite?.({ ...answer, included: covers(config, out) })
+    onReport?.({ ...answer, included: covers(config, out) })
   }
   const watching = ts.createWatchProgram(host)
   return () => watching.close()

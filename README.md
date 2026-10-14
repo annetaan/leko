@@ -174,9 +174,9 @@ awaits: 'order-svaed'                  // and this no longer compiles
 ```
 
 It asks the compiler rather than the text, so a name kept in a constant counts
-too. A name built at runtime cannot be gathered. The `leko-signals` command
-prints every call like that, with its file and line, and the Vite plugin does
-not, so run `leko-signals --out src/leko-signals.d.ts --check` to see them.
+too. A name built at runtime cannot be gathered. The Vite plugin prints every
+call like that, with its file and line, in the dev server's output and before a
+build, and so does the `leko-signals` command.
 
 `awaits` is the strict side and `reached()` never is. A `reached()` call is
 meant to stay in your source forever, including in builds where no tour runs,
