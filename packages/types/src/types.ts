@@ -923,9 +923,7 @@ export type LekoProblem =
    * On a step that awaits `{ url }` rather than a name, this is a URL change
    * that landed the same way — from a router that navigates inside one of those
    * handlers — and `name` is the pattern as written, flags included:
-   * `String(pattern)`. On a story's first step nothing listens for the URL
-   * until the step is handed over to be drawn, so a navigation before that is
-   * neither heard nor reported.
+   * `String(pattern)`.
    */
   | { kind: 'signal-dropped'; name: string; step: LekoStep }
   /**
