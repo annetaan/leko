@@ -3,6 +3,7 @@ import { relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { generate, inspect, type Options, type Report, watch } from './generate.js'
+import { message } from './unread.js'
 
 const USAGE = `
 leko-signals — gather the signal names a project reports and write them out.
@@ -54,7 +55,7 @@ const here = (path: string): string => relative(process.cwd(), path) || path
  * The dynamic ones are said out loud every time — `scan.ts` says why they are
  * the reason `--loose` exists.
  */
-const describe = (report: Report, wrote: boolean): void => {
+const describe = (report: Report, wrote: boolean, remedy: string | null): void => {
   const { signals, dynamic } = report.result
   const names = signals.length === 1 ? '1 signal' : `${signals.length} signals`
   console.log(`${wrote ? 'wrote' : 'checked'} ${here(report.out)} — ${names}`)
@@ -67,14 +68,8 @@ const describe = (report: Report, wrote: boolean): void => {
     )
   }
 
-  if (dynamic.length === 0) return
-  const one = dynamic.length === 1
-  console.warn(
-    `\n${dynamic.length} reached() call${one ? '' : 's'} report${one ? 's' : ''} a name this ` +
-      `scan cannot read.\nThe vocabulary is missing whatever ${one ? 'it reports' : 'they report'}` +
-      `, so run with --loose or name ${one ? 'it' : 'them'} by hand:\n`,
-  )
-  for (const site of dynamic) console.warn(`  ${here(site.file)}:${site.line}`)
+  const lines = message(dynamic, { from: process.cwd(), remedy })
+  if (lines.length > 0) console.warn(`\n${lines.join('\n')}`)
 }
 
 const main = (): void => {
@@ -93,16 +88,18 @@ const main = (): void => {
     return
   }
 
+  const remedy = parsed.strict === false ? null : 'run with --loose'
+
   if (parsed.watch) {
     watch(parsed, (report) => {
-      if (report.stale) describe(report, true)
+      if (report.stale) describe(report, true, remedy)
     })
     return
   }
 
   if (parsed.check) {
     const report = inspect(parsed)
-    describe(report, false)
+    describe(report, false, remedy)
     if (report.stale) {
       console.error(`\n${here(report.out)} is out of date. Run leko-signals and commit the result.`)
       process.exitCode = 1
@@ -110,7 +107,7 @@ const main = (): void => {
     return
   }
 
-  describe(generate(parsed), true)
+  describe(generate(parsed), true, remedy)
 }
 
 main()
