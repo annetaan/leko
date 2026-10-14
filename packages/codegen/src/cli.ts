@@ -3,7 +3,7 @@ import { relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { generate, inspect, type Options, type Report, watch } from './generate.js'
-import { message } from './unread.js'
+import { message, news, type Told, untold } from './unread.js'
 
 const USAGE = `
 leko-signals — gather the signal names a project reports and write them out.
@@ -49,18 +49,25 @@ const parseCli = (argv: string[]): Parsed | null => {
 
 const here = (path: string): string => relative(process.cwd(), path) || path
 
-/**
- * What a run found, in one line, plus the calls it could not read.
- *
- * The dynamic ones are said out loud every time — `scan.ts` says why they are
- * the reason `--loose` exists.
- */
-const describe = (report: Report, wrote: boolean, remedy: string | null): void => {
-  const { signals, dynamic } = report.result
+/** What a run found, in one line. */
+const describe = (report: Report, verb: 'wrote' | 'checked'): void => {
+  const { signals } = report.result
   const names = signals.length === 1 ? '1 signal' : `${signals.length} signals`
-  console.log(`${wrote ? 'wrote' : 'checked'} ${here(report.out)} — ${names}`)
+  console.log(`${verb} ${here(report.out)} — ${names}`)
+}
 
-  if (!report.included) {
+/**
+ * Say that the file is outside the project and which calls could not be read,
+ * once per run, and under `--watch` again only when `news` in `unread.ts` says
+ * so. `scan.ts` says why the unread calls are the reason `--loose` exists.
+ */
+const tell = (report: Report, told: Told, remedy: string | null): Told => {
+  const { told: next, say } = news(told, {
+    dynamic: report.result.dynamic,
+    included: report.included,
+  })
+
+  if (say.outside) {
     console.warn(
       `\n${here(report.out)} is outside this project, so nothing compiles it and no ` +
         `completion\never appears. Add it to the tsconfig's include, or pass --out somewhere\n` +
@@ -68,8 +75,11 @@ const describe = (report: Report, wrote: boolean, remedy: string | null): void =
     )
   }
 
-  const lines = message(dynamic, { from: process.cwd(), remedy })
-  if (lines.length > 0) console.warn(`\n${lines.join('\n')}`)
+  if (say.unread) {
+    console.warn(`\n${message(report.result.dynamic, { from: process.cwd(), remedy }).join('\n')}`)
+  }
+
+  return next
 }
 
 const main = (): void => {
@@ -91,15 +101,18 @@ const main = (): void => {
   const remedy = parsed.strict === false ? null : 'run with --loose'
 
   if (parsed.watch) {
+    let told = untold
     watch(parsed, (report) => {
-      if (report.stale) describe(report, true, remedy)
+      if (report.stale) describe(report, 'wrote')
+      told = tell(report, told, remedy)
     })
     return
   }
 
   if (parsed.check) {
     const report = inspect(parsed)
-    describe(report, false, remedy)
+    describe(report, 'checked')
+    tell(report, untold, remedy)
     if (report.stale) {
       console.error(`\n${here(report.out)} is out of date. Run leko-signals and commit the result.`)
       process.exitCode = 1
@@ -107,7 +120,9 @@ const main = (): void => {
     return
   }
 
-  describe(generate(parsed), true, remedy)
+  const report = generate(parsed)
+  describe(report, 'wrote')
+  tell(report, untold, remedy)
 }
 
 main()
