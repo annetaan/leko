@@ -26,12 +26,14 @@ jobs:
       # fallen behind the source it was gathered from.
       - run: pnpm build
       - run: git diff --exit-code
-      # A pull request's build is published nowhere else until it merges, so
-      # this is the only rendered copy of its pages anyone can open. It goes up
-      # once the build is known clean, so a later check failing leaves it there.
-      # CONTRIBUTING.md, **The documentation site** says how to open it.
+      # On a pull request this is the only rendered copy of its pages anyone
+      # can open, and it goes up once the build is known clean, so a later
+      # check failing leaves it there. On main it is the build `pages.yml`
+      # publishes, once the whole run has passed. A release's run is on a tag
+      # and uploads nothing. CONTRIBUTING.md, **The documentation site** says
+      # how to open it.
       - uses: actions/upload-artifact@v7
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
         with:
           name: docs-site
           path: docs/dist
