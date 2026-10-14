@@ -8,17 +8,20 @@ import type { Handoff, MachineState, Problem, World } from './types.js'
 // -------------------------------------------------------------------- the state
 
 /**
- * Which window the machine is in, and nothing else. `story` and `step` are an
+ * Which window the machine is in, and nothing else. `before` and `step` are an
  * arrival, two rather than one because the step's `onLeave` is owed in the
- * second and not the first. `ending` is a teardown. All three last one
- * synchronous call into the application and no longer, because no handler hands
- * anything back to wait for, and `ready` is every other moment there is.
+ * second and not the first. `before` is the position naming a step whose
+ * `onEnter` has not been called while a handler that comes before it runs: the
+ * story's own `onEnter`, or the `onLeave` of the step a move walks away from.
+ * `step` is that step's own `onEnter`. `ending` is a teardown. All three last
+ * one synchronous call into the application and no longer, because no handler
+ * hands anything back to wait for, and `ready` is every other moment there is.
  *
  * DESIGN.md argues the gate this feeds under **One gate, and what it refuses**,
  * and that none of it is about the screen under **Nothing here is about what is
  * on screen**.
  */
-export type Phase = 'story' | 'step' | 'ending' | 'ready'
+export type Phase = 'before' | 'step' | 'ending' | 'ready'
 
 /**
  * Which story a tour is on and where in it. Replaced on every move and never on
@@ -108,7 +111,20 @@ export type Effect<W extends World> =
   | { kind: 'handOn'; at: Position<W>; url: RegExp; story: Story<W> }
   | { kind: 'callStoryEnter'; at: Position<W> }
   | { kind: 'callStepEnter'; at: Position<W>; step: Step<W>; animate: boolean }
-  | { kind: 'callStepLeave'; step: Step<W>; next: Step<W> | undefined }
+  /**
+   * The `onLeave` of the step a move walks away from, told the step at `at`.
+   * Answers with `entering`, which is where a `stop()` made from inside it is
+   * seen.
+   */
+  | {
+      kind: 'callStepLeaveOnMove'
+      at: Position<W>
+      step: Step<W>
+      next: Step<W>
+      animate: boolean
+    }
+  /** The `onLeave` an ending owes the step it stood on. Nothing follows that step. */
+  | { kind: 'callStepLeave'; step: Step<W> }
   | { kind: 'callStoryLeave'; story: Story<W>; next: Story<W> | undefined }
   | { kind: 'report'; story: Story<W>; step?: Step<W> }
   | { kind: 'diagnose'; problem: Problem<W> }
@@ -140,8 +156,11 @@ export type Event<W extends World> =
   | { kind: 'reported' }
   /** The position is on the story's first step and its own `onEnter` is owed. */
   | { kind: 'openStory'; at: Position<W> }
-  | { kind: 'storyEntered'; at: Position<W> }
-  | { kind: 'entering'; at: Position<W>; leaving: Step<W> | undefined; animate: boolean }
+  /**
+   * The handler before the step at `at` returned: the story's own `onEnter`, or
+   * the `onLeave` of the step a move walked away from.
+   */
+  | { kind: 'entering'; at: Position<W>; animate: boolean }
   | { kind: 'stepEntered'; at: Position<W>; animate: boolean }
   | { kind: 'entryFailed'; at: Position<W>; reason: unknown }
   /** The step is on screen and the report of the move is owed. */
@@ -197,11 +216,11 @@ const ending = <W extends World>(
 ): Outcome<W> => {
   const here = core.position
   if (!here) return { core, effects: after }
-  // The step's `onLeave` is owed unless the story's own setup never got as far
-  // as entering one. Innermost first, the mirror of how they were entered.
-  const step = core.phase === 'story' ? undefined : stepOf(core)
+  // The step's `onLeave` is owed only where its `onEnter` has been called.
+  // Innermost first, the mirror of how they were entered.
+  const step = core.phase === 'step' || core.phase === 'ready' ? stepOf(core) : undefined
   const effects: Effect<W>[] = [{ kind: 'teardown' }]
-  if (step) effects.push({ kind: 'callStepLeave', step, next: undefined })
+  if (step) effects.push({ kind: 'callStepLeave', step })
   effects.push({ kind: 'callStoryLeave', story: here.story, next: into })
   return {
     core: { ...idle<W>(), phase: 'ending' },
@@ -214,15 +233,11 @@ const ending = <W extends World>(
 const entering = <W extends World>(
   core: Core<W>,
   at: Position<W>,
-  leaving: W['step'] | undefined,
   animate: boolean,
 ): Outcome<W> => {
   const step = stepOf(core)
   if (!core.position || !step) return ending(core, undefined, [])
-  const effects: Effect<W>[] = []
-  if (leaving) effects.push({ kind: 'callStepLeave', step: leaving, next: step })
-  effects.push({ kind: 'callStepEnter', at, step, animate })
-  return { core: { ...core, phase: 'step' }, effects }
+  return owing({ ...core, phase: 'step' }, { kind: 'callStepEnter', at, step, animate })
 }
 
 /**
@@ -236,11 +251,10 @@ const moveOn = <W extends World>(core: Core<W>, here: Position<W>, step: W['step
     return owing(core, { kind: 'chain', at: here, story: here.story })
   }
   const at: Position<W> = { story: here.story, index: here.index + 1 }
-  return {
-    core: { ...core, position: at },
-    effects: [],
-    next: { kind: 'entering', at, leaving: step, animate: true },
-  }
+  const ahead: Core<W> = { position: at, phase: 'before' }
+  const next = stepOf(ahead)
+  if (!next) return ending(core, undefined, [])
+  return owing(ahead, { kind: 'callStepLeaveOnMove', at, step, next, animate: true })
 }
 
 /** `advance`. A step that declares a signal is not guarded. */
@@ -395,16 +409,13 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       // Set before `onEnter` is called, so a handler answering in the turn is
       // inside the window too. No step has been entered, which is how `ending`
       // knows the step's `onLeave` is not owed.
-      return owing({ ...core, phase: 'story' }, { kind: 'callStoryEnter', at: event.at })
-
-    case 'storyEntered':
-      // A story's own `onEnter` can call `stop()`, and then there is no first
-      // step to enter.
-      if (!stillAt(core, event.at)) return nothing(core)
-      return entering(core, event.at, undefined, false)
+      return owing({ ...core, phase: 'before' }, { kind: 'callStoryEnter', at: event.at })
 
     case 'entering':
-      return entering(core, event.at, event.leaving, event.animate)
+      // A story's own `onEnter` can call `stop()`, and so can the `onLeave` of
+      // the step a move walked away from, and then there is no step to enter.
+      if (!stillAt(core, event.at)) return nothing(core)
+      return entering(core, event.at, event.animate)
 
     case 'stepEntered': {
       const step = stepOf(core)

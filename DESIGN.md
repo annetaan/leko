@@ -542,7 +542,10 @@ its clear-up at the same level instead of splitting across two.
   halfway, and where a `stop()` walked out of it, because a handler that set
   something up before failing is owed one. `onLeave` is told where the tour is
   going, so a panel two steps use in turn can stay open. A story handing the
-  tour on through `next` counts as ending.
+  tour on through `next` counts as ending. It runs the other way too: a step
+  whose `onEnter` was never called is owed neither handler. A `stop()` from
+  the `onLeave` of the step being left ends the tour before the step ahead is
+  entered, so that step gets nothing and only the story is left after it.
 - **A throw stops the tour, and the reason is thrown again.** The state the
   step assumes was never built, so drawing it would point the user at something
   that is not ready — and the handler that threw is the place with the context

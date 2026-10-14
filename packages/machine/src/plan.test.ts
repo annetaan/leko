@@ -45,7 +45,7 @@ const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, e
 
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
 
-const PHASES: Phase[] = ['story', 'step', 'ending', 'ready']
+const PHASES: Phase[] = ['before', 'step', 'ending', 'ready']
 
 describe('reading the state', () => {
   test('a call is acted on where the step is on screen and nowhere else', () => {
@@ -55,7 +55,7 @@ describe('reading the state', () => {
 
     expect(answers).toEqual({
       ready: true,
-      story: false,
+      before: false,
       step: false,
       ending: false,
     })
@@ -73,7 +73,7 @@ describe('reading the state', () => {
     // DESIGN.md, **`state` is derived**.
     expect(answers).toEqual({
       ready: 'running',
-      story: 'running',
+      before: 'running',
       step: 'running',
       ending: 'running',
     })
@@ -125,13 +125,14 @@ describe('an ending', () => {
     const outcome = put(running(), { kind: 'stop' })
     const [, step, tale] = outcome.effects
 
-    expect(step).toEqual({ kind: 'callStepLeave', step: first, next: undefined })
+    expect(step).toEqual({ kind: 'callStepLeave', step: first })
     expect(tale).toEqual({ kind: 'callStoryLeave', story, next: undefined })
   })
 
-  test('owes the step nothing where the story never got as far as one', () => {
-    // The story's own `onEnter` threw, so no step was ever entered.
-    const outcome = put(running(0, { phase: 'story' }), { kind: 'stop' })
+  test('owes the step nothing where its onEnter was never called, whichever way the tour came to it', () => {
+    // The story's own `onEnter`, or the `onLeave` of the step a move walked
+    // away from, ended the tour before the step ahead was entered.
+    const outcome = put(running(0, { phase: 'before' }), { kind: 'stop' })
 
     expect(owed(outcome)).toEqual(['teardown', 'callStoryLeave'])
   })
@@ -312,7 +313,7 @@ describe('starting', () => {
     expect(outcome.effects).toEqual([{ kind: 'listen' }])
 
     const opened = put(outcome.core, outcome.next!)
-    expect(opened.core.phase).toBe('story')
+    expect(opened.core.phase).toBe('before')
     expect(owed(opened)).toEqual(['callStoryEnter'])
   })
 
@@ -341,9 +342,9 @@ describe('a URL, and the step waiting for it', () => {
   const waiting: Step = { id: 'w', target: 'first', awaits: { url: pattern } }
   const checkout: Story = { id: 'checkout', steps: [waiting, second] }
 
-  test('navigated matching the first step owes signal-dropped from story and step, and moves on only from ready', () => {
+  test('navigated matching the first step owes signal-dropped from before and step, and moves on only from ready', () => {
     const answers = Object.fromEntries(
-      (['story', 'step', 'ready'] as const).map((phase) => {
+      (['before', 'step', 'ready'] as const).map((phase) => {
         const before: C = { ...nothing(), position: { story: checkout, index: 0 }, phase }
         const outcome = put(before, { kind: 'navigated', url: '/checkout' })
         return [
@@ -364,9 +365,21 @@ describe('a URL, and the step waiting for it', () => {
       },
     ]
     expect(answers).toEqual({
-      story: { effects: dropped, index: 0, next: undefined },
+      before: { effects: dropped, index: 0, next: undefined },
       step: { effects: dropped, index: 0, next: undefined },
-      ready: { effects: [], index: 1, next: 'entering' },
+      ready: {
+        effects: [
+          {
+            kind: 'callStepLeaveOnMove',
+            at: { story: checkout, index: 1 },
+            step: waiting,
+            next: second,
+            animate: true,
+          },
+        ],
+        index: 1,
+        next: undefined,
+      },
     })
   })
 })
@@ -380,18 +393,20 @@ describe('a position is the occurrence, not the place', () => {
     expect(twice).not.toBe(once)
   })
 
-  test('the next step is a fresh one, and everything else stays where it was', () => {
-    const before = running()
+  test('the next step is a fresh one, and the step behind is left before it is entered', () => {
+    const outcome = put(running(), { kind: 'pressed' })
 
-    const outcome = put(before, { kind: 'pressed' })
-
-    expect(outcome.core).toEqual({ ...before, position: { story, index: 1 } })
-    expect(outcome.next).toEqual({
-      kind: 'entering',
-      at: outcome.core.position,
-      leaving: first,
-      animate: true,
-    })
+    expect(outcome.core).toEqual({ position: { story, index: 1 }, phase: 'before' })
+    expect(outcome.effects).toEqual([
+      {
+        kind: 'callStepLeaveOnMove',
+        at: outcome.core.position,
+        step: first,
+        next: second,
+        animate: true,
+      },
+    ])
+    expect(outcome.next).toBeUndefined()
   })
 })
 
@@ -399,7 +414,7 @@ describe('an arrival is a fresh position and nothing else', () => {
   test('writes the phase and moves nothing it was not asked to', () => {
     const before = running()
 
-    const outcome = put(before, { kind: 'entering', at: at(0), leaving: undefined, animate: true })
+    const outcome = put(before, { kind: 'entering', at: before.position!, animate: true })
 
     expect(outcome.core).toEqual({ ...before, phase: 'step' })
   })
@@ -408,7 +423,36 @@ describe('an arrival is a fresh position and nothing else', () => {
     const outcome = put(nothing(), { kind: 'start', story })
     const opened = put(outcome.core, outcome.next!)
 
-    expect(opened.core).toEqual({ ...outcome.core, phase: 'story' })
+    expect(opened.core).toEqual({ ...outcome.core, phase: 'before' })
+  })
+
+  test('leaves the step behind with the gate shut before the next is entered', () => {
+    const outcome = put(running(), { kind: 'pressed' })
+
+    expect(accepting(outcome.core)).toBe(false)
+    expect(stepOf(outcome.core)).toBe(second)
+    expect(owed(outcome)).toEqual(['callStepLeaveOnMove'])
+  })
+
+  test('enters nothing where the handler before the step stopped the tour', () => {
+    const gone = nothing()
+
+    const outcome = put(gone, { kind: 'entering', at: at(1), animate: true })
+
+    expect(outcome.core).toBe(gone)
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toBeUndefined()
+  })
+
+  test('enters the step once the handler before it returned', () => {
+    const before = running(1, { phase: 'before' })
+
+    const outcome = put(before, { kind: 'entering', at: before.position!, animate: true })
+
+    expect(outcome.core.phase).toBe('step')
+    expect(outcome.effects).toEqual([
+      { kind: 'callStepEnter', at: before.position, step: second, animate: true },
+    ])
   })
 })
 
@@ -432,7 +476,7 @@ describe('a page load, and the story it hands on', () => {
 
     expect(answers).toEqual({
       ready: ['handOn'],
-      story: [],
+      before: [],
       step: [],
       ending: [],
     })

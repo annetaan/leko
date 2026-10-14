@@ -9,7 +9,7 @@
 // `end` is `ending`, `enter` is `entering`, and `enterStory` is `opening`.
 //
 // **Nothing the machine calls hands anything back.** An arrival runs start to
-// finish inside one action, so the `Story` and `Step` phases are never a state
+// finish inside one action, so the `Before` and `Step` phases are never a state
 // this rests in and nothing is parked for one. The one late thing left is the
 // window a teardown opens.
 module machine {
@@ -18,7 +18,7 @@ module machine {
   type Maybe[a] = Just(a) | Nothing
 
   /// `Phase` in plan.ts, with the same four values and the same meanings.
-  type Phase = Story | Step | Ending | Ready
+  type Phase = Before | Step | Ending | Ready
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
@@ -319,7 +319,7 @@ module machine {
   /// anything about its first step.
   pure def enterStory(s: M, at: Pos): M = {
     val story = storyOf(s, at)
-    val held = s.with("phase", Story)
+    val held = s.with("phase", Before)
     if (story.throwsOnEnter) failed(held, at)
     else if (stillAt(held, at)) enter(held)
     else held
@@ -418,7 +418,7 @@ module machine {
 
   /// `stop()` asks nothing, and is the only call that does not. It is also the
   /// whole of "a `stop()` from inside `onEnter`": nothing gates it, so this
-  /// action fires while the phase is `story` or `step` like any other.
+  /// action fires while the phase is `before` or `step` like any other.
   action doStop = all {
     m' = end(m, Nothing).with("mark", "stop"),
   }

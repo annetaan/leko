@@ -194,8 +194,11 @@ even though the host that called `stop` already knows.
 
 While idle it does nothing, so the ending is reported once however many times
 this is called. It is the one call that goes through in flight: a `stop()` from
-inside `onEnter` ends the run inside the call that was entering the step. From
-inside the `onLeave` or the report of an ending there is nothing left to end.
+inside `onEnter` ends the run inside the call that was entering the step. A
+`stop()` from inside the `onLeave` of the step a move is leaving ends the run
+before the next step is entered, so that step's `onEnter` and `onLeave` never
+run. From inside the `onLeave` or the report of an ending there is nothing left
+to end.
 
 ## LekoState
 

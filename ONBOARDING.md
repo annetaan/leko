@@ -218,7 +218,7 @@ This is the trace worth walking with the files open. The application calls
 | 1 | `leko.ts` `Leko.reached` | Hands the name straight to the machine |
 | 2 | `machine.ts` `reached` | Hands the name to `dispatch` and does nothing else |
 | 3 | `plan.ts` the `reached` event | Reads the current step. If `step.awaits !== name` it answers with nothing whatsoever, silently. Most calls end here. A name that matched and arrived while the phase was closed is dropped and reported |
-| 4 | `plan.ts` `advance`, then `moveOn` and `entering` | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase, and owes the last step's `onLeave` and this step's `onEnter` |
+| 4 | `plan.ts` `advance`, then `moveOn` and the `entering` event | Owes a `validate` where the step has a guard. Otherwise moves the position on, closes the phase and owes the last step's `onLeave`. Once that returns, and the tour is still there, owes this step's `onEnter` |
 | 5 | `plan.ts` the `stepEntered` event | Opens the phase, then owes the draw. In that order |
 | 6 | `machine.ts` `perform` | Makes each of those calls, in the order they were owed. `draw` hands the step to `presenter.show`, which looks for the target itself |
 | 7 | `presenter.ts` `show`, then `plan.ts` the `show` event, then the `expired` event two frames later, then `presenter.ts` `arrive`, then `plan.ts` the `arrived` event, then `presenter.ts` `reveal` | The plan stops whatever glide was running, moves to `deferred`, hides the words of the step being left and owes a `defer`, and the call returns. Two frames later the shell resolves the target and reports `expired`. The target is on the page, so the plan owes an `arrive`, which asks whether to scroll and reports `arrived`. That moves to `drawn`, owing a `disarm` and a `reveal`. `reveal` works out which surfaces carry the target — its scrollers and the document, or the viewport alone for a fixed one — builds a `Scrim` per level, measures the cutouts and cuts the outer layers. A step with no `target` measures the empty list and the scrim closes over everything |
@@ -265,7 +265,7 @@ disagreeing about where the tour was.
 | Field | Holds |
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | Which window the machine is in. `story`, `step`, `ending` or `ready` |
+| `phase` | Which window the machine is in. `before`, `step`, `ending` or `ready` |
 
 Both are `Core` in `plan.ts`, replaced together rather than written one at a
 time, and `dispatch` in `machine.ts` is the only thing that writes one. There is

@@ -530,8 +530,12 @@ An ending runs innermost first. The tour is emptied before any of it, so
 `state` reads `'idle'` inside every `onLeave` of a teardown. Then the step's
 `onLeave` runs with `next` as `undefined`, then the story's `onLeave` with
 `next` as the story it hands on to or `undefined`, then `onStep` reports the
-ending with `step` as `undefined`. The step's `onLeave` is skipped only when
-the story's own `onEnter` never got as far as entering a step.
+ending with `step` as `undefined`. The step's `onLeave` is skipped only where
+its `onEnter` was never called, which happens two ways: the story's own
+`onEnter` threw or called `stop()` before a step was entered, or the `onLeave`
+of the step being left on a move called `stop()`. In the second case the step
+ahead, which `step` and `index` already name, gets neither handler, and only
+the story's `onLeave` runs after the leaving step's.
 
 A story that hands on through `next` ends that way: the step's `onLeave` gets
 `undefined`, the story's `onLeave` gets the story it hands on to, and that
