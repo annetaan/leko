@@ -107,11 +107,11 @@ properties are the ones the code reads, not the ones `leko.css` declares. It
 also fails where a default `leko.css` declares is not the fallback the code
 reads, or where only one of the two has a property.
 
-Every pull request's CI run carries an artifact named `docs-site`, which is the
-`docs/dist` that run built. Download it from the run's summary page and unzip it
-into an empty `docs/dist`, or let `gh` do both. Empty it either way: unzipping
-over a local build keeps every page the pull request removed, and `gh` refuses
-to write a file that is already there.
+Every CI run on a pull request or on `main` carries an artifact named
+`docs-site`, which is the `docs/dist` that run built. Download it from the
+run's summary page and unzip it into an empty `docs/dist`, or let `gh` do both.
+Empty it either way: unzipping over a local build keeps every page the pull
+request removed, and `gh` refuses to write a file that is already there.
 
 ```bash
 rm -rf docs/dist
@@ -123,8 +123,11 @@ Use `preview` rather than any static server. The site is built for the `/leko`
 base, and `astro preview` serves it under that base, so its links land. Served
 from the root, every one of them misses.
 
-A push to `main` publishes the site at <https://annetaan.github.io/leko/>,
-through [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+A push to `main` publishes the site at <https://annetaan.github.io/leko/> once
+CI passes on it. [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
+publishes that run's `docs-site` and builds nothing itself, and it skips a
+commit `main` has already moved past. To publish again, re-run CI's latest run
+on `main`.
 
 ### Examples on the site
 

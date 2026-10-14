@@ -1,45 +1,59 @@
 name: Pages
 
+# What goes up is the `docs-site` CI built and checked on main, so the site is
+# built once. This is a workflow of its own rather than a job in `ci.yml`
+# because `release.yml` calls `ci.yml`, and a job there holding `pages` and
+# `id-token` would need both granted in the release run as well.
+
 on:
-  push:
+  workflow_run:
+    # Matched by name: renaming CI silently stops every deploy.
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-# A deployment already under way is left to finish, and of the runs queued
-# behind it only the latest starts.
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   deploy:
+    # A fork's pull request from a branch named `main` passes the `branches`
+    # filter, so `event` is what keeps fork code from this job. On
+    # `workflow_run`, `github.sha` is main's head when this run is created: a
+    # run whose commit main has already moved past is skipped, and the newer
+    # commit's own CI run deploys it.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_sha == github.sha
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    # On the job rather than the workflow, so only a run that passed the `if`
+    # takes a place in the queue. A deployment already under way is left to
+    # finish, and of the runs queued behind it only the latest starts.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      - uses: actions/download-artifact@v8
         with:
-          node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      # The one check that reads what is about to go up. The rest are CI's.
-      - run: pnpm check:links
+          name: docs-site
+          path: site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
       # No `actions/configure-pages`: `site` and `base` are written into
       # `docs/astro.config.mjs`, and `deploy-pages` does not need it. No
       # `.nojekyll` either: Pages runs Jekyll only on a site published from a
       # branch, so `_astro/` is served as it is.
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/dist
+          path: site
       - uses: actions/deploy-pages@v5
         id: deployment
