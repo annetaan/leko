@@ -492,9 +492,8 @@ call changes nothing in it.
 
 It asks the compiler rather than the text, so `reached(ORDER_SAVED)` contributes
 `order-saved` from a file away. A name built at runtime cannot be gathered, and
-the `leko-signals` command prints every call like that rather than passing over
-it. The sandbox runs the Vite plugin, which prints nothing, so
-`pnpm --filter ./examples/sandbox signals --check` is how to see them there.
+the generator prints every call like that rather than passing over it. In the
+sandbox that is the Vite plugin, in the dev server's output.
 
 Two things to know.
 
