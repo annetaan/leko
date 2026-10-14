@@ -118,6 +118,9 @@ export class Machine<W extends World> {
    */
   private perform(effect: Effect<W>): void {
     switch (effect.kind) {
+      case 'listen':
+        return this.presenter.listen()
+
       case 'teardown':
         return this.presenter.teardown()
 

@@ -155,6 +155,16 @@ export interface Presenter<W extends World> {
   retell(step: W['step'], reason: string): void
   /** Say no, on a step that would not let the tour past. */
   reject(): void
+  /**
+   * Hear the page for the run, from this call until {@link teardown}: a
+   * same-document navigation goes to {@link Host.navigated} and `pagehide` to
+   * {@link Host.unloading}. Asked once per run, as the position goes up and
+   * before any handler of the run is called, so a navigation made from a
+   * story's `onEnter` or its first step's lands inside the gate and is
+   * reported, as a later step's is. DESIGN.md, **A URL is a signal the page
+   * reports**.
+   */
+  listen(): void
   /** Everything this presenter put on the page goes. */
   teardown(): void
   /**
@@ -197,8 +207,9 @@ export interface Host<W extends World> {
   /** The control that ends the tour was used. Means what `stop` means. */
   close(): void
   /**
-   * The page's own URL, on a change — never the URL a step was drawn at, even
-   * one that already matches. Everything after the origin —
+   * The page's own URL, on a change since the presenter began to
+   * {@link Presenter.listen} — never the URL the run began at, nor one a step
+   * was drawn at, even one that already matches. Everything after the origin —
    * `location.pathname + location.search + location.hash` — because the
    * machine holds no `lib.dom` to read it with itself. Matched against a
    * step's `awaits` only where that is `{ url }`; DESIGN.md, **A URL is a

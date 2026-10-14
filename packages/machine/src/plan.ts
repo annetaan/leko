@@ -85,6 +85,12 @@ export const arrivedAt = (pattern: RegExp, url: string): boolean =>
  * dropped.
  */
 export type Effect<W extends World> =
+  /**
+   * `listen`. Owed once per run, as the position goes up and before any
+   * handler of the run; `teardown` takes it down. DESIGN.md, **A URL is a
+   * signal the page reports**.
+   */
+  | { kind: 'listen' }
   | { kind: 'teardown' }
   /** `show`. Answers with nothing, or `lost` from the presenter once it has given up on the target. */
   | { kind: 'draw'; step: Step<W>; animate: boolean }
@@ -250,12 +256,13 @@ const advance = <W extends World>(core: Core<W>, step: W['step']): Outcome<W> =>
 /**
  * `enterStory`. The story goes up and nothing is drawn for it — DESIGN.md,
  * **Entry runs outermost first, and the ending mirrors it, innermost first**.
+ * The presenter listens from here, before any handler of the run.
  */
 const opening = <W extends World>(core: Core<W>, story: W['story']): Outcome<W> => {
   const at: Position<W> = { story, index: 0 }
   return {
     core: { ...core, position: at },
-    effects: [],
+    effects: [{ kind: 'listen' }],
     next: { kind: 'openStory', at },
   }
 }

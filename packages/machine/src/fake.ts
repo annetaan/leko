@@ -52,6 +52,8 @@ export class Fake implements Presenter<Fixture> {
   readonly shown: string[] = []
   readonly retold: { step: string; reason: string }[] = []
   rejected = 0
+  /** How many times the machine asked this presenter to listen, once per run. */
+  listened = 0
   torn = 0
   /** Where the fixture's document is. Settable by a test. */
   url = '/'
@@ -77,6 +79,10 @@ export class Fake implements Presenter<Fixture> {
 
   reject(): void {
     this.rejected += 1
+  }
+
+  listen(): void {
+    this.listened += 1
   }
 
   teardown(): void {

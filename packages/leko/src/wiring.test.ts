@@ -1946,30 +1946,71 @@ test('a route pushed while the first step is still retrying for its target advan
   expect(leko.step?.id).toBe('second')
 })
 
-test("a route pushed from inside the first step's onEnter is not heard, and nothing is reported", () => {
-  // A story's first step — DESIGN.md, **A URL is a signal the page reports**,
-  // and `DomPresenter.watchNavigation`. The same push from a later step is
-  // `signal-dropped`, which `machine.test.ts` pins.
+test("a route pushed from inside the first step's onEnter is dropped and reported as signal-dropped", () => {
+  // The presenter listens from the moment the story goes up, so a story's
+  // first step is no exception — DESIGN.md, **A URL is a signal the page
+  // reports**.
   const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
   const problems: LekoProblem[] = []
-  const leko = start(
-    [
-      {
-        id: 'first',
-        target: () => target,
-        awaits: { url: /^\/checkout(?:[/?#]|$)/ },
-        onEnter: () => history.pushState({}, '', '/checkout'),
-      },
-      { id: 'second', target: () => target },
-    ],
-    { onDiagnostic: (problem) => problems.push(problem) },
-  )
+  const pattern = /^\/checkout(?:[/?#]|$)/
+  const step: LekoStep = {
+    id: 'first',
+    target: () => target,
+    awaits: { url: pattern },
+    onEnter: () => history.pushState({}, '', '/checkout'),
+  }
+  const leko = start([step, { id: 'second', target: () => target }], {
+    onDiagnostic: (problem) => problems.push(problem),
+  })
 
   expect(leko.step?.id).toBe('first')
-  expect(problems).toEqual([])
+  expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step }])
 
   history.pushState({}, '', '/checkout?again')
   expect(leko.step?.id).toBe('second')
+})
+
+test("a route pushed from inside the story's onEnter is dropped and reported against its first step", () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const problems: LekoProblem[] = []
+  const pattern = /^\/checkout(?:[/?#]|$)/
+  const step: LekoStep = { id: 'first', target: () => target, awaits: { url: pattern } }
+  const leko = holding(
+    {
+      id: 'story',
+      steps: [step, { id: 'second', target: () => target }],
+      onEnter: () => history.pushState({}, '', '/checkout'),
+    },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+
+  begin(leko, 'story')
+
+  expect(leko.step?.id).toBe('first')
+  expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step }])
+})
+
+test('a route pushed from inside the onEnter of a story next hands the tour to is dropped and reported', async () => {
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const problems: LekoProblem[] = []
+  const pattern = /^\/checkout(?:[/?#]|$)/
+  const waiting: LekoStep = { id: 'waiting', target: () => target, awaits: { url: pattern } }
+  const after: LekoStory = {
+    id: 'after',
+    steps: [waiting, { id: 'done', target: () => target }],
+    onEnter: () => history.pushState({}, '', '/checkout'),
+  }
+  const leko = holding(
+    { id: 'before', steps: [{ id: 'only', target: () => target }], next: after },
+    { onDiagnostic: (problem) => problems.push(problem) },
+  )
+  begin(leko, 'before')
+  await framed()
+
+  press()
+
+  expect(leko.step?.id).toBe('waiting')
+  expect(problems).toEqual([{ kind: 'signal-dropped', name: String(pattern), step: waiting }])
 })
 
 test('the pattern sees the query and the hash, so a step may wait for either', () => {
@@ -2023,11 +2064,9 @@ test('the fallback popstate and hashchange from one hash change report a URL onc
   const original = Object.getOwnPropertyDescriptor(window, 'navigation')
   Object.defineProperty(window, 'navigation', { value: undefined, configurable: true })
   try {
-    const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
-    target.id = 'anchor'
     const { presenter, navigated } = watching()
 
-    presenter.show({ id: 'first', target: { elements: '#anchor', interactive: true } }, false)
+    presenter.listen()
     location.hash = 'summary'
     await frame()
 

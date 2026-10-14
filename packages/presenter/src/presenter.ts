@@ -311,9 +311,11 @@ export class DomPresenter implements Presenter<LekoWorld> {
 
   // ---------------------------------------------------------- what the machine calls
 
-  show(step: LekoStep, animate: boolean): void {
-    // Armed here, not in `reveal` — {@link watchNavigation}.
+  listen(): void {
     this.watchNavigation()
+  }
+
+  show(step: LekoStep, animate: boolean): void {
     this.dispatch({ kind: 'show', step, animate })
   }
 
@@ -925,10 +927,12 @@ export class DomPresenter implements Presenter<LekoWorld> {
   }
 
   /**
-   * Armed once per run, on the run's first arrival ({@link show}) rather than
-   * on {@link reveal}: that left a step drawn straight into `retrying` or
-   * `gliding` deaf to a URL changing under it, and `awaits: { url }` fires
-   * once — DESIGN.md, **A URL is a signal the page reports**. Taken down in
+   * Armed once per run, from {@link listen}, as the machine puts the run's
+   * position up and before any `onEnter` — DESIGN.md, **A URL is a signal the
+   * page reports**. Arming it on {@link show} left a navigation made from a
+   * story's or its first step's `onEnter` unheard and unreported, and arming
+   * it on {@link reveal} before that left a step drawn straight into
+   * `retrying` or `gliding` deaf to a URL changing under it. Taken down in
    * {@link destroy}, not {@link destroyLayers}, so a hunt rebuilding the layer
    * stack does not disarm it.
    *
@@ -948,7 +952,6 @@ export class DomPresenter implements Presenter<LekoWorld> {
    * note it kept* bullet).
    */
   private watchNavigation(): void {
-    if (this.onNavigate) return
     this.lastNavigatedUrl = this.urlNow()
     const report = () => {
       const url = this.urlNow()
