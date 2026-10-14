@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-import { generate, inspect } from './generate.js'
+import { generate, inspect, type Report, watch } from './generate.js'
 
 const project = fileURLToPath(new URL('../fixtures/app', import.meta.url))
 const scratch = (): string => join(mkdtempSync(join(tmpdir(), 'leko-codegen-')), 'signals.d.ts')
@@ -61,6 +61,36 @@ describe('generate', () => {
       expect(generate({ project, out }).included).toBe(true)
     } finally {
       rmSync(out, { force: true })
+    }
+  })
+})
+
+describe('watch', () => {
+  it('calls back on a program that writes nothing, and says it is current', () => {
+    const out = scratch()
+    generate({ project, out })
+    const reports: Report[] = []
+    const stop = watch({ project, out }, (report) => reports.push(report))
+    try {
+      expect(reports).toHaveLength(1)
+      expect(reports[0]?.stale).toBe(false)
+      expect(reports[0]?.included).toBe(false)
+      expect(reports[0]?.result.dynamic).toHaveLength(1)
+    } finally {
+      stop()
+    }
+  })
+
+  it('calls back on the program that writes, and says it was stale', () => {
+    const out = scratch()
+    const reports: Report[] = []
+    const stop = watch({ project, out }, (report) => reports.push(report))
+    try {
+      expect(reports).toHaveLength(1)
+      expect(reports[0]?.stale).toBe(true)
+      expect(existsSync(out)).toBe(true)
+    } finally {
+      stop()
     }
   })
 })

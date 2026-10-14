@@ -94,7 +94,9 @@ const main = (): void => {
   }
 
   if (parsed.watch) {
-    watch(parsed, (report) => describe(report, true))
+    watch(parsed, (report) => {
+      if (report.stale) describe(report, true)
+    })
     return
   }
 

@@ -25,7 +25,7 @@ export function lekoSignals(options: Options = {}): Plugin {
     configureServer(server) {
       stop?.()
       stop = watch(options, (report) => {
-        if (report.included) return
+        if (!report.stale || report.included) return
         server.config.logger.warn(
           `[leko-signals] ${report.out} is outside the project, so nothing compiles it ` +
             `and no completion ever appears. Add it to the tsconfig's include.`,
