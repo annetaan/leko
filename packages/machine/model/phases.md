@@ -195,7 +195,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | `ending`, and then `before` | `branching` | press either path button. The story that ran out names the one that follows it |
 | a `start()` turned down for a tour that is running | `two-stories` | press the other `start()` button while a story runs. Nothing moves, and the footer says which tour it left alone |
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
-| a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name. `machine.test.ts` has it |
+| a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name, or from inside the `onLeave` of the step before it. `machine.test.ts` has both |
 | a `start()` the gate turned down | none | the same one-call window as the row above. `machine.test.ts` has it |
 | `Host.lost` ending a run | `target-not-there-yet` | start **never-arrives**. Nothing is drawn at all, 100ms passes, and the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
@@ -217,6 +217,8 @@ Worth knowing before trusting the table above.
   the rejoin is a `next` now, so nothing in the sandbox starts a story from
   inside a report any more. `machine.test.ts` still asks it, twice: once for the
   answer it gives and once for the refusal a chained ending hands back.
+- A `stop()` from the `onLeave` of the step being left. No sandbox case makes
+  one. `machine.qnt` reaches it with story `f`, and `machine.test.ts` has it.
 
 ## Redrawing this
 

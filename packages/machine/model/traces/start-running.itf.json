@@ -22,6 +22,7 @@
               "hasGuard": false,
               "hasWords": false,
               "id": "a1",
+              "stopsOnLeave": false,
               "target": "first",
               "throwsOnEnter": false
             },
@@ -33,6 +34,7 @@
               "hasGuard": true,
               "hasWords": false,
               "id": "a2",
+              "stopsOnLeave": false,
               "target": "second",
               "throwsOnEnter": false
             },
@@ -46,6 +48,7 @@
               "hasGuard": true,
               "hasWords": true,
               "id": "a3",
+              "stopsOnLeave": false,
               "target": "third",
               "throwsOnEnter": false
             },
@@ -59,6 +62,7 @@
               "hasGuard": true,
               "hasWords": false,
               "id": "a4",
+              "stopsOnLeave": false,
               "target": "third",
               "throwsOnEnter": false
             }
@@ -85,6 +89,7 @@
               "hasGuard": false,
               "hasWords": false,
               "id": "b1",
+              "stopsOnLeave": false,
               "target": "target",
               "throwsOnEnter": false
             },
@@ -98,6 +103,7 @@
               "hasGuard": false,
               "hasWords": false,
               "id": "b2",
+              "stopsOnLeave": false,
               "target": "first",
               "throwsOnEnter": true
             }
@@ -126,6 +132,7 @@
               "hasGuard": false,
               "hasWords": false,
               "id": "c1",
+              "stopsOnLeave": false,
               "target": "first",
               "throwsOnEnter": false
             }
@@ -168,7 +175,51 @@
               "hasGuard": false,
               "hasWords": false,
               "id": "e1",
+              "stopsOnLeave": false,
               "target": "first",
+              "throwsOnEnter": false
+            }
+          ],
+          "throwsOnEnter": false
+        }
+      ],
+      [
+        "f",
+        {
+          "id": "f",
+          "next": {
+            "tag": "Nothing",
+            "value": {
+              "#tup": []
+            }
+          },
+          "steps": [
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "f1",
+              "stopsOnLeave": true,
+              "target": "first",
+              "throwsOnEnter": false
+            },
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "f2",
+              "stopsOnLeave": false,
+              "target": "second",
               "throwsOnEnter": false
             }
           ],
@@ -330,7 +381,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "a"
+            "story": "f"
           }
         },
         "inflight": {
@@ -358,7 +409,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "a"
+            "story": "f"
           }
         },
         "presenterUp": true
@@ -391,7 +442,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "a"
+          "value": "f"
         }
       }
     },
@@ -409,7 +460,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "a"
+            "story": "f"
           }
         },
         "inflight": {
@@ -437,7 +488,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "a"
+            "story": "f"
           }
         },
         "presenterUp": true
@@ -470,7 +521,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "b"
+          "value": "e"
         }
       }
     }
