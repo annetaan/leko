@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Site } from './scan.js'
-import { changed, message } from './unread.js'
+import { changed, message, news, type Told, untold } from './unread.js'
 
 const at = (file: string, line: number): Site => ({ file, line })
 
@@ -62,5 +62,51 @@ describe('changed', () => {
 
   it('calls a list changed when a call moves to another file', () => {
     expect(changed([at('/app/src/a.ts', 5)], [at('/app/src/b.ts', 5)])).toBe(true)
+  })
+})
+
+describe('news', () => {
+  const one = [at('/app/src/a.ts', 5)]
+
+  it('tells the calls it could not read on the first report', () => {
+    expect(news(untold, { dynamic: one, included: true }).say.unread).toBe(true)
+  })
+
+  it('says nothing on a first report with no unread call', () => {
+    expect(news(untold, { dynamic: [], included: true }).say).toEqual({
+      outside: false,
+      unread: false,
+    })
+  })
+
+  it('tells them again only when changed says they differ', () => {
+    const told: Told = { dynamic: one, outside: false }
+    expect(news(told, { dynamic: one, included: true }).say.unread).toBe(false)
+    expect(news(told, { dynamic: [at('/app/src/a.ts', 8)], included: true }).say.unread).toBe(false)
+    expect(
+      news(told, { dynamic: [...one, at('/app/src/a.ts', 9)], included: true }).say.unread,
+    ).toBe(true)
+  })
+
+  it('says nothing when the last unread call goes away', () => {
+    const told: Told = { dynamic: one, outside: false }
+    expect(news(told, { dynamic: [], included: true }).say.unread).toBe(false)
+  })
+
+  it('tells outside once, and again only after it was back inside', () => {
+    let told = untold
+    const said = [false, false, true, false].map((included) => {
+      const next = news(told, { dynamic: [], included })
+      told = next.told
+      return next.say.outside
+    })
+    expect(said).toEqual([true, false, false, true])
+  })
+
+  it('carries the calls and placement into the next Told', () => {
+    expect(news(untold, { dynamic: one, included: false }).told).toEqual({
+      dynamic: one,
+      outside: true,
+    })
   })
 })

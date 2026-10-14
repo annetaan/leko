@@ -1,8 +1,7 @@
 import type { Plugin, ResolvedConfig } from 'vite'
 
 import { generate, type Options, type Report, watch } from './generate.js'
-import type { Site } from './scan.js'
-import { changed, message } from './unread.js'
+import { message, news, untold } from './unread.js'
 
 /**
  * Keep `leko-signals.d.ts` current while `vite dev` runs, and write it once
@@ -20,30 +19,31 @@ import { changed, message } from './unread.js'
  *
  * Through Vite's logger it prints the `reached()` calls the scan could not
  * read, and an `out` the project does not include, when the dev server starts
- * or a build begins, and again only when they change — `changed` in
- * `unread.ts` says what a change is.
+ * or a build begins, and again only when they change — `news` in `unread.ts`
+ * decides which.
  */
 export function lekoSignals(options: Options = {}): Plugin {
   let stop: (() => void) | undefined
   let config: ResolvedConfig | undefined
-  let told: Site[] = []
-  let outside = false
+  let told = untold
   const remedy = options.strict === false ? null : 'pass strict: false'
 
   const tell = (report: Report): void => {
     if (!config) return
-    if (!report.included && !outside) {
+    const { told: next, say } = news(told, {
+      dynamic: report.result.dynamic,
+      included: report.included,
+    })
+    told = next
+    if (say.outside) {
       config.logger.warn(
         `[leko-signals] ${report.out} is outside the project, so nothing compiles it ` +
           `and no completion ever appears. Add it to the tsconfig's include.`,
       )
     }
-    outside = !report.included
-    const was = told
-    told = report.result.dynamic
-    if (changed(was, told) && told.length > 0) {
+    if (say.unread) {
       config.logger.warn(
-        `[leko-signals] ${message(told, { from: config.root, remedy }).join('\n')}`,
+        `[leko-signals] ${message(report.result.dynamic, { from: config.root, remedy }).join('\n')}`,
       )
     }
   }
