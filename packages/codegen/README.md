@@ -94,9 +94,10 @@ leko.reached(`step-${i}`)            // ✗  printed, with its file and line
 
 The last line is the one to know about. A name built at runtime cannot be
 gathered, so the vocabulary is missing it. `leko-signals` prints every call it
-could not read, with its file and line, and so does the Vite plugin: when the
-dev server starts or a build begins, and again only when such a call is added
-or removed, not each time one moves. **A project with any of those wants
+could not read, with its file and line, and so does the Vite plugin. Each prints
+them when it starts (a run of the command, `--watch`, the dev server or a build)
+and again, for as long as it keeps running, only when such a call is added or
+removed, not each time one moves. **A project with any of those wants
 `--loose`** (`strict: false` on the plugin), or a hand written block naming
 what they report.
 

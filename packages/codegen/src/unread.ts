@@ -50,3 +50,25 @@ export function changed(before: Site[], after: Site[]): boolean {
   for (const [file, n] of a) if (b.get(file) !== n) return true
   return false
 }
+
+/** What a front end has already said. */
+export interface Told {
+  dynamic: Site[]
+  outside: boolean
+}
+
+export const untold: Told = { dynamic: [], outside: false }
+
+/** The next `Told`, and what is worth saying now; `changed` says what a change is. */
+export function news(
+  told: Told,
+  now: { dynamic: Site[]; included: boolean },
+): { told: Told; say: { outside: boolean; unread: boolean } } {
+  return {
+    told: { dynamic: now.dynamic, outside: !now.included },
+    say: {
+      outside: !now.included && !told.outside,
+      unread: changed(told.dynamic, now.dynamic) && now.dynamic.length > 0,
+    },
+  }
+}
