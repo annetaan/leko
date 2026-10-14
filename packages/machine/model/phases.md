@@ -43,29 +43,29 @@ stateDiagram-v2
   direction LR
 
   [*] --> idle
-  idle --> story : start(id) found a story with steps
+  idle --> before : start(id) found a story with steps
 
-  story --> step : the story's onEnter returned
+  before --> step : the story's onEnter, or the onLeave of the step being left, returned
 
   step --> ready : the step is handed to the presenter
 
-  ready --> step : advance, and a next step exists
+  ready --> before : advance, and a next step exists
   ready --> ending : past the last step, stop(), Host.lost
-  story --> ending : stop()
+  before --> ending : stop()
   step --> ending : stop(), onEnter threw, the anchor went during show
   note right of step
-    story and step last one
+    before and step last one
     synchronous call each
   end note
 
   ending --> idle : nothing follows
-  ending --> story : the story that ran out named this one in next
+  ending --> before : the story that ran out named this one in next
 
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
 
   class idle,ready open
-  class story,step,ending shut
+  class before,step,ending shut
 ```
 
 A teal outline means a call from the application is acted on. A clay outline
@@ -74,11 +74,17 @@ means the machine is inside a call into the application, and everything but
 
 | Phase | `state` | What is true |
 | --- | --- | --- |
-| `story` | `running` | a run is starting. The story's own `onEnter` is running or about to be, and no step has been entered |
+| `before` | `running` | no `onEnter` of this step has run |
 | `step` | `running` | a step is being entered. The one being left has had its `onLeave`, this one's `onEnter` is running, the anchor has not been looked for, nothing is drawn |
 | `ready` | `running` | the step has been handed to the presenter. The only phase a call from the application is acted on in |
 | | | Nothing about the drawing is here. A morph still running, a target being retried for 100ms, and a step waiting for its signal are all `ready`: the machine handed the step over and is done with it |
 | `ending` | `idle` | a run being torn down. `teardown()`, then the step's `onLeave`, then the story's. `position` is already `undefined`, which is why `state` says `idle` here while the gate is still shut |
+
+`before` has two ways in. A run is starting, and the story's own `onEnter` is
+running or about to be. Or a move has put the position on the next step, and
+the `onLeave` of the step it walks away from is running or about to be. Either
+way the position already names a step whose `onEnter` has not been called, so
+an ending from here owes that step neither handler.
 
 ## The gate
 
@@ -108,8 +114,8 @@ that step began.
 
 ## Inside one arrival
 
-This is the `step` box above, opened up. The gate is shut for all of it except
-the last three boxes.
+This is the `before` and `step` boxes above, opened up for a move. The gate is
+shut for all of it except the last three boxes.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'background':'#F4F6F6','primaryColor':'#FFFFFF','primaryTextColor':'#12171A','primaryBorderColor':'#9AA6A9','lineColor':'#6D7B80','textColor':'#12171A','edgeLabelBackground':'#F4F6F6','tertiaryColor':'#E9EDED','tertiaryTextColor':'#12171A','fontSize':'14px'}}}%%
@@ -122,10 +128,13 @@ flowchart TD
   B -- "yes" --> N["story.next, asked on the last step"]
   N -- "a story" --> Y["the ending, into that story.<br>phase: ending, and it stays closed<br>through its own report"]
   N -- "nothing" --> Z
-  B -- "no" --> C["position = index + 1<br>phase: step"]
+  B -- "no" --> C["position = index + 1<br>phase: before"]
   C --> D["nothing drawn for this window"]
   D --> E["leaving.onLeave(leaving, step)"]
-  E --> F["step.onEnter(step)"]
+  E --> G{"still on this position?"}
+  G -- "no. stop()" --> W["dropped"]
+  G -- "yes" --> K["phase: step"]
+  K --> F["step.onEnter(step)"]
   F -- "threw" --> Z
   F -- "returned" --> H["the stepEntered event"]
   H --> I{"still on this position?"}
@@ -136,7 +145,7 @@ flowchart TD
 
   classDef open stroke:#0E9E86,stroke-width:2.5px
   classDef shut stroke:#D2703F,stroke-width:2.5px
-  class C,D,E,F,H,Y shut
+  class C,D,E,G,W,K,F,H,Y shut
   class J,P open
 ```
 
@@ -178,15 +187,15 @@ say. One table pointed the other way is one place, and it shows the holes.
 
 | Phase or transition | Where to watch it | What to do |
 | --- | --- | --- |
-| `story` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
+| `before` | `story-setup` | start it. The story's own `onEnter` runs before any step exists, inside the `start()` call |
 | `step` | `step-setup` | press Next. Each `onEnter` runs inside the call that moved the tour |
 | a target that has not turned up yet | `target-not-there-yet` | start **arrives-late**. The row comes back inside the retry, nothing is drawn while it is away, and no phase says so |
 | a step that waits | `step-setup`, `story-setup` | press Next onto the step with no `target`. The page goes under, and the signal the step names is what ends it |
 | `ending`, and then `idle` | any case | press `stop()` in the footer |
-| `ending`, and then `story` | `branching` | press either path button. The story that ran out names the one that follows it |
+| `ending`, and then `before` | `branching` | press either path button. The story that ran out names the one that follows it |
 | a `start()` turned down for a tour that is running | `two-stories` | press the other `start()` button while a story runs. Nothing moves, and the footer says which tour it left alone |
 | a `start()` from the ending report | none | no case needs it now that a story names what follows it. `machine.test.ts` has it |
-| a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name. `machine.test.ts` has it |
+| a `reached()` the gate turned down | none | the window is one synchronous call wide, so reaching it takes a `reached()` made from inside an `onEnter` on the step that awaits the name, or from inside the `onLeave` of the step before it. `machine.test.ts` has both |
 | a `start()` the gate turned down | none | the same one-call window as the row above. `machine.test.ts` has it |
 | `Host.lost` ending a run | `target-not-there-yet` | start **never-arrives**. Nothing is drawn at all, 100ms passes, and the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
@@ -208,6 +217,8 @@ Worth knowing before trusting the table above.
   the rejoin is a `next` now, so nothing in the sandbox starts a story from
   inside a report any more. `machine.test.ts` still asks it, twice: once for the
   answer it gives and once for the refusal a chained ending hands back.
+- A `stop()` from the `onLeave` of the step being left. No sandbox case makes
+  one. `machine.qnt` reaches it with story `f`, and `machine.test.ts` has it.
 
 ## Redrawing this
 

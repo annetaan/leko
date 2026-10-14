@@ -45,7 +45,7 @@ an invariant can be broken at all.
 
 I run it by hand after a change to the model. The invariants passed are the ones
 `pnpm model` reads, every `val` under the `invariants` heading of `machine.qnt`,
-so check the list against the model before copying it. Last on 2026-08-29:
+so check the list against the model before copying it. Last on 2026-10-15:
 
 ```bash
 brew install openjdk@21
@@ -58,29 +58,31 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 Step 8: picking a transition out of 6 transition(s)
 The outcome is: NoError
-[ok] No violation found (270919ms).
+[ok] No violation found (436390ms).
 ```
 
-4 minutes 31 seconds. Nothing within 8 calls of `init` breaks either invariant,
-and that is a proof over the whole depth rather than a sample of it. Quint
+7 minutes 16 seconds, with `pnpm model` running beside it for part of that.
+Nothing within 8 calls of `init` breaks either invariant, and that is a proof
+over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
 `step` offers 6 actions, which is the number Apalache prints on the line above.
-Count the `nondet` picks and it is 19 branches from a state with nothing in
+Count the `nondet` picks and it is 22 branches from a state with nothing in
 flight, and one more for every teardown window that is open, because `doLeave`
-picks out of `inflight`. So 8 steps is around 19^8, or 17 billion paths.
+picks out of `inflight`. So 8 steps is around 22^8, or about 55 billion paths.
 Apalache walks none of them. The picks stay as variables in the SMT problem and
-it asks about all 19 at once, which is the whole reason 8 steps finishes at all.
+it asks about all 22 at once, which is the whole reason 8 steps finishes at all.
 
-**Read a total as a sample of one.** The six invariant checks at step 8 in that
-run took 22s, 23s, 10s, 0.1s, 21s and 17s. Six instances of the same question,
-and one of them was answered before the clock could measure it. What Z3 pays for
+**Read a total as a sample of one.** The six invariant checks at step 8 in the
+2026-08-29 run took 22s, 23s, 10s, 0.1s, 21s and 17s. Six instances of the same
+question, and one of them was answered before the clock could measure it. What Z3 pays for
 is the shape of the instance it is handed, so a run that finishes in four
 minutes today can take half an hour after a change that made the model smaller.
 
 Taking actions off the transition relation is what has moved this number:
-1910321ms with 11 of them, then 826339ms with 9, 303590ms with 7, and this.
+1910321ms with 11 of them, then 826339ms with 9, 303590ms with 7, then
+270919ms with 6. The run above has the same 6 and a world grown by story `f`.
 Folding an arrival into one synchronous action went the other way, because it
 made each transition deeper while making the reachable states fewer.
 
@@ -218,6 +220,16 @@ it does anything. And the mark for a `start` on an empty story was
 It is `empty-story` now, and `replay.test.ts` counts its one diagnostic the way
 it counts the other two.
 
+A later one was a doc comment. `doStop` said it fired while the phase was
+`before` or `step`, and that this made it the whole of a `stop()` from inside a
+handler. An arrival is one action, so no state the search visited was ever in
+either phase, and the action had never once been offered there. #71, a `stop()`
+from the `onLeave` of the step a move walks away from, was found by reading
+`plan.ts` and not by the search. `stopsOnLeave` and story `f` reach it now. With
+the fix taken back out of `plan.ts`, `stop-leaving` fails on the order check in
+`replay.test.ts`: `f2` is left without ever being entered. `start-tearing` fails
+the same way, because its harvest passes through `f` too.
+
 ## The teardown window
 
 `end` empties the machine, takes the presenter down, runs two `onLeave` calls
@@ -259,10 +271,11 @@ into, and the corpus is written so that every entrance — `start`, `stop`,
 
 ## The world, and how big it is
 
-Five stories and eight steps between them. Two signals a call site can report,
+Six stories and ten steps between them. Two signals a call site can report,
 and one more that nothing waits for. Four targets on the page. The state is
-twelve variables: the four of `Core`, four the code keeps implicitly, and four
-that are knobs on the world.
+nine variables: the two of `Core`, four the code keeps implicitly (`drawn`,
+`presenterUp`, `inflight`, `nextToken`), and three about the world and what
+just happened in it (`world`, `page`, `mark`).
 
 | Story | Steps | What it is for |
 | --- | --- | --- |
@@ -271,9 +284,14 @@ that are knobs on the world.
 | `c` | `c1` | a story whose own `onEnter` throws |
 | `d` | none | `start` has to refuse it without tearing down whatever is running |
 | `e` | `e1` | where `a` hands the tour when it runs out, and the end of the chain |
+| `f` | `f1`, `f2` | `f1`'s `onLeave` calls `stop()` |
 
 `a2` declares both `awaits` and a guard, because the guard is meant to be
 ignored on a step that declares `awaits`.
+
+`f1` ends the tour from its own `onLeave` when a move walks away from it, and
+`f2` exists only to be the step that must never be entered after that. It is
+the one place the model calls back into the machine from inside an arrival.
 
 The world is a `var` written once in `init` rather than a `pure val`. That puts
 it into the trace, and `replay.test.ts` builds its fixture out of the trace.
@@ -283,7 +301,7 @@ apart, which is the largest drift surface there is. It is written once in
 than leaving the same map repeated in every state. That script checks the
 assumption rather than trusting it: a trace whose states do not all carry the
 same world fails the harvest. An invariant would ask the same question of
-200,000 traces instead of one, and this world is five stories deep — it cost
+200,000 traces instead of one, and this world is six stories deep — it cost
 this search 71% more time when it was tried.
 
 ## Two searches
@@ -318,7 +336,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 11 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 13 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 
@@ -396,9 +414,13 @@ same boundary.
   record, so the model never sees that. Comparing the step and comparing the
   address give the same answer here, and in a world with a repeated object they
   would not.
-- A `reached()` or a `start()` made from inside an `onEnter`. That is the whole
-  of what the gate turns down now, and nothing here calls back into the machine
-  from a handler. `machine.test.ts` carries those.
+- Most calls made from inside an arrival. Only one is reached: a `stop()` from
+  the `onLeave` of a step a move walks away from, through `stopsOnLeave` and
+  story `f`. Not reached are any call from inside a story's or a step's
+  `onEnter`, `stop()` included, and any call other than `stop()` from inside
+  that `onLeave`. The gate turns down every call but `stop()` made from inside
+  an `onEnter` or from inside the `onLeave` of the step being left, and
+  `machine.test.ts` carries both.
 - A step that names no target. The machine has no notion of one: `StepBase` has
   no `target`, and what a missing anchor means is a drawing question.
 - `navigated`. It falls to the same `advance` as `reached` once the URL

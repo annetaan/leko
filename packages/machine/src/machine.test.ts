@@ -1527,6 +1527,48 @@ describe('what a step assumes', () => {
     expect(tour.state).toBe('idle')
   })
 
+  test('a stop() from the onLeave of the step being left enters nothing after it, and leaves only the story', () => {
+    const log: string[] = []
+    let tour!: Machine<Fixture>
+    tour = staging(
+      {
+        id: 'story',
+        onLeave: () => void log.push('leave story'),
+        steps: [
+          {
+            id: 'a',
+            target: 'first',
+            onLeave: () => {
+              log.push('leave a')
+              tour.stop()
+            },
+          },
+          {
+            id: 'b',
+            target: 'second',
+            onEnter: () => void log.push('enter b'),
+            onLeave: () => void log.push('leave b'),
+          },
+        ],
+      },
+      { onStep: (step) => void log.push(`report ${step?.id}`) },
+    )
+
+    begin(tour, 'story')
+    log.length = 0
+    press(tour)
+
+    // `b` was named by the position while `a` was left, and was never entered,
+    // so it is owed neither handler.
+    expect(log).toEqual(['leave a', 'leave story', 'report undefined'])
+    expect(tour.state).toBe('idle')
+    expect(drawing().shown).toEqual(['a'])
+    expect(drawing().torn).toBe(1)
+
+    begin(tour, 'story')
+    expect(tour.step?.id).toBe('a')
+  })
+
   test('a story builds what it assumes before its first step builds what it assumes', () => {
     const order: string[] = []
     const tour = staging({
@@ -1730,6 +1772,37 @@ describe('a call that arrives while the machine is inside the application', () =
     tour.stop()
     begin(tour, 'other')
     expect(tour.story?.id).toBe('other')
+  })
+
+  test('every way in is refused from the onLeave of the step being left, too', () => {
+    const problems: Problem<Fixture>[] = []
+    let tour!: Machine<Fixture>
+    tour = staging(
+      {
+        id: 'story',
+        steps: [
+          {
+            id: 'a',
+            target: 'first',
+            onLeave: () => {
+              tour.reached('ready')
+              press(tour)
+              begin(tour, 'other')
+            },
+          },
+          { id: 'b', target: 'second', awaits: 'ready' },
+        ],
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+    hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
+    begin(tour, 'story')
+    press(tour)
+
+    expect(tour.state).toBe('running')
+    expect(tour.step?.id).toBe('b')
+    expect(drawing().shown).toEqual(['a', 'b'])
+    expect(problems.map((problem) => problem.kind)).toEqual(['signal-dropped', 'call-refused'])
   })
 
   test('stop is the one call that does not ask, because a tour has to be turnable off', () => {

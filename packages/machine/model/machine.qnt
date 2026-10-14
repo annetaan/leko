@@ -9,16 +9,18 @@
 // `end` is `ending`, `enter` is `entering`, and `enterStory` is `opening`.
 //
 // **Nothing the machine calls hands anything back.** An arrival runs start to
-// finish inside one action, so the `Story` and `Step` phases are never a state
+// finish inside one action, so the `Before` and `Step` phases are never a state
 // this rests in and nothing is parked for one. The one late thing left is the
-// window a teardown opens.
+// window a teardown opens. A handler calling back in is reached in one place
+// only: a step whose `onLeave` calls `stop()` while a move walks away from it
+// (`stopsOnLeave`).
 module machine {
   // ---------------------------------------------------------------- the world
 
   type Maybe[a] = Just(a) | Nothing
 
   /// `Phase` in plan.ts, with the same four values and the same meanings.
-  type Phase = Story | Step | Ending | Ready
+  type Phase = Before | Step | Ending | Ready
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
@@ -36,7 +38,7 @@ module machine {
   /// against `position`.
   type Where = { story: str, index: int }
 
-  /// What a step is, reduced to the five things the machine reads off one.
+  /// What a step is, reduced to the six things the machine reads off one.
   ///
   /// `hasGuard` is `validate` being present. Whether it passes is nondeterministic
   /// at the point it is asked, because `validate` reads the page and the page
@@ -46,6 +48,11 @@ module machine {
   /// nondeterministic: whether a step has words for a refusal is written down
   /// when the story is, and the machine asks for them in the turn the guard
   /// said no.
+  ///
+  /// `stopsOnLeave` is this step's `onLeave` calling `stop()`. It only does
+  /// something when a move walks away from the step: inside a teardown the
+  /// same `stop()` finds nothing to end, and {@link stoppedWhileTearing}
+  /// already covers that.
   type StepSpec = {
     id: str,
     target: str,
@@ -53,6 +60,7 @@ module machine {
     hasGuard: bool,
     hasWords: bool,
     throwsOnEnter: bool,
+    stopsOnLeave: bool,
   }
 
   /// `next` is the story this one hands the tour to when it runs out of steps.
@@ -109,9 +117,11 @@ module machine {
 
   // ---------------------------------------------------------- the bounded world
   //
-  // Two stories that run, one that throws on its way in and one with nothing in
-  // it. Five steps between the two that run, which is one more than the issue's
-  // estimate of what would have caught the four bugs it was opened for.
+  // Two stories that run, one that throws on its way in, one with nothing in
+  // it, one that a chain hands the tour to, and one whose first step ends the
+  // tour from its own `onLeave`. `a` and `b` have six steps between them, two
+  // more than the issue's estimate of what would have caught the four bugs it
+  // was opened for.
   //
   // `packages/machine/src/replay.test.ts` builds its fixture from this, read out
   // of the trace, rather than from a second copy written by hand.
@@ -128,12 +138,12 @@ module machine {
      
       throwsOnEnter: false,
       steps: [
-        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
+        { id: "a1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
         // A step with both. The guard is ignored on a step that declares
         // `awaits`, and this is the pair that says so.
-        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, hasWords: false, throwsOnEnter: false },
-        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, hasWords: true, throwsOnEnter: false },
-        { id: "a4", target: "third", awaits: Nothing, hasGuard: true, hasWords: false, throwsOnEnter: false },
+        { id: "a2", target: "second", awaits: Just("saved"), hasGuard: true, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
+        { id: "a3", target: "third", awaits: Nothing, hasGuard: true, hasWords: true, throwsOnEnter: false, stopsOnLeave: false },
+        { id: "a4", target: "third", awaits: Nothing, hasGuard: true, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
       ],
     },
     // A story whose second step throws on the way in.
@@ -143,9 +153,9 @@ module machine {
      
       throwsOnEnter: false,
       steps: [
-        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, hasWords: false, throwsOnEnter: false },
+        { id: "b1", target: "target", awaits: Just("sent"), hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
         // Throws on the way in, which is the only way `enter`'s catch is reached.
-        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: true },
+        { id: "b2", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: true, stopsOnLeave: false },
       ],
     },
     // Throws in its own `onEnter`, which is a different catch from the one above.
@@ -155,12 +165,23 @@ module machine {
      
       throwsOnEnter: true,
       steps: [
-        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
+        { id: "c1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
       ],
     },
     // Nothing in it. `start` must refuse it without tearing down the tour that
     // is running.
     "d" -> { id: "d", steps: [], next: Nothing, throwsOnEnter: false },
+    // Its first step's `onLeave` calls `stop()`, and its second exists only to
+    // be the step that must never be entered after it.
+    "f" -> {
+      id: "f",
+      next: Nothing,
+      throwsOnEnter: false,
+      steps: [
+        { id: "f1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: true },
+        { id: "f2", target: "second", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
+      ],
+    },
     // Where "a" hands the tour to, and the end of the chain. One step, nothing
     // in the way of it, so a run that gets here runs out and `chain-ends` is
     // what that looks like.
@@ -170,7 +191,7 @@ module machine {
      
       throwsOnEnter: false,
       steps: [
-        { id: "e1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false },
+        { id: "e1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
       ],
     },
   )
@@ -319,7 +340,7 @@ module machine {
   /// anything about its first step.
   pure def enterStory(s: M, at: Pos): M = {
     val story = storyOf(s, at)
-    val held = s.with("phase", Story)
+    val held = s.with("phase", Before)
     if (story.throwsOnEnter) failed(held, at)
     else if (stillAt(held, at)) enter(held)
     else held
@@ -327,6 +348,13 @@ module machine {
 
   /// `moveOn` in `plan.ts`, the half of advancing after the guard: the last step ends the run,
   /// and every other one moves on.
+  ///
+  /// Moving on stands the tour on the step ahead in phase `Before`, which is
+  /// `moveOn` owing `callStepLeaveOnMove` there, and enters it only if the
+  /// leaving step's `onLeave` left the tour standing there, which is the
+  /// `entering` case asking `stillAt`. One action stands for the whole
+  /// sequence, so that `stillAt` is the branch on `stopsOnLeave` itself.
+  ///
   /// `mark` is the caller's, because a press and a signal reach this the same
   /// way. Running out of steps writes its own instead: what happened there is
   /// the chain being asked, and which way it answered is the half worth aiming
@@ -341,9 +369,12 @@ module machine {
         | Nothing => end(s, Nothing).with("mark", "chain-ends")
         | Just(id) => end(s, Just(id)).with("mark", "chain-into")
       }
-    else
-      enter(standOn(s, { story: at.story, index: at.index + 1, occurrence: s.nextToken }))
-        .with("mark", mark)
+    else {
+      val leaving = standOn(s, { story: at.story, index: at.index + 1, occurrence: s.nextToken })
+        .with("phase", Before)
+      if (stepAt(s, at).stopsOnLeave) end(leaving, Nothing).with("mark", "stop-leaving")
+      else enter(leaving).with("mark", mark)
+    }
   }
 
   /// `advance` in `plan.ts`. `guardOk` is what `validate` answered, and the
@@ -416,9 +447,12 @@ module machine {
       },
   }
 
-  /// `stop()` asks nothing, and is the only call that does not. It is also the
-  /// whole of "a `stop()` from inside `onEnter`": nothing gates it, so this
-  /// action fires while the phase is `story` or `step` like any other.
+  /// `stop()` asks nothing, and is the only call that does not. This action is
+  /// a `stop()` made from outside any handler. An arrival is one action, so no
+  /// state this fires in has the phase `Before` or `Step`. A `stop()` from
+  /// inside an arrival is reached only through `stopsOnLeave` in
+  /// {@link moveOn}, and one from inside an `onEnter` is not reached at all:
+  /// `README.md`, **What this does not cover**.
   action doStop = all {
     m' = end(m, Nothing).with("mark", "stop"),
   }
@@ -651,10 +685,15 @@ module machine {
   val signalWhileTearing: bool = m.phase == Ending and m.mark == "unmatched"
   val stoppedWhileTearing: bool = m.phase == Ending and m.mark == "stop"
 
+  /// A step's `onLeave` ending the tour while a move walks away from it, so
+  /// the step ahead is never entered and is owed nothing.
+  val stoppedLeaving: bool = m.mark == "stop-leaving"
+
   /// A call the gate turned down. Only a `start` can reach this: the window the
   /// gate closes is a teardown, and by then the position is empty, so a signal
   /// arriving in one is unmatched rather than refused. `signal-dropped` is left
-  /// to a `reached()` made from inside an `onEnter`, which nothing here models.
+  /// to a `reached()` made from inside an `onEnter` or from inside the `onLeave`
+  /// of the step being left, which nothing here models.
   val refused: bool = m.mark == "refused-start"
 
   /// A `start` made while a tour was running. Not the gate: the phase was open

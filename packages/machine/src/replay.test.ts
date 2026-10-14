@@ -196,6 +196,7 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
           hasGuard: boolean
           hasWords: boolean
           throwsOnEnter: boolean
+          stopsOnLeave: boolean
         }
         const step: Step = {
           id: shape.id,
@@ -210,6 +211,9 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
         // Asked in the turn the guard says no, so there is nothing for the
         // trace to spend later.
         if (shape.hasWords) step.error = REASON
+        // Inside a teardown the same `stop()` finds nothing to end, as it does
+        // in the model.
+        if (shape.stopsOnLeave) step.onLeave = () => run().tour.stop()
         return step
       }),
     })
@@ -349,6 +353,9 @@ function balanced(run: Run, where: string): void {
     expect(open.at(-1), `${where}: ${who} left without being entered`).toBe(who)
     open.pop()
   }
+  if (run.tour.state === 'idle') {
+    expect(open, `${where}: an idle tour still owes ${open.join(', ')} its onLeave`).toEqual([])
+  }
 }
 
 // -------------------------------------------------------------------- the runs
@@ -460,9 +467,13 @@ describe('every trace the model found', () => {
             run.handlers.push({ kind: 'enter', who: `step:${self.id}` })
             return opened(self)
           }
-          step.onLeave = (self) => {
+          const left = step.onLeave
+          // `drain` first: during a move it returns at once, because the tour
+          // is still running, and the step's own `onLeave` may be what ends it.
+          step.onLeave = (self, next) => {
             run.handlers.push({ kind: 'leave', who: `step:${self.id}` })
             drain(run)
+            left?.(self, next)
           }
         }
       }

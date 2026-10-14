@@ -177,8 +177,9 @@ export class Machine<W extends World> {
       case 'callStoryEnter': {
         const story = effect.at.story
         return this.enter(() => story.onEnter?.(story), effect.at, {
-          kind: 'storyEntered',
+          kind: 'entering',
           at: effect.at,
+          animate: false,
         })
       }
 
@@ -189,8 +190,12 @@ export class Machine<W extends World> {
           animate: effect.animate,
         })
 
+      case 'callStepLeaveOnMove':
+        effect.step.onLeave?.(effect.step, effect.next)
+        return void this.dispatch({ kind: 'entering', at: effect.at, animate: effect.animate })
+
       case 'callStepLeave':
-        return effect.step.onLeave?.(effect.step, effect.next)
+        return effect.step.onLeave?.(effect.step, undefined)
 
       case 'callStoryLeave':
         return effect.story.onLeave?.(effect.story, effect.next)
