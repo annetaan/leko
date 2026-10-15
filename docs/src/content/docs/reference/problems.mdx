@@ -192,6 +192,10 @@ Some calls do nothing and say nothing, on purpose.
   thrown again from a microtask once the ending has been reported, rather than
   handed to `onDiagnostic` —
   [What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
+- A throw from an `onLeave`, `onStep` or `onDiagnostic`. Nothing stops, and
+  the error is thrown again from a microtask rather than handed to
+  `onDiagnostic` —
+  [What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
 - A target that goes away after its step is drawn, until a press on a guarded
   step asks for it —
   [What Leko does not do](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-leko-does-not-do).

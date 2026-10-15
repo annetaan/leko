@@ -45,7 +45,7 @@ stateDiagram-v2
   [*] --> idle
   idle --> before : start(id) found a story with steps
 
-  before --> step : the story's onEnter, or the onLeave of the step being left, returned
+  before --> step : the story's onEnter returned, or the onLeave of the step being left returned or threw
 
   step --> ready : the step is handed to the presenter
 
@@ -131,7 +131,7 @@ flowchart TD
   B -- "no" --> C["position = index + 1<br>phase: before"]
   C --> D["nothing drawn for this window"]
   D --> E["leaving.onLeave(leaving, step)"]
-  E --> G{"still on this position?"}
+  E -- "returned or threw" --> G{"still on this position?"}
   G -- "no. stop()" --> W["dropped"]
   G -- "yes" --> K["phase: step"]
   K --> F["step.onEnter(step)"]
@@ -219,6 +219,9 @@ Worth knowing before trusting the table above.
   answer it gives and once for the refusal a chained ending hands back.
 - A `stop()` from the `onLeave` of the step being left. No sandbox case makes
   one. `machine.qnt` reaches it with story `f`, and `machine.test.ts` has it.
+- A throw from a handler whose return is dropped: an `onLeave`, `onStep` or
+  `onDiagnostic`. The reason is thrown again and nothing stops. No sandbox case
+  throws from one, and `machine.test.ts` has each.
 
 ## Redrawing this
 

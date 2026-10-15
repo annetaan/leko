@@ -376,6 +376,11 @@ interface LekoStepBase {
    *
    * A promise is not waited for here; the step is over. DESIGN.md, **Whatever a
    * handler hands back is dropped**.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
    */
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 }
@@ -647,6 +652,11 @@ export interface LekoStory {
    * teardown this argument can skip.
    *
    * A promise is not waited for. The story is over.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
    */
   onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
 }
@@ -774,6 +784,11 @@ export interface LekoOptions {
    * The return value is never read, and there is no hook of this kind on a
    * story — DESIGN.md argues both under **Saying where the tour got to**.
    *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
+   *
    * A host that wants the pair keeps the last `step` it was handed. That is a
    * line of its own state, and it is right by construction: this hook names a
    * step once it has been handed over to be drawn, and never before its
@@ -795,6 +810,11 @@ export interface LekoOptions {
    * is logged**, and which of the ways to report a problem a project wants is
    * the project's to choose — DESIGN.md argues it under **Saying that a call
    * did nothing**.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. The reason is not reported back
+   * through `onDiagnostic`. DESIGN.md, **A throw from a handler whose return
+   * is dropped is thrown again, and only `onEnter`'s ends the tour**.
    *
    * ```ts
    * createLeko({
