@@ -221,7 +221,9 @@ Worth knowing before trusting the table above.
   one. `machine.qnt` reaches it with story `f`, and `machine.test.ts` has it.
 - A throw from a handler whose return is dropped: an `onLeave`, `onStep` or
   `onDiagnostic`. The reason is thrown again and nothing stops. No sandbox case
-  throws from one, and `machine.test.ts` has each.
+  throws from one, and `machine.test.ts` has each. `replay.test.ts` also
+  throws from `a1`'s and story `a`'s `onLeave` in every trace that reaches
+  them, and holds the class to the model, which does not know about the throw.
 
 ## Redrawing this
 
