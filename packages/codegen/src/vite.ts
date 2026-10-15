@@ -38,7 +38,8 @@ export function lekoSignals(options: Options = {}): Plugin {
     if (say.outside) {
       config.logger.warn(
         `[leko-signals] ${report.out} is outside the project, so nothing compiles it ` +
-          `and no completion ever appears. Add it to the tsconfig's include.`,
+          `and no completion ever appears. Add it to the include of the tsconfig that ` +
+          `compiles your stories.`,
       )
     }
     if (say.unread) {

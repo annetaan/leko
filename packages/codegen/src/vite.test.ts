@@ -78,6 +78,7 @@ describe('lekoSignals', () => {
     try {
       dev.configureServer()
       expect(outside(dev.warnings)).toHaveLength(1)
+      expect(outside(dev.warnings)[0]).toContain('the tsconfig that compiles your stories')
     } finally {
       dev.closeBundle()
     }

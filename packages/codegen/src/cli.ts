@@ -71,8 +71,8 @@ const tell = (report: Report, told: Told, remedy: string | null): Told => {
   if (say.outside) {
     console.warn(
       `\n${here(report.out)} is outside this project, so nothing compiles it and no ` +
-        `completion\never appears. Add it to the tsconfig's include, or pass --out somewhere\n` +
-        `the project already reads.`,
+        `completion\never appears. Add it to the include of the tsconfig that compiles\n` +
+        `your stories, or pass --out somewhere that tsconfig already reads.`,
     )
   }
 
