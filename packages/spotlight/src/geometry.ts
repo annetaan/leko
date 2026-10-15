@@ -607,8 +607,11 @@ export function freeCorner(
  * and rides at a negative offset, so an edge the surface cuts through stays
  * the edge it really is — a hole hanging off the top of the page is open right
  * across at the clip line, not rounded there as if the hole ended.
+ *
+ * Below an `opacity` of 1 the hole is only partly open, and dims by that
+ * share; `spike/a-hole-at-partial-opacity/` measured it.
  */
-export function holeImage(cutout: Cutout, clip: Rect = cutout): string {
+export function holeImage(cutout: Cutout, clip: Rect = cutout, opacity = 1): string {
   const w = round(Math.max(0, cutout.width))
   const h = round(Math.max(0, cutout.height))
   const r = round(clamp(cutout.radius, Math.min(w, h) / 2))
@@ -616,9 +619,11 @@ export function holeImage(cutout: Cutout, clip: Rect = cutout): string {
   const height = round(Math.max(0, clip.height))
   const x = round(cutout.x - clip.x)
   const y = round(cutout.y - clip.y)
+  const alpha = round(clamp(opacity, 1))
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="black"/></svg>`
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="black"` +
+    `${alpha < 1 ? ` fill-opacity="${alpha}"` : ''}/></svg>`
   return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
 }
 
@@ -668,14 +673,19 @@ export interface MaskLayers {
  * leftover rather than a hole, and an image with no size is not something every
  * engine has to agree about.
  */
-export function maskLayers(width: number, height: number, cutouts: readonly Cutout[]): MaskLayers {
+export function maskLayers(
+  width: number,
+  height: number,
+  cutouts: readonly Cutout[],
+  opacity = 1,
+): MaskLayers {
   const holes = cutouts
     .map((cutout) => ({ cutout, clip: clipToSurface(width, height, cutout) }))
     .filter(({ clip }) => hasArea(clip))
   return {
     image: [
       'linear-gradient(black, black)',
-      ...holes.map(({ cutout, clip }) => holeImage(cutout, clip)),
+      ...holes.map(({ cutout, clip }) => holeImage(cutout, clip, opacity)),
     ].join(', '),
     position: ['0 0', ...holes.map(({ clip }) => `${round(clip.x)}px ${round(clip.y)}px`)].join(
       ', ',
@@ -683,6 +693,13 @@ export function maskLayers(width: number, height: number, cutouts: readonly Cuto
     composite: ['subtract', ...holes.map(() => 'add')].join(', '),
   }
 }
+
+/**
+ * How open a hole is at a point in a refusal under reduced motion: open at
+ * both ends, closed halfway, and smooth at both ends. DESIGN.md, **A failed
+ * attempt**.
+ */
+export const dipOpacity = (progress: number): number => (1 + Math.cos(2 * Math.PI * progress)) / 2
 
 /**
  * Make two cutout lists the same length, so each hole has something to be

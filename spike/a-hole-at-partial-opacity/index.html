@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Does a mask hole at partial opacity dim the hole by that much?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 20px 24px 40px; font: 14px/22px system-ui, sans-serif; }
+  h1 { font-size: 17px; line-height: 26px; margin: 0 0 6px; }
+  h2 { font-size: 14px; line-height: 22px; margin: 20px 0 6px; }
+  p  { margin: 0 0 12px; max-width: 80ch; }
+  code { font-family: ui-monospace, monospace; font-size: 12px; }
+  #env { white-space: pre-wrap; font-size: 11px; line-height: 16px; color: #888; margin: 0 0 16px; }
+
+  .cases { display: flex; flex-wrap: wrap; gap: 16px 32px; }
+  .case h3 { font-size: 12px; line-height: 20px; margin: 0 0 4px; font-weight: 600; }
+  .pair { display: flex; gap: 8px; }
+  .pair span { display: block; font-size: 11px; line-height: 16px; color: #888; }
+
+  /*
+   * One flat bright ground, the same under every surface and every reference,
+   * so a hole and the swatch beside it differ only in how much dimming is on
+   * them.
+   */
+  .surface { position: relative; width: 160px; height: 110px; background: #fc6; overflow: hidden; }
+  .wide { width: 200px; }
+
+  /*
+   * The scrim as Leko's tour builds it: its default colour, the surface less
+   * the hole images, written unprefixed the way `Scrim.paint` writes it.
+   */
+  .scrim {
+    position: absolute; inset: 0; background: rgb(0 0 0 / 0.45);
+    mask-repeat: no-repeat;
+  }
+
+  /* A reference: the dimming the hole should leave, painted as a plain colour. */
+  .swatch { position: absolute; inset: 0; }
+
+  button { font: inherit; margin: 8px 0 0; }
+
+  table { border-collapse: collapse; margin: 8px 0 20px; font-size: 13px; line-height: 20px; }
+  th, td { text-align: left; vertical-align: top; padding: 4px 10px; border-bottom: 1px solid #8883; }
+  td.pass { color: #178a3a; font-weight: 600; }
+  td.fail { color: #c22; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Does a mask hole at partial opacity dim the hole by that much?</h1>
+<p>
+  Each hole is a <code>data:</code> SVG image whose rectangle is drawn at a
+  <code>fill-opacity</code> below 1, subtracted from a scrim of
+  <code>rgb(0 0 0 / 0.45)</code>. Beside each is a swatch painted at the alpha
+  the hole should leave. Where the two match, the hole dims by exactly what its
+  opacity says.
+</p>
+<div id="env"></div>
+
+<div class="cases" id="cases"></div>
+
+<h2>Case 3: a dip</h2>
+<p>
+  One hole whose opacity is rewritten every frame, a new <code>data:</code> URL
+  each time, along <code>(1 + cos 2πp) / 2</code> over 400ms: open, closed
+  halfway, open again. Judged by eye: it should read as one smooth dip, with no
+  flicker and no frame where the hole blinks to bare or to fully dimmed out of
+  turn.
+</p>
+<div class="surface" id="dip"></div>
+<button type="button" id="play">Play the dip</button>
+
+<h2>Read from a screenshot</h2>
+<p>
+  <strong>Judge by eye</strong> when the page is opened by hand, Safari
+  included: a page cannot read its own pixels, so the table below stays empty.
+  Each hole should look exactly like the swatch beside it.
+  <code>run.mjs</code> hands the page a screenshot of itself, and the page
+  reads that and fills the table: it averages a block of device pixels at each
+  sample point and at the matching point of its reference, and passes the
+  sample when no channel is more than <span id="tolerance"></span> levels in
+  255 off.
+</p>
+<table>
+  <thead><tr><th>case</th><th>sample</th><th>expected alpha</th><th>hole</th><th>reference</th><th>verdict</th></tr></thead>
+  <tbody id="results"><tr><td colspan="6">Not read. Open by hand, this page is judged by eye.</td></tr></tbody>
+</table>
+
+<script>
+  const SCRIM = 0.45
+  const RADIUS = 8
+
+  // One hole as `holeImage` in packages/spotlight/src/geometry.ts writes it,
+  // with the opacity on the rectangle.
+  const hole = (width, height, opacity) => {
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+      `<rect x="0" y="0" width="${width}" height="${height}" rx="${RADIUS}" fill="black" fill-opacity="${opacity}"/></svg>`
+    return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`
+  }
+
+  // The layers the way `maskLayers` writes them: the surface first, each hole
+  // after it, `subtract` on the surface and `add` between the holes.
+  const mask = (scrim, holes) => {
+    Object.assign(scrim.style, {
+      maskImage: ['linear-gradient(black, black)', ...holes.map((h) => hole(h.width, h.height, h.opacity))].join(', '),
+      maskPosition: ['0 0', ...holes.map((h) => `${h.x}px ${h.y}px`)].join(', '),
+      maskComposite: ['subtract', ...holes.map(() => 'add')].join(', '),
+    })
+  }
+
+  const surface = (wide) => {
+    const s = document.createElement('div')
+    s.className = wide ? 'surface wide' : 'surface'
+    return s
+  }
+
+  const scrimOn = (s, holes) => {
+    const scrim = document.createElement('div')
+    scrim.className = 'scrim'
+    mask(scrim, holes)
+    s.append(scrim)
+  }
+
+  const swatch = (s, alpha) => {
+    const d = document.createElement('div')
+    d.className = 'swatch'
+    d.style.background = `rgb(0 0 0 / ${alpha})`
+    s.append(d)
+  }
+
+  const labelled = (label, s) => {
+    const cell = document.createElement('div')
+    const name = document.createElement('span')
+    name.textContent = label
+    cell.append(name, s)
+    return cell
+  }
+
+  // Every sample: a point on a surface with a scrim, the point on its reference
+  // swatch to compare it with, and the alpha that swatch is painted at.
+  const samples = []
+  const host = document.getElementById('cases')
+
+  // Case 1: one hole at each opacity, and the scrim outside it as a control.
+  const single = { x: 30, y: 25, width: 100, height: 60 }
+  for (const opacity of [1, 0.5, 0]) {
+    const box = document.createElement('div')
+    box.className = 'case'
+    const title = document.createElement('h3')
+    title.textContent = `Case 1: one hole at fill-opacity ${opacity}`
+    const pair = document.createElement('div')
+    pair.className = 'pair'
+    const s = surface()
+    scrimOn(s, [{ ...single, opacity }])
+    const expected = SCRIM * (1 - opacity)
+    const inside = surface()
+    swatch(inside, expected)
+    const outside = surface()
+    swatch(outside, SCRIM)
+    pair.append(labelled('hole', s), labelled(`reference ${expected}`, inside), labelled(`reference ${SCRIM}`, outside))
+    box.append(title, pair)
+    host.append(box)
+    const centre = { x: single.x + single.width / 2, y: single.y + single.height / 2 }
+    samples.push(
+      { case: `1: fill-opacity ${opacity}`, sample: 'inside the hole', alpha: expected, at: s, ref: inside, point: centre },
+      { case: `1: fill-opacity ${opacity}`, sample: 'the scrim outside it', alpha: SCRIM, at: s, ref: outside, point: { x: 10, y: 10 } },
+    )
+  }
+
+  // Case 2: two holes at 0.5 that overlap. `add` composites them source-over,
+  // so the overlap holds 0.5 + 0.5 × (1 − 0.5) = 0.75 of a hole.
+  {
+    const a = { x: 20, y: 25, width: 100, height: 60, opacity: 0.5 }
+    const b = { x: 80, y: 25, width: 100, height: 60, opacity: 0.5 }
+    const box = document.createElement('div')
+    box.className = 'case'
+    const title = document.createElement('h3')
+    title.textContent = 'Case 2: two overlapping holes at fill-opacity 0.5'
+    const pair = document.createElement('div')
+    pair.className = 'pair'
+    const s = surface(true)
+    scrimOn(s, [a, b])
+    const one = SCRIM * (1 - 0.5)
+    const both = SCRIM * (1 - 0.75)
+    const single = surface()
+    swatch(single, one)
+    const overlap = surface()
+    swatch(overlap, both)
+    pair.append(labelled('holes', s), labelled(`reference ${one}`, single), labelled(`reference ${both}`, overlap))
+    box.append(title, pair)
+    host.append(box)
+    const y = a.y + a.height / 2
+    samples.push(
+      { case: '2: two at 0.5', sample: 'the left hole alone', alpha: one, at: s, ref: single, point: { x: 50, y } },
+      { case: '2: two at 0.5', sample: 'the right hole alone', alpha: one, at: s, ref: single, point: { x: 150, y } },
+      { case: '2: two at 0.5', sample: 'the overlap', alpha: both, at: s, ref: overlap, point: { x: 100, y } },
+    )
+  }
+
+  // Case 3: the dip, on Leko's own `ease`. Each frame writes a new image, the
+  // way a scrim's frame loop would.
+  {
+    const s = document.getElementById('dip')
+    const scrim = document.createElement('div')
+    scrim.className = 'scrim'
+    s.append(scrim)
+    const draw = (opacity) => mask(scrim, [{ ...single, opacity }])
+    draw(1)
+    const DIP = 400
+    // `ease` in packages/spotlight/src/geometry.ts, cubic-bezier(0.2, 0, 0, 1),
+    // solved for x by bisection.
+    const ease = (t) => {
+      const b = (p1, p2, u) => 3 * p1 * u * (1 - u) ** 2 + 3 * p2 * u * u * (1 - u) + u ** 3
+      let lo = 0
+      let hi = 1
+      for (let i = 0; i < 30; i++) {
+        const mid = (lo + hi) / 2
+        if (b(0.2, 0, mid) < t) lo = mid
+        else hi = mid
+      }
+      return b(0, 1, (lo + hi) / 2)
+    }
+    const round = (n) => Math.round(n * 100) / 100
+    let frame
+    document.getElementById('play').addEventListener('click', () => {
+      cancelAnimationFrame(frame)
+      const start = performance.now()
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / DIP)
+        draw(t === 1 ? 1 : round((1 + Math.cos(2 * Math.PI * ease(t))) / 2))
+        if (t < 1) frame = requestAnimationFrame(step)
+      }
+      frame = requestAnimationFrame(step)
+    })
+  }
+
+  const dpr = window.devicePixelRatio
+  document.getElementById('env').textContent =
+    `${navigator.userAgent}\ndevicePixelRatio ${dpr}, viewport ${innerWidth}×${innerHeight}`
+
+  // How far a channel may stray from its reference and still match. The cases
+  // here are tens of levels apart on this ground, so 3 separates them with
+  // room to spare; one 0.01 step of the dip is about one level, and is not
+  // what this measures.
+  const TOLERANCE = 3
+  document.getElementById('tolerance').textContent = String(TOLERANCE)
+  // Half the side of the block of device pixels averaged at each point.
+  const SPAN = 2
+
+  // Reads a PNG screenshot of the viewport, taken at this page's
+  // devicePixelRatio, and compares each sample with its reference.
+  async function read(dataUrl) {
+    const img = new Image()
+    img.src = dataUrl
+    await img.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const g = canvas.getContext('2d', { willReadFrequently: true })
+    g.drawImage(img, 0, 0)
+    const data = g.getImageData(0, 0, canvas.width, canvas.height).data
+    const scale = canvas.width / innerWidth
+    const at = (element, point) => {
+      const r = element.getBoundingClientRect()
+      const cx = Math.round((r.left + point.x) * scale)
+      const cy = Math.round((r.top + point.y) * scale)
+      const sum = [0, 0, 0]
+      let n = 0
+      for (let y = cy - SPAN; y <= cy + SPAN; y++) {
+        for (let x = cx - SPAN; x <= cx + SPAN; x++) {
+          const i = (y * canvas.width + x) * 4
+          for (let c = 0; c < 3; c++) sum[c] += data[i + c]
+          n++
+        }
+      }
+      return sum.map((v) => Math.round(v / n))
+    }
+    const offScreen = (element) => {
+      const r = element.getBoundingClientRect()
+      return r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight
+    }
+    const rows = samples.map((s) => {
+      const row = { case: s.case, sample: s.sample, alpha: s.alpha }
+      if (offScreen(s.at) || offScreen(s.ref)) return { ...row, offScreen: true, pass: false }
+      const hole = at(s.at, s.point)
+      const reference = at(s.ref, s.point)
+      const diff = Math.max(...hole.map((v, c) => Math.abs(v - reference[c])))
+      return { ...row, hole, reference, diff, pass: diff <= TOLERANCE }
+    })
+    render(rows)
+    return { ua: navigator.userAgent, dpr, tolerance: TOLERANCE, rows }
+  }
+
+  function render(rows) {
+    const body = document.getElementById('results')
+    body.textContent = ''
+    for (const r of rows) {
+      const tr = document.createElement('tr')
+      const cells = [
+        ['', r.case],
+        ['', r.sample],
+        ['', String(r.alpha)],
+        ['', r.offScreen ? 'off screen' : r.hole.join(' ')],
+        ['', r.offScreen ? '' : r.reference.join(' ')],
+        [r.pass ? 'pass' : 'fail', r.offScreen ? 'off screen' : `${r.pass ? 'pass' : 'fail'} (${r.diff} off)`],
+      ]
+      for (const [cls, text] of cells) {
+        const td = document.createElement('td')
+        td.className = cls
+        td.textContent = text
+        tr.append(td)
+      }
+      body.append(tr)
+    }
+  }
+
+  window.spikePartialOpacity = { read }
+</script>
+</body>
+</html>

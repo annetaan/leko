@@ -134,3 +134,16 @@ test('following halos stay on and ride the morph to the destination', async () =
   expect(framed[0]!.style.width).toBe('120px')
   expect(framed[0]!.hasAttribute('data-open')).toBe(true)
 })
+
+test('under a curve that overshoots, the halo stays on the hole the mask draws', async () => {
+  const drawn = mountScrim('follow')
+  drawn.set([cutout(100, 100, true)])
+
+  const arriving = drawn.morph([cutout(300, 100, true)], 200, () => 2)
+  if (arriving) {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    // Mid-flight, on a curve that has already gone past the destination.
+    expect(halos()[0]!.style.left).toBe('300px')
+    expect(drawn.element.style.maskPosition).toBe('0px 0px, 300px 100px')
+  }
+})

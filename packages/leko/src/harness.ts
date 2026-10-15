@@ -246,6 +246,19 @@ export const clocked = (): void => {
 }
 
 /**
+ * A visitor who asked for reduced motion, mocked at `matchMedia`, which is the
+ * one place `motion.ts` looks. The harness's `afterEach` restores it.
+ */
+export function reduced(): void {
+  const matchMedia = window.matchMedia.bind(window)
+  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
+    query.includes('prefers-reduced-motion')
+      ? ({ matches: true, media: query } as MediaQueryList)
+      : matchMedia(query),
+  )
+}
+
+/**
  * One frame of a clock a test took with {@link clocked}.
  *
  * The frame is run synchronously and one microtask turn is let go by after it:

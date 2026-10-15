@@ -62,8 +62,9 @@ export const groups: Group[] = [
         id: 'form-validation',
         label: 'Form validation',
         line:
-          'Two fields whose Next control is guarded by the page’s own check, so a bad email ' +
-          'or a short password is refused with an error under the instruction.',
+          'Two fields and a checkbox whose Next control is guarded by the page’s own check: ' +
+          'a bad email or a short password is refused with an error under the instruction, ' +
+          'and an unticked box with the hole alone.',
       },
       {
         id: 'target-not-there-yet',

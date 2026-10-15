@@ -73,7 +73,8 @@ export const firstOrder = {
       // Your rule, your verdict. Typing something is not success.
       validate: (el) => (el as HTMLInputElement).value.trim() === '3',
       // Said under the instruction when the guard says no. The cutout shakes
-      // either way, so a guard can never leave Next doing nothing.
+      // (or dims, under reduced motion) either way, so a guard can never leave
+      // Next doing nothing.
       error: 'The quantity is not 3 yet. Check the field.',
     },
     {

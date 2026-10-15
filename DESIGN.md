@@ -452,7 +452,25 @@ reports the event via `reached()`.
   first press ended the tour with `target-lost`, a report about a target that
   never existed. `packages/leko/type-tests/guard.ts` is the claim, stated as a
   program.
-- Feedback behavior: A validation failure is never silent; it always triggers a cutout shake. error provides the user-facing explanation message.
+- Feedback behavior: A validation failure is never silent; it always answers on the cutout: a shake, or under `prefers-reduced-motion` a dip. error provides the user-facing explanation message.
+- **Under `prefers-reduced-motion` the refusal is a dip, not nothing.** The
+  holes stay where they are, close to the full colour of the scrim and open
+  again, over 400ms on Leko's own curve. Before it, reduced motion took the
+  shake away and put nothing in its place: a step with no `error` answered a
+  refused press with nothing at all, and a second press whose `error` was
+  already on screen with nothing new. It is on the hole because that is where
+  the shake points. It is the scrim's own mask, so nothing is placed over the
+  target, the blocking is unchanged and an open hole stays open to pointer and
+  focus. `motion.ts` is the one predicate that picks the shake or the dip.
+  [`spike/a-hole-at-partial-opacity/`](spike/a-hole-at-partial-opacity/) is
+  the evidence: a hole drawn partly open dims by exactly that share in
+  Chromium, Firefox and WebKit. Overlapping holes composite source-over, so
+  where two holes of one step overlap the overlap stays brighter during the
+  dip. Safari: not yet opened.
+- **A press during a refusal is absorbed, shake or dip.** It is already being
+  answered. For the dip a restart would be one flash per press; 400ms with no
+  restart stays under WCAG 2.3.1's three flashes a second, and a large target
+  dipping 45% darker counts as a flash.
 - Error message lifecycle: error appears below the main instruction (never replacing it) and persists until the step changes or succeeds. To prevent stale state, error text is generated once per failed attempt and held, rather than re-evaluated on subsequent screen redraws.
 
 ## Starting a story
@@ -648,7 +666,8 @@ not know a tour is running.
   meant to be taken in — so a step may override it the way it overrides
   `padding`. A step's value governs the movement into it — the glide, then the
   opening or the morph — and nothing about leaving it.
-  - `GLIDE_PACE`, `GLIDE_BEAT` and the shake's length and curve stay fixed:
+  - `GLIDE_PACE`, `GLIDE_BEAT`, and the length and curve of a refusal, shake
+    or dip, stay fixed:
     each would be a second setting about the same movement — **A beat of 300ms
     between stages, and it is not a setting**.
   - The halo's fade stays `--leko-halo-fade` in CSS. It is a transition on the

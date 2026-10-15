@@ -478,7 +478,8 @@ export interface LekoTargetedStep extends LekoStepBase {
 
   /**
    * Called before advancing on the next control. Returning `false` blocks the
-   * transition, shakes the cutout, and shows {@link error} where there is one.
+   * transition, shakes the cutout (or dims it where it stands, under
+   * `prefers-reduced-motion`), and shows {@link error} where there is one.
    *
    * **Ignored on a step that declares {@link awaits}.** Such a step has no
    * control, and it advances because the application said the thing happened.
@@ -498,9 +499,10 @@ export interface LekoTargetedStep extends LekoStepBase {
    * here replaces {@link message}: a user who has just been told they were
    * wrong needs to still be able to read what they were asked for.
    *
-   * **Leave it out and the step still refuses out loud.** The cutout shakes
-   * whether or not there are words for it, so a guard cannot turn the next
-   * control into a button that does nothing.
+   * **Leave it out and the step still refuses out loud.** The cutout shakes,
+   * or dims under `prefers-reduced-motion`, whether or not there are words for
+   * it, so a guard cannot turn the next control into a button that does
+   * nothing. DESIGN.md, **A failed attempt**.
    *
    * **Unlike {@link target} and {@link message}, this is asked once**, for the
    * attempt that just failed, and the words it gives back are held from there.

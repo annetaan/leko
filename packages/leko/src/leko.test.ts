@@ -19,6 +19,7 @@ import {
   PATIENCE,
   pause,
   press,
+  reduced,
   said,
   scrim,
   shown,
@@ -1357,14 +1358,9 @@ test('a glide draws nothing until the page has stopped', async () => {
 
 test('a visitor who asked for reduced motion has the page set outright, as the morph is', async () => {
   // `motion.ts` is the one predicate the morph and the scroll before it both
-  // read. Mocked at `matchMedia`, which is the one place it looks.
+  // read.
   const target = belowTheFold(2000)
-  const matchMedia = window.matchMedia.bind(window)
-  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
-    query.includes('prefers-reduced-motion')
-      ? ({ matches: true, media: query } as MediaQueryList)
-      : matchMedia(query),
-  )
+  reduced()
 
   start([{ id: 'far', target: { elements: () => target, interactive: true }, scroll: true }], {
     duration: 320,
