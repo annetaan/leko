@@ -161,6 +161,10 @@ up, so a step whose target never turns up is named and then followed by the
 ending. A step whose `onEnter` threw on the way in never reaches it.
 The return value is never read.
 
+A throw from it is thrown again from a microtask and stops nothing: the tour
+goes on as though it had returned —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
+
 ```ts prelude="import { createLeko } from '@annetaan/leko'" prelude="declare function setTourRunning(running: boolean): void"
 createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
 ```
@@ -181,6 +185,11 @@ Called when a call meant to do something and did not, with a
 [`LekoProblem`](../problems/) saying which. It is off by default and nothing is
 logged, so a project that wants to hear about one says how here —
 [Saying that a call did nothing](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-that-a-call-did-nothing).
+
+A throw from it is thrown again from a microtask and stops nothing: the tour
+goes on as though it had returned, and the reason is not reported back through
+`onDiagnostic` —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
 
 ```ts prelude="import { createLeko } from '@annetaan/leko'"
 createLeko({

@@ -63,8 +63,8 @@ next: () => (order.needsReview ? review : summary)
 ```
 
 Only a story that ran to the end is followed. `stop()`, the close control, a
-target that never turned up and a handler that threw all end the tour where it
-stands, and `next` is not asked.
+target that never turned up and an `onEnter` that threw all end the tour where
+it stands, and `next` is not asked.
 
 Nothing is stored. The function is asked when the last step advances, and
 answering `undefined` ends the tour; running the same story again asks again.
@@ -107,6 +107,10 @@ simply over, so teardown the next story would only have to rebuild can be
 skipped.
 
 A promise it hands back is not waited for.
+
+A throw from it is thrown again from a microtask and stops nothing: the tour
+goes on as though it had returned —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
 
 ## LekoStep
 
@@ -235,6 +239,10 @@ a step with no `onEnter` at all.
 past the last step, after `stop()`, and when `next` hands the tour on to another
 story, whose steps this one knows nothing about. A panel that two steps use in
 turn can stay open when `next` is the other one.
+
+A throw from it is thrown again from a microtask and stops nothing: the tour
+goes on as though it had returned —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
 
 ## LekoTargetedStep
 
@@ -544,6 +552,10 @@ story's `onEnter` runs in the same call.
 A throw from an `onEnter` ends the tour where it stands, and the `onLeave`
 that pairs with it still runs. The reason is thrown again once the ending has
 been reported, and `onStep` never names the step whose `onEnter` threw.
+A throw from an `onLeave`, `onStep` or `onDiagnostic` ends nothing: the tour
+goes into the step ahead, through the rest of an ending and its report, and
+into the story `next` names, and the reason is thrown again from a microtask —
+[What a step and a story assume](https://github.com/annetaan/leko/blob/main/DESIGN.md#what-a-step-and-a-story-assume).
 
 `validate` runs only when the next control is pressed, and only on a step with
 no `awaits`. A `reached()` that matches an `awaits` step moves the tour on

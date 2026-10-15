@@ -546,10 +546,25 @@ its clear-up at the same level instead of splitting across two.
   whose `onEnter` was never called is owed neither handler. A `stop()` from
   the `onLeave` of the step being left ends the tour before the step ahead is
   entered, so that step gets nothing and only the story is left after it.
-- **A throw stops the tour, and the reason is thrown again.** The state the
-  step assumes was never built, so drawing it would point the user at something
-  that is not ready — and the handler that threw is the place with the context
-  to do something about it. See `step-setup.ts` and `story-setup.ts`.
+- **A throw from `onEnter` stops the tour, and the reason is thrown again.**
+  The state the step assumes was never built, so drawing it would point the
+  user at something that is not ready — and the handler that threw is the place
+  with the context to do something about it. See `step-setup.ts` and
+  `story-setup.ts`.
+- **A throw from a handler whose return is dropped is thrown again, and only
+  `onEnter`'s ends the tour.** A handler whose answer Leko acts on — `validate`,
+  a function `error`, a function `next` — throws to the call that asked, and
+  the throw stands in for the answer. `onEnter`, `onLeave`, `onStep` and
+  `onDiagnostic` have no caller waiting, so the reason is thrown again from a
+  microtask, and the machine goes on as though the handler had returned: into
+  the step ahead, through the rest of an ending and its report, into the story
+  `next` named, and the gate opens. Only `onEnter` has a reason to stop: the
+  step ahead stands on its own `onEnter`, not on the `onLeave` of the step
+  behind it, and an ending is already ending. A report cannot alter or block a
+  transition — **Saying where the tour got to** — and a throw from one is no
+  exception. None of these reasons goes through `onDiagnostic`: a throw is the
+  application's own bug, and a report that can itself throw is no place to say
+  so.
 
 ## A step that waits
 
@@ -733,7 +748,7 @@ the call.** Which order the host writes the two lines in makes no difference.
 An arrival is such a window — from the moment a move begins until the step is
 handed to the presenter, with `onEnter` inside it. A teardown is another, from
 the first `onLeave` through the report of the ending: the machine opens again
-only once `onStep` has returned.
+only once `onStep` has returned or thrown.
 
 - Inside either, `reached()`, `start()` and a press on the next control all do
   nothing. The step's target has not been looked for and it has never been on
@@ -808,7 +823,7 @@ what the existing fields already say.
   empties the position before any handler runs, so an `onLeave` reading `state`
   is told the truth: the tour is over. A `start()` made from inside `onLeave`
   or the ending `onStep` report is still refused — the machine opens again only
-  once the report has returned.
+  once the report has returned or thrown.
 - **Everything the machine keeps is two fields** — where the tour is, and which
   window of a call into the application it is inside. Neither is a list of
   stories: `start` is handed the one it runs, so nothing is looked up and

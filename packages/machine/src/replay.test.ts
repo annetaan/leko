@@ -120,6 +120,19 @@ const REFUSALS = ['refused-start', 'empty-story', 'start-running']
 /** What a step with `error` on it says, so an assertion can name the words. */
 const REASON = 'not yet'
 
+/**
+ * The step and the story whose `onLeave` throws, in every trace that leaves
+ * them. This test's own addition on top of the world rather than a part of it:
+ * a throw from a handler whose return is dropped changes nothing the model can
+ * see, so the model is never told, and every trace holds the real class to
+ * that. DESIGN.md, **A throw from a handler whose return is dropped is thrown
+ * again, and only `onEnter`'s ends the tour**.
+ *
+ * `a1` is left by a move and is the step a teardown stands on. Story `a` is
+ * left by `stop()`, by `lose` and by the chain into `e`.
+ */
+const THROWS_ON_LEAVE = new Set(['a1', 'a'])
+
 /** One call the trace says arrived while the machine was inside a teardown. */
 interface Windowed {
   now: Snapshot
@@ -214,9 +227,21 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
         // Inside a teardown the same `stop()` finds nothing to end, as it does
         // in the model.
         if (shape.stopsOnLeave) step.onLeave = () => run().tour.stop()
+        if (THROWS_ON_LEAVE.has(shape.id)) {
+          step.onLeave = () => {
+            exercised.leaveThrows += 1
+            throw new Error(`step ${shape.id} would not clear up`)
+          }
+        }
         return step
       }),
     })
+    if (THROWS_ON_LEAVE.has(story.id)) {
+      stories.get(story.id)!.onLeave = () => {
+        exercised.leaveThrows += 1
+        throw new Error(`story ${story.id} would not clear up`)
+      }
+    }
   }
   // A second pass, because a story names one that may not be built yet. The
   // model carries an id and the machine takes the object.
@@ -385,12 +410,13 @@ const corpus = fileURLToPath(new URL('../model/traces/', import.meta.url))
  * standing idle, and a corpus that stopped putting calls inside a teardown
  * would leave every assertion in it green about nothing.
  */
-const exercised = { teardownCalls: 0 }
+const exercised = { teardownCalls: 0, leaveThrows: 0 }
 
 // And the alarm itself. Counting without reading the count is the same silence
 // with an extra step in it.
 afterAll(() => {
   expect(exercised.teardownCalls, 'no trace put a call inside a teardown').toBeGreaterThan(0)
+  expect(exercised.leaveThrows, 'no trace threw from an onLeave').toBeGreaterThan(0)
 })
 
 const named = readdirSync(corpus)
@@ -457,9 +483,13 @@ describe('every trace the model found', () => {
           run.handlers.push({ kind: 'enter', who: `story:${self.id}` })
           return entered(self)
         }
-        story.onLeave = (self) => {
+        const closed = story.onLeave
+        // `drain` first, so a story's own `onLeave` that throws cannot keep
+        // the window's calls from being made.
+        story.onLeave = (self, next) => {
           run.handlers.push({ kind: 'leave', who: `story:${self.id}` })
           drain(run)
+          closed?.(self, next)
         }
         for (const step of story.steps) {
           const opened = step.onEnter!

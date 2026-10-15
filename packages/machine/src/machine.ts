@@ -191,28 +191,44 @@ export class Machine<W extends World> {
         })
 
       case 'callStepLeaveOnMove':
-        effect.step.onLeave?.(effect.step, effect.next)
+        this.attempt(() => effect.step.onLeave?.(effect.step, effect.next))
         return void this.dispatch({ kind: 'entering', at: effect.at, animate: effect.animate })
 
       case 'callStepLeave':
-        return effect.step.onLeave?.(effect.step, undefined)
+        return this.attempt(() => effect.step.onLeave?.(effect.step, undefined))
 
       case 'callStoryLeave':
-        return effect.story.onLeave?.(effect.story, effect.next)
+        return this.attempt(() => effect.story.onLeave?.(effect.story, effect.next))
 
       case 'report':
-        return this.options.onStep?.(effect.step, effect.story)
+        return this.attempt(() => this.options.onStep?.(effect.step, effect.story))
 
       case 'diagnose':
-        return this.options.onDiagnostic?.(effect.problem)
+        return this.attempt(() => this.options.onDiagnostic?.(effect.problem))
 
       case 'rethrow':
         // From a task of its own, because throwing here would land it on
-        // whichever call started the step, which is rarely what went wrong.
+        // whichever call into Leko is on the stack, which is rarely what went
+        // wrong.
         queueMicrotask(() => {
           throw effect.reason
         })
         return
+    }
+  }
+
+  /**
+   * Run one handler whose return is dropped. Nothing waits on its answer, so a
+   * throw goes out from a microtask and the machine carries on as though it
+   * had returned; the plan never hears of it, because nothing about it is a
+   * decision. DESIGN.md, **A throw from a handler whose return is dropped is
+   * thrown again, and only `onEnter`'s ends the tour**.
+   */
+  private attempt(call: () => void): void {
+    try {
+      call()
+    } catch (reason) {
+      this.perform({ kind: 'rethrow', reason })
     }
   }
 

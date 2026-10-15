@@ -350,10 +350,11 @@ interface LekoStepBase {
    * owes a wait that can fail under DESIGN.md's **Nothing bounds the wait**.
    *
    * **A throw stops the tour**, and the reason is thrown again rather than
-   * swallowed — DESIGN.md, **A throw stops the tour, and the reason is thrown
-   * again**. {@link onLeave} still runs, because a handler that failed halfway
-   * may already have registered something. There is nowhere to register a
-   * handler for that failure, and the place to deal with it is inside this one.
+   * swallowed — DESIGN.md, **A throw from `onEnter` stops the tour, and the
+   * reason is thrown again**. {@link onLeave} still runs, because a handler
+   * that failed halfway may already have registered something. There is
+   * nowhere to register a handler for that failure, and the place to deal with
+   * it is inside this one.
    *
    * This is not an analytics hook. Something that reports "a step started" for
    * a caller's own metrics is {@link LekoOptions.onStep}.
@@ -375,6 +376,11 @@ interface LekoStepBase {
    *
    * A promise is not waited for here; the step is over. DESIGN.md, **Whatever a
    * handler hands back is dropped**.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
    */
   onLeave?: (step: LekoStep, next: LekoStep | undefined) => void
 }
@@ -646,6 +652,11 @@ export interface LekoStory {
    * teardown this argument can skip.
    *
    * A promise is not waited for. The story is over.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
    */
   onLeave?: (story: LekoStory, next: LekoStory | undefined) => void
 }
@@ -773,6 +784,11 @@ export interface LekoOptions {
    * The return value is never read, and there is no hook of this kind on a
    * story — DESIGN.md argues both under **Saying where the tour got to**.
    *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. DESIGN.md, **A throw from a
+   * handler whose return is dropped is thrown again, and only `onEnter`'s ends
+   * the tour**.
+   *
    * A host that wants the pair keeps the last `step` it was handed. That is a
    * line of its own state, and it is right by construction: this hook names a
    * step once it has been handed over to be drawn, and never before its
@@ -794,6 +810,11 @@ export interface LekoOptions {
    * is logged**, and which of the ways to report a problem a project wants is
    * the project's to choose — DESIGN.md argues it under **Saying that a call
    * did nothing**.
+   *
+   * A throw from it is thrown again from a microtask and stops nothing: the
+   * tour goes on as though it had returned. The reason is not reported back
+   * through `onDiagnostic`. DESIGN.md, **A throw from a handler whose return
+   * is dropped is thrown again, and only `onEnter`'s ends the tour**.
    *
    * ```ts
    * createLeko({
