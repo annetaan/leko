@@ -80,6 +80,13 @@ function held(): { promise: Promise<void>; settle: () => void } {
   return { promise, settle }
 }
 
+/** What went out from a microtask, held so an uncaught error cannot fail the run. */
+function escaping(): (() => void)[] {
+  const escaped: (() => void)[] = []
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((fn) => void escaped.push(fn))
+  return escaped
+}
+
 const failing = (id: string, target: string, message?: string, error?: Step['error']): Step => ({
   id,
   target,
@@ -1667,6 +1674,326 @@ describe('what a step assumes', () => {
     expect(left).toEqual([undefined])
     expect(escaped).toHaveLength(1)
     expect(() => escaped[0]!()).toThrow(boom)
+  })
+
+  // DESIGN.md, **A throw from a handler whose return is dropped is thrown again,
+  // and only `onEnter`'s ends the tour**.
+
+  test('a throw from the onLeave of the step a stop() ends is thrown again, and the next start goes through', () => {
+    const boom = new Error('the panel would not close')
+    const escaped = escaping()
+    const problems: Problem<Fixture>[] = []
+    const { tour, seen } = watched(
+      {
+        id: 'story',
+        steps: [
+          {
+            id: 'a',
+            target: 'first',
+            onLeave: () => {
+              throw boom
+            },
+          },
+          { id: 'b', target: 'second' },
+        ],
+      },
+      { onDiagnostic: (problem) => void problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+    tour.stop()
+
+    expect(tour.state).toBe('idle')
+    expect(seen).toEqual(['a', undefined])
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    begin(tour, 'story')
+    expect(problems).toEqual([])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a throw from the story onLeave still reports the ending, and opens the machine', () => {
+    const boom = new Error('the fixtures would not unload')
+    const escaped = escaping()
+    const problems: Problem<Fixture>[] = []
+    const { tour, seen } = watched(
+      {
+        id: 'story',
+        onLeave: () => {
+          throw boom
+        },
+        steps: [{ id: 'a', target: 'first' }],
+      },
+      { onDiagnostic: (problem) => void problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+    tour.stop()
+
+    expect(tour.state).toBe('idle')
+    expect(seen).toEqual(['a', undefined])
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    begin(tour, 'story')
+    expect(problems).toEqual([])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a throw from the ending onStep report opens the machine', () => {
+    const boom = new Error('the progress bar would not reset')
+    const escaped = escaping()
+    const problems: Problem<Fixture>[] = []
+    const tour = staging(
+      { id: 'story', steps: [{ id: 'a', target: 'first' }] },
+      {
+        onStep: (step) => {
+          if (step === undefined) throw boom
+        },
+        onDiagnostic: (problem) => void problems.push(problem),
+      },
+    )
+
+    begin(tour, 'story')
+    tour.stop()
+
+    expect(tour.state).toBe('idle')
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    begin(tour, 'story')
+    expect(problems).toEqual([])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a throw from the onDiagnostic of a target-lost opens the machine', () => {
+    const boom = new Error('the tracker was down')
+    const escaped = escaping()
+    const problems: Problem<Fixture>[] = []
+    const { tour, seen } = watched(
+      {
+        id: 'story',
+        steps: [
+          { id: 'a', target: 'first' },
+          { id: 'b', target: 'second' },
+        ],
+      },
+      {
+        onDiagnostic: (problem) => {
+          problems.push(problem)
+          if (problem.kind === 'target-lost') throw boom
+        },
+      },
+    )
+
+    begin(tour, 'story')
+    drawing().page.delete('second')
+    press(tour)
+
+    expect(tour.state).toBe('idle')
+    expect(seen).toEqual(['a', undefined])
+    expect(problems.map((problem) => problem.kind)).toEqual(['target-lost'])
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    drawing().page.add('second')
+    begin(tour, 'story')
+    expect(problems.map((problem) => problem.kind)).toEqual(['target-lost'])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a throw from the onLeave of the step being left still enters the step ahead, and the next press moves on', () => {
+    const boom = new Error('the panel would not close')
+    const escaped = escaping()
+    const entered: string[] = []
+    const { tour, seen } = watched({
+      id: 'story',
+      steps: [
+        {
+          id: 'a',
+          target: 'first',
+          onLeave: () => {
+            throw boom
+          },
+        },
+        { id: 'b', target: 'second', onEnter: () => void entered.push('b') },
+        { id: 'c', target: 'third' },
+      ],
+    })
+
+    begin(tour, 'story')
+    press(tour)
+
+    expect(entered).toEqual(['b'])
+    expect(tour.step?.id).toBe('b')
+    expect(tour.state).toBe('running')
+    expect(drawing().shown).toEqual(['a', 'b'])
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    press(tour)
+    expect(tour.step?.id).toBe('c')
+    expect(seen).toEqual(['a', 'b', 'c'])
+  })
+
+  test('a throw from an onLeave while a story hands on through next still starts the story it names', () => {
+    const stepBoom = new Error('the step would not clear up')
+    const storyBoom = new Error('the story would not clear up')
+    const escaped = escaping()
+    const problems: Problem<Fixture>[] = []
+    const following: Story = { id: 'following', steps: [{ id: 'x', target: 'second' }] }
+    const { tour, seen } = watched(
+      {
+        id: 'story',
+        next: following,
+        onLeave: () => {
+          throw storyBoom
+        },
+        steps: [
+          {
+            id: 'a',
+            target: 'first',
+            onLeave: () => {
+              throw stepBoom
+            },
+          },
+        ],
+      },
+      { onDiagnostic: (problem) => void problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+    press(tour)
+
+    expect(tour.story?.id).toBe('following')
+    expect(tour.step?.id).toBe('x')
+    expect(tour.state).toBe('running')
+    expect(seen).toEqual(['a', undefined, 'x'])
+    expect(escaped).toHaveLength(2)
+    expect(() => escaped[0]!()).toThrow(stepBoom)
+    expect(() => escaped[1]!()).toThrow(storyBoom)
+
+    press(tour)
+    expect(tour.state).toBe('idle')
+    begin(tour, 'story')
+    expect(problems).toEqual([])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a step onLeave that throws in an ending still leaves the story after it', () => {
+    const boom = new Error('the panel would not close')
+    const escaped = escaping()
+    const log: string[] = []
+    const problems: Problem<Fixture>[] = []
+    const tour = staging(
+      {
+        id: 'story',
+        onLeave: () => void log.push('leave story'),
+        steps: [
+          {
+            id: 'a',
+            target: 'first',
+            onLeave: () => {
+              log.push('leave a')
+              throw boom
+            },
+          },
+        ],
+      },
+      { onDiagnostic: (problem) => void problems.push(problem) },
+    )
+
+    begin(tour, 'story')
+    tour.stop()
+
+    expect(log).toEqual(['leave a', 'leave story'])
+    expect(tour.state).toBe('idle')
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    begin(tour, 'story')
+    expect(problems).toEqual([])
+    expect(tour.step?.id).toBe('a')
+  })
+
+  test('a throw from onStep naming a step is thrown again from a microtask, and the call that moved the tour returns', () => {
+    const boom = new Error('the progress bar would not move')
+    const escaped = escaping()
+    const tour = staging(
+      {
+        id: 'story',
+        steps: [
+          { id: 'a', target: 'first' },
+          { id: 'b', target: 'second' },
+          { id: 'c', target: 'third' },
+        ],
+      },
+      {
+        onStep: (step) => {
+          if (step?.id === 'b') throw boom
+        },
+      },
+    )
+
+    begin(tour, 'story')
+    expect(() => press(tour)).not.toThrow()
+
+    expect(tour.step?.id).toBe('b')
+    expect(tour.state).toBe('running')
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+
+    press(tour)
+    expect(tour.step?.id).toBe('c')
+  })
+
+  test('a throw from onDiagnostic is thrown again from a microtask, and start returns', () => {
+    const boom = new Error('the tracker was down')
+    const escaped = escaping()
+    const tour = staging(
+      { id: 'story', steps: [{ id: 'a', target: 'first' }] },
+      {
+        onDiagnostic: () => {
+          throw boom
+        },
+      },
+    )
+
+    begin(tour, 'story')
+    expect(() => begin(tour, 'story')).not.toThrow()
+
+    expect(tour.step?.id).toBe('a')
+    expect(tour.state).toBe('running')
+    expect(escaped).toHaveLength(1)
+    expect(() => escaped[0]!()).toThrow(boom)
+  })
+
+  test('a throw from validate reaches the press that asked, and the tour stays on the step', () => {
+    const boom = new Error('the form could not be read')
+    const escaped = escaping()
+    let broken = true
+    const tour = start([
+      {
+        id: 'a',
+        target: 'first',
+        validate: () => {
+          if (broken) throw boom
+          return true
+        },
+      },
+      { id: 'b', target: 'second' },
+    ])
+
+    expect(() => press(tour)).toThrow(boom)
+
+    expect(tour.step?.id).toBe('a')
+    expect(tour.state).toBe('running')
+    expect(escaped).toHaveLength(0)
+
+    broken = false
+    press(tour)
+    expect(tour.step?.id).toBe('b')
   })
 
   test('a story stopped from inside its own onEnter is still left properly', () => {

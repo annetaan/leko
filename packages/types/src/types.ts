@@ -350,10 +350,11 @@ interface LekoStepBase {
    * owes a wait that can fail under DESIGN.md's **Nothing bounds the wait**.
    *
    * **A throw stops the tour**, and the reason is thrown again rather than
-   * swallowed — DESIGN.md, **A throw stops the tour, and the reason is thrown
-   * again**. {@link onLeave} still runs, because a handler that failed halfway
-   * may already have registered something. There is nowhere to register a
-   * handler for that failure, and the place to deal with it is inside this one.
+   * swallowed — DESIGN.md, **A throw from `onEnter` stops the tour, and the
+   * reason is thrown again**. {@link onLeave} still runs, because a handler
+   * that failed halfway may already have registered something. There is
+   * nowhere to register a handler for that failure, and the place to deal with
+   * it is inside this one.
    *
    * This is not an analytics hook. Something that reports "a step started" for
    * a caller's own metrics is {@link LekoOptions.onStep}.
