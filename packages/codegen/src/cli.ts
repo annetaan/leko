@@ -10,7 +10,8 @@ leko-signals — gather the signal names a project reports and write them out.
 
   leko-signals [options]
 
-  --project <path>   tsconfig.json, or the directory holding one. Default: cwd
+  --project <path>   tsconfig.json, or the directory holding one, read with
+                     every project it references. Default: cwd
   --out <path>       where to write. Default: leko-signals.d.ts beside tsconfig
   --loose            emit the vocabulary without promising it is complete, so
                      that an unknown name in awaits still compiles

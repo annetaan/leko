@@ -6,7 +6,10 @@ import { emit } from './emit.js'
 import { scan, type ScanResult } from './scan.js'
 
 export interface Options {
-  /** A `tsconfig.json`, or the directory holding one. Defaults to the cwd. */
+  /**
+   * A `tsconfig.json`, or the directory holding one, read with every project it
+   * references, transitively. Defaults to the cwd.
+   */
   project?: string
   /** Defaults to `leko-signals.d.ts` beside the tsconfig. */
   out?: string
@@ -61,6 +64,27 @@ const parse = (config: string): ts.ParsedCommandLine => {
   return parsed
 }
 
+/** The tsconfig and every project it references, depth-first, each read once. */
+const projects = (config: string): { config: string; parsed: ts.ParsedCommandLine }[] => {
+  const visited = new Set<string>()
+  const read: { config: string; parsed: ts.ParsedCommandLine }[] = []
+  const walk = (path: string): void => {
+    if (visited.has(path)) return
+    visited.add(path)
+    const parsed = parse(path)
+    read.push({ config: path, parsed })
+    for (const reference of parsed.projectReferences ?? []) {
+      walk(resolve(ts.resolveProjectReferencePath(reference)))
+    }
+  }
+  walk(config)
+  return read
+}
+
+// A project whose only file is the declaration file compiles it for nobody.
+const reads = (fileNames: readonly string[], out: string): boolean =>
+  fileNames.length > 1 && fileNames.some((name) => resolve(name) === out)
+
 const compare = (out: string, content: string): boolean => {
   try {
     return readFileSync(out, 'utf8') !== content
@@ -69,10 +93,10 @@ const compare = (out: string, content: string): boolean => {
   }
 }
 
-/** Whether the tsconfig, read again from disk, now takes in `out`. */
+/** Whether a project the tsconfig reaches, read again from disk, now takes in `out`. */
 const covers = (config: string, out: string): boolean => {
   try {
-    return parse(config).fileNames.some((name) => resolve(name) === out)
+    return projects(config).some(({ parsed }) => reads(parsed.fileNames, out))
   } catch {
     return false
   }
@@ -89,10 +113,10 @@ const report = (out: string, result: ScanResult, strict: boolean, included: bool
  */
 export function inspect(options: Options = {}): Report {
   const { config, out } = locate(options)
-  const parsed = parse(config)
-  const program = ts.createProgram(parsed.fileNames, parsed.options)
-  const included = parsed.fileNames.some((name) => resolve(name) === out)
-  return report(out, scan([program], ts), options.strict ?? true, included)
+  const read = projects(config)
+  const programs = read.map(({ parsed }) => ts.createProgram(parsed.fileNames, parsed.options))
+  const included = read.some(({ parsed }) => reads(parsed.fileNames, out))
+  return report(out, scan(programs, ts), options.strict ?? true, included)
 }
 
 /**
@@ -120,26 +144,25 @@ export function generate(options: Options = {}): Report {
  * says which. `ts.createWatchProgram` reuses the program between edits, so a
  * keystroke costs the files that changed rather than the whole project. Returns
  * the function that stops it.
+ *
+ * The set of projects is read once at start, so a change to `references` wants
+ * a restart. TypeScript's solution builder walks references itself and is not
+ * used: it emits and writes `.tsbuildinfo` into the user's project, and it
+ * creates no program for a project it judges up to date, so nothing would be
+ * scanned there at start.
  */
 export function watch(options: Options = {}, onReport?: (report: Report) => void): () => void {
   const { config, out } = locate(options)
   const strict = options.strict ?? true
-  const host = ts.createWatchCompilerHost(
-    config,
-    { noEmit: true },
-    ts.sys,
-    ts.createSemanticDiagnosticsBuilderProgram,
-    // Diagnostics belong to whatever is already compiling this project. A
-    // generator that reprints its errors is noise in two places.
-    () => {},
-    () => {},
-  )
-  host.afterProgramCreate = (builder) => {
-    const program = builder.getProgram()
+  const read = projects(config)
+  const latest = new Map<string, ts.Program>()
+  let ready = false
+  const settle = (): void => {
+    const programs = read.flatMap(({ config: c }) => latest.get(c) ?? [])
     // A program that writes nothing was built with the file already on disk, so
     // its root names can be trusted without parsing the tsconfig on every save.
-    const included = program.getRootFileNames().some((name) => resolve(name) === out)
-    const answer = report(out, scan([program], ts), strict, included)
+    const included = programs.some((program) => reads(program.getRootFileNames(), out))
+    const answer = report(out, scan(programs, ts), strict, included)
     if (!answer.stale) {
       onReport?.(answer)
       return
@@ -151,6 +174,34 @@ export function watch(options: Options = {}, onReport?: (report: Report) => void
     // every first run a mistake.
     onReport?.({ ...answer, included: covers(config, out) })
   }
-  const watching = ts.createWatchProgram(host)
-  return () => watching.close()
+  const watching: ts.WatchOfConfigFile<ts.SemanticDiagnosticsBuilderProgram>[] = []
+  for (const entry of read) {
+    const host = ts.createWatchCompilerHost(
+      entry.config,
+      { noEmit: true },
+      ts.sys,
+      ts.createSemanticDiagnosticsBuilderProgram,
+      // Diagnostics belong to whatever is already compiling this project. A
+      // generator that reprints its errors is noise in two places.
+      () => {},
+      () => {},
+    )
+    // A watch program reads a referenced project through its output `.d.ts`,
+    // which a project that emits nothing never has, so every import across a
+    // reference would resolve to nothing. `createProgram` in `inspect` is given
+    // no references and reads the sources already.
+    host.useSourceOfProjectReferenceRedirect = () => true
+    host.afterProgramCreate = (builder) => {
+      latest.set(entry.config, builder.getProgram())
+      if (ready) settle()
+    }
+    // The first program arrives inside this call, so settling waits for the
+    // last watcher and a run reports once at start.
+    watching.push(ts.createWatchProgram(host))
+  }
+  ready = true
+  settle()
+  return () => {
+    for (const w of watching) w.close()
+  }
 }
