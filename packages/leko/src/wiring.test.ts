@@ -1744,6 +1744,74 @@ test("a refused step shakes on Leko's own curve, whatever the host asked for", a
   expect(leko.step?.id).toBe('one')
 })
 
+/**
+ * A visitor who asked for reduced motion, mocked at `matchMedia`, which is the
+ * one place `motion.ts` looks. The harness restores it.
+ */
+function reduced(): void {
+  const matchMedia = window.matchMedia.bind(window)
+  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
+    query.includes('prefers-reduced-motion')
+      ? ({ matches: true, media: query } as MediaQueryList)
+      : matchMedia(query),
+  )
+}
+
+/** Whether the scrim's holes are drawn partly open — a dip in progress. */
+const dimmed = (): boolean => scrim()!.style.maskImage.includes('fill-opacity')
+
+test('a refused step with no error dims its hole under reduced motion', async () => {
+  // DESIGN.md, **A failed attempt**: a refusal is never silent, and with no
+  // words to show the hole is all it has.
+  clocked()
+  reduced()
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = start(
+    [{ id: 'one', target: { elements: () => target, interactive: true }, validate: () => false }],
+    { duration: 320 },
+  )
+  await until(said, 32, 'the step never said its words')
+  const settled = scrim()!.style.maskPosition
+  expect(dimmed()).toBe(false)
+
+  press()
+  await until(dimmed, 30, 'the refused step never dimmed the hole')
+  expect(scrim()!.style.maskPosition).toBe(settled)
+  expect(leko.step?.id).toBe('one')
+})
+
+test('a second refusal with its error already showing dims the hole again under reduced motion', async () => {
+  // The second press says nothing new in words, so the hole is what answers it.
+  clocked()
+  reduced()
+  const target = box('target', { left: '100px', top: '100px', width: '120px', height: '40px' })
+  const leko = start(
+    [
+      {
+        id: 'one',
+        target: { elements: () => target, interactive: true },
+        validate: () => false,
+        error: 'not yet',
+      },
+    ],
+    { duration: 320 },
+  )
+  await until(said, 32, 'the step never said its words')
+
+  press()
+  await until(dimmed, 30, 'the first refusal never dimmed the hole')
+  // Past the whole of the first dip, and not merely until the mask reads open
+  // again: the curve rounds to open some frames before the dip has ended, and
+  // a press before then is absorbed.
+  for (let n = 0; n < 30; n++) await advance()
+  expect(dimmed()).toBe(false)
+  expect(reason()).toBe('not yet')
+
+  press()
+  await until(dimmed, 30, 'the second refusal never dimmed the hole')
+  expect(leko.step?.id).toBe('one')
+})
+
 test('a reason told while the page glides is drawn when it lands', async () => {
   const [, far] = farApart()
   const leko = holding(

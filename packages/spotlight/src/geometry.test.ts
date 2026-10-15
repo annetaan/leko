@@ -7,6 +7,7 @@ import {
   cornerRect,
   cubicBezier,
   type Cutout,
+  dipOpacity,
   ease,
   edgeOf,
   freeCorner,
@@ -352,6 +353,34 @@ test('no hole image is ever larger than the surface', () => {
   const m = 1710
   const { image } = maskLayers(1710, 952, [cutout(-m, -m, 1710 + m * 2, 952 + m * 2, 0)])
   expect(svgOf(layersOf(image)[1]!)).toContain('width="1710" height="952"')
+})
+
+test('a hole at full opacity is drawn exactly as it always was', () => {
+  const c = cutout(10, 10, 100, 40)
+  expect(holeImage(c, c, 1)).toBe(holeImage(c))
+  expect(svgOf(holeImage(c))).not.toContain('fill-opacity')
+  expect(maskLayers(800, 600, [c], 1)).toEqual(maskLayers(800, 600, [c]))
+})
+
+test('a hole drawn below full opacity carries it, on every hole of the mask', () => {
+  // DESIGN.md, **A failed attempt**: a refusal under reduced motion dims the
+  // holes, and the surface it is cut from stays whole.
+  const both = [cutout(10, 10, 100, 40), cutout(200, 10, 100, 40)]
+  const [surface, ...dimmed] = layersOf(maskLayers(800, 600, both, 0.5).image)
+  expect(surface).toBe('linear-gradient(black, black)')
+  expect(dimmed).toHaveLength(2)
+  for (const layer of dimmed) expect(svgOf(layer)).toContain('fill="black" fill-opacity="0.5"')
+
+  // Closed is still a layer, written as closed, and not a hole taken away.
+  const closed = layersOf(maskLayers(800, 600, both, 0).image)
+  expect(closed).toHaveLength(3)
+  for (const layer of closed.slice(1)) expect(svgOf(layer)).toContain('fill-opacity="0"')
+})
+
+test('a dip leaves the hole open at both ends and closed halfway', () => {
+  expect(dipOpacity(0)).toBe(1)
+  expect(dipOpacity(1)).toBe(1)
+  expect(dipOpacity(0.5)).toBeCloseTo(0)
 })
 
 test('hasArea tells a hole from a leftover', () => {

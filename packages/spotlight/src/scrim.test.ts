@@ -12,6 +12,7 @@ const scrims: Scrim[] = []
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   for (const scrim of scrims.splice(0)) scrim.destroy()
   for (const restore of gutters.splice(0)) restore()
   for (const box of panels.splice(0)) box.remove()
@@ -228,6 +229,122 @@ test('a shake gives the follow back when it ends', async () => {
 
   // A refusal is not a step ending, so the hole goes on following its target
   // once the shake has finished shaking it.
+  await tick(PAST_MORPH)
+  port.dispatchEvent(new Event('scroll'))
+  await tick()
+  expect(asked).toBeGreaterThan(during)
+})
+
+// DESIGN.md, **A failed attempt**: under reduced motion a refusal dims the holes
+// where they stand. Mocked at `matchMedia`, which is the one place `motion.ts`
+// looks.
+
+function reduced(): void {
+  const matchMedia = window.matchMedia.bind(window)
+  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
+    query.includes('prefers-reduced-motion')
+      ? ({ matches: true, media: query } as MediaQueryList)
+      : matchMedia(query),
+  )
+}
+
+/** The mask as the scrim last wrote it. */
+const maskOf = (scrim: Scrim): { image: string; position: string } => ({
+  image: scrim.element.style.maskImage,
+  position: scrim.element.style.maskPosition,
+})
+
+/** Frames from a refusal's start to safely past its end, by gesture. */
+const PAST = { shake: 23, dip: 26 }
+
+test('under reduced motion a shake dims the holes where they are instead of moving them', async () => {
+  vi.useFakeTimers()
+  reduced()
+  const scrim = mountScrim()
+  scrim.set([hole(0), hole(200)])
+  const settled = maskOf(scrim)
+  expect(settled.image).not.toContain('fill-opacity')
+
+  scrim.shake()
+  let dimmed = 0
+  for (let n = 0; n < PAST.dip; n++) {
+    await tick()
+    const now = maskOf(scrim)
+    expect(now.position).toBe(settled.position)
+    if (now.image.includes('fill-opacity')) dimmed += 1
+  }
+  expect(dimmed).toBeGreaterThan(0)
+})
+
+test('a dip ends with the mask exactly as it began', async () => {
+  vi.useFakeTimers()
+  reduced()
+  const scrim = mountScrim()
+  scrim.set([hole(0), hole(200)])
+  const settled = maskOf(scrim)
+
+  scrim.shake()
+  await tick(PAST.dip)
+  expect(maskOf(scrim)).toEqual(settled)
+})
+
+test.each(['shake', 'dip'] as const)(
+  'a refusal while one is still on screen is absorbed, shake or dip (%s)',
+  async (gesture) => {
+    vi.useFakeTimers()
+    if (gesture === 'dip') reduced()
+    const scrim = mountScrim()
+    scrim.set([hole(0)])
+    const settled = maskOf(scrim)
+
+    scrim.shake()
+    await tick(10)
+    expect(maskOf(scrim)).not.toEqual(settled)
+    scrim.shake()
+    // Past where the first ends, and well short of where a second begun at the
+    // press would.
+    await tick(PAST[gesture] - 10)
+    expect(maskOf(scrim)).toEqual(settled)
+  },
+)
+
+test('a dip cut short by the next draw leaves no hole dimmed', async () => {
+  vi.useFakeTimers()
+  reduced()
+  const scrim = mountScrim()
+  scrim.set([hole(0)])
+
+  scrim.shake()
+  await tick(6)
+  expect(scrim.element.style.maskImage).toContain('fill-opacity')
+  scrim.set([hole(100)])
+  expect(scrim.element.style.maskImage).not.toContain('fill-opacity')
+  await tick(PAST.dip)
+  expect(scrim.element.style.maskImage).not.toContain('fill-opacity')
+})
+
+test('a dip gives the follow back when it ends', async () => {
+  vi.useFakeTimers()
+  reduced()
+  const scrim = mountScrim()
+  const port = new EventTarget()
+  let asked = 0
+  scrim.follow(() => {
+    asked += 1
+    return { cutouts: [hole(200)], onScreen: [hole(200)] }
+  }, [port])
+  scrim.set([hole(0)])
+
+  port.dispatchEvent(new Event('scroll'))
+  await tick()
+  expect(asked).toBeGreaterThan(0)
+
+  scrim.shake()
+  const during = asked
+  port.dispatchEvent(new Event('scroll'))
+  await tick(4)
+  expect(asked).toBe(during)
+
   await tick(PAST_MORPH)
   port.dispatchEvent(new Event('scroll'))
   await tick()
