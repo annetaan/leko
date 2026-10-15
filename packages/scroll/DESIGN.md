@@ -117,6 +117,12 @@ nothing takes focus away from the page.
   announced nothing, so it fires nothing at all, turned to another target on
   the way or not, and a morph cut off fires `undefined` for the target it
   left.
+- **It is never called before `createScroll` has returned.** The `undefined` at
+  creation is the one notice that could land inside the call, before the
+  application holds the handle. It is held for a microtask so that a handler
+  can use the handle it is about to be given, and a `destroy()` before then
+  means it never comes. Every other notice comes from the frame, the scroll or
+  the `measure()` that caused it, after the handle is in hand.
 - The fade itself fires nothing on its way to zero. Until the light is out, the
   target is still the lit one.
 - An off entry's index is never announced: it is never lit, and the light

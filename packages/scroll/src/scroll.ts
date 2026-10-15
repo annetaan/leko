@@ -26,6 +26,7 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
   /** By index in `targets`, in page coordinates. */
   let holes: (Hole | undefined)[] = []
   let alive = true
+  let returned = false
 
   function measure(): void {
     if (!alive) return
@@ -109,9 +110,17 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
         case 'out':
           scrim.out()
           break
-        case 'notify':
-          options.onChange?.(effect.index)
+        // The first measure's notice waits for createScroll to return —
+        // [The whole page stays usable](../DESIGN.md#the-whole-page-stays-usable).
+        case 'notify': {
+          const { index } = effect
+          if (returned) options.onChange?.(index)
+          else
+            queueMicrotask(() => {
+              if (alive) options.onChange?.(index)
+            })
           break
+        }
       }
     }
   }
@@ -138,6 +147,7 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
   window.addEventListener('load', measure)
   void document.fonts.ready.then(measure)
 
+  returned = true
   return {
     measure,
     destroy() {

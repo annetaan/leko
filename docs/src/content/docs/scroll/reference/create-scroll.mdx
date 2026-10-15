@@ -138,8 +138,10 @@ onChange?: (index: number | undefined) => void
 
 The one notice. It fires with a target's `index` in `targets` when the light
 arrives at it, and with `undefined` when nothing is lit at creation or when the
-light goes out after an `index` was announced. A target a fast scroll skips
-never fires. The return value is never read —
+light goes out after an `index` was announced. The one at creation comes after
+`createScroll` has returned, so the handler can use the `LekoScroll` it
+returned, and a `destroy()` before then means it is not called. A target a fast
+scroll skips never fires. The return value is never read —
 [The whole page stays usable](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-whole-page-stays-usable).
 
 ## LekoScrollTarget

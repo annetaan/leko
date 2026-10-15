@@ -157,18 +157,44 @@ test('a first target near the top converges at load and fires its index once, on
 test('created with the line in a band or outside fires undefined and draws nothing', async () => {
   build([2000, 2600])
   const outside = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
-  expect(outside.changes).toEqual([undefined])
+  expect(outside.changes).toEqual([])
+  expect(await outside.next()).toBeUndefined()
   expect(root().style.opacity).toBe('0')
   expect(mask()).toBe(maskOn(undefined))
   outside.scroll.destroy()
 
   await scrolled(lineAt(2000 - 150))
   const band = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
-  expect(band.changes).toEqual([undefined])
+  expect(band.changes).toEqual([])
+  expect(await band.next()).toBeUndefined()
   expect(root().style.opacity).toBe('0')
   expect(mask()).toBe(maskOn(undefined))
   await pause(400)
   expect(band.changes).toEqual([undefined])
+})
+
+test('onChange is first called after createScroll returns, so it can use the handle', async () => {
+  build([2000, 2600])
+  const changes: (number | undefined)[] = []
+  const s: LekoScroll = createScroll({
+    targets: [{ target: '#t0' }, { target: '#t1' }],
+    onChange: (index) => {
+      changes.push(index)
+      s.measure()
+    },
+  })
+  instances.push(s)
+  expect(changes).toEqual([])
+  await pause(0)
+  expect(changes).toEqual([undefined])
+})
+
+test('a destroy straight after createScroll fires nothing', async () => {
+  build([2000, 2600])
+  const { scroll, changes } = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
+  scroll.destroy()
+  await pause(400)
+  expect(changes).toEqual([])
 })
 
 test('crossing the next switch position morphs and fires that index once', async () => {
@@ -488,8 +514,8 @@ test('measure() after the lit target moved places the hole without a notice', as
 test('measure() finds a target that appeared', async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   const { page } = build([B])
-  const { scroll, changes, next } = start({ targets: [{ target: '#late' }, { target: '#t0' }] })
-  expect(changes).toEqual([undefined])
+  const { scroll, next } = start({ targets: [{ target: '#late' }, { target: '#t0' }] })
+  expect(await next()).toBeUndefined()
 
   const late = add(page, A, 'late')
   scroll.measure()
