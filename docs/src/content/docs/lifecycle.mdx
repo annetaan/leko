@@ -54,7 +54,8 @@ What moves a step on is decided by one field:
 
 - **No `awaits`:** the step has a next control, and pressing it is the only
   mover. `validate`, if declared, guards that press — a refusal shakes the
-  cutout, puts `error` under the instruction, and the tour stays put.
+  cutout (or dims it under reduced motion), puts `error` under the
+  instruction, and the tour stays put.
 - **`awaits: 'action-name'`:** the step has no next control, and
   `leko.reached('action-name')` is the only mover.
 - **`awaits: { url: /^\/checkout(?:[/?#]|$)/ }`:** the step has no next

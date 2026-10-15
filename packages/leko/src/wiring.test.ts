@@ -20,6 +20,7 @@ import {
   pair,
   pause,
   press,
+  reduced,
   said,
   scrim,
   shown,
@@ -1743,19 +1744,6 @@ test("a refused step shakes on Leko's own curve, whatever the host asked for", a
 
   expect(leko.step?.id).toBe('one')
 })
-
-/**
- * A visitor who asked for reduced motion, mocked at `matchMedia`, which is the
- * one place `motion.ts` looks. The harness restores it.
- */
-function reduced(): void {
-  const matchMedia = window.matchMedia.bind(window)
-  vi.spyOn(window, 'matchMedia').mockImplementation((query: string) =>
-    query.includes('prefers-reduced-motion')
-      ? ({ matches: true, media: query } as MediaQueryList)
-      : matchMedia(query),
-  )
-}
 
 /** Whether the scrim's holes are drawn partly open — a dip in progress. */
 const dimmed = (): boolean => scrim()!.style.maskImage.includes('fill-opacity')

@@ -332,8 +332,8 @@ press. A target gone by then ends the tour with `target-lost`, with no moment
 to wait for it —
 [Target loss & recovery](https://github.com/annetaan/leko/blob/main/DESIGN.md#target-loss--recovery).
 
-A refusal is never silent. The cutout shakes whether or not the step has an
-`error` to show —
+A refusal is never silent. The cutout shakes, or dims under
+`prefers-reduced-motion`, whether or not the step has an `error` to show —
 [A failed attempt](https://github.com/annetaan/leko/blob/main/DESIGN.md#a-failed-attempt).
 
 ### error
@@ -559,8 +559,8 @@ into the story `next` names, and the reason is thrown again from a microtask —
 
 `validate` runs only when the next control is pressed, and only on a step with
 no `awaits`. A `reached()` that matches an `awaits` step moves the tour on
-straight away. A refusal shakes the cutout, shows `error` where there is one,
-and the tour stays put.
+straight away. A refusal shakes the cutout (or dims it under reduced motion),
+shows `error` where there is one, and the tour stays put.
 
 From inside `onEnter` or `onLeave`, `start` and `pickUp` are refused and a
 `reached()` that matches the step being entered is dropped. `stop()` is the one
