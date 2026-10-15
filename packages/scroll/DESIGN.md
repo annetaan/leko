@@ -77,6 +77,12 @@ page is what the reader came for, and Leko Scroll is part of how the page is
 read for as long as the page is up. Short of ending it, `measure()` is the one
 thing an application may ask of it, and [Measuring](#measuring) says why.
 
+**A `createScroll` that throws leaves nothing on the page.** It hands back no
+handle, so nothing could call `destroy()`, and a scrim left behind would dim the
+page for as long as it is up, with listeners measuring a page that has no
+instance. So the page is measured before anything listens, and a throw from
+that measure takes the scrim down before it reaches the caller.
+
 ## The whole page stays usable
 
 **Nothing blocks.** There are no blocking rectangles, and the scrim, the halo

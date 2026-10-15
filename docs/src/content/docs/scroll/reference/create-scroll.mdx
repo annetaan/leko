@@ -19,7 +19,8 @@ createScroll(options: LekoScrollOptions): LekoScroll
 
 It runs from the moment it is called. There is no `start` and no `stop`: the
 light follows the scroll for as long as the page is up, and
-[`destroy()`](#lekoscroll) ends it —
+[`destroy()`](#lekoscroll) ends it. If it throws, it leaves no scrim and no
+listener behind —
 [The API](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-api).
 
 ```ts

@@ -516,6 +516,30 @@ test('the scroll listener is passive', () => {
   expect(scroll[0]?.[2]).toEqual({ passive: true })
 })
 
+test('a throw from inside createScroll removes the layer and adds no listener', async () => {
+  const listen = vi.spyOn(window, 'addEventListener')
+  build([A, B])
+  let reads = 0
+  const bad = {
+    get target(): string {
+      reads += 1
+      throw new Error('boom')
+    },
+  }
+
+  expect(() => createScroll({ targets: [bad, { target: '#t0' }] })).toThrow('boom')
+  expect(document.querySelector('.leko-scroll')).toBeNull()
+  const types = listen.mock.calls.map(([type]) => type)
+  expect(types).not.toContain('scroll')
+  expect(types).not.toContain('resize')
+  expect(types).not.toContain('load')
+
+  window.dispatchEvent(new Event('resize'))
+  window.dispatchEvent(new Event('load'))
+  await document.fonts.ready
+  expect(reads).toBe(1)
+})
+
 test('a positioned body still puts the hole on the target, and its margin is dimmed', async () => {
   Object.assign(document.body.style, { position: 'relative', margin: '60px 0 0 30px' })
   const { targets } = build()

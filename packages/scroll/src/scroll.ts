@@ -123,12 +123,20 @@ export function createScroll(options: LekoScrollOptions): LekoScroll {
     dispatch({ type: 'scroll', scrollY: page.scrollY })
   }
 
+  // Measured before anything listens, so a throw leaves only the scrim to take
+  // down — [The API](../DESIGN.md#the-api).
+  try {
+    measure()
+  } catch (error) {
+    scrim.destroy()
+    throw error
+  }
+
   // The moments [Measuring](../DESIGN.md#measuring) names.
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', measure)
   window.addEventListener('load', measure)
   void document.fonts.ready.then(measure)
-  measure()
 
   return {
     measure,
