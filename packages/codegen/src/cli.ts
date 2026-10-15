@@ -10,7 +10,8 @@ leko-signals — gather the signal names a project reports and write them out.
 
   leko-signals [options]
 
-  --project <path>   tsconfig.json, or the directory holding one. Default: cwd
+  --project <path>   tsconfig.json, or the directory holding one, read with
+                     every project it references. Default: cwd
   --out <path>       where to write. Default: leko-signals.d.ts beside tsconfig
   --loose            emit the vocabulary without promising it is complete, so
                      that an unknown name in awaits still compiles
@@ -70,8 +71,8 @@ const tell = (report: Report, told: Told, remedy: string | null): Told => {
   if (say.outside) {
     console.warn(
       `\n${here(report.out)} is outside this project, so nothing compiles it and no ` +
-        `completion\never appears. Add it to the tsconfig's include, or pass --out somewhere\n` +
-        `the project already reads.`,
+        `completion\never appears. Add it to the include of the tsconfig that compiles\n` +
+        `your stories, or pass --out somewhere that tsconfig already reads.`,
     )
   }
 

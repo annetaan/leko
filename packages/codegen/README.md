@@ -56,6 +56,14 @@ the project's `include` is compiled by nobody, so the augmentation never applies
 and no completion appears. The generator says so when it notices, because
 nothing else will.
 
+**A `tsconfig.json` that lists `references` is read with every project it
+references**, the way Vite's `react-ts` template lays a project out, so
+`--project` needs nothing there. The output still goes into the `include` of
+the project that compiles your stories: `src/`, which `tsconfig.app.json`
+reads, in that template. A project that compiles nothing but the generated
+file does not count. The projects are read when `--watch` or the dev server
+starts, so a change to `references` wants a restart.
+
 Commit the generated file. It holds the names alone, sorted, so it changes only
 when a signal is added or removed — never because an edit moved a call site.
 It costs a diff when the vocabulary changes, and it means

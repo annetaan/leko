@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +9,7 @@ import { generate, type Options } from './generate.js'
 import { lekoSignals } from './vite.js'
 
 const project = fileURLToPath(new URL('../fixtures/app', import.meta.url))
+const solution = fileURLToPath(new URL('../fixtures/solution', import.meta.url))
 // Outside the fixture, so the file is never included and both warnings fire.
 const scratch = (): string => join(mkdtempSync(join(tmpdir(), 'leko-codegen-')), 'signals.d.ts')
 
@@ -77,6 +78,7 @@ describe('lekoSignals', () => {
     try {
       dev.configureServer()
       expect(outside(dev.warnings)).toHaveLength(1)
+      expect(outside(dev.warnings)[0]).toContain('the tsconfig that compiles your stories')
     } finally {
       dev.closeBundle()
     }
@@ -85,5 +87,13 @@ describe('lekoSignals', () => {
     build.buildStart()
     build.buildStart()
     expect(outside(build.warnings)).toHaveLength(1)
+  })
+
+  it('writes the vocabulary of every referenced project when a build starts', () => {
+    const out = scratch()
+    plugin({ project: solution, out }).buildStart()
+    const written = readFileSync(out, 'utf8')
+    expect(written).toContain('order-saved')
+    expect(written).toContain('demo-seeded')
   })
 })
