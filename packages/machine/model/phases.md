@@ -200,6 +200,7 @@ say. One table pointed the other way is one place, and it shows the holes.
 | `Host.lost` ending a run | `target-not-there-yet` | start **never-arrives**. Nothing is drawn at all, 100ms passes, and the tour stops |
 | `validate` refusing to advance | `form-validation`, `next-control` | press the control with the field empty. The step stays where it is |
 | `error` worked out from the field | `form-validation` | press Next on the password step. The reason counts the characters that were there |
+| `validate` refusing with no `error` | `form-validation` | press Next with terms unticked |
 | a story handing the tour on | `branching` | press either path button. `intro` runs out and its `next` answers with the branch the page recorded |
 | a chain not followed | `branching` | press the way out on a branch. Only a story that ran to the end is followed, so the summary never opens |
 | `Host.next` | `next-control`, `stepping` | the control on the message. A step declaring `awaits` never has one |

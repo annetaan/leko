@@ -29,6 +29,16 @@ const story = {
       error: (el) =>
         `Eight characters at least, and that is ${(el as HTMLInputElement).value.length}.`,
     },
+    // No `error`, so the hole is the only answer this refusal has: it shakes,
+    // or under prefers-reduced-motion dims where it stands and opens again.
+    // Watch it by pressing Next with the box unticked, at ×1 and under
+    // prefers-reduced-motion. DESIGN.md, **A failed attempt**.
+    {
+      id: 'terms',
+      target: { elements: '[data-terms]', interactive: true },
+      message: 'Agree to the terms before the account is made.',
+      validate: (el) => el.querySelector<HTMLInputElement>('input')?.checked === true,
+    },
     {
       id: 'submit',
       target: { elements: 'button[type="submit"]', interactive: true },
@@ -43,7 +53,8 @@ export const formValidation: Case = {
   title: 'Form validation',
   proves:
     'A step advances on the application’s own verdict. Typing anything is not ' +
-    'success; typing a well-formed address is.',
+    'success; typing a well-formed address is. A guard with nothing to say ' +
+    'still answers on the hole: it shakes, or dims under reduced motion.',
 
   mount(root) {
     const form = html<HTMLFormElement>(`
@@ -51,6 +62,7 @@ export const formValidation: Case = {
         <h2>Create your account</h2>
         <label>Email<input name="email" type="email" placeholder="you@example.com" /></label>
         <label>Password<input name="password" type="password" /></label>
+        <label class="checked" data-terms><input type="checkbox" name="terms" /> I agree to the terms</label>
         <button type="submit">Create account</button>
         <p class="hint" data-hint></p>
       </form>
