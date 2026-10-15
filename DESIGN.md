@@ -906,12 +906,14 @@ declaration file augmenting two interfaces the core exports empty,
   code, not a list somebody remembered to maintain. A type error on `reached()`
   would talk people into deleting the call — and the vocabulary is built out of
   those calls in the first place.
-- **The augmenting file has to be a module**, and inside the tsconfig's
-  `include`. In a file with no `import` or `export` of its own, `declare
-  module` declares an ambient module instead: no completion appears, and no
-  error explains why. A file outside `include` fails the same silent way. The
-  generator checks its own output against the project and says so, because
-  nothing else will.
+- **The augmenting file has to be a module**, and inside the `include` of the
+  project that compiles the stories. In a file with no `import` or `export` of
+  its own, `declare module` declares an ambient module instead: no completion
+  appears, and no error explains why. A file outside `include` fails the same
+  silent way, and so does one in a project that compiles nothing else. The
+  generator reads the tsconfig it is given and every project that tsconfig
+  references, checks its own output against them and says so, because nothing
+  else will.
 
 ## What Leko does not do
 

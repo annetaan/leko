@@ -29,8 +29,8 @@ export interface Report {
   /**
    * Whether the project actually reads the file that was written.
    *
-   * A declaration file outside the `include` of the tsconfig is compiled by
-   * nobody. The augmentation never applies, no completion appears, and there is
+   * A declaration file outside the `include` of every project the run reads is
+   * compiled by nobody. The augmentation never applies, no completion appears, and there is
    * no error anywhere to explain it, so this is worth saying out loud.
    */
   included: boolean
