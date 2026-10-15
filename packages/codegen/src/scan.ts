@@ -108,44 +108,52 @@ const namesOf = (argument: ts.Expression, checker: ts.TypeChecker): string[] | n
 }
 
 /**
- * Every signal name the program reports, gathered from the calls that report
+ * Every signal name the programs report, gathered from the calls that report
  * them.
+ *
+ * A file can belong to more than one project, so each file is walked once, by
+ * the first program that holds it.
  *
  * `tsm` is the TypeScript module itself. It arrives as an argument so that this
  * function stays something a test can drive, and so that a consumer's own
  * TypeScript is the one doing the work.
  */
-export function scan(program: ts.Program, tsm: typeof ts): ScanResult {
-  const checker = program.getTypeChecker()
+export function scan(programs: readonly ts.Program[], tsm: typeof ts): ScanResult {
   const found = new Map<string, Site[]>()
   const dynamic: Site[] = []
+  const seen = new Set<string>()
 
-  for (const file of program.getSourceFiles()) {
-    if (file.isDeclarationFile) continue
-    const leko = lekoClass(file, program, checker, tsm)
-    if (!leko) continue
+  for (const program of programs) {
+    const checker = program.getTypeChecker()
 
-    const at = (node: ts.Node): Site => ({
-      file: file.fileName,
-      line: file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1,
-    })
+    for (const file of program.getSourceFiles()) {
+      if (file.isDeclarationFile || seen.has(file.fileName)) continue
+      seen.add(file.fileName)
+      const leko = lekoClass(file, program, checker, tsm)
+      if (!leko) continue
 
-    const visit = (node: ts.Node): void => {
-      if (tsm.isCallExpression(node) && tsm.isPropertyAccessExpression(node.expression)) {
-        if (isLekoReached(node.expression, leko, checker, tsm)) {
-          const argument = node.arguments[0]
-          const names = argument ? namesOf(argument, checker) : null
-          if (names) {
-            for (const name of names) found.set(name, [...(found.get(name) ?? []), at(node)])
-          } else {
-            dynamic.push(at(node))
+      const at = (node: ts.Node): Site => ({
+        file: file.fileName,
+        line: file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1,
+      })
+
+      const visit = (node: ts.Node): void => {
+        if (tsm.isCallExpression(node) && tsm.isPropertyAccessExpression(node.expression)) {
+          if (isLekoReached(node.expression, leko, checker, tsm)) {
+            const argument = node.arguments[0]
+            const names = argument ? namesOf(argument, checker) : null
+            if (names) {
+              for (const name of names) found.set(name, [...(found.get(name) ?? []), at(node)])
+            } else {
+              dynamic.push(at(node))
+            }
           }
         }
+        tsm.forEachChild(node, visit)
       }
-      tsm.forEachChild(node, visit)
-    }
 
-    visit(file)
+      visit(file)
+    }
   }
 
   const signals = [...found.entries()]

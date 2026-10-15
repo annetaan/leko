@@ -6,7 +6,7 @@ import { scan, type ScanResult } from './scan.js'
 
 const FIXTURE = fileURLToPath(new URL('../fixtures/app/tsconfig.json', import.meta.url))
 
-const scanFixture = (): ScanResult => {
+const fixtureProgram = (): ts.Program => {
   const parsed = ts.getParsedCommandLineOfConfigFile(FIXTURE, {}, {
     ...ts.sys,
     onUnRecoverableConfigFileDiagnostic: (d) => {
@@ -14,10 +14,10 @@ const scanFixture = (): ScanResult => {
     },
   } as ts.ParseConfigFileHost)
   if (!parsed) throw new Error(`could not read ${FIXTURE}`)
-  return scan(ts.createProgram(parsed.fileNames, parsed.options), ts)
+  return ts.createProgram(parsed.fileNames, parsed.options)
 }
 
-const result = scanFixture()
+const result: ScanResult = scan([fixtureProgram()], ts)
 const names = result.signals.map((signal) => signal.name)
 
 describe('scan', () => {
@@ -56,5 +56,14 @@ describe('scan', () => {
     const site = result.signals.find((signal) => signal.name === 'order-saved')?.sites[0]
     expect(site?.file).toMatch(/checkout\.ts$/)
     expect(site?.line).toBe(8)
+  })
+
+  it('walks a file two programs both hold only once', () => {
+    // A file can belong to more than one project, and a second walk would
+    // report every call in it twice.
+    const twice = scan([fixtureProgram(), fixtureProgram()], ts)
+    expect(twice).toEqual(result)
+    expect(twice.dynamic).toHaveLength(1)
+    expect(twice.signals.find((signal) => signal.name === 'order-saved')?.sites).toHaveLength(1)
   })
 })

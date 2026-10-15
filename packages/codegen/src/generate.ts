@@ -92,7 +92,7 @@ export function inspect(options: Options = {}): Report {
   const parsed = parse(config)
   const program = ts.createProgram(parsed.fileNames, parsed.options)
   const included = parsed.fileNames.some((name) => resolve(name) === out)
-  return report(out, scan(program, ts), options.strict ?? true, included)
+  return report(out, scan([program], ts), options.strict ?? true, included)
 }
 
 /**
@@ -139,7 +139,7 @@ export function watch(options: Options = {}, onReport?: (report: Report) => void
     // A program that writes nothing was built with the file already on disk, so
     // its root names can be trusted without parsing the tsconfig on every save.
     const included = program.getRootFileNames().some((name) => resolve(name) === out)
-    const answer = report(out, scan(program, ts), strict, included)
+    const answer = report(out, scan([program], ts), strict, included)
     if (!answer.stale) {
       onReport?.(answer)
       return
