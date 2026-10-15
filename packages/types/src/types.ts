@@ -125,9 +125,9 @@ export interface LekoShownRegion {
  *
  * Declarations merge, so a generated file and a hand-written one both apply.
  * **The file doing it has to be a module** — one with an `import` or an
- * `export` of its own, and inside the tsconfig's `include`. DESIGN.md says what
- * goes wrong otherwise, silently, under **The augmenting file has to be a
- * module**.
+ * `export` of its own, and inside the `include` of the tsconfig that compiles
+ * your stories. DESIGN.md says what goes wrong otherwise, silently, under
+ * **The augmenting file has to be a module**.
  *
  * The value side is unused; `true` is the shortest thing to write.
  *
