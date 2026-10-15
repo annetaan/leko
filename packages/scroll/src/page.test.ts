@@ -52,6 +52,11 @@ test('a selector resolves to its first match that has a box', () => {
   expect(resolve('.nothing-is-called-this')).toBeUndefined()
 })
 
+test('a string that is not a valid selector is not found', () => {
+  expect(() => resolve('#a[')).not.toThrow()
+  expect(resolve('#a[')).toBeUndefined()
+})
+
 test('an element that is not connected or has no box is not found', () => {
   const loose = document.createElement('div')
   loose.style.height = '10px'

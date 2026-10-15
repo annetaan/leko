@@ -145,6 +145,11 @@ is the right loudness: the author named something that is not there, which is
 theirs to fix, and it is no reason to leave the rest of the page unlit. The
 target is looked for again the next time the page is measured.
 
+A string that is not a valid selector is not found either. A malformed
+selector is the same mistake as a misspelt one, and the author's to fix in the
+same way; letting it throw would leave the rest unlit, and would throw again
+from every measure, on each resize, `load` and font load.
+
 **Indices are the array's, and are never compacted.** A skipped target keeps
 its place, so `onChange` names a target by the position the author wrote it at,
 whichever of the others were found.

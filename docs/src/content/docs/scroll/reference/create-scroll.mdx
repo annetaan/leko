@@ -180,9 +180,10 @@ because the scrim rides the document's scroll and those do not.
 A selector that matches several elements means the first of them in document
 order that has a box, and the match is chosen again each time the page is
 measured. A target that is not found is skipped with a `console.warn`, and the
-rest runs. It is looked for again the next time the page is measured, and its
-place in the array is kept, so `onChange` still names every target by the
-index it was written at —
+rest runs; a string that is not a valid selector counts as not found. It is
+looked for again the next time the page is measured, and its place in the
+array is kept, so `onChange` still names every target by the index it was
+written at —
 [What a target is](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#what-a-target-is).
 
 `message` and `side` are the box beside the hole and where it goes.

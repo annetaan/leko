@@ -437,6 +437,22 @@ test('a target that is not found is warned about once and the rest is lit', asyn
   expect(warn).toHaveBeenCalledOnce()
 })
 
+test('a target that is not a valid selector is warned about once and the rest is lit', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const { targets } = build([A, B])
+  const { scroll, next } = start({
+    targets: [{ target: '#a[' }, { target: '#t0' }, { target: '#t1' }],
+  })
+  expect(warn).toHaveBeenCalledOnce()
+  expect(String(warn.mock.calls[0]?.[0])).toContain('targets[0]')
+
+  expect(await next()).toBe(1)
+  expect(mask()).toBe(maskOn(targets[0]))
+  scroll.measure()
+  window.dispatchEvent(new Event('resize'))
+  expect(warn).toHaveBeenCalledOnce()
+})
+
 test("a selector's first match with a box is the one cut around", async () => {
   const { page } = build([B])
   const first = add(page, A, 'first')
