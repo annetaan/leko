@@ -1,5 +1,6 @@
 import { type Follow, follow } from './follow.js'
 import {
+  clamp,
   complementRects,
   type Cutout,
   ease,
@@ -24,6 +25,14 @@ import type { Surface } from './surface.js'
  * thing that ever asks for it.
  */
 export const MESSAGE_ANCHOR = '--leko-message-anchor'
+
+/** How long a shake takes — DESIGN.md, **Settings, and where they are read from**. */
+const SHAKE = 320
+
+/** What one frame of a run paints. */
+interface Painting {
+  cutouts: Cutout[]
+}
 
 /**
  * What the halo does while a hole is on its way somewhere else. The frames ride
@@ -439,7 +448,7 @@ export class Scrim {
     // words. A morph's own frames are written from cutouts in a space a resize
     // does not move, so it can go on running, and the next of them paints
     // against the new size.
-    if (this.frame === undefined) this.paint(this.cutouts)
+    if (this.frame === undefined) this.paint({ cutouts: this.cutouts })
     // Either way, because a morph blocks where its holes are heading rather
     // than following them, so this is that same destination against the new
     // size rather than anything mid-flight.
@@ -458,7 +467,7 @@ export class Scrim {
    * Writes only, and no layout is read: three strings built from numbers the
    * caller already has, on a surface whose size {@link measure} read once.
    */
-  private paint(cutouts: Cutout[]): void {
+  private paint({ cutouts }: Painting): void {
     const { image, position, composite } = maskLayers(this.width, this.height, cutouts)
     // Unprefixed only. A `-webkit-mask-image` written beside this would be
     // honoured by an engine too old for `mask-composite`, which would take the
@@ -583,7 +592,7 @@ export class Scrim {
    */
   private moveTo({ cutouts, onScreen }: Reading): void {
     this.cutouts = cutouts
-    this.paint(cutouts)
+    this.paint({ cutouts })
     this.block(cutouts)
     if (this.haloLayer) {
       const framed = cutouts.filter(hasArea)
@@ -664,7 +673,7 @@ export class Scrim {
   private draw(cutouts: Cutout[]): void {
     this.halt()
     this.cutouts = cutouts
-    this.paint(cutouts)
+    this.paint({ cutouts })
     this.block(cutouts)
   }
 
@@ -776,7 +785,7 @@ export class Scrim {
   }
 
   /**
-   * Walk through a series of cutout lists, drawing one blend per frame.
+   * Paint what the caller says each frame is, one per animation frame.
    *
    * Deliberately on the main thread — DESIGN.md, **The blend is written frame
    * by frame from the main thread**, and pausing such an animation is what gave
@@ -784,15 +793,12 @@ export class Scrim {
    * built from them and reads no layout, which is why DESIGN.md's **Any change
    * that reintroduces per-frame JS position math is a regression** is not about
    * this.
-   *
-   * The lists must all be the same length, which is what {@link padCutouts}
-   * hands back, so each hole has something to be blended with.
    */
   private run(
-    frames: Cutout[][],
+    at: (eased: number) => Painting,
     duration: number,
     easing: Easing,
-    onFrame?: (eased: number) => void,
+    onFrame?: (painting: Painting) => void,
   ): Promise<boolean> {
     this.halt()
     const began = performance.now()
@@ -802,9 +808,10 @@ export class Scrim {
         // Clamped at the bottom as well as the top, for the reason `segmentAt`
         // in `geometry.ts` gives.
         const t = Math.min(1, Math.max(0, (now - began) / duration))
-        const last = frames[frames.length - 1]
         if (t >= 1) {
-          if (last) this.paint(last)
+          // `at(1)` rather than the curve's last value, which a host curve need
+          // not make 1 — `LekoOptions.easing`.
+          this.paint(at(1))
           this.frame = undefined
           this.settle = undefined
           // What the run leaves standing is what a follow corrects from here,
@@ -813,14 +820,12 @@ export class Scrim {
           resolve(true)
           return
         }
-        const eased = easing(t)
-        const { index, local } = segmentAt(frames.length, eased)
-        const from = frames[index]
-        const to = frames[index + 1]
-        if (from && to) this.paint(lerpCutouts(from, to, local))
-        // Whatever rides along is written from the same eased progress, so it
-        // cannot drift from the holes. Writes only, the same as the mask.
-        onFrame?.(eased)
+        const painting = at(easing(t))
+        this.paint(painting)
+        // Whatever rides along is handed the painting the mask was written
+        // from, so it cannot drift from the holes. Writes only, the same as the
+        // mask.
+        onFrame?.(painting)
         this.frame = requestAnimationFrame(tick)
       }
       this.frame = requestAnimationFrame(tick)
@@ -876,10 +881,16 @@ export class Scrim {
       if (follows) this.revealHalos()
       else this.hideHalos()
     }
+    // Clamped, because a host curve may overshoot and DESIGN.md's **The halo**
+    // keeps the frame on the hole the mask draws; a departing leftover blended
+    // past 1 would also go to a negative width.
+    const at = (eased: number): Painting => ({
+      cutouts: lerpCutouts(from, padded, clamp(eased, 1)),
+    })
     const riding = this.haloLayer
-      ? (eased: number) => this.slideHalos(lerpCutouts(from, padded, eased))
+      ? (painting: Painting) => this.slideHalos(painting.cutouts)
       : undefined
-    const arriving = this.run([from, padded], duration, easing, riding)
+    const arriving = this.run(at, duration, easing, riding)
     this.arriving = arriving
     void arriving.then((finished) => {
       if (finished) this.placeHalos(to)
@@ -925,7 +936,12 @@ export class Scrim {
     // Leko's own curve, never the host's, and the length beside it is fixed for
     // the same reason: a shake is a refusal rather than an arrival, and a curve
     // that overshoots would make nonsense of four segments that already do.
-    void this.run([settled, nudged(-6), nudged(5), nudged(-3), settled], 320, ease)
+    const frames = [settled, nudged(-6), nudged(5), nudged(-3), settled]
+    const at = (eased: number): Painting => {
+      const { index, local } = segmentAt(frames.length, eased)
+      return { cutouts: lerpCutouts(frames[index]!, frames[index + 1]!, local) }
+    }
+    void this.run(at, SHAKE, ease)
   }
 
   // ------------------------------------------------------------------ taking down
