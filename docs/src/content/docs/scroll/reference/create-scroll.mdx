@@ -19,7 +19,8 @@ createScroll(options: LekoScrollOptions): LekoScroll
 
 It runs from the moment it is called. There is no `start` and no `stop`: the
 light follows the scroll for as long as the page is up, and
-[`destroy()`](#lekoscroll) ends it —
+[`destroy()`](#lekoscroll) ends it. If it throws, it leaves no scrim and no
+listener behind —
 [The API](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-api).
 
 ```ts
@@ -137,8 +138,10 @@ onChange?: (index: number | undefined) => void
 
 The one notice. It fires with a target's `index` in `targets` when the light
 arrives at it, and with `undefined` when nothing is lit at creation or when the
-light goes out after an `index` was announced. A target a fast scroll skips
-never fires. The return value is never read —
+light goes out after an `index` was announced. The one at creation comes after
+`createScroll` has returned, so the handler can use the `LekoScroll` it
+returned, and a `destroy()` before then means it is not called. A target a fast
+scroll skips never fires. The return value is never read —
 [The whole page stays usable](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#the-whole-page-stays-usable).
 
 ## LekoScrollTarget
@@ -180,9 +183,10 @@ because the scrim rides the document's scroll and those do not.
 A selector that matches several elements means the first of them in document
 order that has a box, and the match is chosen again each time the page is
 measured. A target that is not found is skipped with a `console.warn`, and the
-rest runs. It is looked for again the next time the page is measured, and its
-place in the array is kept, so `onChange` still names every target by the
-index it was written at —
+rest runs; a string that is not a valid selector counts as not found. It is
+looked for again the next time the page is measured, and its place in the
+array is kept, so `onChange` still names every target by the index it was
+written at —
 [What a target is](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#what-a-target-is).
 
 `message` and `side` are the box beside the hole and where it goes.

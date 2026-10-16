@@ -157,18 +157,44 @@ test('a first target near the top converges at load and fires its index once, on
 test('created with the line in a band or outside fires undefined and draws nothing', async () => {
   build([2000, 2600])
   const outside = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
-  expect(outside.changes).toEqual([undefined])
+  expect(outside.changes).toEqual([])
+  expect(await outside.next()).toBeUndefined()
   expect(root().style.opacity).toBe('0')
   expect(mask()).toBe(maskOn(undefined))
   outside.scroll.destroy()
 
   await scrolled(lineAt(2000 - 150))
   const band = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
-  expect(band.changes).toEqual([undefined])
+  expect(band.changes).toEqual([])
+  expect(await band.next()).toBeUndefined()
   expect(root().style.opacity).toBe('0')
   expect(mask()).toBe(maskOn(undefined))
   await pause(400)
   expect(band.changes).toEqual([undefined])
+})
+
+test('onChange is first called after createScroll returns, so it can use the handle', async () => {
+  build([2000, 2600])
+  const changes: (number | undefined)[] = []
+  const s: LekoScroll = createScroll({
+    targets: [{ target: '#t0' }, { target: '#t1' }],
+    onChange: (index) => {
+      changes.push(index)
+      s.measure()
+    },
+  })
+  instances.push(s)
+  expect(changes).toEqual([])
+  await pause(0)
+  expect(changes).toEqual([undefined])
+})
+
+test('a destroy straight after createScroll fires nothing', async () => {
+  build([2000, 2600])
+  const { scroll, changes } = start({ targets: [{ target: '#t0' }, { target: '#t1' }] })
+  scroll.destroy()
+  await pause(400)
+  expect(changes).toEqual([])
 })
 
 test('crossing the next switch position morphs and fires that index once', async () => {
@@ -437,6 +463,22 @@ test('a target that is not found is warned about once and the rest is lit', asyn
   expect(warn).toHaveBeenCalledOnce()
 })
 
+test('a target that is not a valid selector is warned about once and the rest is lit', async () => {
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const { targets } = build([A, B])
+  const { scroll, next } = start({
+    targets: [{ target: '#a[' }, { target: '#t0' }, { target: '#t1' }],
+  })
+  expect(warn).toHaveBeenCalledOnce()
+  expect(String(warn.mock.calls[0]?.[0])).toContain('targets[0]')
+
+  expect(await next()).toBe(1)
+  expect(mask()).toBe(maskOn(targets[0]))
+  scroll.measure()
+  window.dispatchEvent(new Event('resize'))
+  expect(warn).toHaveBeenCalledOnce()
+})
+
 test("a selector's first match with a box is the one cut around", async () => {
   const { page } = build([B])
   const first = add(page, A, 'first')
@@ -472,8 +514,8 @@ test('measure() after the lit target moved places the hole without a notice', as
 test('measure() finds a target that appeared', async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   const { page } = build([B])
-  const { scroll, changes, next } = start({ targets: [{ target: '#late' }, { target: '#t0' }] })
-  expect(changes).toEqual([undefined])
+  const { scroll, next } = start({ targets: [{ target: '#late' }, { target: '#t0' }] })
+  expect(await next()).toBeUndefined()
 
   const late = add(page, A, 'late')
   scroll.measure()
@@ -498,6 +540,30 @@ test('the scroll listener is passive', () => {
   const scroll = listen.mock.calls.filter(([type]) => type === 'scroll')
   expect(scroll).toHaveLength(1)
   expect(scroll[0]?.[2]).toEqual({ passive: true })
+})
+
+test('a throw from inside createScroll removes the layer and adds no listener', async () => {
+  const listen = vi.spyOn(window, 'addEventListener')
+  build([A, B])
+  let reads = 0
+  const bad = {
+    get target(): string {
+      reads += 1
+      throw new Error('boom')
+    },
+  }
+
+  expect(() => createScroll({ targets: [bad, { target: '#t0' }] })).toThrow('boom')
+  expect(document.querySelector('.leko-scroll')).toBeNull()
+  const types = listen.mock.calls.map(([type]) => type)
+  expect(types).not.toContain('scroll')
+  expect(types).not.toContain('resize')
+  expect(types).not.toContain('load')
+
+  window.dispatchEvent(new Event('resize'))
+  window.dispatchEvent(new Event('load'))
+  await document.fonts.ready
+  expect(reads).toBe(1)
 })
 
 test('a positioned body still puts the hole on the target, and its margin is dimmed', async () => {

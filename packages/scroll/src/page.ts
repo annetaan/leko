@@ -11,10 +11,18 @@ import type { Rect } from './geometry.js'
  */
 export const hasBox = (el: Element): boolean => el.getClientRects().length > 0
 
-/** The element a target names, or `undefined` where it is not found — [What a target is](../DESIGN.md#what-a-target-is). */
+/**
+ * The element a target names, or `undefined` where it is not found, a string
+ * that is not a selector included — [What a target is](../DESIGN.md#what-a-target-is).
+ */
 export function resolve(target: string | Element): Element | undefined {
   if (typeof target !== 'string') return target.isConnected && hasBox(target) ? target : undefined
-  for (const el of document.querySelectorAll(target)) if (hasBox(el)) return el
+  try {
+    for (const el of document.querySelectorAll(target)) if (hasBox(el)) return el
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'SyntaxError') return undefined
+    throw error
+  }
   return undefined
 }
 

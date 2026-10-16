@@ -77,6 +77,12 @@ page is what the reader came for, and Leko Scroll is part of how the page is
 read for as long as the page is up. Short of ending it, `measure()` is the one
 thing an application may ask of it, and [Measuring](#measuring) says why.
 
+**A `createScroll` that throws leaves nothing on the page.** It hands back no
+handle, so nothing could call `destroy()`, and a scrim left behind would dim the
+page for as long as it is up, with listeners measuring a page that has no
+instance. So the page is measured before anything listens, and a throw from
+that measure takes the scrim down before it reaches the caller.
+
 ## The whole page stays usable
 
 **Nothing blocks.** There are no blocking rectangles, and the scrim, the halo
@@ -111,6 +117,12 @@ nothing takes focus away from the page.
   announced nothing, so it fires nothing at all, turned to another target on
   the way or not, and a morph cut off fires `undefined` for the target it
   left.
+- **It is never called before `createScroll` has returned.** The `undefined` at
+  creation is the one notice that could land inside the call, before the
+  application holds the handle. It is held for a microtask so that a handler
+  can use the handle it is about to be given, and a `destroy()` before then
+  means it never comes. Every other notice comes from the frame, the scroll or
+  the `measure()` that caused it, after the handle is in hand.
 - The fade itself fires nothing on its way to zero. Until the light is out, the
   target is still the lit one.
 - An off entry's index is never announced: it is never lit, and the light
@@ -144,6 +156,11 @@ a hole around. A warning
 is the right loudness: the author named something that is not there, which is
 theirs to fix, and it is no reason to leave the rest of the page unlit. The
 target is looked for again the next time the page is measured.
+
+A string that is not a valid selector is not found either. A malformed
+selector is the same mistake as a misspelt one, and the author's to fix in the
+same way; letting it throw would leave the rest unlit, and would throw again
+from every measure, on each resize, `load` and font load.
 
 **Indices are the array's, and are never compacted.** A skipped target keeps
 its place, so `onChange` names a target by the position the author wrote it at,
