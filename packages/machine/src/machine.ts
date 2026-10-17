@@ -139,13 +139,12 @@ export class Machine<W extends World> {
         if (effect.step.validate?.(anchor)) {
           return void this.dispatch({ kind: 'validated', at: effect.at })
         }
-        // Asked here, on the anchor the guard was just given, so the words are
-        // about the attempt that failed and no anchor has to travel to
-        // `plan.ts` and back to say so.
-        const { error } = effect.step
-        const reason =
-          typeof error === 'function' ? (error as (anchor: W['anchor']) => string)(anchor) : error
-        return void this.dispatch({ kind: 'refused', at: effect.at, reason })
+        return void this.dispatch({ kind: 'refused', at: effect.at, anchor })
+      }
+
+      case 'explain': {
+        const reason = (effect.error as (anchor: W['anchor']) => string)(effect.anchor)
+        return void this.dispatch({ kind: 'explained', at: effect.at, reason })
       }
 
       case 'chain': {

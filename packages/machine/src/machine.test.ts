@@ -769,6 +769,52 @@ describe('what a failed attempt says', () => {
     expect(fake.rejected).toBe(0)
     expect(tour.state).toBe('idle')
   })
+
+  test('a guard that ends the tour from inside itself never asks its error for words', () => {
+    let tour!: ReturnType<typeof start>
+    const error = vi.fn(() => 'never')
+    const step: Step = {
+      id: 'one',
+      target: 'first',
+      validate: () => {
+        tour.stop()
+        return false
+      },
+      error,
+    }
+    tour = start([step, { id: 'two', target: 'second' }])
+
+    const fake = drawing()
+    fake.retold.length = 0
+    press(tour)
+
+    expect(error).not.toHaveBeenCalled()
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
+    expect(tour.state).toBe('idle')
+  })
+
+  test('an error function that ends the tour leaves no complaint behind', () => {
+    let tour!: ReturnType<typeof start>
+    const step: Step = {
+      id: 'one',
+      target: 'first',
+      validate: () => false,
+      error: () => {
+        tour.stop()
+        return 'Never seen, because there is nothing left to say it to.'
+      },
+    }
+    tour = start([step, { id: 'two', target: 'second' }])
+
+    const fake = drawing()
+    fake.retold.length = 0
+    press(tour)
+
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
+    expect(tour.state).toBe('idle')
+  })
 })
 
 describe('a story that says what follows it', () => {

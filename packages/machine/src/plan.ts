@@ -83,9 +83,11 @@ export const arrivedAt = (pattern: RegExp, url: string): boolean =>
 
 /**
  * What the machine does to the world, as data. **Nothing in this file makes a
- * call.** `validate` is more than one call, because pulling it apart would mean
- * an anchor travelling back through here, and an anchor is resolved, used and
- * dropped.
+ * call.** An anchor travels through here once, from a guard that said no to the
+ * `explain` that asks the step's `error` about it, and this file never reads
+ * it. Whether `error` is asked at all is decided here and not where the guard
+ * was asked, because the guard is the application's own code and may have
+ * ended the tour.
  */
 export type Effect<W extends World> =
   /**
@@ -100,8 +102,14 @@ export type Effect<W extends World> =
   /** The guard said no and the step had words for it. */
   | { kind: 'retell'; step: Step<W>; reason: string }
   | { kind: 'reject' }
-  /** `resolve`, `validate`, and the step's `error` where the answer was no. */
+  /** `resolve` and `validate`. */
   | { kind: 'validate'; at: Position<W>; step: Step<W> }
+  /**
+   * The function form of the step's `error`, asked on the anchor the guard was
+   * given, so its words are about the attempt that failed. `never` for the
+   * reason `StepBase.error` gives.
+   */
+  | { kind: 'explain'; at: Position<W>; anchor: W['anchor']; error: (anchor: never) => string }
   /** The story's `next`, asked while the tour still stands on its last step. */
   | { kind: 'chain'; at: Position<W>; story: Story<W> }
   /**
@@ -166,8 +174,10 @@ export type Event<W extends World> =
   /** The step is on screen and the report of the move is owed. */
   | { kind: 'drawn'; at: Position<W> }
   | { kind: 'validated'; at: Position<W> }
-  /** The guard said no, and `reason` is whatever the step's `error` gave back. */
-  | { kind: 'refused'; at: Position<W>; reason: string | undefined }
+  /** The guard said no on `anchor`. */
+  | { kind: 'refused'; at: Position<W>; anchor: W['anchor'] }
+  /** The function form of the step's `error` answered. */
+  | { kind: 'explained'; at: Position<W>; reason: string }
   /** `next` answered, and `into` is the story that follows or nothing. */
   | { kind: 'chained'; at: Position<W>; into: Story<W> | undefined }
   /** `next` answered while the document was being left. */
@@ -490,7 +500,19 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       if (!stillAt(core, event.at) || !step) return nothing(core)
       // Saying no is not optional. Saying why is. DESIGN.md, **A failed
       // attempt**.
-      if (event.reason === undefined) return owing(core, { kind: 'reject' })
+      const { error } = step
+      if (error === undefined) return owing(core, { kind: 'reject' })
+      if (typeof error === 'string') {
+        return owing(core, { kind: 'reject' }, { kind: 'retell', step, reason: error })
+      }
+      return owing(core, { kind: 'explain', at: event.at, anchor: event.anchor, error })
+    }
+
+    case 'explained': {
+      // `error` is the application's own code too, so where the tour got to is
+      // asked again.
+      const step = stepOf(core)
+      if (!stillAt(core, event.at) || !step) return nothing(core)
       return owing(core, { kind: 'reject' }, { kind: 'retell', step, reason: event.reason })
     }
   }
