@@ -33,7 +33,7 @@ refuses a `start()` made from in there.
 `position` is replaced on every move and on nothing else. That is what makes its
 identity the step occurrence the tour is standing on. Every event that can land
 late carries the position it was planned at, and `plan.ts` asks `stillAt` before
-it acts on one. There are eight of those asks.
+it acts on one. There are nine of those asks.
 
 ## The phase machine
 
@@ -43,7 +43,7 @@ stateDiagram-v2
   direction LR
 
   [*] --> idle
-  idle --> before : start(id) found a story with steps
+  idle --> before : start(story) on a story with steps, while idle
 
   before --> step : the story's onEnter returned, or the onLeave of the step being left returned or threw
 
@@ -67,6 +67,8 @@ stateDiagram-v2
   class idle,ready open
   class before,step,ending shut
 ```
+
+A `pickUp()` whose note matches takes the same edge: it goes through `start`.
 
 A teal outline means a call from the application is acted on. A clay outline
 means the machine is inside a call into the application, and everything but
@@ -101,12 +103,22 @@ over and the user is looking at it, so a call about it means what it says.
 
 | Call | Accepted in | What it does |
 | --- | --- | --- |
-| `start(story)` | open | ends whatever runs, telling it where the tour is going, then enters at index 0. The story the tour is already on starts again. An empty story tears nothing down |
+| `start(story)` | open | refused while one runs; see below |
+| `pickUp(stories)` | open | a match goes through start |
 | `reached(name)` | open | advances only the step whose `awaits` is that name. Any other name is free and silent |
 | `stop()` | anywhere | the one call the gate does not stand in front of. A step still arriving is thrown away rather than waited for |
 | `Host.next()` | open | private, and reachable only through the presenter. A step declaring `awaits` never gets a control |
 | `Host.lost(step)` | anywhere | ends the run if `step` is still the step the tour is on |
 | `Host.close()` | anywhere | means what `stop()` means |
+
+`start` never ends a tour. While one runs it reports `tour-running` and leaves
+that tour standing, a story with no steps reports `story-empty`, and otherwise
+it enters at index 0; DESIGN.md argues it under **Starting a story**. `pickUp`
+takes the note, and on a match goes through `start` like any other call. Once a
+`stop()` made inside a handler of an arrival or of a step's report has
+returned, the gate is open and the call written after it goes through. Inside
+an ending, `stop()` ends nothing and the gate stays shut. DESIGN.md, **One
+gate, and what it refuses**.
 
 A refused `start()` reports `call-refused`. A matched `reached()` reports `signal-dropped` and is thrown
 away. Holding it over would advance a step on something that happened before
@@ -124,7 +136,9 @@ flowchart TD
   V -- "no guard, or awaits declared" --> B{"the last step?"}
   V -- "the guard passed" --> B
   V -- "the anchor is gone" --> Z["the ending. phase: ending"]
-  V -- "the guard failed" --> S["presenter.reject(), and step.error<br>under the instruction where there is any<br>the tour stays put"]
+  V -- "the guard failed" --> R{"still on this position?"}
+  R -- "no. stop()" --> W2["dropped"]
+  R -- "yes" --> S["presenter.reject(), and step.error<br>under the instruction where there is any<br>a function error is asked here, and the position asked again<br>the tour stays put"]
   B -- "yes" --> N["story.next, asked on the last step"]
   N -- "a story" --> Y["the ending, into that story.<br>phase: ending, and it stays closed<br>through its own report"]
   N -- "nothing" --> Z
@@ -152,11 +166,15 @@ flowchart TD
 No handler hands anything back and neither does `show`, so the whole path runs
 inside the call that started it.
 
-`phase` goes to `ready` before the draw rather than after. A step whose anchor
-turns out to be missing can end the run from inside `show`, and the `onStep`
-that reports that ending has to find a machine a host may call into. In
-`plan.ts` that is the `stepEntered` event committing `opened` and owing a
-`draw`, in that order, and there is no way to write it the other way round.
+`phase` goes to `ready` before the draw rather than after, because of what
+`Presenter.show` is allowed to do. A presenter may report `Host.lost` before
+`show` returns. The fake in `fake.ts` does, when the anchor is missing.
+`DomPresenter` never does, because it draws on a later frame: DESIGN.md, **A
+step is drawn on the next frame, not inside the call that moved the tour**.
+Either way, the `onStep` that reports such an ending has to find a machine a
+host may call into. In `plan.ts` that is the `stepEntered` event committing
+`ready` and then owing a `draw`, in that order, and there is no way to write it
+the other way round.
 
 ## What can find the tour somewhere else
 
@@ -167,12 +185,14 @@ own chain of events.
 
 So every event the machine owes itself carries the `position` object it was
 planned at, and `plan.ts` compares that object with the current one before
-acting, at the eight places named above.
+acting, at the nine places named above.
 
-`validate` is the one that reads oddly. It answers in the turn it is asked, so
-nothing is left over to land later, and the `refused` event asks all the same,
-because `validate` is the application's own code and can have called `stop()`
-from inside itself.
+`validate` and `error` are the ones that read oddly. Each answers in the turn
+it is asked, so nothing is left over to land later. The `refused` and
+`explained` events ask all the same, because both follow the application's own
+code, which can have called `stop()` from inside itself. `refused` asks before
+a function `error` is called, so a guard that ended the tour is never asked for
+its words.
 
 ## Where to watch each of these happen
 
@@ -212,8 +232,12 @@ Worth knowing before trusting the table above.
 - A story's `onEnter` that throws, and a step's `onEnter` that throws. Both end
   the run and rethrow. `machine.qnt` has story `c` for the first and step `b2`
   for the second, so the model covers both and the sandbox covers neither.
-- `story-not-found` and `story-empty`. Both are `start()` diagnostics and the
-  footer only offers ids that exist.
+- `story-empty` and `story-unknown`. No sandbox story is empty, and no case
+  hands on a story the next document's `pickUp` was not given.
+  `machine.test.ts` has both.
+- A `stop()` then a `start()` from inside a handler. No case makes one.
+  `machine.test.ts` has it, in `a call that arrives while the machine is
+  inside the application` and `a call made from inside a report`.
 - A `start()` made from an ending report. `branching` was the case for it and
   the rejoin is a `next` now, so nothing in the sandbox starts a story from
   inside a report any more. `machine.test.ts` still asks it, twice: once for the

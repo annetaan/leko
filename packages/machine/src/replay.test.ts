@@ -437,7 +437,7 @@ describe('every trace the model found', () => {
 
   for (const [name, trace] of named) {
     test(`${name}, which is how the model reaches ${trace.target}`, async () => {
-      // `globals.d.ts` says why `failed` rethrows through `queueMicrotask`.
+      // `globals.d.ts` says why the `rethrow` effect throws through `queueMicrotask`.
       // Uncaught is what this file is not allowed to have, so they are
       // collected instead.
       const escaped: (() => void)[] = []
