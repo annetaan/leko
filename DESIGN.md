@@ -248,8 +248,8 @@ A step specifies its target with a selector or a function, but both are treated 
 type Selector = string;
 type TargetFunction = () => Element | null;
 type LekoTarget = Selector | TargetFunction;
-interface LekoRegion { elements: LekoTarget | LekoTarget[]; interactive?: boolean }
-interface LekoShownRegion { elements: LekoTarget | LekoTarget[]; interactive?: never }
+interface LekoRegion { elements: LekoTarget | [LekoTarget, ...LekoTarget[]]; interactive?: boolean }
+interface LekoShownRegion { elements: LekoTarget | [LekoTarget, ...LekoTarget[]]; interactive?: never }
 interface LekoTargetedStep {
   ...
   target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]

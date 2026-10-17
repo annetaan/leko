@@ -52,11 +52,12 @@ export type LekoTarget = Selector | TargetFunction
 /**
  * **One cutout.** What the hole is cut around, and whether the step opens it.
  *
- * `elements` is a single target, or several to be unioned into one hole. The
- * union is the bounding box of everything named, and whatever happens to sit
- * between the elements is inside the hole along with them — so name elements
- * that are next to each other: a label and its input, two neighbouring columns,
- * the first and last row of a table.
+ * `elements` is a single target, or several to be unioned into one hole. An
+ * empty list does not compile, because a hole around nothing ends the step
+ * with `target-lost`. The union is the bounding box of everything named, and
+ * whatever happens to sit between the elements is inside the hole along with
+ * them — so name elements that are next to each other: a label and its input,
+ * two neighbouring columns, the first and last row of a table.
  *
  * A bare {@link LekoTarget} anywhere {@link LekoTargetedStep.target} wants a region is
  * shorthand for `{ elements: target }`: one element, one hole, not opened.
@@ -67,7 +68,7 @@ export type LekoTarget = Selector | TargetFunction
  * ```
  */
 export interface LekoRegion {
-  elements: LekoTarget | LekoTarget[]
+  elements: LekoTarget | [LekoTarget, ...LekoTarget[]]
 
   /**
    * Let the user operate this region.
@@ -101,7 +102,7 @@ export interface LekoRegion {
  * and whether it is open**.
  */
 export interface LekoShownRegion {
-  elements: LekoTarget | LekoTarget[]
+  elements: LekoTarget | [LekoTarget, ...LekoTarget[]]
 
   /** Only the first region can be opened. See {@link LekoRegion.interactive}. */
   interactive?: never
