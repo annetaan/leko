@@ -5,15 +5,16 @@ import { describe, expect, it } from 'vitest'
 import { scan, type ScanResult } from './scan.js'
 
 const FIXTURE = fileURLToPath(new URL('../fixtures/app/tsconfig.json', import.meta.url))
+const SPELLINGS = fileURLToPath(new URL('../fixtures/spellings/tsconfig.json', import.meta.url))
 
-const fixtureProgram = (): ts.Program => {
-  const parsed = ts.getParsedCommandLineOfConfigFile(FIXTURE, {}, {
+const fixtureProgram = (tsconfig = FIXTURE): ts.Program => {
+  const parsed = ts.getParsedCommandLineOfConfigFile(tsconfig, {}, {
     ...ts.sys,
     onUnRecoverableConfigFileDiagnostic: (d) => {
       throw new Error(ts.flattenDiagnosticMessageText(d.messageText, '\n'))
     },
   } as ts.ParseConfigFileHost)
-  if (!parsed) throw new Error(`could not read ${FIXTURE}`)
+  if (!parsed) throw new Error(`could not read ${tsconfig}`)
   return ts.createProgram(parsed.fileNames, parsed.options)
 }
 
@@ -43,9 +44,9 @@ describe('scan', () => {
   })
 
   it('reports a call whose name it cannot read rather than dropping it', () => {
-    expect(result.dynamic).toHaveLength(1)
-    expect(result.dynamic[0]?.file).toMatch(/dynamic\.ts$/)
-    expect(result.dynamic[0]?.line).toBe(5)
+    expect(result.unread).toHaveLength(1)
+    expect(result.unread[0]?.file).toMatch(/dynamic\.ts$/)
+    expect(result.unread[0]?.line).toBe(5)
   })
 
   it('sorts the names, so the same project emits the same file', () => {
@@ -63,7 +64,26 @@ describe('scan', () => {
     // report every call in it twice.
     const twice = scan([fixtureProgram(), fixtureProgram()], ts)
     expect(twice).toEqual(result)
-    expect(twice.dynamic).toHaveLength(1)
+    expect(twice.unread).toHaveLength(1)
     expect(twice.signals.find((signal) => signal.name === 'order-saved')?.sites).toHaveLength(1)
+  })
+})
+
+describe('scan, over every way of spelling reached', () => {
+  const program = fixtureProgram(SPELLINGS)
+  const spelled = scan([program], ts)
+
+  it('reports reached through brackets, parentheses, call, apply, bind or destructuring as unread, and gathers none of their names', () => {
+    // A fixture that does not compile would prove nothing about the spellings.
+    expect(ts.getPreEmitDiagnostics(program)).toEqual([])
+    expect(spelled.unread.map((site) => site.file)).toEqual(
+      Array.from({ length: 7 }, () => expect.stringMatching(/spellings\.ts$/)),
+    )
+    expect(spelled.unread.map((site) => site.line)).toEqual([7, 12, 14, 15, 16, 18, 21])
+    expect(spelled.signals.filter((signal) => signal.name.startsWith('by-'))).toEqual([])
+  })
+
+  it('still gathers leko.reached and leko?.reached', () => {
+    expect(spelled.signals.map((signal) => signal.name)).toEqual(['direct', 'optional'])
   })
 })

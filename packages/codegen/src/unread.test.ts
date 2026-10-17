@@ -13,13 +13,13 @@ describe('message', () => {
   it("words the command's message exactly as before", () => {
     const strict = { from: '/app', remedy: 'run with --loose' }
     expect(message([at('/app/src/a.ts', 5)], strict).join('\n')).toBe(
-      '1 reached() call reports a name this scan cannot read.\n' +
+      '1 use of reached() reports a name this scan cannot read.\n' +
         'The vocabulary is missing whatever it reports, so run with --loose or name it by hand:\n' +
         '\n' +
         '  src/a.ts:5',
     )
     expect(message([at('/app/src/a.ts', 5), at('/app/src/b.ts', 9)], strict).join('\n')).toBe(
-      '2 reached() calls report a name this scan cannot read.\n' +
+      '2 uses of reached() report a name this scan cannot read.\n' +
         'The vocabulary is missing whatever they report, so run with --loose or name them by hand:\n' +
         '\n' +
         '  src/a.ts:5\n' +
@@ -69,34 +69,34 @@ describe('news', () => {
   const one = [at('/app/src/a.ts', 5)]
 
   it('tells the calls it could not read on the first report', () => {
-    expect(news(untold, { dynamic: one, included: true }).say.unread).toBe(true)
+    expect(news(untold, { unread: one, included: true }).say.unread).toBe(true)
   })
 
   it('says nothing on a first report with no unread call', () => {
-    expect(news(untold, { dynamic: [], included: true }).say).toEqual({
+    expect(news(untold, { unread: [], included: true }).say).toEqual({
       outside: false,
       unread: false,
     })
   })
 
   it('tells them again only when changed says they differ', () => {
-    const told: Told = { dynamic: one, outside: false }
-    expect(news(told, { dynamic: one, included: true }).say.unread).toBe(false)
-    expect(news(told, { dynamic: [at('/app/src/a.ts', 8)], included: true }).say.unread).toBe(false)
+    const told: Told = { unread: one, outside: false }
+    expect(news(told, { unread: one, included: true }).say.unread).toBe(false)
+    expect(news(told, { unread: [at('/app/src/a.ts', 8)], included: true }).say.unread).toBe(false)
     expect(
-      news(told, { dynamic: [...one, at('/app/src/a.ts', 9)], included: true }).say.unread,
+      news(told, { unread: [...one, at('/app/src/a.ts', 9)], included: true }).say.unread,
     ).toBe(true)
   })
 
   it('says nothing when the last unread call goes away', () => {
-    const told: Told = { dynamic: one, outside: false }
-    expect(news(told, { dynamic: [], included: true }).say.unread).toBe(false)
+    const told: Told = { unread: one, outside: false }
+    expect(news(told, { unread: [], included: true }).say.unread).toBe(false)
   })
 
   it('tells outside once, and again only after it was back inside', () => {
     let told = untold
     const said = [false, false, true, false].map((included) => {
-      const next = news(told, { dynamic: [], included })
+      const next = news(told, { unread: [], included })
       told = next.told
       return next.say.outside
     })
@@ -104,18 +104,18 @@ describe('news', () => {
   })
 
   it('carries the calls and placement into the next Told', () => {
-    expect(news(untold, { dynamic: one, included: false }).told).toEqual({
-      dynamic: one,
+    expect(news(untold, { unread: one, included: false }).told).toEqual({
+      unread: one,
       outside: true,
     })
   })
 
   it('says nothing about inclusion while the file is not on disk', () => {
-    const told: Told = { dynamic: [], outside: true }
-    const next = news(told, { dynamic: [], included: undefined })
+    const told: Told = { unread: [], outside: true }
+    const next = news(told, { unread: [], included: undefined })
     expect(next.say.outside).toBe(false)
     expect(next.told.outside).toBe(true)
-    expect(news(untold, { dynamic: [], included: undefined }).told.outside).toBe(false)
+    expect(news(untold, { unread: [], included: undefined }).told.outside).toBe(false)
   })
 })
 
@@ -123,7 +123,7 @@ describe('say', () => {
   it('say gives the outside text and the unread text, in one wording whatever the front end', () => {
     const { told, warnings } = say(
       untold,
-      { out: '/app/src/signals.d.ts', dynamic: [at('/app/src/a.ts', 5)], included: false },
+      { out: '/app/src/signals.d.ts', unread: [at('/app/src/a.ts', 5)], included: false },
       { from: '/app', remedy: 'run with --loose', elsewhere: 'move it' },
     )
     expect(warnings).toEqual([
@@ -132,7 +132,7 @@ describe('say', () => {
         'the tsconfig that compiles your stories, or move it.',
       message([at('/app/src/a.ts', 5)], { from: '/app', remedy: 'run with --loose' }).join('\n'),
     ])
-    expect(told).toEqual({ dynamic: [at('/app/src/a.ts', 5)], outside: true })
+    expect(told).toEqual({ unread: [at('/app/src/a.ts', 5)], outside: true })
     expect(warnings[1]).toContain('run with --loose or name it by hand')
   })
 })

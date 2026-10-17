@@ -5,7 +5,7 @@ import type { ScanResult } from './scan.js'
 
 const result = (...names: string[]): ScanResult => ({
   signals: names.map((name) => ({ name, sites: [{ file: '/app/src/checkout.ts', line: 8 }] })),
-  dynamic: [],
+  unread: [],
 })
 
 describe('emit', () => {
@@ -42,7 +42,7 @@ describe('emit', () => {
   })
 
   it('escapes a quote in a name rather than emitting a broken key', () => {
-    const odd = emit({ signals: [{ name: "it's-done", sites: [] }], dynamic: [] })
+    const odd = emit({ signals: [{ name: "it's-done", sites: [] }], unread: [] })
     expect(odd).toContain("'it\\'s-done': true")
   })
 
@@ -57,7 +57,7 @@ describe('emit', () => {
     // whenever somebody edited above a reached() call.
     const moved: ScanResult = {
       signals: [{ name: 'order-saved', sites: [{ file: '/app/src/other.ts', line: 99 }] }],
-      dynamic: [],
+      unread: [],
     }
     expect(emit(moved)).toBe(emit(result('order-saved')))
   })

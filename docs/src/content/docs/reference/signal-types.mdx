@@ -167,10 +167,11 @@ writes one, is read with every project it references, so both work there with
 nothing more passed. The file goes into the `include` of the project that
 compiles the stories, which is `src/` in that template.
 
-Both print every call they could not read, with the file and line of each, when
-they start (a run of the command, `--watch`, the dev server or a build) and
-again, for as long as they keep running, when such a call is added or removed.
-A project with any such call wants `--loose` (`strict: false` on the plugin), or
+Both print every call they could not read, and every use of `reached` that is
+not a call written `leko.reached(…)`, with the file and line of each, when they
+start (a run of the command, `--watch`, the dev server or a build) and again,
+for as long as they keep running, when such a use is added or removed. A
+project with any such use wants `--loose` (`strict: false` on the plugin), or
 a block written by hand naming what they report.
 
 What it writes, trimmed:

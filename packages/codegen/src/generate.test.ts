@@ -171,7 +171,7 @@ describe('watch', () => {
       expect(reports).toHaveLength(1)
       expect(reports[0]?.stale).toBe(false)
       expect(reports[0]?.included).toBe(false)
-      expect(reports[0]?.result.dynamic).toHaveLength(1)
+      expect(reports[0]?.result.unread).toHaveLength(1)
     } finally {
       stop()
     }

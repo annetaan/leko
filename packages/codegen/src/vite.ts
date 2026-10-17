@@ -32,7 +32,7 @@ export function lekoSignals(options: Options = {}): Plugin {
     if (!config) return
     const next = say(
       told,
-      { out: report.out, dynamic: report.result.dynamic, included: report.included },
+      { out: report.out, unread: report.result.unread, included: report.included },
       { from: config.root, remedy, elsewhere: 'set out to somewhere that tsconfig already reads' },
     )
     told = next.told

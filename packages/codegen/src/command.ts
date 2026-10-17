@@ -81,7 +81,7 @@ export function run(argv: string[], io: Pick<Console, 'log' | 'warn' | 'error'>)
   const tell = (report: Report, told: Told): Told => {
     const next = say(
       told,
-      { out: report.out, dynamic: report.result.dynamic, included: report.included },
+      { out: report.out, unread: report.result.unread, included: report.included },
       words,
     )
     for (const w of next.warnings) io.warn(`\n${w}`)
