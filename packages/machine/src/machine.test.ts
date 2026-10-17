@@ -1005,6 +1005,48 @@ describe('a call made from inside a report', () => {
     expect(tour.story?.id).toBe('first')
   })
 
+  test("a start() from inside an ending's onStep is refused even after a stop()", () => {
+    const problems: Problem<Fixture>[] = []
+    let tried = false
+    const tour = machine({
+      onStep: (step) => {
+        if (step !== undefined || tried) return
+        tried = true
+        tour.stop()
+        begin(tour, 'second')
+      },
+      onDiagnostic: (problem) => problems.push(problem),
+    })
+    hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
+    hold(tour, { id: 'second', steps: [{ id: 'b', target: 'second' }] })
+    begin(tour, 'first')
+
+    tour.stop()
+
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
+    expect(tour.state).toBe('idle')
+  })
+
+  test('a stop() from inside a report naming a step, then a start(), goes through', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = machine({
+      onStep: (step) => {
+        if (step?.id !== 'a') return
+        tour.stop()
+        begin(tour, 'second')
+      },
+      onDiagnostic: (problem) => problems.push(problem),
+    })
+    hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
+    hold(tour, { id: 'second', steps: [{ id: 'b', target: 'second' }] })
+
+    begin(tour, 'first')
+
+    expect(tour.story?.id).toBe('second')
+    expect(tour.step?.id).toBe('b')
+    expect(problems).toEqual([])
+  })
+
   test('start from the report of a chained ending gives way to the story on its way', () => {
     const summary: Story = { id: 'summary', steps: [{ id: 'c', target: 'third' }] }
     const rescue: Story = { id: 'rescue', steps: [{ id: 'r', target: 'second' }] }
@@ -2184,6 +2226,22 @@ describe('a call that arrives while the machine is inside the application', () =
     expect(tour.state).toBe('idle')
     expect(drawing().torn).toBe(1)
     expect(drawing().shown).toEqual(['a'])
+  })
+
+  test('a stop() from inside onEnter opens the gate, and a start() after it goes through', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = inside(
+      (running) => {
+        running.stop()
+        begin(running, 'other')
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    expect(tour.story?.id).toBe('other')
+    expect(tour.step?.id).toBe('x')
+    expect(drawing().shown).toEqual(['a', 'x'])
+    expect(problems).toEqual([])
   })
 
   test('a refused signal is still refused when the step is the one awaiting it', () => {

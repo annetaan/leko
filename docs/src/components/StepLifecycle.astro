@@ -85,7 +85,7 @@
   <figcaption>
     A green outline is a moment your calls are acted on; an orange outline is
     Leko inside your own handler, where every call but <code>stop()</code> is
-    refused. The whole chain from <code>onLeave</code> to the next
+    refused until a <code>stop()</code> made there has ended the run. The whole chain from <code>onLeave</code> to the next
     <code>onStep</code> runs inside the one call that moved the tour — an
     <code>async onEnter</code> runs its first line there and the rest after that
     call has returned.

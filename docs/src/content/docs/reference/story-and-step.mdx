@@ -564,7 +564,9 @@ shows `error` where there is one, and the tour stays put.
 
 From inside `onEnter` or `onLeave`, `start` and `pickUp` are refused and a
 `reached()` that matches the step being entered is dropped. `stop()` is the one
-call that goes through —
+call that goes through. Once it has returned, a `start` or `pickUp` after it
+goes through, because the tour it was refused for is gone. From an ending's own
+`onLeave`, `stop()` ends nothing and the refusal stands —
 [`Leko`](../leko/) and
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
 

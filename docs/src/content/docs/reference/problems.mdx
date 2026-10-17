@@ -92,13 +92,15 @@ story goes up. There are no fields.
 
 The call does nothing, and the arrival or the ending around it finishes as
 though it had not been made. A refused `pickUp` has not touched the note, so the
-call that goes through later finds it. `stop()` is never refused. A press on
-the next control in the same window is ignored and reported nowhere, because
-nobody made a call to be told.
+call that goes through later finds it. `stop()` is never refused, and a `start`
+or `pickUp` made after a `stop()` in the same handler of a step or a story is
+not here either: the tour has ended and Leko is idle. Inside an ending it is,
+because that `stop()` ended nothing. A press on the next control in the same
+window is ignored and reported nowhere, because nobody made a call to be told.
 
 Make the call after the handler returns. To go from one story into another,
-give the first a `next`, or call `stop()` and then `start()` from outside any
-handler: `stop()` finishes the whole ending, report included, before it returns.
+give the first a `next`, or call `stop()` and then `start()`: `stop()` finishes
+the whole ending, report included, before it returns.
 Call `pickUp` once per document, outside any handler —
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses)
 and

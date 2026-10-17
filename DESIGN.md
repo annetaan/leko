@@ -499,8 +499,9 @@ reports the event via `reached()`.
 - Single instance hook: `onStep` lives solely on the Leko instance (not individual stories) and reports both the step and the story object to simplify state tracking.
 - Termination reporting: `stop()` or reaching the end of a tour reports `undefined` for the step, allowing progress UIs to reset correctly.
 - No starts from inside a report: `next` is the only way one story leads to
-  another. A report naming a step is a tour that is running (`tour-running`),
-  and every report of an ending happens with the gate still closed
+  another. A report naming a step is a tour that is running (`tour-running`)
+  unless that same handler has called `stop()` first, and every report of an
+  ending happens with the gate still closed
   (`call-refused`). A host that wants a story after `stop()` writes the two
   calls in a row — `stop()` finishes the whole ending, report included, before
   it returns.
@@ -781,6 +782,16 @@ only once `onStep` has returned or thrown.
 - `stop()` is the exception. A handler that has decided the tour should not go
   on has nowhere else to go, and ending is the one thing that needs nothing of
   the arrival: it throws the arrival away rather than acting on it.
+- Once a `stop()` made inside a handler has returned, the gate is open, and a
+  `start()` or `pickUp()` written after it in the same handler goes through.
+  The run that `stop()` threw away no longer exists, so there is nothing for a
+  later call to land in the middle of. Every event the old run still owed
+  carries a position that no longer matches and does nothing: each run's
+  position is its identity, so that check does a counter's job without one.
+  Inside an ending (its `onLeave` calls, its `onStep` and the `onDiagnostic` of
+  a `target-lost`), `stop()` has nothing left to end, so the gate stays shut and
+  both are `call-refused`. The two calls written in a row are under **Saying
+  where the tour got to**.
 - The machine does not know a morph is running. A step is shown as far as it
   is concerned the moment `show` returns, whether or not it has reached the
   screen yet; how long the drawing takes to arrive and settle is the

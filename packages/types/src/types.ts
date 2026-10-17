@@ -799,8 +799,11 @@ export interface LekoOptions {
    * turned up. DESIGN.md, **Entry runs outermost first, and the ending mirrors
    * it, innermost first**.
    *
-   * {@link Leko.stop} from in here is never turned down; {@link Leko.start}
-   * from in here never runs. DESIGN.md, **One gate, and what it refuses**.
+   * {@link Leko.start} from in here is `tour-running` on a report naming a
+   * step and `call-refused` on a report of an ending. {@link Leko.stop} from in
+   * here is never turned down, and a `start` after it goes through on a step's
+   * report but not on an ending's. DESIGN.md, **One gate, and what it
+   * refuses**.
    */
   onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 
@@ -954,8 +957,11 @@ export type LekoProblem =
    * inside the application, which is a call made from inside an `onEnter`, an
    * `onLeave`, or a report of an ending: its {@link LekoOptions.onStep}, and
    * the {@link LekoOptions.onDiagnostic} of a `target-lost`. Nothing of the
-   * step being built has been built, so there is nothing there to act on.
-   * DESIGN.md, **One gate, and what it refuses**.
+   * step being built has been built, so there is nothing there to act on. A
+   * call made after a `stop()` that the same handler already made is not here,
+   * because that `stop()` ended the tour; inside an ending it is, because
+   * there `stop()` ends nothing. DESIGN.md, **One gate, and what it
+   * refuses**.
    *
    * A refused `pickUp` has not touched the note, so the call that goes through
    * later finds it. `stop()` is never here, and neither is the next control: a
