@@ -85,9 +85,10 @@ const projects = (config: string): { config: string; parsed: ts.ParsedCommandLin
 const reads = (fileNames: readonly string[], out: string): boolean =>
   fileNames.length > 1 && fileNames.some((name) => resolve(name) === out)
 
+// Git with `core.autocrlf` checks the file out with CRLF line endings.
 const compare = (out: string, content: string): boolean => {
   try {
-    return readFileSync(out, 'utf8') !== content
+    return readFileSync(out, 'utf8').replaceAll('\r\n', '\n') !== content
   } catch {
     return true
   }

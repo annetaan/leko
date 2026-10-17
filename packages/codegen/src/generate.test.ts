@@ -38,6 +38,22 @@ describe('generate', () => {
     expect(generate({ project, out }).stale).toBe(false)
   })
 
+  it('calls a file current that differs only in CRLF line endings', () => {
+    const out = scratch()
+    generate({ project, out })
+    writeFileSync(out, readFileSync(out, 'utf8').replaceAll('\n', '\r\n'), 'utf8')
+    expect(inspect({ project, out }).stale).toBe(false)
+  })
+
+  it('leaves a CRLF file as it is rather than rewriting it', () => {
+    const out = scratch()
+    generate({ project, out })
+    const crlf = readFileSync(out, 'utf8').replaceAll('\n', '\r\n')
+    writeFileSync(out, crlf, 'utf8')
+    expect(generate({ project, out }).stale).toBe(false)
+    expect(readFileSync(out, 'utf8')).toBe(crlf)
+  })
+
   it('notices a file that has fallen behind', () => {
     const out = scratch()
     generate({ project, out })
