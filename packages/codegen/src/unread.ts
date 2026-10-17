@@ -62,13 +62,52 @@ export const untold: Told = { dynamic: [], outside: false }
 /** The next `Told`, and what is worth saying now; `changed` says what a change is. */
 export function news(
   told: Told,
-  now: { dynamic: Site[]; included: boolean },
+  now: { dynamic: Site[]; included: boolean | undefined },
 ): { told: Told; say: { outside: boolean; unread: boolean } } {
   return {
-    told: { dynamic: now.dynamic, outside: !now.included },
+    told: {
+      dynamic: now.dynamic,
+      outside: now.included === undefined ? told.outside : !now.included,
+    },
     say: {
-      outside: !now.included && !told.outside,
+      outside: now.included === false && !told.outside,
       unread: changed(told.dynamic, now.dynamic) && now.dynamic.length > 0,
     },
   }
+}
+
+/**
+ * What both the command and the Vite plugin print about a report: that the
+ * file is outside the project and which calls could not be read, each only
+ * when `news` says it is worth saying. `scan.ts` says why the unread calls are
+ * the reason a loose run exists.
+ */
+export function say(
+  told: Told,
+  now: { out: string; dynamic: Site[]; included: boolean | undefined },
+  words: {
+    /** The directory every path is printed relative to. */
+    from: string
+    /** See `message`. */
+    remedy: string | null
+    /**
+     * A verb phrase that fills the slot after "or": how this front end moves
+     * the file somewhere the tsconfig already reads.
+     */
+    elsewhere: string
+  },
+): { told: Told; warnings: string[] } {
+  const { told: next, say: worth } = news(told, now)
+  const warnings: string[] = []
+  if (worth.outside) {
+    warnings.push(
+      `${relative(words.from, now.out) || now.out} is outside the project, so nothing ` +
+        `compiles it and no completion\never appears. Add it to the include of\n` +
+        `the tsconfig that compiles your stories, or ${words.elsewhere}.`,
+    )
+  }
+  if (worth.unread) {
+    warnings.push(message(now.dynamic, { from: words.from, remedy: words.remedy }).join('\n'))
+  }
+  return { told: next, warnings }
 }

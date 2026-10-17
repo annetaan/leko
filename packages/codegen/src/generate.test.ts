@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { generate, inspect, type Report, watch } from './generate.js'
@@ -86,6 +87,23 @@ describe('generate', () => {
       rmSync(out, { force: true })
     }
   })
+
+  it('inspect leaves included undefined for a file that is not on disk', () => {
+    expect(inspect({ project, out: join(project, 'src', 'absent.d.ts') }).included).toBeUndefined()
+  })
+
+  it.skipIf(ts.sys.useCaseSensitiveFileNames)(
+    'counts an out written in another case as inside on a filesystem that ignores case',
+    () => {
+      try {
+        expect(generate({ project, out: join(project, 'SRC', 'generated.d.ts') }).included).toBe(
+          true,
+        )
+      } finally {
+        rmSync(join(project, 'src', 'generated.d.ts'), { force: true })
+      }
+    },
+  )
 })
 
 describe('references', () => {

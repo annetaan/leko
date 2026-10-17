@@ -51,6 +51,9 @@ leko-signals --out src/leko-signals.d.ts --check    # in CI
 | `--check` | write nothing, exit 1 if the file on disk has fallen behind |
 | `--watch` | keep writing while the project is edited |
 
+It exits 2 when it cannot run at all: an option it does not know, or a tsconfig
+it cannot read.
+
 **Put the output where your tsconfig reads from.** A declaration file outside
 the project's `include` is compiled by nobody, so the augmentation never applies
 and no completion appears. The generator says so when it notices, because

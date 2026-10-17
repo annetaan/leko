@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Site } from './scan.js'
-import { changed, message, news, type Told, untold } from './unread.js'
+import { changed, message, news, say, type Told, untold } from './unread.js'
 
 const at = (file: string, line: number): Site => ({ file, line })
 
@@ -108,5 +108,31 @@ describe('news', () => {
       dynamic: one,
       outside: true,
     })
+  })
+
+  it('says nothing about inclusion while the file is not on disk', () => {
+    const told: Told = { dynamic: [], outside: true }
+    const next = news(told, { dynamic: [], included: undefined })
+    expect(next.say.outside).toBe(false)
+    expect(next.told.outside).toBe(true)
+    expect(news(untold, { dynamic: [], included: undefined }).told.outside).toBe(false)
+  })
+})
+
+describe('say', () => {
+  it('say gives the outside text and the unread text, in one wording whatever the front end', () => {
+    const { told, warnings } = say(
+      untold,
+      { out: '/app/src/signals.d.ts', dynamic: [at('/app/src/a.ts', 5)], included: false },
+      { from: '/app', remedy: 'run with --loose', elsewhere: 'move it' },
+    )
+    expect(warnings).toEqual([
+      'src/signals.d.ts is outside the project, so nothing compiles it and no completion\n' +
+        'ever appears. Add it to the include of\n' +
+        'the tsconfig that compiles your stories, or move it.',
+      message([at('/app/src/a.ts', 5)], { from: '/app', remedy: 'run with --loose' }).join('\n'),
+    ])
+    expect(told).toEqual({ dynamic: [at('/app/src/a.ts', 5)], outside: true })
+    expect(warnings[1]).toContain('run with --loose or name it by hand')
   })
 })
