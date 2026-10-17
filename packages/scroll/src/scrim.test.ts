@@ -178,6 +178,18 @@ test("a converge takes the duration it is given, and the next one the scrim's ow
   expect(part(scrim, 'scrim').style.maskImage).toBe(serialised(WIDTH, HEIGHT, b))
 })
 
+test.each([-500, Number.NaN, Number.POSITIVE_INFINITY])(
+  'a converge given a duration that is not a finite number above zero arrives on the next frame (%s)',
+  (duration) => {
+    vi.useFakeTimers()
+    const { scrim, arrivals } = mount(40)
+    scrim.converge(a, seen, duration)
+    elapse(16)
+    expect(arrivals()).toBe(1)
+    expect(part(scrim, 'scrim').style.maskImage).toBe(serialised(WIDTH, HEIGHT, a))
+  },
+)
+
 test('a morph writes a blended hole per frame and arrives on the destination', async () => {
   const { scrim, arrived, arrivals } = mount(300)
   scrim.place(a, WIDTH)

@@ -259,6 +259,17 @@ test('intro.duration slows the converge at creation and not the morph after it',
   expect(changes).toEqual([0, 1])
 })
 
+test.each([-1, Number.NaN])(
+  'an intro.duration that is negative or not a number (%s) lands at once and onChange fires',
+  async (duration) => {
+    const { targets } = build()
+    const { changes } = await clocked({ intro: { duration } })
+    elapse(16 * 2)
+    expect(changes).toEqual([0])
+    expect(mask()).toBe(maskOn(targets[0]))
+  },
+)
+
 test('created outside the range, the converge a later scroll starts is not the intro', async () => {
   build([2000, 2600])
   const { changes } = await clocked({
