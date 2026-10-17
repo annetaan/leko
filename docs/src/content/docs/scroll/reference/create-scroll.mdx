@@ -279,8 +279,11 @@ document.querySelector('details')?.addEventListener('toggle', () => scroll.measu
 ```
 
 With the same target lit, the hole is put back where the target now is, at
-once and with no notice. Where the lit target changed, it goes there the way a
-scroll to the same position would.
+once and with no notice. Where the lit target changed, or the line entered or
+left the range, it is treated the way a scroll to the same position would be.
+Where the lit target is no longer found, and the line is in a fade band or
+nothing is found at all, the light goes out and `onChange` fires with
+`undefined`.
 
 ### destroy
 
