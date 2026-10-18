@@ -273,9 +273,10 @@ So far it has been checked on the newest releases, which
 [Seen on](spike/the-support-floor/README.md#seen-on) records.
 
 [CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
-(Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the step message beside
-its cutout and does nothing else. Where it is missing the message docks to the
-bottom of the viewport, so it degrades rather than fails.
+(Chrome/Edge 125+, Firefox 147+, Safari 26+, by MDN's compatibility data)
+places the step message beside its cutout and does nothing else. Where it is
+missing the message docks to the bottom of the viewport, so it degrades rather
+than fails.
 
 Where the Navigation API is missing, a URL-waiting step still hears a hash
 change and back/forward through the `popstate`/`hashchange` fallback; only a

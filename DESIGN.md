@@ -1958,9 +1958,10 @@ that list adds it to the page first**, so the list stays the whole of what a
 floor is measured against. What has been checked so far is the newest
 releases, which [Seen on](spike/the-support-floor/README.md#seen-on) records.
 
-CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places
-the message beside a cutout and does nothing else, so it degrades rather than
-fails: without it the message docks to the foot of the viewport, which is
+[CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
+(Chrome/Edge 125+, Firefox 147+, Safari 26+, by MDN's compatibility data)
+places the message beside a cutout and does nothing else, so it degrades rather
+than fails: without it the message docks to the foot of the viewport, which is
 plainer than being beside the hole and never points at the wrong place.
 The message uses neither `@position-try` nor `position-try-fallbacks`, and
 **The message** says why. What it asks for is `anchor()` in an inset and

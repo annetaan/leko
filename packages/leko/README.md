@@ -135,9 +135,10 @@ browser can run Leko. So far it has been checked on the newest releases, which
 [Seen on](https://github.com/annetaan/leko/blob/main/spike/the-support-floor/README.md#seen-on)
 records.
 
-CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the
-step message beside its cutout and nothing else, so it degrades rather than
-fails: without it the message docks to the foot of the viewport.
+[CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
+(Chrome/Edge 125+, Firefox 147+, Safari 26+, by MDN's compatibility data)
+places the step message beside its cutout and nothing else, so it degrades
+rather than fails: without it the message docks to the foot of the viewport.
 
 ## More
 
