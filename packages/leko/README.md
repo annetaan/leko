@@ -119,8 +119,9 @@ createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
 
 [Getting started with Leko Scroll](https://annetaan.github.io/leko/scroll/getting-started/)
 takes an empty Vite project to a lit page, and
-[its reference](https://github.com/annetaan/leko/tree/main/docs/src/content/docs/scroll/reference)
-covers every option and custom property.
+[its reference](https://annetaan.github.io/leko/scroll/reference/create-scroll/)
+covers every option and
+[custom property](https://annetaan.github.io/leko/scroll/reference/css-custom-properties/).
 [`examples/scroll/`](https://github.com/annetaan/leko/tree/main/examples/scroll)
 is one long page lit end to end.
 

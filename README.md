@@ -195,8 +195,9 @@ A hole is shown and not handed over until the step's first region says
 `interactive: true`.
 Most steps of a tour explain what is already on screen, and a click on one of
 those can take the user off the page the next step points at. Every option is
-documented next to itself in
-[`packages/types/src/types.ts`](packages/types/src/types.ts).
+in the reference:
+[a step's and a story's](https://annetaan.github.io/leko/reference/story-and-step/)
+and [the instance's](https://annetaan.github.io/leko/reference/create-leko/).
 
 ## What makes it different
 
@@ -223,7 +224,7 @@ runs.
 
 **Nothing else arrives with it.** The core is plain TypeScript with no runtime
 dependencies. There are no framework wrappers and none are planned:
-[the guide](docs/src/content/docs/guides/frameworks.mdx) says where each call
+[the guide](https://annetaan.github.io/leko/guides/frameworks/) says where each call
 goes in React, Vue and a plain script.
 
 **It survives a page load.** A story's last step can wait for the URL the
@@ -258,8 +259,10 @@ createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
 
 [Getting started with Leko Scroll](https://annetaan.github.io/leko/scroll/getting-started/)
 takes an empty Vite project to a lit page, and
-[its reference](docs/src/content/docs/scroll/reference/) covers every option
-and custom property. `pnpm dev:scroll` serves
+[its reference](https://annetaan.github.io/leko/scroll/reference/create-scroll/)
+covers every option and
+[custom property](https://annetaan.github.io/leko/scroll/reference/css-custom-properties/).
+`pnpm dev:scroll` serves
 [`examples/scroll/`](examples/scroll/), one long page lit end to end.
 
 ## Browser support

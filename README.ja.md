@@ -117,7 +117,7 @@ Leko は知りようがありません。ステップが残した状態を取り
 穴は既定では「見えるが触れない」状態で、最初のリージョンに `interactive: true` と書いたステップだけが
 下のページにポインタを渡します。ツアーのほとんどのステップは画面にあるものを説明する
 ためのもので、そこをクリックされると次のステップが指すページから離れてしまうからです。
-使用できるオプションは [`packages/types/src/types.ts`](packages/types/src/types.ts) に、各フィールドの隣に書いてあります。
+使用できるオプションはリファレンスにあります：[ステップとストーリーのもの](https://annetaan.github.io/leko/reference/story-and-step/)と[インスタンスのもの](https://annetaan.github.io/leko/reference/create-leko/)。
 
 ## 他のライブラリーと比較したLekoの強み
 
