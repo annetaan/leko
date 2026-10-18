@@ -1,11 +1,12 @@
 /*
- * What a packed manifest names, whether the tarball carries it, and whether
- * the public packages agree on one version.
+ * What a packed manifest or a packed file names, whether the tarball carries
+ * it, and whether the public packages agree on one version.
  *
- * Manifests and paths in and findings out, so `pack.test.mjs` drives it
+ * Manifests, paths and file text in and findings out, so `pack.test.mjs` drives it
  * directly and `check-pack.mjs` is left with pnpm, tar and the report. Most of
  * it reads one package; `mismatched` reads every public manifest at once.
  */
+import { posix } from 'node:path'
 
 /** The exports tree with every `name` key taken out, the other keys left in their order. */
 export function withoutCondition(exports, name) {
@@ -62,6 +63,26 @@ export function droppable(manifest) {
   return [...leaves(manifest.exports, 'exports')].filter(
     ({ target }) => target.endsWith('.css') && !kept.has(inPackage(target)),
   )
+}
+
+/** `//# sourceMappingURL=…` and its block-comment form, the target captured. */
+const MAP_URL = /(?:\/\/|\/\*)#\s*sourceMappingURL=([^\s*]+)/g
+
+/**
+ * Every file the packed file at `path` names that `files` lacks, as
+ * `{ kind, path, target }`. A source map named but not packed points a
+ * debugger or a consumer's bundler at nothing. An inline `data:` map names no
+ * file.
+ */
+export function dangling(path, text, files) {
+  return [...text.matchAll(MAP_URL)]
+    .map(([, target]) => target)
+    .filter(
+      (target) =>
+        !target.startsWith('data:') &&
+        !files.has(inPackage(posix.join(posix.dirname(path), target))),
+    )
+    .map((target) => ({ kind: 'map', path, target }))
 }
 
 /** The fields that declare a dependency. `devDependencies` is not installed. */

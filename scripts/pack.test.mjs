@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { droppable, mismatched, unpacked, withoutCondition } from './pack.mjs'
+import { dangling, droppable, mismatched, unpacked, withoutCondition } from './pack.mjs'
 
 describe('unpacked', () => {
   it('names an export target the tarball does not carry', () => {
@@ -168,5 +168,31 @@ describe('mismatched', () => {
   it('does not read devDependencies', () => {
     const manifest = codegen('0.1.0', { devDependencies: { '@annetaan/leko': '0.0.0' } })
     expect(mismatched([leko, manifest])).toEqual([])
+  })
+})
+
+describe('dangling', () => {
+  it('finds a sourceMappingURL naming a file the tarball lacks', () => {
+    const text = 'export {}\n//# sourceMappingURL=index.js.map\n'
+    expect(dangling('dist/index.js', text, new Set(['dist/index.js']))).toEqual([
+      { kind: 'map', path: 'dist/index.js', target: 'index.js.map' },
+    ])
+    const css = '.a{}\n/*# sourceMappingURL=leko.css.map */\n'
+    expect(dangling('dist/leko.css', css, new Set(['dist/leko.css']))).toEqual([
+      { kind: 'map', path: 'dist/leko.css', target: 'leko.css.map' },
+    ])
+  })
+
+  it('resolves the map beside the file that names it', () => {
+    const text = 'export {}\n//# sourceMappingURL=a.js.map\n'
+    expect(dangling('dist/a.js', text, new Set(['dist/a.js', 'dist/a.js.map']))).toEqual([])
+    expect(dangling('dist/a.js', text, new Set(['dist/a.js', 'a.js.map']))).toEqual([
+      { kind: 'map', path: 'dist/a.js', target: 'a.js.map' },
+    ])
+  })
+
+  it('passes an inline data: source map', () => {
+    const text = 'export {}\n//# sourceMappingURL=data:application/json;base64,e30=\n'
+    expect(dangling('dist/a.js', text, new Set(['dist/a.js']))).toEqual([])
   })
 })

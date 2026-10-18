@@ -309,10 +309,12 @@ refuses it. Publishing a tarball runs no lifecycle script, so the release's
 checked there, and reads the tarball. It fails on a bare import the packed
 manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
 names and the tarball does not carry, on a `publishConfig.exports` that has
-drifted from `exports` with `development` taken out, and on a stylesheet
-`exports` names that `sideEffects` lets a bundler drop. Run it after anything
-that changes what a package imports, how it is built or what its manifest
-exports.
+drifted from `exports` with `development` taken out, on a stylesheet `exports`
+names that `sideEffects` lets a bundler drop, and on a `sourceMappingURL`
+naming a file the tarball does not carry. Run it after anything that changes
+what a package imports, how it is built or what its manifest exports. Nothing
+in the workspace builds a source map, and nothing reads one: what runs from
+source resolves `development` to `src/`, and the tarballs carry none.
 
 It also fails when the public packages do not share one version, or when one
 names another as a dependency or peer with anything but that version. What

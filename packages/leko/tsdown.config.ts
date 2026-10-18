@@ -8,7 +8,6 @@ export default defineConfig({
   entry: { index: 'src/index.ts', scroll: 'src/scroll.ts' },
   format: 'esm',
   dts: true,
-  sourcemap: true,
   outDir: 'dist',
   // `.js`, not the `.mjs` tsdown defaults to. The package is `type: module`, so
   // `.js` is already ESM, and `exports` has pointed at `index.js` since before
