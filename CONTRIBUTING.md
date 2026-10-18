@@ -308,9 +308,11 @@ refuses it. Publishing a tarball runs no lifecycle script, so the release's
 `pnpm pack` into `tarballs/` at the root, emptying it first and leaving what it
 checked there, and reads the tarball. It fails on a bare import the packed
 manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
-names and the tarball does not carry, and on a `publishConfig.exports` that has
-drifted from `exports` with `development` taken out. Run it after anything that
-changes what a package imports, how it is built or what its manifest exports.
+names and the tarball does not carry, on a `publishConfig.exports` that has
+drifted from `exports` with `development` taken out, and on a stylesheet
+`exports` names that `sideEffects` lets a bundler drop. Run it after anything
+that changes what a package imports, how it is built or what its manifest
+exports.
 
 It also fails when the public packages do not share one version, or when one
 names another as a dependency or peer with anything but that version. What

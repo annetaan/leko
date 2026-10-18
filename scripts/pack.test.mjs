@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mismatched, unpacked, withoutCondition } from './pack.mjs'
+import { droppable, mismatched, unpacked, withoutCondition } from './pack.mjs'
 
 describe('unpacked', () => {
   it('names an export target the tarball does not carry', () => {
@@ -62,6 +62,35 @@ describe('unpacked', () => {
         new Set(['dist/index.js']),
       ),
     ).toEqual([])
+  })
+})
+
+describe('droppable', () => {
+  const exports = {
+    '.': { types: './dist/index.d.ts', default: './dist/index.js' },
+    './leko.css': './dist/leko.css',
+  }
+
+  it('finds a stylesheet export a false sideEffects lets a bundler drop', () => {
+    expect(droppable({ sideEffects: false, exports })).toEqual([
+      { field: 'exports["./leko.css"]', target: './dist/leko.css' },
+    ])
+  })
+
+  it('finds a stylesheet export missing from a sideEffects list', () => {
+    expect(droppable({ sideEffects: ['./dist/other.css'], exports })).toEqual([
+      { field: 'exports["./leko.css"]', target: './dist/leko.css' },
+    ])
+  })
+
+  it('passes a stylesheet export the sideEffects list names, written with or without ./', () => {
+    expect(droppable({ sideEffects: ['./dist/leko.css'], exports })).toEqual([])
+    expect(droppable({ sideEffects: ['dist/leko.css'], exports })).toEqual([])
+  })
+
+  it('passes when sideEffects is absent or true', () => {
+    expect(droppable({ exports })).toEqual([])
+    expect(droppable({ sideEffects: true, exports })).toEqual([])
   })
 })
 

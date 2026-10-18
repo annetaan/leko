@@ -47,6 +47,23 @@ export function unpacked(manifest, files) {
     .filter(({ target }) => !files.has(inPackage(target)))
 }
 
+/**
+ * Every stylesheet `exports` names that `sideEffects` lets a bundler drop, as
+ * `{ field, target }`. Importing one is a side effect and nothing else, so a
+ * bundler told the package has none removes the import. `false` drops every
+ * stylesheet, and `true` or no field drops none. A list entry is compared as a
+ * path, never matched as a glob: bundlers do not agree on what a bare `*.css`
+ * reaches, which is why the manifest names the file.
+ */
+export function droppable(manifest) {
+  const { sideEffects } = manifest
+  if (sideEffects !== false && !Array.isArray(sideEffects)) return []
+  const kept = new Set(Array.isArray(sideEffects) ? sideEffects.map(inPackage) : [])
+  return [...leaves(manifest.exports, 'exports')].filter(
+    ({ target }) => target.endsWith('.css') && !kept.has(inPackage(target)),
+  )
+}
+
 /** The fields that declare a dependency. `devDependencies` is not installed. */
 export const DEPENDS = ['dependencies', 'peerDependencies', 'optionalDependencies']
 
