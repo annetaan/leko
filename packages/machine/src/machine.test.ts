@@ -2142,6 +2142,24 @@ describe('what a step assumes', () => {
   })
 })
 
+function callingFromOnEnter(calls: (tour: Machine<Fixture>) => void, options: Options = {}) {
+  let tour!: Machine<Fixture>
+  tour = staging(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => calls(tour) },
+      ],
+    },
+    options,
+  )
+  hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
+  begin(tour, 'story')
+  press(tour)
+  return tour
+}
+
 describe('a call that arrives while the machine is inside the application', () => {
   // DESIGN.md, **One gate, and what it refuses**.
   //
@@ -2149,27 +2167,9 @@ describe('a call that arrives while the machine is inside the application', () =
   // the gate; this one asks whether any of them is an exception, which is the
   // claim the rest of the file is written on top of.
 
-  function inside(calls: (tour: Machine<Fixture>) => void, options: Options = {}) {
-    let tour!: Machine<Fixture>
-    tour = staging(
-      {
-        id: 'story',
-        steps: [
-          { id: 'a', target: 'first' },
-          { id: 'b', target: 'second', awaits: 'ready', onEnter: () => calls(tour) },
-        ],
-      },
-      options,
-    )
-    hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
-    begin(tour, 'story')
-    press(tour)
-    return tour
-  }
-
   test('every way in is refused, and the arrival lands untouched', () => {
     const problems: Problem<Fixture>[] = []
-    const tour = inside(
+    const tour = callingFromOnEnter(
       (running) => {
         running.reached('ready')
         press(running)
@@ -2221,7 +2221,7 @@ describe('a call that arrives while the machine is inside the application', () =
   })
 
   test('stop is the one call that does not ask, because a tour has to be turnable off', () => {
-    const tour = inside((running) => running.stop())
+    const tour = callingFromOnEnter((running) => running.stop())
 
     expect(tour.state).toBe('idle')
     expect(drawing().torn).toBe(1)
@@ -2230,7 +2230,7 @@ describe('a call that arrives while the machine is inside the application', () =
 
   test('a stop() from inside onEnter opens the gate, and a start() after it goes through', () => {
     const problems: Problem<Fixture>[] = []
-    const tour = inside(
+    const tour = callingFromOnEnter(
       (running) => {
         running.stop()
         begin(running, 'other')
@@ -2245,7 +2245,7 @@ describe('a call that arrives while the machine is inside the application', () =
   })
 
   test('a refused signal is still refused when the step is the one awaiting it', () => {
-    const tour = inside((running) => running.reached('ready'))
+    const tour = callingFromOnEnter((running) => running.reached('ready'))
 
     expect(tour.step?.id).toBe('b')
     expect(tour.state).toBe('running')
@@ -2256,18 +2256,18 @@ describe('a call that arrives while the machine is inside the application', () =
   })
 })
 
+function withProblems(story: Story) {
+  const problems: Problem<Fixture>[] = []
+  const tour = staging(story, { onDiagnostic: (problem) => problems.push(problem) })
+  return { tour, problems }
+}
+
 describe('saying that a call did nothing', () => {
   // DESIGN.md, **Saying that a call did nothing**.
 
-  function heard(story: Story) {
-    const problems: Problem<Fixture>[] = []
-    const tour = staging(story, { onDiagnostic: (problem) => problems.push(problem) })
-    return { tour, problems }
-  }
-
   test('a story with nothing in it', () => {
     const empty: Story = { id: 'nothing-to-show', steps: [] }
-    const { tour, problems } = heard({
+    const { tour, problems } = withProblems({
       id: 'onboarding',
       steps: [{ id: 'a', target: 'first' }],
     })
@@ -2285,7 +2285,7 @@ describe('saying that a call did nothing', () => {
       awaits: 'ready',
       onEnter: () => tour.reached('ready'),
     }
-    const heardIt = heard({ id: 'story', steps: [{ id: 'a', target: 'first' }, step] })
+    const heardIt = withProblems({ id: 'story', steps: [{ id: 'a', target: 'first' }, step] })
     tour = heardIt.tour
 
     begin(tour, 'story')
@@ -2297,7 +2297,7 @@ describe('saying that a call did nothing', () => {
 
   test('a name nothing is waiting for stays silent, whatever the machine is doing', () => {
     let tour!: Machine<Fixture>
-    const heardIt = heard({
+    const heardIt = withProblems({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
@@ -2317,7 +2317,7 @@ describe('saying that a call did nothing', () => {
 
   test('a start refused inside an arrival is reported once per call', () => {
     let tour!: Machine<Fixture>
-    const heardIt = heard({
+    const heardIt = withProblems({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },

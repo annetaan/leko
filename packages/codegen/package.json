@@ -60,9 +60,9 @@
   },
   "devDependencies": {
     "@annetaan/leko": "workspace:*",
-    "@types/node": "^24.10.0",
-    "typescript": "^5.9.2",
-    "vite": "^8.2.0"
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
   },
   "peerDependencies": {
     "@annetaan/leko": "workspace:*",

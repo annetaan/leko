@@ -110,6 +110,10 @@ function root(): HTMLElement {
   return el
 }
 
+function part(name: string): HTMLElement | null {
+  return root().querySelector<HTMLElement>(`.leko-scroll-${name}`)
+}
+
 const mask = (): string =>
   root().querySelector<HTMLElement>('.leko-scroll-scrim')?.style.maskImage ?? ''
 
@@ -668,7 +672,6 @@ test('an onChange that measures on arrival still shows the message and the halo'
   })
   instances.push(scroll!)
   await measured
-  const part = (name: string) => root().querySelector<HTMLElement>(`.leko-scroll-${name}`)
   expect(part('halo')?.style.opacity).toBe('1')
   expect(part('message')?.style.visibility).toBe('visible')
 })
