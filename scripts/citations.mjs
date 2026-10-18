@@ -16,6 +16,12 @@ export const DOCS = ['DESIGN.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'ONBOARDING.md
 const NAMES = DOCS.join('|')
 
 /**
+ * What a document's name looks like, for code that has to find one outside a
+ * citation. Global, so it is read with `matchAll`.
+ */
+export const NAME = new RegExp(NAMES, 'g')
+
+/**
  * How far a citation may reach on its way to `under`. Four named conditions
  * and no length:
  *
@@ -292,7 +298,7 @@ export function unread(text) {
  * `resolution--custom-functions`, because dropping the `&` leaves the spaces
  * either side of it behind.
  */
-const spelling = (name) =>
+export const spelling = (name) =>
   name
     .toLowerCase()
     .replaceAll(/[^\p{L}\p{N} _-]/gu, '')
@@ -325,6 +331,12 @@ export function slugs(markdown) {
 /** A link through the repository's own URL, down to the path inside it. */
 const BLOB = /^https:\/\/github\.com\/annetaan\/leko\/blob\/[^/]+\//
 
+/** A link's opening `](` and the path of its destination, which stops at a fragment. */
+const DESTINATION = String.raw`\]\(\s*([^\s)#]*)`
+
+/** The title CommonMark allows after a destination, and the bracket that closes it. */
+const TITLE = String.raw`(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)`
+
 /**
  * `](path#fragment)`, with the title CommonMark allows after a destination.
  * The path may be empty, meaning this file; the fragment may not.
@@ -339,7 +351,7 @@ const BLOB = /^https:\/\/github\.com\/annetaan\/leko\/blob\/[^/]+\//
  * A reference link, `[text][ref]` with its destination on a `[ref]:` line, is
  * a second grammar and is not read. Nothing here writes one.
  */
-const LINK = /\]\(\s*([^\s)#]*)#([^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)/g
+const LINK = new RegExp(String.raw`${DESTINATION}#([^\s)]+)${TITLE}`, 'g')
 
 /**
  * Every link into a heading, as the file it names and the fragment it wants.
@@ -360,5 +372,23 @@ export function links(text) {
   return Array.from(text.matchAll(LINK), ([, target, fragment]) => ({
     target: BLOB.test(target) ? `/${target.replace(BLOB, '')}` : target,
     fragment,
+  }))
+}
+
+/** `DESTINATION` with the fragment optional: every link, whether it names a heading or not. */
+const ANY = new RegExp(String.raw`${DESTINATION}(?:#([^\s)]*))?${TITLE}`, 'dg')
+
+/**
+ * Every link destination in the text, heading or not, as the path it names,
+ * the fragment (`undefined` where there is none) and `span`, the offsets the
+ * path and fragment take up together, so a caller can rewrite the destination
+ * and leave the rest of the link alone. The path comes back exactly as the
+ * link wrote it.
+ */
+export function destinations(text) {
+  return Array.from(text.matchAll(ANY), (found) => ({
+    target: found[1],
+    fragment: found[2],
+    span: [found.indices[1][0], (found.indices[2] ?? found.indices[1])[1]],
   }))
 }

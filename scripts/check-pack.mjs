@@ -12,8 +12,9 @@
  * the tarball? Is the packed `exports` the source's with `development`
  * taken out, so `publishConfig.exports` has not drifted from the tree it
  * copies? And is every stylesheet `exports` names kept by `sideEffects`, so a
- * bundler does not drop the import of it? Does every `sourceMappingURL` in
- * the packed code name a file the tarball carries? Those five are reported
+ * bundler does not drop the import of it? Does every reference the packed
+ * code makes — a source map, a markdown link, a root document's name — land
+ * on a file the tarball carries or on the web? Those five are reported
  * per package. And do the public packages
  * carry one version, and name each other by exactly that version? That one is
  * asked across them once every package is packed, and the run fails at the
@@ -95,8 +96,8 @@ function undeclared({ root, files, manifest }) {
   return [...new Set(problems)].toSorted()
 }
 
-/** Every source map the packed code names that the tarball does not carry. */
-function unmapped({ root, files }) {
+/** Every reference in the packed code that lands on nothing the tarball carries. */
+function unreachable({ root, files }) {
   const packed = new Set(files)
   return files
     .filter((path) => CODE.test(path))
@@ -124,14 +125,14 @@ for (const project of projects) {
       withoutCondition(source.exports, 'development'),
     )
     const dropped = droppable(packed.manifest)
-    const maps = unmapped(packed)
+    const unreached = unreachable(packed)
 
     if (
       imports.length === 0 &&
       missing.length === 0 &&
       !drifted &&
       dropped.length === 0 &&
-      maps.length === 0
+      unreached.length === 0
     ) {
       console.log(
         `ok  ${source.name} — ${packed.files.length} files, nothing undeclared or missing`,
@@ -159,10 +160,11 @@ for (const project of projects) {
       for (const { field, target } of dropped) console.error(`       ${field} → ${target}`)
       console.error('     Name each one in sideEffects by its path in the package.')
     }
-    if (maps.length > 0) {
-      console.error(`FAIL ${source.name} names source maps its tarball does not carry:`)
-      for (const { path, target } of maps) console.error(`       ${path} → ${target}`)
-      console.error('     Build without maps, or pack the file it names.')
+    if (unreached.length > 0) {
+      console.error(`FAIL ${source.name} points at files its tarball does not carry:`)
+      for (const { path, target } of unreached) console.error(`       ${path} → ${target}`)
+      console.error('     A source map: build without it. A link or a document name: build')
+      console.error('     through `cite` (`packages/leko/tsdown.config.ts`), or drop it.')
     }
   } finally {
     rmSync(into, { recursive: true, force: true })

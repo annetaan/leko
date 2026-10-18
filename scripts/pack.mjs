@@ -8,6 +8,9 @@
  */
 import { posix } from 'node:path'
 
+import { NAME, destinations } from './citations.mjs'
+import { passages } from './comments.mjs'
+
 /** The exports tree with every `name` key taken out, the other keys left in their order. */
 export function withoutCondition(exports, name) {
   if (Array.isArray(exports)) return exports.map((entry) => withoutCondition(entry, name))
@@ -69,20 +72,41 @@ export function droppable(manifest) {
 const MAP_URL = /(?:\/\/|\/\*)#\s*sourceMappingURL=([^\s*]+)/g
 
 /**
- * Every file the packed file at `path` names that `files` lacks, as
- * `{ kind, path, target }`. A source map named but not packed points a
- * debugger or a consumer's bundler at nothing. An inline `data:` map names no
- * file.
+ * Every reference the packed file at `path` makes that lands on nothing a
+ * consumer holds, as `{ kind, path, target }`.
+ *
+ * - `map`: a source map named but not packed, which points a debugger or a
+ *   consumer's bundler at nothing. An inline `data:` map names no file.
+ * - `link`: a relative markdown link in a comment whose file the tarball does
+ *   not carry. One with a scheme, or one that starts with `#` or `/`, is not
+ *   judged.
+ * - `name`: a root document's name in a comment, which only resolves inside a
+ *   checkout. One after a `/` is part of a path or a URL, and one after a `[`
+ *   is the text of a link that is judged as a link.
+ *
+ * Comments alone are read for the last two, so a name in a string is code and
+ * is left to the code.
  */
 export function dangling(path, text, files) {
-  return [...text.matchAll(MAP_URL)]
+  const packed = (target) => files.has(inPackage(posix.join(posix.dirname(path), target)))
+  const maps = [...text.matchAll(MAP_URL)]
     .map(([, target]) => target)
+    .filter((target) => !target.startsWith('data:') && !packed(target))
+    .map((target) => ({ kind: 'map', path, target }))
+  const comments = passages(text, path)
+  const links = comments
+    .flatMap((passage) => destinations(passage))
+    .map(({ target }) => target)
     .filter(
       (target) =>
-        !target.startsWith('data:') &&
-        !files.has(inPackage(posix.join(posix.dirname(path), target))),
+        target !== '' && !target.startsWith('/') && !URL.canParse(target) && !packed(target),
     )
-    .map((target) => ({ kind: 'map', path, target }))
+    .map((target) => ({ kind: 'link', path, target }))
+  const names = comments
+    .flatMap((passage) => [...passage.matchAll(NAME)].map((name) => ({ passage, name })))
+    .filter(({ passage, name }) => !['/', '['].includes(passage[name.index - 1]))
+    .map(({ name }) => ({ kind: 'name', path, target: name[0] }))
+  return [...maps, ...links, ...names]
 }
 
 /** The fields that declare a dependency. `devDependencies` is not installed. */

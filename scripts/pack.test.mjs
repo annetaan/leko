@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { cite } from './cite.mjs'
 import { dangling, droppable, mismatched, unpacked, withoutCondition } from './pack.mjs'
 
 describe('unpacked', () => {
@@ -194,5 +195,50 @@ describe('dangling', () => {
   it('passes an inline data: source map', () => {
     const text = 'export {}\n//# sourceMappingURL=data:application/json;base64,e30=\n'
     expect(dangling('dist/a.js', text, new Set(['dist/a.js']))).toEqual([])
+  })
+
+  it('finds a bare DESIGN.md in a comment of a packed file', () => {
+    const text = '/** DESIGN.md argues it under **The halo**. */\nexport {}\n'
+    expect(dangling('dist/index.d.ts', text, new Set(['dist/index.d.ts']))).toEqual([
+      { kind: 'name', path: 'dist/index.d.ts', target: 'DESIGN.md' },
+    ])
+  })
+
+  it('finds a relative link into the repository, with or without a fragment', () => {
+    const text = '// [The halo](../DESIGN.md#the-halo) and [a spike](../../../spike/a/).\n'
+    expect(dangling('dist/types.d.ts', text, new Set(['dist/types.d.ts']))).toEqual([
+      { kind: 'link', path: 'dist/types.d.ts', target: '../DESIGN.md' },
+      { kind: 'link', path: 'dist/types.d.ts', target: '../../../spike/a/' },
+    ])
+  })
+
+  it('passes a link to a packed file, an absolute URL and a fragment-only link', () => {
+    const text = '// [readme](../README.md), [w3](https://www.w3.org/) and [below](#below).\n'
+    expect(dangling('dist/a.js', text, new Set(['dist/a.js', 'README.md']))).toEqual([])
+  })
+
+  it('reads only comments, so a name in a string is not flagged', () => {
+    const text = "export const a = 'DESIGN.md and [x](../DESIGN.md)'\n"
+    expect(dangling('dist/a.js', text, new Set(['dist/a.js']))).toEqual([])
+  })
+
+  it('passes what cite wrote', () => {
+    const input = [
+      '/**',
+      " * DESIGN.md's **The halo**, CLAUDE.md, and [the message](../DESIGN.md#the-message)",
+      ' * beside [a spike](../../../spike/a/).',
+      ' */',
+      'export {}',
+      '',
+    ].join('\n')
+    const root = '/repo/'
+    const output = cite(input, {
+      file: `${root}packages/scroll/dist/types.d.ts`,
+      root,
+      base: 'https://github.com/annetaan/leko/blob/v0.1.0/',
+      anchors: new Map([['packages/scroll/DESIGN.md', new Set(['the-message'])]]),
+    })
+    expect(output).not.toBe(input)
+    expect(dangling('dist/types.d.ts', output, new Set(['dist/types.d.ts']))).toEqual([])
   })
 })
