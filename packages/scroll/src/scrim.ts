@@ -211,8 +211,13 @@ export class Scrim {
     const rise = this.converging && this.follows ? this.haloOpacity : undefined
     const tick = (now: number): void => {
       // Clamped at the bottom as well as the top, for the reason `segmentAt`
-      // in `packages/spotlight/src/geometry.ts` gives.
-      const t = Math.min(1, Math.max(0, (now - began) / duration))
+      // in `packages/spotlight/src/geometry.ts` gives. A duration that is not
+      // a finite number above zero lands at once — [The
+      // API](../DESIGN.md#the-api).
+      const t =
+        Number.isFinite(duration) && duration > 0
+          ? Math.min(1, Math.max(0, (now - began) / duration))
+          : 1
       if (t >= 1) {
         this.hole = to
         this.layHalo(this.paint(to)!)

@@ -64,7 +64,10 @@ createScroll({
 - `intro` is the converge at creation, `{ duration }` in milliseconds, and may
   be left out. Left out, or with no `duration`, it takes the 320ms every
   converge takes — [Entering converges, leaving
-  fades](#entering-converges-leaving-fades).
+  fades](#entering-converges-leaving-fades). A `duration` that is not a finite
+  number above zero (negative, `NaN`, `Infinity`) lands at once, the way `0`
+  does: a converge that never lands would leave the page dark, with no
+  `onChange` and nothing to say why.
 - `halo` is what the halo does during a converge, `'arrive'` or `'follow'`,
   and may be left out. Left out, it is `'arrive'` — [The halo](#the-halo).
 - `onChange` is the one notice, and [The whole page stays

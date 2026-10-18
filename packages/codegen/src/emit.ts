@@ -13,7 +13,14 @@ export interface EmitOptions {
 }
 
 /** A string TypeScript will read back as the same key. */
-const key = (name: string): string => `'${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+const key = (name: string): string =>
+  `'${name
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(
+      /[\p{Cc}\p{Zl}\p{Zp}]/gu,
+      (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    )}'`
 
 /**
  * The declaration file for a scan.

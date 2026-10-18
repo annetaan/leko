@@ -18,13 +18,16 @@ export interface ScanResult {
   signals: Signal[]
   /**
    * Calls whose argument is not a string the compiler could pin down:
-   * `reached(`step-${i}`)`, or a name arriving from outside the project.
+   * `reached(`step-${i}`)`, or a name arriving from outside the project. And
+   * every reference to Leko's `reached` that is not a call written
+   * `leko.reached(…)`: `leko['reached']`, `.call`, `.bind`, a destructured
+   * `reached`, each of which hides its argument from this scan.
    *
    * These are the reason `--loose` exists. A vocabulary gathered from a project
    * that builds names at runtime is incomplete by construction, and a strict
    * `awaits` on top of an incomplete vocabulary rejects steps that are right.
    */
-  dynamic: Site[]
+  unread: Site[]
 }
 
 /** The package whose `Leko` counts. Everybody else's is somebody else's. */
@@ -64,26 +67,53 @@ const lekoClass = (
 }
 
 /**
- * Whether `access` is the `reached` method of a Leko instance.
+ * Whether `symbol` is the `reached` method of a Leko instance.
  *
  * Asking the checker where the method was declared is what a regular expression
  * cannot do. `queue.reached('x')` in the same file resolves to a different
  * declaration and is left alone.
  */
 const isLekoReached = (
-  access: ts.PropertyAccessExpression,
-  leko: ts.Symbol | null,
+  symbol: ts.Symbol | undefined,
+  leko: ts.Symbol,
   checker: ts.TypeChecker,
   tsm: typeof ts,
 ): boolean => {
-  if (!leko || access.name.text !== 'reached') return false
-  const symbol = checker.getSymbolAtLocation(access.name)
   const declaration = symbol?.declarations?.[0]
   if (!declaration) return false
   if (!tsm.isMethodDeclaration(declaration) && !tsm.isMethodSignature(declaration)) return false
   const parent = declaration.parent
   if (!tsm.isClassDeclaration(parent) && !tsm.isInterfaceDeclaration(parent)) return false
   return parent.name !== undefined && checker.getSymbolAtLocation(parent.name) === leko
+}
+
+/**
+ * The symbol a node reads under the name `reached`, if it reads one at all:
+ * `x.reached`, `x['reached']` (or a `const` key of that type), or the
+ * `reached` of an object destructuring pattern.
+ */
+const reachedSymbol = (
+  node: ts.Node,
+  checker: ts.TypeChecker,
+  tsm: typeof ts,
+): ts.Symbol | undefined => {
+  if (tsm.isPropertyAccessExpression(node)) {
+    return node.name.text === 'reached' ? checker.getSymbolAtLocation(node.name) : undefined
+  }
+  if (tsm.isElementAccessExpression(node)) {
+    const key = checker.getTypeAtLocation(node.argumentExpression)
+    if (!key.isStringLiteral() || key.value !== 'reached') return undefined
+    return checker
+      .getNonNullableType(checker.getTypeAtLocation(node.expression))
+      .getProperty('reached')
+  }
+  if (tsm.isBindingElement(node) && tsm.isObjectBindingPattern(node.parent)) {
+    const property = node.propertyName ?? node.name
+    const named =
+      (tsm.isIdentifier(property) || tsm.isStringLiteral(property)) && property.text === 'reached'
+    return named ? checker.getTypeAtLocation(node.parent).getProperty('reached') : undefined
+  }
+  return undefined
 }
 
 /**
@@ -120,7 +150,7 @@ const namesOf = (argument: ts.Expression, checker: ts.TypeChecker): string[] | n
  */
 export function scan(programs: readonly ts.Program[], tsm: typeof ts): ScanResult {
   const found = new Map<string, Site[]>()
-  const dynamic: Site[] = []
+  const unread: Site[] = []
   const seen = new Set<string>()
 
   for (const program of programs) {
@@ -138,15 +168,22 @@ export function scan(programs: readonly ts.Program[], tsm: typeof ts): ScanResul
       })
 
       const visit = (node: ts.Node): void => {
-        if (tsm.isCallExpression(node) && tsm.isPropertyAccessExpression(node.expression)) {
-          if (isLekoReached(node.expression, leko, checker, tsm)) {
-            const argument = node.arguments[0]
+        if (isLekoReached(reachedSymbol(node, checker, tsm), leko, checker, tsm)) {
+          const call = node.parent
+          if (
+            tsm.isPropertyAccessExpression(node) &&
+            tsm.isCallExpression(call) &&
+            call.expression === node
+          ) {
+            const argument = call.arguments[0]
             const names = argument ? namesOf(argument, checker) : null
             if (names) {
-              for (const name of names) found.set(name, [...(found.get(name) ?? []), at(node)])
+              for (const name of names) found.set(name, [...(found.get(name) ?? []), at(call)])
             } else {
-              dynamic.push(at(node))
+              unread.push(at(call))
             }
+          } else {
+            unread.push(at(node))
           }
         }
         tsm.forEachChild(node, visit)
@@ -160,5 +197,5 @@ export function scan(programs: readonly ts.Program[], tsm: typeof ts): ScanResul
     .map(([name, sites]) => ({ name, sites }))
     .toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
-  return { signals, dynamic }
+  return { signals, unread }
 }

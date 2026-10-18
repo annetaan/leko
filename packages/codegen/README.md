@@ -51,6 +51,9 @@ leko-signals --out src/leko-signals.d.ts --check    # in CI
 | `--check` | write nothing, exit 1 if the file on disk has fallen behind |
 | `--watch` | keep writing while the project is edited |
 
+It exits 2 when it cannot run at all: an option it does not know, or a tsconfig
+it cannot read.
+
 **Put the output where your tsconfig reads from.** A declaration file outside
 the project's `include` is compiled by nobody, so the augmentation never applies
 and no completion appears. The generator says so when it notices, because
@@ -97,15 +100,18 @@ leko.reached('order-saved')          // ✓
 leko.reached(ORDER_SAVED)            // ✓  a const, in another file
 leko.reached(oneOfTwo)               // ✓  both arms, when the type is narrowed
 queue.reached('not-a-signal')        // ✗  a `reached` that is not Leko's
+leko['reached']('x')                 // ✗  printed: only leko.reached(…) is read
 leko.reached(`step-${i}`)            // ✗  printed, with its file and line
 ```
 
 The last line is the one to know about. A name built at runtime cannot be
 gathered, so the vocabulary is missing it. `leko-signals` prints every call it
-could not read, with its file and line, and so does the Vite plugin. Each prints
-them when it starts (a run of the command, `--watch`, the dev server or a build)
-and again, for as long as it keeps running, only when such a call is added or
-removed, not each time one moves. **A project with any of those wants
+could not read, and every use of `reached` that is not a call written
+`leko.reached(…)` (brackets, `.call`, `.bind`, a destructured `reached`), with
+its file and line, and so does the Vite plugin. Each prints them when it starts
+(a run of the command, `--watch`, the dev server or a build) and again, for as
+long as it keeps running, only when such a use is added or removed, not each
+time one moves. **A project with any of those wants
 `--loose`** (`strict: false` on the plugin), or a hand written block naming
 what they report.
 

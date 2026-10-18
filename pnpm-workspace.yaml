@@ -2,3 +2,9 @@ packages:
   - packages/*
   - examples/*
   - docs
+
+# Node's types follow `engines` in package.json. Without this, every optional
+# `@types/node` peer (vite, vitest, astro, sharp) in an importer that declares
+# none resolves to the newest major instead.
+overrides:
+  '@types/node': ^24.19.2

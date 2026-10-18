@@ -4,6 +4,7 @@ import {
   anchors,
   citations,
   defenced,
+  destinations,
   links,
   paragraphs,
   slugs,
@@ -392,5 +393,16 @@ describe('links', () => {
   it('leaves a link with no fragment alone', () => {
     expect(links('[DESIGN.md](DESIGN.md) is the argument')).toEqual([])
     expect(links('[the sandbox](examples/sandbox/) resolves from source')).toEqual([])
+  })
+})
+
+describe('destinations', () => {
+  it('destinations reads a link with no fragment, and links still does not', () => {
+    const text = '[the spike](../spike/a/) and [x](DESIGN.md#the-halo "why")'
+    expect(destinations(text)).toEqual([
+      { target: '../spike/a/', fragment: undefined, span: [12, 23] },
+      { target: 'DESIGN.md', fragment: 'the-halo', span: [33, 51] },
+    ])
+    expect(links(text)).toEqual([{ target: 'DESIGN.md', fragment: 'the-halo' }])
   })
 })

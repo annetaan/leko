@@ -119,8 +119,9 @@ createScroll({ targets: [{ target: '#hero' }, { target: '#pricing' }] })
 
 [Getting started with Leko Scroll](https://annetaan.github.io/leko/scroll/getting-started/)
 takes an empty Vite project to a lit page, and
-[its reference](https://github.com/annetaan/leko/tree/main/docs/src/content/docs/scroll/reference)
-covers every option and custom property.
+[its reference](https://annetaan.github.io/leko/scroll/reference/create-scroll/)
+covers every option and
+[custom property](https://annetaan.github.io/leko/scroll/reference/css-custom-properties/).
 [`examples/scroll/`](https://github.com/annetaan/leko/tree/main/examples/scroll)
 is one long page lit end to end.
 
@@ -135,9 +136,10 @@ browser can run Leko. So far it has been checked on the newest releases, which
 [Seen on](https://github.com/annetaan/leko/blob/main/spike/the-support-floor/README.md#seen-on)
 records.
 
-CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places the
-step message beside its cutout and nothing else, so it degrades rather than
-fails: without it the message docks to the foot of the viewport.
+[CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
+(Chrome/Edge 125+, Firefox 147+, Safari 26+, by MDN's compatibility data)
+places the step message beside its cutout and nothing else, so it degrades
+rather than fails: without it the message docks to the foot of the viewport.
 
 ## More
 

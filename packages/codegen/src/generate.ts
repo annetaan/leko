@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import ts from 'typescript'
 
@@ -32,8 +32,12 @@ export interface Report {
    * A declaration file outside the `include` of every project the run reads is
    * compiled by nobody. The augmentation never applies, no completion appears, and there is
    * no error anywhere to explain it, so this is worth saying out loud.
+   *
+   * `undefined` when the file is not on disk, so no project could have read it
+   * yet. Only `inspect` gives `undefined`: `generate` and `watch` ask again
+   * after writing, so they always give a boolean.
    */
-  included: boolean
+  included: boolean | undefined
   result: ScanResult
 }
 
@@ -81,13 +85,17 @@ const projects = (config: string): { config: string; parsed: ts.ParsedCommandLin
   return read
 }
 
+const fold = (path: string): string =>
+  ts.sys.useCaseSensitiveFileNames ? path : path.toLowerCase()
+
 // A project whose only file is the declaration file compiles it for nobody.
 const reads = (fileNames: readonly string[], out: string): boolean =>
-  fileNames.length > 1 && fileNames.some((name) => resolve(name) === out)
+  fileNames.length > 1 && fileNames.some((name) => fold(resolve(name)) === fold(out))
 
+// Git with `core.autocrlf` checks the file out with CRLF line endings.
 const compare = (out: string, content: string): boolean => {
   try {
-    return readFileSync(out, 'utf8') !== content
+    return readFileSync(out, 'utf8').replaceAll('\r\n', '\n') !== content
   } catch {
     return true
   }
@@ -102,7 +110,12 @@ const covers = (config: string, out: string): boolean => {
   }
 }
 
-const report = (out: string, result: ScanResult, strict: boolean, included: boolean): Report => {
+const report = (
+  out: string,
+  result: ScanResult,
+  strict: boolean,
+  included: boolean | undefined,
+): Report => {
   const content = emit(result, { strict })
   return { out, content, stale: compare(out, content), included, result }
 }
@@ -115,7 +128,9 @@ export function inspect(options: Options = {}): Report {
   const { config, out } = locate(options)
   const read = projects(config)
   const programs = read.map(({ parsed }) => ts.createProgram(parsed.fileNames, parsed.options))
-  const included = read.some(({ parsed }) => reads(parsed.fileNames, out))
+  const included = existsSync(out)
+    ? read.some(({ parsed }) => reads(parsed.fileNames, out))
+    : undefined
   return report(out, scan(programs, ts), options.strict ?? true, included)
 }
 

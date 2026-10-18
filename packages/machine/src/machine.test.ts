@@ -769,6 +769,52 @@ describe('what a failed attempt says', () => {
     expect(fake.rejected).toBe(0)
     expect(tour.state).toBe('idle')
   })
+
+  test('a guard that ends the tour from inside itself never asks its error for words', () => {
+    let tour!: ReturnType<typeof start>
+    const error = vi.fn(() => 'never')
+    const step: Step = {
+      id: 'one',
+      target: 'first',
+      validate: () => {
+        tour.stop()
+        return false
+      },
+      error,
+    }
+    tour = start([step, { id: 'two', target: 'second' }])
+
+    const fake = drawing()
+    fake.retold.length = 0
+    press(tour)
+
+    expect(error).not.toHaveBeenCalled()
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
+    expect(tour.state).toBe('idle')
+  })
+
+  test('an error function that ends the tour leaves no complaint behind', () => {
+    let tour!: ReturnType<typeof start>
+    const step: Step = {
+      id: 'one',
+      target: 'first',
+      validate: () => false,
+      error: () => {
+        tour.stop()
+        return 'Never seen, because there is nothing left to say it to.'
+      },
+    }
+    tour = start([step, { id: 'two', target: 'second' }])
+
+    const fake = drawing()
+    fake.retold.length = 0
+    press(tour)
+
+    expect(fake.retold).toEqual([])
+    expect(fake.rejected).toBe(0)
+    expect(tour.state).toBe('idle')
+  })
 })
 
 describe('a story that says what follows it', () => {
@@ -957,6 +1003,48 @@ describe('a call made from inside a report', () => {
 
     expect(problems).toEqual([{ kind: 'tour-running', story: second, running: first }])
     expect(tour.story?.id).toBe('first')
+  })
+
+  test("a start() from inside an ending's onStep is refused even after a stop()", () => {
+    const problems: Problem<Fixture>[] = []
+    let tried = false
+    const tour = machine({
+      onStep: (step) => {
+        if (step !== undefined || tried) return
+        tried = true
+        tour.stop()
+        begin(tour, 'second')
+      },
+      onDiagnostic: (problem) => problems.push(problem),
+    })
+    hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
+    hold(tour, { id: 'second', steps: [{ id: 'b', target: 'second' }] })
+    begin(tour, 'first')
+
+    tour.stop()
+
+    expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
+    expect(tour.state).toBe('idle')
+  })
+
+  test('a stop() from inside a report naming a step, then a start(), goes through', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = machine({
+      onStep: (step) => {
+        if (step?.id !== 'a') return
+        tour.stop()
+        begin(tour, 'second')
+      },
+      onDiagnostic: (problem) => problems.push(problem),
+    })
+    hold(tour, { id: 'first', steps: [{ id: 'a', target: 'first' }] })
+    hold(tour, { id: 'second', steps: [{ id: 'b', target: 'second' }] })
+
+    begin(tour, 'first')
+
+    expect(tour.story?.id).toBe('second')
+    expect(tour.step?.id).toBe('b')
+    expect(problems).toEqual([])
   })
 
   test('start from the report of a chained ending gives way to the story on its way', () => {
@@ -2054,6 +2142,24 @@ describe('what a step assumes', () => {
   })
 })
 
+function callingFromOnEnter(calls: (tour: Machine<Fixture>) => void, options: Options = {}) {
+  let tour!: Machine<Fixture>
+  tour = staging(
+    {
+      id: 'story',
+      steps: [
+        { id: 'a', target: 'first' },
+        { id: 'b', target: 'second', awaits: 'ready', onEnter: () => calls(tour) },
+      ],
+    },
+    options,
+  )
+  hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
+  begin(tour, 'story')
+  press(tour)
+  return tour
+}
+
 describe('a call that arrives while the machine is inside the application', () => {
   // DESIGN.md, **One gate, and what it refuses**.
   //
@@ -2061,27 +2167,9 @@ describe('a call that arrives while the machine is inside the application', () =
   // the gate; this one asks whether any of them is an exception, which is the
   // claim the rest of the file is written on top of.
 
-  function inside(calls: (tour: Machine<Fixture>) => void, options: Options = {}) {
-    let tour!: Machine<Fixture>
-    tour = staging(
-      {
-        id: 'story',
-        steps: [
-          { id: 'a', target: 'first' },
-          { id: 'b', target: 'second', awaits: 'ready', onEnter: () => calls(tour) },
-        ],
-      },
-      options,
-    )
-    hold(tour, { id: 'other', steps: [{ id: 'x', target: 'third' }] })
-    begin(tour, 'story')
-    press(tour)
-    return tour
-  }
-
   test('every way in is refused, and the arrival lands untouched', () => {
     const problems: Problem<Fixture>[] = []
-    const tour = inside(
+    const tour = callingFromOnEnter(
       (running) => {
         running.reached('ready')
         press(running)
@@ -2133,15 +2221,31 @@ describe('a call that arrives while the machine is inside the application', () =
   })
 
   test('stop is the one call that does not ask, because a tour has to be turnable off', () => {
-    const tour = inside((running) => running.stop())
+    const tour = callingFromOnEnter((running) => running.stop())
 
     expect(tour.state).toBe('idle')
     expect(drawing().torn).toBe(1)
     expect(drawing().shown).toEqual(['a'])
   })
 
+  test('a stop() from inside onEnter opens the gate, and a start() after it goes through', () => {
+    const problems: Problem<Fixture>[] = []
+    const tour = callingFromOnEnter(
+      (running) => {
+        running.stop()
+        begin(running, 'other')
+      },
+      { onDiagnostic: (problem) => problems.push(problem) },
+    )
+
+    expect(tour.story?.id).toBe('other')
+    expect(tour.step?.id).toBe('x')
+    expect(drawing().shown).toEqual(['a', 'x'])
+    expect(problems).toEqual([])
+  })
+
   test('a refused signal is still refused when the step is the one awaiting it', () => {
-    const tour = inside((running) => running.reached('ready'))
+    const tour = callingFromOnEnter((running) => running.reached('ready'))
 
     expect(tour.step?.id).toBe('b')
     expect(tour.state).toBe('running')
@@ -2152,18 +2256,18 @@ describe('a call that arrives while the machine is inside the application', () =
   })
 })
 
+function withProblems(story: Story) {
+  const problems: Problem<Fixture>[] = []
+  const tour = staging(story, { onDiagnostic: (problem) => problems.push(problem) })
+  return { tour, problems }
+}
+
 describe('saying that a call did nothing', () => {
   // DESIGN.md, **Saying that a call did nothing**.
 
-  function heard(story: Story) {
-    const problems: Problem<Fixture>[] = []
-    const tour = staging(story, { onDiagnostic: (problem) => problems.push(problem) })
-    return { tour, problems }
-  }
-
   test('a story with nothing in it', () => {
     const empty: Story = { id: 'nothing-to-show', steps: [] }
-    const { tour, problems } = heard({
+    const { tour, problems } = withProblems({
       id: 'onboarding',
       steps: [{ id: 'a', target: 'first' }],
     })
@@ -2181,7 +2285,7 @@ describe('saying that a call did nothing', () => {
       awaits: 'ready',
       onEnter: () => tour.reached('ready'),
     }
-    const heardIt = heard({ id: 'story', steps: [{ id: 'a', target: 'first' }, step] })
+    const heardIt = withProblems({ id: 'story', steps: [{ id: 'a', target: 'first' }, step] })
     tour = heardIt.tour
 
     begin(tour, 'story')
@@ -2193,7 +2297,7 @@ describe('saying that a call did nothing', () => {
 
   test('a name nothing is waiting for stays silent, whatever the machine is doing', () => {
     let tour!: Machine<Fixture>
-    const heardIt = heard({
+    const heardIt = withProblems({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },
@@ -2213,7 +2317,7 @@ describe('saying that a call did nothing', () => {
 
   test('a start refused inside an arrival is reported once per call', () => {
     let tour!: Machine<Fixture>
-    const heardIt = heard({
+    const heardIt = withProblems({
       id: 'story',
       steps: [
         { id: 'a', target: 'first' },

@@ -1,11 +1,15 @@
 /*
- * What a packed manifest names, whether the tarball carries it, and whether
- * the public packages agree on one version.
+ * What a packed manifest or a packed file names, whether the tarball carries
+ * it, and whether the public packages agree on one version.
  *
- * Manifests and paths in and findings out, so `pack.test.mjs` drives it
+ * Manifests, paths and file text in and findings out, so `pack.test.mjs` drives it
  * directly and `check-pack.mjs` is left with pnpm, tar and the report. Most of
  * it reads one package; `mismatched` reads every public manifest at once.
  */
+import { posix } from 'node:path'
+
+import { NAME, destinations } from './citations.mjs'
+import { passages } from './comments.mjs'
 
 /** The exports tree with every `name` key taken out, the other keys left in their order. */
 export function withoutCondition(exports, name) {
@@ -45,6 +49,64 @@ export function unpacked(manifest, files) {
   return ['main', 'types', 'bin', 'exports']
     .flatMap((field) => [...leaves(manifest[field], field)])
     .filter(({ target }) => !files.has(inPackage(target)))
+}
+
+/**
+ * Every stylesheet `exports` names that `sideEffects` lets a bundler drop, as
+ * `{ field, target }`. Importing one is a side effect and nothing else, so a
+ * bundler told the package has none removes the import. `false` drops every
+ * stylesheet, and `true` or no field drops none. A list entry is compared as a
+ * path, never matched as a glob: bundlers do not agree on what a bare `*.css`
+ * reaches, which is why the manifest names the file.
+ */
+export function droppable(manifest) {
+  const { sideEffects } = manifest
+  if (sideEffects !== false && !Array.isArray(sideEffects)) return []
+  const kept = new Set(Array.isArray(sideEffects) ? sideEffects.map(inPackage) : [])
+  return [...leaves(manifest.exports, 'exports')].filter(
+    ({ target }) => target.endsWith('.css') && !kept.has(inPackage(target)),
+  )
+}
+
+/** `//# sourceMappingURL=…` and its block-comment form, the target captured. */
+const MAP_URL = /(?:\/\/|\/\*)#\s*sourceMappingURL=([^\s*]+)/g
+
+/**
+ * Every reference the packed file at `path` makes that lands on nothing a
+ * consumer holds, as `{ kind, path, target }`.
+ *
+ * - `map`: a source map named but not packed, which points a debugger or a
+ *   consumer's bundler at nothing. An inline `data:` map names no file.
+ * - `link`: a relative markdown link in a comment whose file the tarball does
+ *   not carry. One with a scheme, or one that starts with `#` or `/`, is not
+ *   judged.
+ * - `name`: a root document's name in a comment, which only resolves inside a
+ *   checkout. One after a `/` is part of a path or a URL, and one after a `[`
+ *   is the text of a link that is judged as a link.
+ *
+ * Comments alone are read for the last two, so a name in a string is code and
+ * is left to the code.
+ */
+export function dangling(path, text, files) {
+  const packed = (target) => files.has(inPackage(posix.join(posix.dirname(path), target)))
+  const maps = [...text.matchAll(MAP_URL)]
+    .map(([, target]) => target)
+    .filter((target) => !target.startsWith('data:') && !packed(target))
+    .map((target) => ({ kind: 'map', path, target }))
+  const comments = passages(text, path)
+  const links = comments
+    .flatMap((passage) => destinations(passage))
+    .map(({ target }) => target)
+    .filter(
+      (target) =>
+        target !== '' && !target.startsWith('/') && !URL.canParse(target) && !packed(target),
+    )
+    .map((target) => ({ kind: 'link', path, target }))
+  const names = comments
+    .flatMap((passage) => [...passage.matchAll(NAME)].map((name) => ({ passage, name })))
+    .filter(({ passage, name }) => !['/', '['].includes(passage[name.index - 1]))
+    .map(({ name }) => ({ kind: 'name', path, target: name[0] }))
+  return [...maps, ...links, ...names]
 }
 
 /** The fields that declare a dependency. `devDependencies` is not installed. */

@@ -419,8 +419,8 @@ same boundary.
   story `f`. Not reached are any call from inside a story's or a step's
   `onEnter`, `stop()` included, and any call other than `stop()` from inside
   that `onLeave`. The gate turns down every call but `stop()` made from inside
-  an `onEnter` or from inside the `onLeave` of the step being left, and
-  `machine.test.ts` carries both.
+  an `onEnter` or from inside the `onLeave` of the step being left, until a
+  `stop()` made there has returned, and `machine.test.ts` carries both.
 - A step that names no target. The machine has no notion of one: `StepBase` has
   no `target`, and what a missing anchor means is a drawing question.
 - `navigated`. It falls to the same `advance` as `reached` once the URL

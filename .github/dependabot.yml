@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories: ['/', '/smoke']
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
+        # A Playwright release brings new browsers and new screenshot baselines.
+        exclude-patterns: ['playwright', '@playwright/test']
+        update-types: [minor, patch]
+    ignore:
+      # Trace seeds are not portable across Quint versions:
+      # CONTRIBUTING.md, **Commands**.
+      - dependency-name: '@informalsystems/quint'
+      # Its major follows the override in pnpm-workspace.yaml.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directories: ['/', '/.github/actions/smoke']
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

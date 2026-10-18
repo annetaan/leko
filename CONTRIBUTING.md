@@ -308,9 +308,27 @@ refuses it. Publishing a tarball runs no lifecycle script, so the release's
 `pnpm pack` into `tarballs/` at the root, emptying it first and leaving what it
 checked there, and reads the tarball. It fails on a bare import the packed
 manifest does not depend on, on a path that `main`, `types`, `bin` or `exports`
-names and the tarball does not carry, and on a `publishConfig.exports` that has
-drifted from `exports` with `development` taken out. Run it after anything that
-changes what a package imports, how it is built or what its manifest exports.
+names and the tarball does not carry, on a `publishConfig.exports` that has
+drifted from `exports` with `development` taken out, on a stylesheet `exports`
+names that `sideEffects` lets a bundler drop, and on a source map, a markdown
+link or a root document's name in packed code that lands on nothing a consumer
+can follow. Run it after anything that changes what a package imports, how it
+is built or what its manifest exports. Nothing in the workspace builds a source
+map, and nothing reads one: what runs from source resolves `development` to
+`src/`, and the tarballs carry none.
+
+The comments `packages/leko` bundles cite DESIGN.md and its neighbours and link
+across the repository, and none of that is in the tarball. So its build points
+every citation and repository link in what it bundles at the tree tagged
+`v<version>` on GitHub (`scripts/cite.mjs`), and keeps a fragment only where
+GitHub makes one, at a heading: a cited list item links to its document.
+`packages/codegen` is built by `tsc` and cites nothing, and `pnpm check:pack`
+keeps it that way. A published tarball's links always point at a tag that
+exists, because the version merges to `main` first, `v<version>` is pushed on
+that commit, and `release.yml` builds what `publish` sends (**The release**,
+below); a `main` build between the merge and the tag push links to a tag
+minutes from existing, and a pull request's build links to the current
+version's tag, which the previous release made.
 
 It also fails when the public packages do not share one version, or when one
 names another as a dependency or peer with anything but that version. What

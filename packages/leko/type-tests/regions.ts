@@ -5,7 +5,7 @@
  * flag fails to compile there even when it arrives on an object built somewhere
  * else.
  */
-import type { LekoRegion, LekoStep } from '@annetaan/leko'
+import type { LekoRegion, LekoStep, LekoTarget } from '@annetaan/leko'
 
 export const bare: LekoStep = { id: 'a', target: '#save' }
 
@@ -17,6 +17,21 @@ export const opened: LekoStep = {
 export const unioned: LekoStep = {
   id: 'a',
   target: { elements: ['#quantity-label', '#quantity'] },
+}
+
+const pair: [LekoTarget, ...LekoTarget[]] = ['#a', '#b']
+export const fromElsewhere: LekoStep = { id: 'a', target: { elements: pair } }
+
+export const emptyRegion: LekoStep = {
+  id: 'a',
+  // @ts-expect-error — a region names at least one element.
+  target: { elements: [] },
+}
+
+export const emptyLater: LekoStep = {
+  id: 'a',
+  // @ts-expect-error — a shown region names at least one element too.
+  target: ['#row', { elements: [] }],
 }
 
 export const twoHoles: LekoStep = { id: 'a', target: ['#row', '#summary'] }

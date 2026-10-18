@@ -10,7 +10,7 @@
     "tutorial",
     "walkthrough"
   ],
-  "homepage": "https://github.com/annetaan/leko",
+  "homepage": "https://annetaan.github.io/leko/",
   "bugs": "https://github.com/annetaan/leko/issues",
   "license": "MIT",
   "author": "Annetaan Inc.",
@@ -25,7 +25,9 @@
     "LICENSE"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/leko.css"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

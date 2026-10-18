@@ -249,7 +249,8 @@ interface LekoScrollIntro {
 ```
 
 How long the converge `createScroll` starts takes, in ms. Left out, or with no
-`duration`, it takes the 320ms every converge takes. A switch crossed during it
+`duration`, it takes the 320ms every converge takes. A `duration` that is not a
+finite number above zero lands at once, as `0` does. A switch crossed during it
 turns it into an ordinary converge —
 [Entering converges, leaving fades](https://github.com/annetaan/leko/blob/main/packages/scroll/DESIGN.md#entering-converges-leaving-fades).
 
@@ -278,8 +279,11 @@ document.querySelector('details')?.addEventListener('toggle', () => scroll.measu
 ```
 
 With the same target lit, the hole is put back where the target now is, at
-once and with no notice. Where the lit target changed, it goes there the way a
-scroll to the same position would.
+once and with no notice. Where the lit target changed, or the line entered or
+left the range, it is treated the way a scroll to the same position would be.
+Where the lit target is no longer found, and the line is in a fade band or
+nothing is found at all, the light goes out and `onChange` fires with
+`undefined`.
 
 ### destroy
 

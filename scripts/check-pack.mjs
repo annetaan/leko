@@ -4,14 +4,18 @@
  *
  * This packs each package the way a release does, with `pnpm pack`, into
  * `tarballs/` at the root, emptied first, unpacks it and reads the manifest
- * inside, which is not the one in the workspace. It asks four questions the
+ * inside, which is not the one in the workspace. It asks six questions the
  * workspace cannot. Is every bare import declared as a
  * dependency? Node builtins, relative paths and the package's own name are
  * fine; anything else is a package a consumer would be asked to resolve and
  * would not have. Is every path `main`, `types`, `bin` and `exports` name in
- * the tarball? And is the packed `exports` the source's with `development`
+ * the tarball? Is the packed `exports` the source's with `development`
  * taken out, so `publishConfig.exports` has not drifted from the tree it
- * copies? Those three are reported per package. And do the public packages
+ * copies? And is every stylesheet `exports` names kept by `sideEffects`, so a
+ * bundler does not drop the import of it? Does every reference the packed
+ * code makes — a source map, a markdown link, a root document's name — land
+ * on a file the tarball carries or on the web? Those five are reported
+ * per package. And do the public packages
  * carry one version, and name each other by exactly that version? That one is
  * asked across them once every package is packed, and the run fails at the
  * end. The tarballs are left in `tarballs/` for whatever installs or publishes
@@ -27,7 +31,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
-import { DEPENDS, mismatched, unpacked, withoutCondition } from './pack.mjs'
+import { DEPENDS, dangling, droppable, mismatched, unpacked, withoutCondition } from './pack.mjs'
 
 /** `from '…'`, `import '…'`, `import('…')` and `require('…')`, in that order. */
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g
@@ -92,6 +96,14 @@ function undeclared({ root, files, manifest }) {
   return [...new Set(problems)].toSorted()
 }
 
+/** Every reference in the packed code that lands on nothing the tarball carries. */
+function unreachable({ root, files }) {
+  const packed = new Set(files)
+  return files
+    .filter((path) => CODE.test(path))
+    .flatMap((path) => dangling(path, readFileSync(join(root, path), 'utf8'), packed))
+}
+
 let failures = 0
 const manifests = []
 
@@ -112,8 +124,16 @@ for (const project of projects) {
       packed.manifest.exports,
       withoutCondition(source.exports, 'development'),
     )
+    const dropped = droppable(packed.manifest)
+    const unreached = unreachable(packed)
 
-    if (imports.length === 0 && missing.length === 0 && !drifted) {
+    if (
+      imports.length === 0 &&
+      missing.length === 0 &&
+      !drifted &&
+      dropped.length === 0 &&
+      unreached.length === 0
+    ) {
       console.log(
         `ok  ${source.name} — ${packed.files.length} files, nothing undeclared or missing`,
       )
@@ -134,6 +154,17 @@ for (const project of projects) {
       console.error(
         `FAIL ${source.name}: publishConfig.exports drifted from exports with development taken out`,
       )
+    }
+    if (dropped.length > 0) {
+      console.error(`FAIL ${source.name} exports stylesheets sideEffects lets a bundler drop:`)
+      for (const { field, target } of dropped) console.error(`       ${field} → ${target}`)
+      console.error('     Name each one in sideEffects by its path in the package.')
+    }
+    if (unreached.length > 0) {
+      console.error(`FAIL ${source.name} points at files its tarball does not carry:`)
+      for (const { path, target } of unreached) console.error(`       ${path} → ${target}`)
+      console.error('     A source map: build without it. A link or a document name: build')
+      console.error('     through `cite` (`packages/leko/tsdown.config.ts`), or drop it.')
     }
   } finally {
     rmSync(into, { recursive: true, force: true })

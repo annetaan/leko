@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { emit } from './emit.js'
@@ -5,7 +6,7 @@ import type { ScanResult } from './scan.js'
 
 const result = (...names: string[]): ScanResult => ({
   signals: names.map((name) => ({ name, sites: [{ file: '/app/src/checkout.ts', line: 8 }] })),
-  dynamic: [],
+  unread: [],
 })
 
 describe('emit', () => {
@@ -42,8 +43,32 @@ describe('emit', () => {
   })
 
   it('escapes a quote in a name rather than emitting a broken key', () => {
-    const odd = emit({ signals: [{ name: "it's-done", sites: [] }], dynamic: [] })
+    const odd = emit({ signals: [{ name: "it's-done", sites: [] }], unread: [] })
     expect(odd).toContain("'it\\'s-done': true")
+  })
+
+  it('writes a name with a line break as a key TypeScript parses back as that name', () => {
+    for (const name of ['a\nb', 'a\r\nb', 'tab\there', 'a\u2028b']) {
+      const file = emit({ signals: [{ name, sites: [] }], unread: [] })
+      const { diagnostics } = ts.transpileModule(file, {
+        reportDiagnostics: true,
+        compilerOptions: { module: ts.ModuleKind.ESNext },
+      })
+      expect(diagnostics).toEqual([])
+
+      const source = ts.createSourceFile('leko-signals.d.ts', file, ts.ScriptTarget.Latest)
+      const keys: string[] = []
+      const visit = (node: ts.Node): void => {
+        if (ts.isInterfaceDeclaration(node) && node.name.text === 'LekoSignals') {
+          for (const member of node.members) {
+            if (ts.isPropertySignature(member)) keys.push((member.name as ts.StringLiteral).text)
+          }
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(source)
+      expect(keys).toEqual([name])
+    }
   })
 
   it('writes the names sorted, whatever order the scan handed them in', () => {
@@ -57,7 +82,7 @@ describe('emit', () => {
     // whenever somebody edited above a reached() call.
     const moved: ScanResult = {
       signals: [{ name: 'order-saved', sites: [{ file: '/app/src/other.ts', line: 99 }] }],
-      dynamic: [],
+      unread: [],
     }
     expect(emit(moved)).toBe(emit(result('order-saved')))
   })

@@ -37,6 +37,6 @@
     "@annetaan/leko-types": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3"
+    "@types/node": "^24.19.2"
   }
 }

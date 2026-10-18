@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { generate, inspect, type Report, watch } from './generate.js'
@@ -38,6 +39,22 @@ describe('generate', () => {
     expect(generate({ project, out }).stale).toBe(false)
   })
 
+  it('calls a file current that differs only in CRLF line endings', () => {
+    const out = scratch()
+    generate({ project, out })
+    writeFileSync(out, readFileSync(out, 'utf8').replaceAll('\n', '\r\n'), 'utf8')
+    expect(inspect({ project, out }).stale).toBe(false)
+  })
+
+  it('leaves a CRLF file as it is rather than rewriting it', () => {
+    const out = scratch()
+    generate({ project, out })
+    const crlf = readFileSync(out, 'utf8').replaceAll('\n', '\r\n')
+    writeFileSync(out, crlf, 'utf8')
+    expect(generate({ project, out }).stale).toBe(false)
+    expect(readFileSync(out, 'utf8')).toBe(crlf)
+  })
+
   it('notices a file that has fallen behind', () => {
     const out = scratch()
     generate({ project, out })
@@ -70,6 +87,23 @@ describe('generate', () => {
       rmSync(out, { force: true })
     }
   })
+
+  it('inspect leaves included undefined for a file that is not on disk', () => {
+    expect(inspect({ project, out: join(project, 'src', 'absent.d.ts') }).included).toBeUndefined()
+  })
+
+  it.skipIf(ts.sys.useCaseSensitiveFileNames)(
+    'counts an out written in another case as inside on a filesystem that ignores case',
+    () => {
+      try {
+        expect(generate({ project, out: join(project, 'SRC', 'generated.d.ts') }).included).toBe(
+          true,
+        )
+      } finally {
+        rmSync(join(project, 'src', 'generated.d.ts'), { force: true })
+      }
+    },
+  )
 })
 
 describe('references', () => {
@@ -137,7 +171,7 @@ describe('watch', () => {
       expect(reports).toHaveLength(1)
       expect(reports[0]?.stale).toBe(false)
       expect(reports[0]?.included).toBe(false)
-      expect(reports[0]?.result.dynamic).toHaveLength(1)
+      expect(reports[0]?.result.unread).toHaveLength(1)
     } finally {
       stop()
     }

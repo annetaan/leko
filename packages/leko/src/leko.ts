@@ -111,8 +111,11 @@ export class Leko {
    * `target-lost` is refused before the note is touched, and reported
    * `call-refused`: the note is left exactly where it was, for the call that
    * goes through a moment later — DESIGN.md, **Saying that a call did
-   * nothing**. Every other call takes the note and removes it, whatever it
-   * finds, so a second such call always finds nothing left to take:
+   * nothing**. A call after a `stop()` that an arrival's handler already made
+   * is not refused, because that `stop()` ended the tour — DESIGN.md, **One
+   * gate, and what it refuses**. Every other call takes the note and removes
+   * it, whatever it finds, so a second such call always finds nothing left
+   * to take:
    *
    * - Nothing kept, or a note this page's URL does not answer to — it does
    *   not match the pattern, or it is the very URL the note was kept at —

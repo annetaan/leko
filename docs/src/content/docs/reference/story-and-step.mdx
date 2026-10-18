@@ -430,7 +430,7 @@ transforms included —
 
 ```ts signature
 interface LekoRegion {
-  elements: LekoTarget | LekoTarget[]
+  elements: LekoTarget | [LekoTarget, ...LekoTarget[]]
   interactive?: boolean
 }
 ```
@@ -444,10 +444,10 @@ const save: LekoRegion = { elements: '#save', interactive: true }
 const quantity: LekoRegion = { elements: ['#quantity-label', '#quantity'] }
 ```
 
-| Field         | Type                         | Default |
-| ------------- | ---------------------------- | ------- |
-| `elements`    | `LekoTarget \| LekoTarget[]` | —       |
-| `interactive` | `boolean`                    | `false` |
+| Field         | Type      | Default |
+| ------------- | --------- | ------- |
+| `elements`    | see below | —       |
+| `interactive` | `boolean` | `false` |
 
 ### elements
 
@@ -455,6 +455,8 @@ One target, or several made into one hole. The hole is the bounding box of
 everything named, and whatever sits between the elements is inside it too, so
 name elements that are next to each other: a label and its input, two
 neighbouring columns, the first and last row of a table.
+
+There is at least one target, so `elements: []` does not compile.
 
 ### interactive
 
@@ -473,7 +475,7 @@ keyboard either —
 
 ```ts signature
 interface LekoShownRegion {
-  elements: LekoTarget | LekoTarget[]
+  elements: LekoTarget | [LekoTarget, ...LekoTarget[]]
   interactive?: never
 }
 ```
@@ -564,7 +566,9 @@ shows `error` where there is one, and the tour stays put.
 
 From inside `onEnter` or `onLeave`, `start` and `pickUp` are refused and a
 `reached()` that matches the step being entered is dropped. `stop()` is the one
-call that goes through —
+call that goes through. Once it has returned, a `start` or `pickUp` after it
+goes through, because the tour it was refused for is gone. From an ending's own
+`onLeave`, `stop()` ends nothing and the refusal stands —
 [`Leko`](../leko/) and
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
 

@@ -5,7 +5,7 @@
  */
 
 /**
- * `failed()` rethrows through this, so an application's exception lands
+ * The `rethrow` effect in `machine.ts` throws through this, so an application's exception lands
  * uncaught rather than as the unhandled rejection `Promise.resolve().then`
  * would give.
  */

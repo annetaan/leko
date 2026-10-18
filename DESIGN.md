@@ -248,8 +248,8 @@ A step specifies its target with a selector or a function, but both are treated 
 type Selector = string;
 type TargetFunction = () => Element | null;
 type LekoTarget = Selector | TargetFunction;
-interface LekoRegion { elements: LekoTarget | LekoTarget[]; interactive?: boolean }
-interface LekoShownRegion { elements: LekoTarget | LekoTarget[]; interactive?: never }
+interface LekoRegion { elements: LekoTarget | [LekoTarget, ...LekoTarget[]]; interactive?: boolean }
+interface LekoShownRegion { elements: LekoTarget | [LekoTarget, ...LekoTarget[]]; interactive?: never }
 interface LekoTargetedStep {
   ...
   target: LekoTarget | LekoRegion | [LekoTarget | LekoRegion, ...(LekoTarget | LekoShownRegion)[]]
@@ -499,8 +499,9 @@ reports the event via `reached()`.
 - Single instance hook: `onStep` lives solely on the Leko instance (not individual stories) and reports both the step and the story object to simplify state tracking.
 - Termination reporting: `stop()` or reaching the end of a tour reports `undefined` for the step, allowing progress UIs to reset correctly.
 - No starts from inside a report: `next` is the only way one story leads to
-  another. A report naming a step is a tour that is running (`tour-running`),
-  and every report of an ending happens with the gate still closed
+  another. A report naming a step is a tour that is running (`tour-running`)
+  unless that same handler has called `stop()` first, and every report of an
+  ending happens with the gate still closed
   (`call-refused`). A host that wants a story after `stop()` writes the two
   calls in a row — `stop()` finishes the whole ending, report included, before
   it returns.
@@ -781,6 +782,16 @@ only once `onStep` has returned or thrown.
 - `stop()` is the exception. A handler that has decided the tour should not go
   on has nowhere else to go, and ending is the one thing that needs nothing of
   the arrival: it throws the arrival away rather than acting on it.
+- Once a `stop()` made inside a handler has returned, the gate is open, and a
+  `start()` or `pickUp()` written after it in the same handler goes through.
+  The run that `stop()` threw away no longer exists, so there is nothing for a
+  later call to land in the middle of. Every event the old run still owed
+  carries a position that no longer matches and does nothing: each run's
+  position is its identity, so that check does a counter's job without one.
+  Inside an ending (its `onLeave` calls, its `onStep` and the `onDiagnostic` of
+  a `target-lost`), `stop()` has nothing left to end, so the gate stays shut and
+  both are `call-refused`. The two calls written in a row are under **Saying
+  where the tour got to**.
 - The machine does not know a morph is running. A step is shown as far as it
   is concerned the moment `show` returns, whether or not it has reached the
   screen yet; how long the drawing takes to arrive and settle is the
@@ -1947,9 +1958,10 @@ that list adds it to the page first**, so the list stays the whole of what a
 floor is measured against. What has been checked so far is the newest
 releases, which [Seen on](spike/the-support-floor/README.md#seen-on) records.
 
-CSS Anchor Positioning (Chrome/Edge 125+, Firefox 132+, Safari 18.2+) places
-the message beside a cutout and does nothing else, so it degrades rather than
-fails: without it the message docks to the foot of the viewport, which is
+[CSS Anchor Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position-anchor)
+(Chrome/Edge 125+, Firefox 147+, Safari 26+, by MDN's compatibility data)
+places the message beside a cutout and does nothing else, so it degrades rather
+than fails: without it the message docks to the foot of the viewport, which is
 plainer than being beside the hole and never points at the wrong place.
 The message uses neither `@position-try` nor `position-try-fallbacks`, and
 **The message** says why. What it asks for is `anchor()` in an inset and

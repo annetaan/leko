@@ -13,6 +13,8 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "declaration": true,
-    "sourceMap": true
+    // Nothing reads a map, and no tarball carries one: CONTRIBUTING.md, **What
+    // `@annetaan/leko` ships**.
+    "sourceMap": false
   }
 }

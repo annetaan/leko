@@ -110,6 +110,10 @@ function root(): HTMLElement {
   return el
 }
 
+function part(name: string): HTMLElement | null {
+  return root().querySelector<HTMLElement>(`.leko-scroll-${name}`)
+}
+
 const mask = (): string =>
   root().querySelector<HTMLElement>('.leko-scroll-scrim')?.style.maskImage ?? ''
 
@@ -258,6 +262,17 @@ test('intro.duration slows the converge at creation and not the morph after it',
   elapse(USUAL)
   expect(changes).toEqual([0, 1])
 })
+
+test.each([-1, Number.NaN])(
+  'an intro.duration that is negative or not a number (%s) lands at once and onChange fires',
+  async (duration) => {
+    const { targets } = build()
+    const { changes } = await clocked({ intro: { duration } })
+    elapse(16 * 2)
+    expect(changes).toEqual([0])
+    expect(mask()).toBe(maskOn(targets[0]))
+  },
+)
 
 test('created outside the range, the converge a later scroll starts is not the intro', async () => {
   build([2000, 2600])
@@ -657,7 +672,6 @@ test('an onChange that measures on arrival still shows the message and the halo'
   })
   instances.push(scroll!)
   await measured
-  const part = (name: string) => root().querySelector<HTMLElement>(`.leko-scroll-${name}`)
   expect(part('halo')?.style.opacity).toBe('1')
   expect(part('message')?.style.visibility).toBe('visible')
 })

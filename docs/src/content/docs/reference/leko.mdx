@@ -92,10 +92,17 @@ and the `onDiagnostic` of a `target-lost`. A name in code is the
 
 In flight wins over the other two columns. An ending reads `'idle'` from its
 first `onLeave` on and stays in flight until its reports have returned, so a
-`start` from inside one is `call-refused`, not a start.
+`start` from inside one is `call-refused`, not a start. A `stop()` made from
+inside an arrival or a step's report ends the flight along with the tour, so a
+call after it in that handler reads the Idle column.
 
-Only `stop` goes through while Leko is in flight. Every other call made from
-inside a handler is dropped rather than saved for later —
+A call made from inside a handler is refused rather than saved for later, and
+`stop` is the exception. Once a `stop()` made inside that handler has returned,
+the run it belonged to is over and Leko is idle and open, so a `start` or
+`pickUp` written after it goes through, and whatever the old run still owed is
+dropped. Inside an ending (its `onLeave` calls, its `onStep` and the
+`onDiagnostic` of a `target-lost`), `stop()` has nothing left to end, so the
+gate stays shut and `start` and `pickUp` are `call-refused` —
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
 
 ### start
@@ -197,8 +204,9 @@ this is called. It is the one call that goes through in flight: a `stop()` from
 inside `onEnter` ends the run inside the call that was entering the step. A
 `stop()` from inside the `onLeave` of the step a move is leaving ends the run
 before the next step is entered, so that step's `onEnter` and `onLeave` never
-run. From inside the `onLeave` or the report of an ending there is nothing left
-to end.
+run. Either way a `start()` written after it in the same handler goes through.
+From inside the `onLeave` or the report of an ending there is nothing left to
+end, and a `start()` after it is still `call-refused`.
 
 ## LekoState
 

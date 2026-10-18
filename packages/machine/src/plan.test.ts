@@ -245,6 +245,18 @@ describe('a failed attempt', () => {
   const guarded: Story = { id: 'tour', steps: [{ ...first, validate: () => false }, second] }
   const attempt: Position<Fixture> = { story: guarded, index: 0 }
   const core: C = { ...nothing(), position: attempt }
+  const worded: Story = {
+    id: 'tour',
+    steps: [{ ...first, validate: () => false, error: 'not yet' }, second],
+  }
+  const wordedAttempt: Position<Fixture> = { story: worded, index: 0 }
+  const wordedCore: C = { ...nothing(), position: wordedAttempt }
+  const asked: Story = {
+    id: 'tour',
+    steps: [{ ...first, validate: () => false, error: () => 'not yet' }, second],
+  }
+  const askedAttempt: Position<Fixture> = { story: asked, index: 0 }
+  const askedCore: C = { ...nothing(), position: askedAttempt }
 
   test('asks the page rather than deciding here', () => {
     const outcome = put(core, { kind: 'pressed' })
@@ -254,21 +266,21 @@ describe('a failed attempt', () => {
   })
 
   test('says no out loud, and says why where the step gave words for it', () => {
-    const outcome = put(core, { kind: 'refused', at: attempt, reason: 'not yet' })
+    const outcome = put(wordedCore, { kind: 'refused', at: wordedAttempt, anchor: 'first' })
 
-    expect(outcome.core).toBe(core)
+    expect(outcome.core).toBe(wordedCore)
     // The refusal comes first: it is the answer to the press, and the words are
     // what the answer is about.
     expect(owed(outcome)).toEqual(['reject', 'retell'])
     // The step is read off the attempt rather than carried beside it, so it
     // cannot disagree with the position it belongs to.
     const [, retold] = outcome.effects as [E, E & { kind: 'retell' }]
-    expect(retold.step).toBe(guarded.steps[0])
+    expect(retold.step).toBe(worded.steps[0])
     expect(retold.reason).toBe('not yet')
   })
 
   test('still says no where the step gave no words', () => {
-    const outcome = put(core, { kind: 'refused', at: attempt, reason: undefined })
+    const outcome = put(core, { kind: 'refused', at: attempt, anchor: 'first' })
 
     expect(outcome.effects).toEqual([{ kind: 'reject' }])
     expect(outcome.core).toBe(core)
@@ -278,7 +290,35 @@ describe('a failed attempt', () => {
     // `packages/machine/model/phases.md` says why `refused` asks all the same.
     const moved: C = { ...core, position: { story: guarded, index: 1 } }
 
-    const outcome = put(moved, { kind: 'refused', at: attempt, reason: 'not yet' })
+    const outcome = put(moved, { kind: 'refused', at: attempt, anchor: 'first' })
+
+    expect(outcome.core).toBe(moved)
+    expect(outcome.effects).toEqual([])
+  })
+
+  test('asks a step whose words are a function only through explain', () => {
+    const outcome = put(askedCore, { kind: 'refused', at: askedAttempt, anchor: 'first' })
+
+    expect(outcome.core).toBe(askedCore)
+    expect(outcome.effects).toEqual([
+      { kind: 'explain', at: askedAttempt, anchor: 'first', error: asked.steps[0]!.error },
+    ])
+  })
+
+  test('says no and says why once the words are back', () => {
+    const outcome = put(askedCore, { kind: 'explained', at: askedAttempt, reason: 'not yet' })
+
+    expect(outcome.core).toBe(askedCore)
+    expect(owed(outcome)).toEqual(['reject', 'retell'])
+    const [, retold] = outcome.effects as [E, E & { kind: 'retell' }]
+    expect(retold.step).toBe(asked.steps[0])
+    expect(retold.reason).toBe('not yet')
+  })
+
+  test('says nothing once the words are back where the tour has moved since', () => {
+    const moved: C = { ...askedCore, position: { story: asked, index: 1 } }
+
+    const outcome = put(moved, { kind: 'explained', at: askedAttempt, reason: 'not yet' })
 
     expect(outcome.core).toBe(moved)
     expect(outcome.effects).toEqual([])
