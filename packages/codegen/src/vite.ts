@@ -17,7 +17,7 @@ import { say, untold } from './unread.js'
  * file that changed is a declaration file, which no bundle contains and no
  * browser ever sees.
  *
- * Through Vite's logger it prints the `reached()` calls the scan could not
+ * Through Vite's logger it prints the uses of `reached()` the scan could not
  * read, and an `out` the project does not include, when the dev server starts
  * or a build begins, and again only when they change — `say` in `unread.ts`
  * decides which.

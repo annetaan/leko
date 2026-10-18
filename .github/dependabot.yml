@@ -14,6 +14,9 @@ updates:
       # Trace seeds are not portable across Quint versions:
       # CONTRIBUTING.md, **Commands**.
       - dependency-name: '@informalsystems/quint'
+      # Its major follows the override in pnpm-workspace.yaml.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directories: ['/', '/.github/actions/smoke']
     schedule:

@@ -6,11 +6,11 @@ import { changed, message, news, say, type Told, untold } from './unread.js'
 const at = (file: string, line: number): Site => ({ file, line })
 
 describe('message', () => {
-  it('says nothing for a project with no unread call', () => {
+  it('says nothing for a project with no unread use', () => {
     expect(message([], { from: '/app', remedy: 'run with --loose' })).toEqual([])
   })
 
-  it("words the command's message exactly as before", () => {
+  it("words the command's message about unread uses exactly", () => {
     const strict = { from: '/app', remedy: 'run with --loose' }
     expect(message([at('/app/src/a.ts', 5)], strict).join('\n')).toBe(
       '1 use of reached() reports a name this scan cannot read.\n' +
@@ -68,11 +68,11 @@ describe('changed', () => {
 describe('news', () => {
   const one = [at('/app/src/a.ts', 5)]
 
-  it('tells the calls it could not read on the first report', () => {
+  it('tells the uses it could not read on the first report', () => {
     expect(news(untold, { unread: one, included: true }).say.unread).toBe(true)
   })
 
-  it('says nothing on a first report with no unread call', () => {
+  it('says nothing on a first report with no unread use', () => {
     expect(news(untold, { unread: [], included: true }).say).toEqual({
       outside: false,
       unread: false,
@@ -88,7 +88,7 @@ describe('news', () => {
     ).toBe(true)
   })
 
-  it('says nothing when the last unread call goes away', () => {
+  it('says nothing when the last unread use goes away', () => {
     const told: Told = { unread: one, outside: false }
     expect(news(told, { unread: [], included: true }).say.unread).toBe(false)
   })

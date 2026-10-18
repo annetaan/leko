@@ -33,7 +33,7 @@ const plugin = (options: Options) => {
 }
 
 describe('lekoSignals', () => {
-  it('reports the calls it could not read when a build starts', () => {
+  it('reports the uses it could not read when a build starts', () => {
     const { warnings, buildStart } = plugin({ project, out: scratch() })
     buildStart()
     expect(unread(warnings)).toHaveLength(1)
