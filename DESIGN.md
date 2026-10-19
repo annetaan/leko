@@ -491,6 +491,11 @@ reports the event via `reached()`.
   is where a branch goes; see `branching.ts`.
 - Completion requirement: `next` transitions occur only when a story runs to full completion. Interruptions (`stop()`, target lost, errors) terminate the tour immediately.
 - Seamless transition: The transition to next is atomic — `onLeave` is notified of the destination, allowing shared UI elements to persist across stories.
+  Atomic means nothing between the two stories can start a different one; it
+  does not mean the successor goes up whatever happens. A `stop()` from inside
+  the ending — the last step's `onLeave`, the story's own `onLeave`, or the
+  report — ends the tour there, and the story `next` named is never entered. A
+  story `onLeave` that runs after such a `stop()` is told `undefined`.
 
 ## Saying where the tour got to
 
@@ -562,7 +567,8 @@ its clear-up at the same level instead of splitting across two.
   something up before failing is owed one. `onLeave` is told where the tour is
   going, so a panel two steps use in turn can stay open. A story handing the
   tour on through `next` counts as ending. It runs the other way too: a step
-  whose `onEnter` was never called is owed neither handler. A `stop()` from
+  whose `onEnter` was never called is owed neither handler, and nor is a story
+  `next` named that a `stop()` from inside the ending took back. A `stop()` from
   the `onLeave` of the step being left ends the tour before the step ahead is
   entered, so that step gets nothing and only the story is left after it.
 - **A throw from `onEnter` stops the tour, and the reason is thrown again.**
@@ -789,9 +795,12 @@ only once `onStep` has returned or thrown.
   carries a position that no longer matches and does nothing: each run's
   position is its identity, so that check does a counter's job without one.
   Inside an ending (its `onLeave` calls, its `onStep` and the `onDiagnostic` of
-  a `target-lost`), `stop()` has nothing left to end, so the gate stays shut and
-  both are `call-refused`. The two calls written in a row are under **Saying
-  where the tour got to**.
+  a `target-lost`), the run is already gone. In a chain's ending `stop()` ends
+  what is left of it, the story `next` named; in any other it ends nothing.
+  Either way the gate stays shut and both are `call-refused`. An ending has no
+  position to carry, so the events that follow its `onLeave` calls ask the
+  phase whether that story is still on its way. The two calls written in a
+  row are under **Saying where the tour got to**.
 - The machine does not know a morph is running. A step is shown as far as it
   is concerned the moment `show` returns, whether or not it has reached the
   screen yet; how long the drawing takes to arrive and settle is the

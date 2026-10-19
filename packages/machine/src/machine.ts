@@ -90,8 +90,10 @@ export class Machine<W extends World> {
 
   /**
    * End the run, reporting it through `onStep` with `step` as `undefined` before
-   * returning. A no-op while idle, and the one call the gate does not stand in
-   * the way of — DESIGN.md, **One gate, and what it refuses**.
+   * returning. A no-op while idle, except inside the ending of a story that
+   * hands on through `next`: the state reads idle there, and this still keeps
+   * the named story from going up. The one call the gate does not stand in the
+   * way of — DESIGN.md, **One gate, and what it refuses**.
    */
   stop(): void {
     this.dispatch({ kind: 'stop' })

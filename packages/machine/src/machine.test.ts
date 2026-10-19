@@ -954,6 +954,110 @@ describe('a story that says what follows it', () => {
     expect(problems.map((problem) => problem.kind)).toEqual(['call-refused'])
     expect(tour.story?.id).toBe('summary')
   })
+  describe('a stop() made while it hands on', () => {
+    // A `stop()` from anywhere inside the ending takes back the story `next`
+    // named. DESIGN.md, **Starting a story**.
+
+    type Where = 'step' | 'story' | 'report'
+
+    function chaining(where: Where, after: (tour: Machine<Fixture>) => void = () => undefined) {
+      const log: string[] = []
+      const problems: Problem<Fixture>[] = []
+      let tour!: Machine<Fixture>
+      const stopping = (): void => {
+        tour.stop()
+        after(tour)
+      }
+      const named: Story = {
+        id: 'summary',
+        onEnter: () => void log.push('enter summary'),
+        onLeave: () => void log.push('leave summary'),
+        steps: [{ id: 'end', target: 'second' }],
+      }
+      tour = staging(
+        {
+          id: 'first',
+          next: named,
+          onLeave: (self, next) => {
+            log.push(`leave ${self.id} → ${next?.id ?? 'none'}`)
+            if (where === 'story') stopping()
+          },
+          steps: [
+            {
+              id: 'a',
+              target: 'first',
+              onLeave: () => {
+                log.push('leave a')
+                if (where === 'step') stopping()
+              },
+            },
+          ],
+        },
+        {
+          onStep: (step, story) => {
+            if (step !== undefined) return
+            log.push(`report ${story.id}:${step}`)
+            if (where === 'report') stopping()
+          },
+          onDiagnostic: (problem) => problems.push(problem),
+        },
+      )
+      hold(tour, { id: 'other', steps: [{ id: 'o', target: 'first' }] })
+      begin(tour, 'first')
+      press(tour)
+      return { tour, log, problems }
+    }
+
+    test('a stop() from the onLeave of its last step ends the tour, and the story it named is never entered', () => {
+      const { tour, log } = chaining('step')
+
+      // The story's `onLeave` runs after the stop, so it is told nothing follows.
+      expect(log).toEqual(['leave a', 'leave first → none', 'report first:undefined'])
+      expect(tour.state).toBe('idle')
+      expect(tour.story).toBeUndefined()
+      expect(drawing().shown).toEqual(['a'])
+      expect(drawing().torn).toBe(1)
+      expect(drawing().listened).toBe(1)
+    })
+
+    test('a stop() from its own onLeave ends the tour, and the story it named is never entered', () => {
+      const { tour, log } = chaining('story')
+
+      expect(log).toEqual(['leave a', 'leave first → summary', 'report first:undefined'])
+      expect(tour.state).toBe('idle')
+      expect(tour.story).toBeUndefined()
+      expect(drawing().shown).toEqual(['a'])
+      expect(drawing().torn).toBe(1)
+      expect(drawing().listened).toBe(1)
+    })
+
+    test('a stop() from the report of its ending ends the tour, and the story it named is never entered', () => {
+      const { tour, log } = chaining('report')
+
+      expect(log).toEqual(['leave a', 'leave first → summary', 'report first:undefined'])
+      expect(tour.state).toBe('idle')
+      expect(tour.story).toBeUndefined()
+      expect(drawing().shown).toEqual(['a'])
+      expect(drawing().torn).toBe(1)
+      expect(drawing().listened).toBe(1)
+    })
+
+    test('a start() after such a stop() is still refused, and goes through once the ending has reported', () => {
+      for (const where of ['step', 'story', 'report'] as const) {
+        const made = chaining(where, (tour) => begin(tour, 'other'))
+        const { tour } = made
+
+        // DESIGN.md, **One gate, and what it refuses**.
+        expect(made.problems.map((problem) => problem.kind)).toEqual(['call-refused'])
+        expect(tour.state).toBe('idle')
+
+        begin(tour, 'other')
+
+        expect(tour.story?.id).toBe('other')
+        expect(tour.step?.id).toBe('o')
+      }
+    })
+  })
 })
 
 describe('a call made from inside a report', () => {

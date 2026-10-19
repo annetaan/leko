@@ -13,15 +13,18 @@ import type { Handoff, MachineState, Problem, World } from './types.js'
  * second and not the first. `before` is the position naming a step whose
  * `onEnter` has not been called while a handler that comes before it runs: the
  * story's own `onEnter`, or the `onLeave` of the step a move walks away from.
- * `step` is that step's own `onEnter`. `ending` is a teardown. All three last
- * one synchronous call into the application and no longer, because no handler
+ * `step` is that step's own `onEnter`. `ending` and `chaining` are both a
+ * teardown, and `chaining` is the one with a story on its way: the story ran
+ * out and `next` named another, which goes up once the report is done unless a
+ * `stop()` from inside the teardown takes it back to `ending`. Each lasts one
+ * synchronous call into the application and no longer, because no handler
  * hands anything back to wait for, and `ready` is every other moment there is.
  *
  * DESIGN.md argues the gate this feeds under **One gate, and what it refuses**,
  * and that none of it is about the screen under **Nothing here is about what is
  * on screen**.
  */
-export type Phase = 'before' | 'step' | 'ending' | 'ready'
+export type Phase = 'before' | 'step' | 'ending' | 'chaining' | 'ready'
 
 /**
  * Which story a tour is on and where in it. Replaced on every move and never on
@@ -156,12 +159,15 @@ export type Event<W extends World> =
   | { kind: 'unloading' }
   | { kind: 'pickUp'; stories: Story<W>[] }
   // --- the machine carrying on, one per window it has to stop at
+  /** The step's `onLeave`, where it was owed, is done, and the story's is owed. */
+  | { kind: 'stepLeft'; story: Story<W>; into?: Story<W>; after: Owed<W> }
   /** The `onLeave` calls are done and the report is owed. */
   | { kind: 'left'; story: Story<W>; into?: Story<W>; after: Owed<W> }
-  /** The report is done and the story that displaced this one may go up. */
-  | { kind: 'startInto'; story: Story<W> }
-  /** The report of an ending is done and nothing follows it. Only now does the machine open. */
-  | { kind: 'reported' }
+  /**
+   * The report of an ending is done, and `into` is the story `next` named, if
+   * any. Only now does the machine open, or the story go up.
+   */
+  | { kind: 'reported'; into?: Story<W> }
   /** The position is on the story's first step and its own `onEnter` is owed. */
   | { kind: 'openStory'; at: Position<W> }
   /**
@@ -231,11 +237,10 @@ const ending = <W extends World>(
   const step = core.phase === 'step' || core.phase === 'ready' ? stepOf(core) : undefined
   const effects: Effect<W>[] = [{ kind: 'teardown' }]
   if (step) effects.push({ kind: 'callStepLeave', step })
-  effects.push({ kind: 'callStoryLeave', story: here.story, next: into })
   return {
-    core: { ...idle<W>(), phase: 'ending' },
+    core: { ...idle<W>(), phase: into ? 'chaining' : 'ending' },
     effects,
-    next: { kind: 'left', story: here.story, into, after },
+    next: { kind: 'stepLeft', story: here.story, into, after },
   }
 }
 
@@ -328,6 +333,11 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
     }
 
     case 'stop':
+      // Inside a chain's ending there is no position left to end, and what is
+      // left is the story on its way. Taking it back is the whole of the move.
+      if (core.position === undefined && core.phase === 'chaining') {
+        return nothing({ ...core, phase: 'ending' })
+      }
       return ending(core, undefined, [])
 
     case 'pressed': {
@@ -397,6 +407,18 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
 
     // --- the machine carrying on
 
+    case 'stepLeft': {
+      // A `stop()` from the step's `onLeave` took back the story on its way,
+      // and the story's `onLeave` is told so. DESIGN.md, **One gate, and what
+      // it refuses**.
+      const into = core.phase === 'chaining' ? event.into : undefined
+      return {
+        core,
+        effects: [{ kind: 'callStoryLeave', story: event.story, next: into }],
+        next: { kind: 'left', story: event.story, into, after: event.after },
+      }
+    }
+
     case 'left':
       // Every ending stays closed through its own report, so a `start()` made
       // from inside one is refused like any other call made while Leko is
@@ -404,15 +426,16 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       return {
         core,
         effects: [{ kind: 'report', story: event.story, step: undefined }, ...event.after],
-        next: event.into ? { kind: 'startInto', story: event.into } : { kind: 'reported' },
+        next: { kind: 'reported', into: event.into },
       }
 
-    case 'startInto':
-      return opening(core, event.story)
-
     case 'reported':
-      // Nothing ran in the window, because nothing can: every call the report
-      // could make was refused, and `stop()` finds nothing to end.
+      // The ending's own report has run, and every call it made was refused
+      // except a `stop()`, which may have taken back the story on its way.
+      // DESIGN.md, **One gate, and what it refuses**.
+      if (event.into !== undefined && core.phase === 'chaining') {
+        return opening(core, event.into)
+      }
       return nothing({ ...core, phase: 'ready' })
 
     case 'openStory':
@@ -488,8 +511,8 @@ export function reduce<W extends World>(core: Core<W>, event: Event<W>): Outcome
       if (!arrivedAt(pattern, found.url)) return nothing(core)
       const story = event.stories.find((candidate) => candidate.id === found.handoff.into)
       if (!story) return diagnosing(core, { kind: 'story-unknown', id: found.handoff.into })
-      // A continuation, the way `left` continues into `startInto`, so the
-      // `start` case is what judges it.
+      // A continuation, the way `reported` continues into the story `next`
+      // named, so the `start` case is what judges it.
       return { core, effects: [], next: { kind: 'start', story } }
     }
 

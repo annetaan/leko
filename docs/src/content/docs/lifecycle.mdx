@@ -32,7 +32,8 @@ exactly one thing moves it.
 - **`next` is the only way one story leads to another.** It is asked when the
   last step advances — never on `stop()`, never on a failure — and the handoff
   is one operation: `onLeave` is told where the tour is going, and the tour is
-  never idle in between —
+  never idle in between. A `stop()` from inside it ends the tour there, and
+  the story `next` named is never entered —
   [next joins one story to the one after it](../guides/several-short-stories/#next-joins-one-story-to-the-one-after-it).
 - **A page load ends the story where it stands.** A story that declares
   `next`, whose last step waits for a URL, hands its successor on across the

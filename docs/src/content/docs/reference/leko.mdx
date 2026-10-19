@@ -101,8 +101,9 @@ A call made from inside a handler is refused rather than saved for later, and
 the run it belonged to is over and Leko is idle and open, so a `start` or
 `pickUp` written after it goes through, and whatever the old run still owed is
 dropped. Inside an ending (its `onLeave` calls, its `onStep` and the
-`onDiagnostic` of a `target-lost`), `stop()` has nothing left to end, so the
-gate stays shut and `start` and `pickUp` are `call-refused` —
+`onDiagnostic` of a `target-lost`), the tour has already ended: `stop()` there
+keeps the story a `next` named from going up, and does nothing more. The gate
+stays shut either way, and `start` and `pickUp` are `call-refused` —
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
 
 ### start

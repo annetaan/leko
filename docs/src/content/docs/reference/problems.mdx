@@ -95,7 +95,8 @@ though it had not been made. A refused `pickUp` has not touched the note, so the
 call that goes through later finds it. `stop()` is never refused, and a `start`
 or `pickUp` made after a `stop()` in the same handler of a step or a story is
 not here either: the tour has ended and Leko is idle. Inside an ending it is,
-because that `stop()` ended nothing. A press on the next control in the same
+because the tour had already ended there, and that `stop()` at most kept the
+story a `next` named from going up. A press on the next control in the same
 window is ignored and reported nowhere, because nobody made a call to be told.
 
 Make the call after the handler returns. To go from one story into another,

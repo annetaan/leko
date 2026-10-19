@@ -650,9 +650,11 @@ export interface LekoStory {
    * first, and the ending mirrors it, innermost first**.
    *
    * `next` is the story about to start, and `undefined` when the tour is simply
-   * over. A shared story that branches and is started again afterwards is the
-   * case: teardown worth skipping when the destination needs the same state is
-   * teardown this argument can skip.
+   * over — and also where a `stop()` from the last step's `onLeave` took back
+   * the story {@link next} named, which then never starts. A shared story
+   * that branches and is started again afterwards is the case: teardown worth
+   * skipping when the destination needs the same state is teardown this
+   * argument can skip.
    *
    * A promise is not waited for. The story is over.
    *
@@ -803,8 +805,9 @@ export interface LekoOptions {
    * {@link Leko.start} from in here is `tour-running` on a report naming a
    * step and `call-refused` on a report of an ending. {@link Leko.stop} from in
    * here is never turned down, and a `start` after it goes through on a step's
-   * report but not on an ending's. DESIGN.md, **One gate, and what it
-   * refuses**.
+   * report but not on an ending's. On the report of an ending that hands the
+   * tour on through `next`, it keeps the story `next` named from going up.
+   * DESIGN.md, **One gate, and what it refuses**.
    */
   onStep?: (step: LekoStep | undefined, story: LekoStory) => void
 
@@ -960,8 +963,9 @@ export type LekoProblem =
    * the {@link LekoOptions.onDiagnostic} of a `target-lost`. Nothing of the
    * step being built has been built, so there is nothing there to act on. A
    * call made after a `stop()` that the same handler already made is not here,
-   * because that `stop()` ended the tour; inside an ending it is, because
-   * there `stop()` ends nothing. DESIGN.md, **One gate, and what it
+   * because that `stop()` ended the tour. Inside an ending it is still
+   * refused, because there the tour has already ended and `stop()` at most
+   * takes back the story `next` named. DESIGN.md, **One gate, and what it
    * refuses**.
    *
    * A refused `pickUp` has not touched the note, so the call that goes through

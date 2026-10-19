@@ -332,10 +332,12 @@ after a window carries the position it was planned at, and `plan.ts` asks
 `stillAt` before acting on one. A `stop()` can have thrown that arrival away
 while the machine was gone.
 
-There are eight of those asks. Seven are about a position an arrival or an ask
-of `next` began at, and the last one is a different job: a `refused` landing
-after a `validate` that called `stop()` from inside itself. All eight are what
-is left of a counter that used to be checked in thirteen places.
+There are nine of those asks. Seven are about a position an arrival or an ask
+of `next` began at, and the last two are a different job: a `refused` or an
+`explained` landing after a `validate` or a function `error` that called
+`stop()` from inside itself. All nine are what is left of a counter that used
+to be checked in thirteen places. An ending asks the phase instead — DESIGN.md,
+**One gate, and what it refuses**.
 
 ## The three constraints, and the line that keeps each
 
