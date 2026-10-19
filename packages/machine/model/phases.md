@@ -249,8 +249,8 @@ Worth knowing before trusting the table above.
 - A `stop()` from the `onLeave` of the step being left. No sandbox case makes
   one. `machine.qnt` reaches it with story `f`, and `machine.test.ts` has it.
 - A `stop()` from inside a chain's ending: the last step's `onLeave`, the
-  story's own, or the report. No sandbox case makes one, and
-  `machine.test.ts` has all three.
+  story's own, or the report. No sandbox case makes one. `machine.qnt` reaches
+  it with story `g`, and `machine.test.ts` has all three.
 - A throw from a handler whose return is dropped: an `onLeave`, `onStep` or
   `onDiagnostic`. The reason is thrown again and nothing stops. No sandbox case
   throws from one, and `machine.test.ts` has each. `replay.test.ts` also

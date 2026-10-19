@@ -225,6 +225,33 @@
           ],
           "throwsOnEnter": false
         }
+      ],
+      [
+        "g",
+        {
+          "id": "g",
+          "next": {
+            "tag": "Just",
+            "value": "e"
+          },
+          "steps": [
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "g1",
+              "stopsOnLeave": false,
+              "target": "first",
+              "throwsOnEnter": false
+            }
+          ],
+          "throwsOnEnter": false
+        }
       ]
     ]
   },
@@ -384,7 +411,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "second", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -418,7 +445,7 @@
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "0"
+              "#bigint": "3"
             },
             "story": "a"
           }
@@ -456,7 +483,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -490,7 +517,7 @@
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "0"
+              "#bigint": "1"
             },
             "story": "a"
           }
@@ -528,7 +555,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -597,7 +624,7 @@
           "#bigint": "0"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -631,7 +658,7 @@
           "tag": "Some",
           "value": {
             "index": {
-              "#bigint": "0"
+              "#bigint": "1"
             },
             "story": "a"
           }
@@ -656,49 +683,46 @@
       },
       "m": {
         "drawn": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "f"
           }
         },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "1"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
         },
         "position": {
-          "tag": "Nothing",
+          "tag": "Just",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "0"
+            },
+            "occurrence": {
+              "#bigint": "0"
+            },
+            "story": "f"
           }
         },
-        "presenterUp": false
+        "presenterUp": true
       },
       "mbt::actionTaken": "doStart",
       "mbt::nondetPicks": {
@@ -728,7 +752,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "e"
+          "value": "f"
         }
       }
     },
@@ -744,17 +768,32 @@
           }
         },
         "inflight": {
-          "#set": []
+          "#set": [
+            {
+              "tag": "Leaving",
+              "value": {
+                "into": {
+                  "tag": "Nothing",
+                  "value": {
+                    "#tup": []
+                  }
+                },
+                "token": {
+                  "#bigint": "2"
+                }
+              }
+            }
+          ]
         },
-        "mark": "left",
+        "mark": "stop-leaving",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
-          "tag": "Ready",
+          "tag": "Ending",
           "value": {
             "#tup": []
           }
@@ -767,29 +806,16 @@
         },
         "presenterUp": false
       },
-      "mbt::actionTaken": "doLeave",
+      "mbt::actionTaken": "doPress",
       "mbt::nondetPicks": {
         "guardOk": {
+          "tag": "Some",
+          "value": false
+        },
+        "leavePick": {
           "tag": "None",
           "value": {
             "#tup": []
-          }
-        },
-        "leavePick": {
-          "tag": "Some",
-          "value": {
-            "tag": "Leaving",
-            "value": {
-              "into": {
-                "tag": "Nothing",
-                "value": {
-                  "#tup": []
-                }
-              },
-              "token": {
-                "#bigint": "1"
-              }
-            }
           }
         },
         "losePick": {
@@ -835,18 +861,18 @@
                   }
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "2"
                 }
               }
             }
           ]
         },
-        "mark": "start",
+        "mark": "refused-start",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ending",
@@ -890,7 +916,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "f"
+          "value": "a"
         }
       }
     },
@@ -917,7 +943,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "2"
                 }
               }
             }
@@ -925,10 +951,10 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ending",
@@ -1001,7 +1027,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "3"
+                  "#bigint": "2"
                 }
               }
             }
@@ -1009,10 +1035,10 @@
         },
         "mark": "unmatched",
         "nextToken": {
-          "#bigint": "4"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ending",

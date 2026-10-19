@@ -11,16 +11,17 @@
 // **Nothing the machine calls hands anything back.** An arrival runs start to
 // finish inside one action, so the `Before` and `Step` phases are never a state
 // this rests in and nothing is parked for one. The one late thing left is the
-// window a teardown opens. A handler calling back in is reached in one place
-// only: a step whose `onLeave` calls `stop()` while a move walks away from it
-// (`stopsOnLeave`).
+// window a teardown opens. A handler calling back in from inside an arrival is
+// reached in one place only: a step whose `onLeave` calls `stop()` while a move
+// walks away from it (`stopsOnLeave`). Inside a teardown every action is
+// offered, {@link doStop} in `Chaining` among them.
 module machine {
   // ---------------------------------------------------------------- the world
 
   type Maybe[a] = Just(a) | Nothing
 
-  /// `Phase` in plan.ts, with the same four values and the same meanings.
-  type Phase = Before | Step | Ending | Ready
+  /// `Phase` in plan.ts, with the same five values and the same meanings.
+  type Phase = Before | Step | Ending | Chaining | Ready
 
   /// Which step the tour is on. `position` in plan.ts, by story id rather
   /// than by object, because a model has no object identity to lean on.
@@ -50,9 +51,10 @@ module machine {
   /// said no.
   ///
   /// `stopsOnLeave` is this step's `onLeave` calling `stop()`. It only does
-  /// something when a move walks away from the step: inside a teardown the
-  /// same `stop()` finds nothing to end, and {@link stoppedWhileTearing}
-  /// already covers that.
+  /// something when a move walks away from the step: `f` names no `next`, so
+  /// inside its teardown the same `stop()` still finds nothing to end. A
+  /// `stop()` inside a chain's teardown is {@link doStop} in `Chaining`, and
+  /// {@link stoppedChaining} covers it.
   type StepSpec = {
     id: str,
     target: str,
@@ -83,7 +85,9 @@ module machine {
   /// application inside one can call straight back in.
   ///
   /// `into` is the story `next` named, displacing this one. It decides what
-  /// follows the report: the named story going up, or the machine opening.
+  /// follows the report together with the phase: the named story goes up only
+  /// from `Chaining`, and otherwise the machine opens. The `reported` case in
+  /// `plan.ts`.
   ///
   /// It carries a token because two teardowns at the same position are two
   /// occurrences, and a set keyed on position alone would silently keep one.
@@ -118,10 +122,10 @@ module machine {
   // ---------------------------------------------------------- the bounded world
   //
   // Two stories that run, one that throws on its way in, one with nothing in
-  // it, one that a chain hands the tour to, and one whose first step ends the
-  // tour from its own `onLeave`. `a` and `b` have six steps between them, two
-  // more than the issue's estimate of what would have caught the four bugs it
-  // was opened for.
+  // it, one that a chain hands the tour to, one whose first step ends the tour
+  // from its own `onLeave`, and one that hands the tour on after a single
+  // step. `a` and `b` have six steps between them, two more than the issue's
+  // estimate of what would have caught the four bugs it was opened for.
   //
   // `packages/machine/src/replay.test.ts` builds its fixture from this, read out
   // of the trace, rather than from a second copy written by hand.
@@ -180,6 +184,17 @@ module machine {
       steps: [
         { id: "f1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: true },
         { id: "f2", target: "second", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
+      ],
+    },
+    // One step and a `next`, so a run from idle reaches a chain's teardown in
+    // two calls and a `stop()` inside it in a third. `a` is four steps deep,
+    // and {@link stepInside} offers no `stop`.
+    "g" -> {
+      id: "g",
+      next: Just("e"),
+      throwsOnEnter: false,
+      steps: [
+        { id: "g1", target: "first", awaits: Nothing, hasGuard: false, hasWords: false, throwsOnEnter: false, stopsOnLeave: false },
       ],
     },
     // Where "a" hands the tour to, and the end of the chain. One step, nothing
@@ -262,7 +277,9 @@ module machine {
   pure def standOn(s: M, at: Pos): M =
     s.with("position", Just(at)).with("nextToken", s.nextToken + 1)
 
-  /// `ending` in `plan.ts`. `into` is a story only where a chain hands the tour on.
+  /// `ending` in `plan.ts`. `into` is a story only where a chain hands the tour
+  /// on, and the phase says so: `Chaining` while a story is on its way,
+  /// `Ending` otherwise.
   ///
   /// Every ending stays closed through its own report. The machine opens only
   /// once the report is done, so `next` is the only way one story leads to
@@ -272,7 +289,7 @@ module machine {
       | Nothing => s
       | Just(_) => {
         val torn =
-          s.with("phase", Ending)
+          s.with("phase", if (into == Nothing) Ending else Chaining)
            .with("position", Nothing)
            // teardown()
            .with("presenterUp", false)
@@ -448,13 +465,21 @@ module machine {
   }
 
   /// `stop()` asks nothing, and is the only call that does not. This action is
-  /// a `stop()` made from outside any handler. An arrival is one action, so no
+  /// a `stop()` made from outside an arrival. An arrival is one action, so no
   /// state this fires in has the phase `Before` or `Step`. A `stop()` from
   /// inside an arrival is reached only through `stopsOnLeave` in
   /// {@link moveOn}, and one from inside an `onEnter` is not reached at all:
   /// `README.md`, **What this does not cover**.
+  ///
+  /// In the teardown window it stands for a `stop()` from inside an `onLeave`
+  /// or the report. In `Chaining` it takes back the story on its way, which is
+  /// the whole of the move: the `stop` case in `plan.ts`, with the same two
+  /// clauses.
   action doStop = all {
-    m' = end(m, Nothing).with("mark", "stop"),
+    m' =
+      if (m.position == Nothing and m.phase == Chaining)
+        m.with("phase", Ending).with("mark", "stop-chaining")
+      else end(m, Nothing).with("mark", "stop"),
   }
 
   // --- what the presenter reports
@@ -524,24 +549,29 @@ module machine {
   /// `machine.ts` runs the whole of this inside the call that began it, so a
   /// model resting here is more permissive than the code. Nothing is lost by
   /// that: with the position empty and the phase closed, every action either
-  /// is refused, finds nothing to act on, or is a knob on the world.
+  /// is refused, finds nothing to act on, or is a knob on the world, except
+  /// {@link doStop} in `Chaining`. That one acts, and the code accepts the
+  /// same `stop()` in the same window, from inside an `onLeave` or the report.
   action doLeave(cb: Callback): bool = all {
     m.inflight.contains(cb),
     m' = {
       val awake = m.with("inflight", m.inflight.exclude(Set(cb)))
       match cb {
         | Leaving(c) =>
+          // Both branches are the `reported` case in `plan.ts`: the machine
+          // opens only once the report is done. A call made inside the window
+          // is a call made while `Leaving` is still parked.
           match c.into {
-            // Nothing follows the report, and the machine opens only once it
-            // is done — the `reported` event in `plan.ts`. A call made inside
-            // the window is a call made while `Leaving` is still parked.
             | Nothing => awake.with("phase", Ready).with("mark", "left")
             // An ending with somewhere to go stays closed through its own
-            // report, and then the story that was named goes up.
-            | Just(id) => {
-              val at = { story: id, index: 0, occurrence: awake.nextToken }
-              enterStory(standOn(awake, at), at).with("mark", "left-into")
-            }
+            // report, and then the story that was named goes up, unless a
+            // `stop()` inside the window took it back.
+            | Just(id) =>
+              if (awake.phase == Chaining) {
+                val at = { story: id, index: 0, occurrence: awake.nextToken }
+                enterStory(standOn(awake, at), at).with("mark", "left-into")
+              }
+              else awake.with("phase", Ready).with("mark", "chain-stopped")
           }
       }
     },
@@ -635,12 +665,12 @@ module machine {
   /// This used to ask for `phase == Ready` as well, and it held because nothing
   /// could reach a teardown from the outside. `end` empties the position before
   /// it calls anything, so a handler reading `state` from inside an `onLeave`
-  /// is told `idle` while the phase underneath is still `Ending`. The two
-  /// answer different questions and only one of them is public;
-  /// `machine.test.ts` has the case that says so.
+  /// is told `idle` while the phase underneath is still `Ending`, or `Chaining`
+  /// where a story is on its way. The two answer different questions and only
+  /// one of them is public; `machine.test.ts` has the case that says so.
   val idleIsClean: bool =
     stateOf(m) == "idle" implies and {
-      m.phase == Ready or m.phase == Ending,
+      m.phase == Ready or m.phase == Ending or m.phase == Chaining,
       not(m.presenterUp),
       m.drawn == Nothing,
     }
@@ -674,7 +704,8 @@ module machine {
   val chainEnded: bool = m.mark == "chain-ends"
 
   /// The machine standing inside a teardown, with `onLeave` owed. The window
-  /// every call below has to come to nothing in.
+  /// every call below has to come to nothing in. A chain's teardown is
+  /// `Chaining`, and has its own witness in {@link stoppedChaining}.
   val tearing: bool = m.phase == Ending
 
   /// One per way into the machine, because a window only one call has been
@@ -688,6 +719,12 @@ module machine {
   /// A step's `onLeave` ending the tour while a move walks away from it, so
   /// the step ahead is never entered and is owed nothing.
   val stoppedLeaving: bool = m.mark == "stop-leaving"
+
+  /// A `stop()` inside a chain's teardown took back the story on its way, so
+  /// the report was followed by the machine opening and not by that story. On
+  /// the mark `doLeave` writes rather than on `stop-chaining`, so that a trace
+  /// aimed at it runs past the report: `README.md`, **The corpus**.
+  val stoppedChaining: bool = m.mark == "chain-stopped"
 
   /// A call the gate turned down. Only a `start` can reach this: the window the
   /// gate closes is a teardown, and by then the position is empty, so a signal

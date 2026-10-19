@@ -224,8 +224,9 @@ function build(raw: Itf, run: () => Run): Map<string, Story> {
         // Asked in the turn the guard says no, so there is nothing for the
         // trace to spend later.
         if (shape.hasWords) step.error = REASON
-        // Inside a teardown the same `stop()` finds nothing to end, as it does
-        // in the model.
+        // `f` names no `next`, so inside its teardown this `stop()` finds
+        // nothing to end, as in the model. A `stop()` inside a chain's teardown
+        // is the model's `doStop`, made by `drain` like any call in the window.
         if (shape.stopsOnLeave) step.onLeave = () => run().tour.stop()
         if (THROWS_ON_LEAVE.has(shape.id)) {
           step.onLeave = () => {
