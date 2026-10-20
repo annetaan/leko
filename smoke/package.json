@@ -10,7 +10,7 @@
     "test": "rm -f src/leko-signals.d.ts && vite build && tsc && playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "typescript": "~6.0.2",
     "vite": "^8.3.4"
   }
