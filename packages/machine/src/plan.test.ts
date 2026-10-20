@@ -45,7 +45,7 @@ const put = (core: C, event: Event<Fixture>): Outcome<Fixture> => reduce(core, e
 
 const owed = (outcome: Outcome<Fixture>): string[] => outcome.effects.map((e) => e.kind)
 
-const PHASES: Phase[] = ['before', 'step', 'ending', 'ready']
+const PHASES: Phase[] = ['before', 'step', 'ending', 'chaining', 'ready']
 
 describe('reading the state', () => {
   test('a call is acted on where the step is on screen and nowhere else', () => {
@@ -58,6 +58,7 @@ describe('reading the state', () => {
       before: false,
       step: false,
       ending: false,
+      chaining: false,
     })
   })
 
@@ -76,6 +77,7 @@ describe('reading the state', () => {
       before: 'running',
       step: 'running',
       ending: 'running',
+      chaining: 'running',
     })
   })
 
@@ -118,23 +120,28 @@ describe('an ending', () => {
     // DESIGN.md, **A teardown says `idle` while it is still refusing calls**.
     expect(outcome.core.position).toBeUndefined()
     expect(outcome.core.phase).toBe('ending')
-    expect(owed(outcome)).toEqual(['teardown', 'callStepLeave', 'callStoryLeave'])
+    expect(owed(outcome)).toEqual(['teardown', 'callStepLeave'])
+    expect(outcome.next).toEqual({ kind: 'stepLeft', story, into: undefined, after: [] })
   })
 
   test('owes the step its cleanup before the story, and the story last of all', () => {
-    const outcome = put(running(), { kind: 'stop' })
-    const [, step, tale] = outcome.effects
+    const torn = put(running(), { kind: 'stop' })
+    const [, step] = torn.effects
+    const left = put(torn.core, torn.next!)
 
     expect(step).toEqual({ kind: 'callStepLeave', step: first })
-    expect(tale).toEqual({ kind: 'callStoryLeave', story, next: undefined })
+    expect(left.effects).toEqual([{ kind: 'callStoryLeave', story, next: undefined }])
+    expect(left.next).toEqual({ kind: 'left', story, into: undefined, after: [] })
   })
 
   test('owes the step nothing where its onEnter was never called, whichever way the tour came to it', () => {
     // The story's own `onEnter`, or the `onLeave` of the step a move walked
     // away from, ended the tour before the step ahead was entered.
-    const outcome = put(running(0, { phase: 'before' }), { kind: 'stop' })
+    const torn = put(running(0, { phase: 'before' }), { kind: 'stop' })
+    const left = put(torn.core, torn.next!)
 
-    expect(owed(outcome)).toEqual(['teardown', 'callStoryLeave'])
+    expect(owed(torn)).toEqual(['teardown'])
+    expect(owed(left)).toEqual(['callStoryLeave'])
   })
 
   test('does nothing at all while idle, however many times it is asked', () => {
@@ -147,12 +154,13 @@ describe('an ending', () => {
 
   test('stays closed through its report, and opens once the report is done', () => {
     const torn = put(running(), { kind: 'stop' })
-    const outcome = put(torn.core, torn.next!)
+    const left = put(torn.core, torn.next!)
+    const outcome = put(left.core, left.next!)
 
     // DESIGN.md, **Saying where the tour got to**.
     expect(outcome.core.phase).toBe('ending')
     expect(owed(outcome)).toEqual(['report'])
-    expect(outcome.next).toEqual({ kind: 'reported' })
+    expect(outcome.next).toEqual({ kind: 'reported', into: undefined })
 
     const opened = put(outcome.core, outcome.next!)
     expect(opened.core.phase).toBe('ready')
@@ -164,11 +172,57 @@ describe('an ending', () => {
     // ran out named in `next`.
     const core = running()
     const torn = put(core, { kind: 'chained', at: core.position!, into: other })
-    const outcome = put(torn.core, torn.next!)
+    const left = put(torn.core, torn.next!)
+    const outcome = put(left.core, left.next!)
 
-    expect(outcome.core.phase).toBe('ending')
+    expect(outcome.core.phase).toBe('chaining')
     expect(owed(outcome)).toEqual(['report'])
-    expect(outcome.next).toEqual({ kind: 'startInto', story: other })
+    expect(outcome.next).toEqual({ kind: 'reported', into: other })
+  })
+
+  test("a chain's ending says a story is on its way, and is shut like any other", () => {
+    const core = running()
+    const torn = put(core, { kind: 'chained', at: core.position!, into: other })
+
+    expect(torn.core.phase).toBe('chaining')
+    expect(torn.core.position).toBeUndefined()
+    expect(accepting(torn.core)).toBe(false)
+  })
+
+  test("owes the story its onLeave once the step's is done, told the story on its way", () => {
+    const outcome = put(
+      { ...nothing(), phase: 'chaining' },
+      { kind: 'stepLeft', story, into: other, after: [] },
+    )
+
+    expect(outcome.effects).toEqual([{ kind: 'callStoryLeave', story, next: other }])
+    expect(outcome.next).toEqual({ kind: 'left', story, into: other, after: [] })
+  })
+
+  test("a stop made inside a chain's ending takes back the story on its way, and owes nothing", () => {
+    const outcome = put({ ...nothing(), phase: 'chaining' }, { kind: 'stop' })
+
+    expect(outcome.core).toEqual({ position: undefined, phase: 'ending' })
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toBeUndefined()
+  })
+
+  test("the story's onLeave is told nothing follows where a stop came before it", () => {
+    const outcome = put(
+      { ...nothing(), phase: 'ending' },
+      { kind: 'stepLeft', story, into: other, after: [] },
+    )
+
+    expect(outcome.effects).toEqual([{ kind: 'callStoryLeave', story, next: undefined }])
+    expect(outcome.next).toEqual({ kind: 'left', story, into: undefined, after: [] })
+  })
+
+  test("an ending's report opens nothing where a stop took the story back, and the machine opens", () => {
+    const outcome = put({ ...nothing(), phase: 'ending' }, { kind: 'reported', into: other })
+
+    expect(outcome.core).toEqual({ position: undefined, phase: 'ready' })
+    expect(outcome.effects).toEqual([])
+    expect(outcome.next).toBeUndefined()
   })
 })
 
@@ -358,7 +412,7 @@ describe('starting', () => {
   })
 
   test('a story next hands the tour to listens again, once the ending before it has reported', () => {
-    const outcome = put({ ...nothing(), phase: 'ending' }, { kind: 'startInto', story: other })
+    const outcome = put({ ...nothing(), phase: 'chaining' }, { kind: 'reported', into: other })
 
     expect(outcome.effects).toEqual([{ kind: 'listen' }])
     expect(outcome.next?.kind).toBe('openStory')
@@ -519,6 +573,7 @@ describe('a page load, and the story it hands on', () => {
       before: [],
       step: [],
       ending: [],
+      chaining: [],
     })
   })
 

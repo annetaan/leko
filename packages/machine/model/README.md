@@ -45,7 +45,7 @@ an invariant can be broken at all.
 
 I run it by hand after a change to the model. The invariants passed are the ones
 `pnpm model` reads, every `val` under the `invariants` heading of `machine.qnt`,
-so check the list against the model before copying it. Last on 2026-10-15:
+so check the list against the model before copying it. Last on 2026-10-19:
 
 ```bash
 brew install openjdk@21
@@ -58,21 +58,23 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21 \
 ```
 Step 8: picking a transition out of 6 transition(s)
 The outcome is: NoError
-[ok] No violation found (436390ms).
+[ok] No violation found (8416225ms).
 ```
 
-7 minutes 16 seconds, with `pnpm model` running beside it for part of that.
+That total is not a timing. The laptop was shut for most of the run and slept,
+waking only for maintenance, so the clock measured the sleep. The last run that
+was timed, on 2026-10-15, is the last number in the list of totals below.
 Nothing within 8 calls of `init` breaks either invariant, and that is a proof
 over the whole depth rather than a sample of it. Quint
 downloads Apalache 0.56.1 itself. The JVM is the only thing to install, and
 `openjdk@21` is keg-only, so the system `java` stays as it was.
 
 `step` offers 6 actions, which is the number Apalache prints on the line above.
-Count the `nondet` picks and it is 22 branches from a state with nothing in
+Count the `nondet` picks and it is 24 branches from a state with nothing in
 flight, and one more for every teardown window that is open, because `doLeave`
-picks out of `inflight`. So 8 steps is around 22^8, or about 55 billion paths.
+picks out of `inflight`. So 8 steps is around 24^8, or about 110 billion paths.
 Apalache walks none of them. The picks stay as variables in the SMT problem and
-it asks about all 22 at once, which is the whole reason 8 steps finishes at all.
+it asks about all 24 at once, which is the whole reason 8 steps finishes at all.
 
 **Read a total as a sample of one.** The six invariant checks at step 8 in the
 2026-08-29 run took 22s, 23s, 10s, 0.1s, 21s and 17s. Six instances of the same
@@ -82,7 +84,9 @@ minutes today can take half an hour after a change that made the model smaller.
 
 Taking actions off the transition relation is what has moved this number:
 1910321ms with 11 of them, then 826339ms with 9, 303590ms with 7, then
-270919ms with 6. The run above has the same 6 and a world grown by story `f`.
+270919ms with 6, then 436390ms with the same 6 and a world grown by story `f`.
+The run above has the same 6 again and a world grown by story `g`, and no
+timing.
 Folding an arrival into one synchronous action went the other way, because it
 made each transition deeper while making the reachable states fewer.
 
@@ -230,6 +234,21 @@ the fix taken back out of `plan.ts`, `stop-leaving` fails on the order check in
 `replay.test.ts`: `f2` is left without ever being entered. `start-tearing` fails
 the same way, because its harvest passes through `f` too.
 
+#85 was found by reading too. `doStop` in the teardown window called
+`end(m, Nothing)`, which does nothing on an empty position, so a `stop()` made
+while a story handed the tour on to the next was a `stop()` that found nothing
+to end, and the story `next` named went up after it. `plan.ts` did the same.
+The window is `Chaining` now where a story is on its way, and `doStop` there
+takes it back. Story `g` reaches it in three calls from idle. With the
+chaining branch of the `stop` case taken back out of `plan.ts`,
+`stop-chaining` fails in `replay.test.ts` on the state after its `doLeave`:
+the model is idle and the machine is running `e`. The phase check in the
+`reported` case is not caught there. `drain` makes the window's calls from the
+first handler, the last step's `onLeave`, and `stepLeft` has already dropped
+the story by the time the report ends; a `stop()` from the story's own
+`onLeave` or from the report is what that check is for, and `plan.test.ts` and
+`machine.test.ts` are what fail without it.
+
 ## The teardown window
 
 `end` empties the machine, takes the presenter down, runs two `onLeave` calls
@@ -255,7 +274,9 @@ the machine is emptied and the phase is closed, which is exactly where
 That is more permissive than the code, which runs the whole of a teardown inside
 the call that began it. Nothing is lost by it. With the position empty and the
 phase closed, every action is refused, finds nothing to act on, or is a knob on
-the world, so none of them can make a state the code would never reach.
+the world, except `doStop` in `Chaining`, which takes back the story on its
+way. The code accepts that same `stop()` in that same window, so none of them
+can make a state the code would never reach.
 
 Driving it took more work than modelling it. There is no moment out in the
 driver where a call made from inside `onLeave` could be made. So
@@ -271,7 +292,7 @@ into, and the corpus is written so that every entrance — `start`, `stop`,
 
 ## The world, and how big it is
 
-Six stories and ten steps between them. Two signals a call site can report,
+Seven stories and eleven steps between them. Two signals a call site can report,
 and one more that nothing waits for. Four targets on the page. The state is
 nine variables: the two of `Core`, four the code keeps implicitly (`drawn`,
 `presenterUp`, `inflight`, `nextToken`), and three about the world and what
@@ -285,6 +306,7 @@ just happened in it (`world`, `page`, `mark`).
 | `d` | none | `start` has to refuse it without tearing down whatever is running |
 | `e` | `e1` | where `a` hands the tour when it runs out, and the end of the chain |
 | `f` | `f1`, `f2` | `f1`'s `onLeave` calls `stop()` |
+| `g` | `g1` | one step, then hands the tour on to `e` |
 
 `a2` declares both `awaits` and a guard, because the guard is meant to be
 ignored on a step that declares `awaits`.
@@ -292,6 +314,10 @@ ignored on a step that declares `awaits`.
 `f1` ends the tour from its own `onLeave` when a move walks away from it, and
 `f2` exists only to be the step that must never be entered after that. It is
 the one place the model calls back into the machine from inside an arrival.
+
+`g` exists so the wide search reaches a `stop()` inside a chain's teardown.
+`a` hands the tour on too, but it is four steps deep and the deep search offers
+no `stop`.
 
 The world is a `var` written once in `init` rather than a `pure val`. That puts
 it into the trace, and `replay.test.ts` builds its fixture out of the trace.
@@ -301,7 +327,7 @@ apart, which is the largest drift surface there is. It is written once in
 than leaving the same map repeated in every state. That script checks the
 assumption rather than trusting it: a trace whose states do not all carry the
 same world fails the harvest. An invariant would ask the same question of
-200,000 traces instead of one, and this world is six stories deep — it cost
+200,000 traces instead of one, and this world is seven stories deep — it cost
 this search 71% more time when it was tried.
 
 ## Two searches
@@ -336,7 +362,7 @@ each search reaches things the other almost never does.
 
 ## The corpus
 
-`traces/` holds 13 traces. Each one was harvested by handing `quint run` the
+`traces/` holds 14 traces. Each one was harvested by handing `quint run` the
 negation of a target as its invariant. The shortest thing that breaks "this
 never happens" is a trace where it does.
 
@@ -421,6 +447,10 @@ same boundary.
   that `onLeave`. The gate turns down every call but `stop()` made from inside
   an `onEnter` or from inside the `onLeave` of the step being left, until a
   `stop()` made there has returned, and `machine.test.ts` carries both.
+- What an `onLeave` is told. `doLeave` is the whole of a teardown in one
+  action and carries no handler arguments, so that the story's `onLeave` is
+  told `undefined` after a `stop()` from the last step's `onLeave` in a chain
+  is not state here. `plan.test.ts` and `machine.test.ts` carry it.
 - A step that names no target. The machine has no notion of one: `StepBase` has
   no `target`, and what a missing anchor means is a drawing question.
 - `navigated`. It falls to the same `advance` as `reached` once the URL

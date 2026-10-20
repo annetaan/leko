@@ -265,7 +265,7 @@ disagreeing about where the tour was.
 | Field | Holds |
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | Which window the machine is in. `before`, `step`, `ending` or `ready` |
+| `phase` | Which window the machine is in. `before`, `step`, `ending`, `chaining` or `ready` |
 
 Both are `Core` in `plan.ts`, replaced together rather than written one at a
 time, and `dispatch` in `machine.ts` is the only thing that writes one. There is
@@ -274,7 +274,7 @@ is nothing to look up and nothing to keep between runs. There is nothing a hook
 reads either, and nothing about what is on screen: the words of a failed attempt
 live where they are drawn.
 
-These two and the four values of `phase` are written down again, as a state
+These two and the five values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
@@ -332,10 +332,12 @@ after a window carries the position it was planned at, and `plan.ts` asks
 `stillAt` before acting on one. A `stop()` can have thrown that arrival away
 while the machine was gone.
 
-There are eight of those asks. Seven are about a position an arrival or an ask
-of `next` began at, and the last one is a different job: a `refused` landing
-after a `validate` that called `stop()` from inside itself. All eight are what
-is left of a counter that used to be checked in thirteen places.
+There are nine of those asks. Seven are about a position an arrival or an ask
+of `next` began at, and the last two are a different job: a `refused` or an
+`explained` landing after a `validate` or a function `error` that called
+`stop()` from inside itself. All nine are what is left of a counter that used
+to be checked in thirteen places. An ending asks the phase instead — DESIGN.md,
+**One gate, and what it refuses**.
 
 ## The three constraints, and the line that keeps each
 

@@ -154,6 +154,9 @@ export class Leko {
    * whatever draws the progress is written somewhere else and does not.
    *
    * A no-op while idle, so it reports once however many times it is called.
+   * The ending of a story that hands on through {@link LekoStory.next} reads
+   * idle too, and a call from inside it still keeps the story `next` named from
+   * going up. DESIGN.md, **Starting a story**.
    */
   stop(): void {
     this.machine.stop()

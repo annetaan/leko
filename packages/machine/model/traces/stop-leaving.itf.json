@@ -225,6 +225,33 @@
           ],
           "throwsOnEnter": false
         }
+      ],
+      [
+        "g",
+        {
+          "id": "g",
+          "next": {
+            "tag": "Just",
+            "value": "e"
+          },
+          "steps": [
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "g1",
+              "stopsOnLeave": false,
+              "target": "first",
+              "throwsOnEnter": false
+            }
+          ],
+          "throwsOnEnter": false
+        }
       ]
     ]
   },
@@ -312,12 +339,12 @@
         "inflight": {
           "#set": []
         },
-        "mark": "empty-story",
+        "mark": "lose-stale",
         "nextToken": {
           "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "second", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -333,7 +360,7 @@
         },
         "presenterUp": false
       },
-      "mbt::actionTaken": "doStart",
+      "mbt::actionTaken": "doLose",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -348,9 +375,12 @@
           }
         },
         "losePick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "3"
+            },
+            "story": "a"
           }
         },
         "signalPick": {
@@ -360,8 +390,10 @@
           }
         },
         "startPick": {
-          "tag": "Some",
-          "value": "d"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         }
       }
     },
@@ -377,32 +409,17 @@
           }
         },
         "inflight": {
-          "#set": [
-            {
-              "tag": "Leaving",
-              "value": {
-                "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
-                },
-                "token": {
-                  "#bigint": "1"
-                }
-              }
-            }
-          ]
+          "#set": []
         },
-        "mark": "start",
+        "mark": "lose-stale",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Ready",
           "value": {
             "#tup": []
           }
@@ -415,7 +432,7 @@
         },
         "presenterUp": false
       },
-      "mbt::actionTaken": "doStart",
+      "mbt::actionTaken": "doLose",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -430,9 +447,12 @@
           }
         },
         "losePick": {
-          "tag": "None",
+          "tag": "Some",
           "value": {
-            "#tup": []
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
           }
         },
         "signalPick": {
@@ -442,8 +462,10 @@
           }
         },
         "startPick": {
-          "tag": "Some",
-          "value": "c"
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
         }
       }
     },
@@ -461,12 +483,12 @@
         "inflight": {
           "#set": []
         },
-        "mark": "left",
+        "mark": "stop",
         "nextToken": {
-          "#bigint": "2"
+          "#bigint": "0"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -482,7 +504,7 @@
         },
         "presenterUp": false
       },
-      "mbt::actionTaken": "doLeave",
+      "mbt::actionTaken": "doStop",
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "None",
@@ -491,20 +513,9 @@
           }
         },
         "leavePick": {
-          "tag": "Some",
+          "tag": "None",
           "value": {
-            "tag": "Leaving",
-            "value": {
-              "into": {
-                "tag": "Nothing",
-                "value": {
-                  "#tup": []
-                }
-              },
-              "token": {
-                "#bigint": "1"
-              }
-            }
+            "#tup": []
           }
         },
         "losePick": {
@@ -533,13 +544,85 @@
       },
       "m": {
         "drawn": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "inflight": {
+          "#set": []
+        },
+        "mark": "lose-stale",
+        "nextToken": {
+          "#bigint": "0"
+        },
+        "page": {
+          "#set": ["first", "target"]
+        },
+        "phase": {
+          "tag": "Ready",
+          "value": {
+            "#tup": []
+          }
+        },
+        "position": {
+          "tag": "Nothing",
+          "value": {
+            "#tup": []
+          }
+        },
+        "presenterUp": false
+      },
+      "mbt::actionTaken": "doLose",
+      "mbt::nondetPicks": {
+        "guardOk": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "leavePick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "losePick": {
+          "tag": "Some",
+          "value": {
+            "index": {
+              "#bigint": "1"
+            },
+            "story": "a"
+          }
+        },
+        "signalPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        },
+        "startPick": {
+          "tag": "None",
+          "value": {
+            "#tup": []
+          }
+        }
+      }
+    },
+    {
+      "#meta": {
+        "index": 5
+      },
+      "m": {
+        "drawn": {
           "tag": "Just",
           "value": {
             "index": {
               "#bigint": "0"
             },
             "occurrence": {
-              "#bigint": "2"
+              "#bigint": "0"
             },
             "story": "f"
           }
@@ -549,10 +632,10 @@
         },
         "mark": "start",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "1"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ready",
@@ -567,7 +650,7 @@
               "#bigint": "0"
             },
             "occurrence": {
-              "#bigint": "2"
+              "#bigint": "0"
             },
             "story": "f"
           }
@@ -608,7 +691,7 @@
     },
     {
       "#meta": {
-        "index": 5
+        "index": 6
       },
       "m": {
         "drawn": {
@@ -629,7 +712,7 @@
                   }
                 },
                 "token": {
-                  "#bigint": "4"
+                  "#bigint": "2"
                 }
               }
             }
@@ -637,10 +720,10 @@
         },
         "mark": "stop-leaving",
         "nextToken": {
-          "#bigint": "5"
+          "#bigint": "3"
         },
         "page": {
-          "#set": ["first", "second", "target", "third"]
+          "#set": ["first", "target"]
         },
         "phase": {
           "tag": "Ending",
@@ -660,7 +743,7 @@
       "mbt::nondetPicks": {
         "guardOk": {
           "tag": "Some",
-          "value": true
+          "value": false
         },
         "leavePick": {
           "tag": "None",

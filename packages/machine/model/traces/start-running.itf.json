@@ -225,6 +225,33 @@
           ],
           "throwsOnEnter": false
         }
+      ],
+      [
+        "g",
+        {
+          "id": "g",
+          "next": {
+            "tag": "Just",
+            "value": "e"
+          },
+          "steps": [
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "g1",
+              "stopsOnLeave": false,
+              "target": "first",
+              "throwsOnEnter": false
+            }
+          ],
+          "throwsOnEnter": false
+        }
       ]
     ]
   },
@@ -381,7 +408,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -409,7 +436,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -442,7 +469,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "f"
+          "value": "g"
         }
       }
     },
@@ -460,7 +487,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -488,7 +515,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -521,7 +548,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "e"
+          "value": "c"
         }
       }
     }

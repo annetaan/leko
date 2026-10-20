@@ -37,6 +37,7 @@ const CORPORA = [
       { name: 'signal-tearing', target: 'signalWhileTearing', seed: '0x10' },
       { name: 'stop-tearing', target: 'stoppedWhileTearing', seed: '0x11' },
       { name: 'stop-leaving', target: 'stoppedLeaving', seed: '0x17' },
+      { name: 'stop-chaining', target: 'stoppedChaining', seed: '0x1' },
       { name: 'stale-report', target: 'staleReport', seed: '0xa', deep: true },
       { name: 'refused-said', target: 'refusedWithWords', seed: '0xb', deep: true },
       { name: 'refused-mute', target: 'refusedInSilence', seed: '0xc', deep: true },

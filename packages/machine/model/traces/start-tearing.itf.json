@@ -225,6 +225,33 @@
           ],
           "throwsOnEnter": false
         }
+      ],
+      [
+        "g",
+        {
+          "id": "g",
+          "next": {
+            "tag": "Just",
+            "value": "e"
+          },
+          "steps": [
+            {
+              "awaits": {
+                "tag": "Nothing",
+                "value": {
+                  "#tup": []
+                }
+              },
+              "hasGuard": false,
+              "hasWords": false,
+              "id": "g1",
+              "stopsOnLeave": false,
+              "target": "first",
+              "throwsOnEnter": false
+            }
+          ],
+          "throwsOnEnter": false
+        }
       ]
     ]
   },
@@ -448,7 +475,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -476,7 +503,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -509,7 +536,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "f"
+          "value": "g"
         }
       }
     },
@@ -527,7 +554,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -555,7 +582,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -588,7 +615,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "e"
+          "value": "c"
         }
       }
     },
@@ -606,7 +633,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -634,7 +661,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -685,7 +712,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "inflight": {
@@ -713,7 +740,7 @@
             "occurrence": {
               "#bigint": "0"
             },
-            "story": "f"
+            "story": "g"
           }
         },
         "presenterUp": true
@@ -767,27 +794,25 @@
               "tag": "Leaving",
               "value": {
                 "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "e"
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "1"
                 }
               }
             }
           ]
         },
-        "mark": "stop-leaving",
+        "mark": "chain-into",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Chaining",
           "value": {
             "#tup": []
           }
@@ -849,13 +874,11 @@
               "tag": "Leaving",
               "value": {
                 "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "e"
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "1"
                 }
               }
             }
@@ -863,13 +886,13 @@
         },
         "mark": "unmatched",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
         },
         "phase": {
-          "tag": "Ending",
+          "tag": "Chaining",
           "value": {
             "#tup": []
           }
@@ -931,21 +954,19 @@
               "tag": "Leaving",
               "value": {
                 "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "e"
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "1"
                 }
               }
             }
           ]
         },
-        "mark": "stop",
+        "mark": "stop-chaining",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1015,13 +1036,11 @@
               "tag": "Leaving",
               "value": {
                 "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "e"
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1029,7 +1048,7 @@
         },
         "mark": "stop",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1099,13 +1118,11 @@
               "tag": "Leaving",
               "value": {
                 "into": {
-                  "tag": "Nothing",
-                  "value": {
-                    "#tup": []
-                  }
+                  "tag": "Just",
+                  "value": "e"
                 },
                 "token": {
-                  "#bigint": "2"
+                  "#bigint": "1"
                 }
               }
             }
@@ -1113,7 +1130,7 @@
         },
         "mark": "refused-start",
         "nextToken": {
-          "#bigint": "3"
+          "#bigint": "2"
         },
         "page": {
           "#set": ["first", "second", "target", "third"]
@@ -1160,7 +1177,7 @@
         },
         "startPick": {
           "tag": "Some",
-          "value": "f"
+          "value": "b"
         }
       }
     }

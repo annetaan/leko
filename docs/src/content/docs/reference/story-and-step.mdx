@@ -549,7 +549,10 @@ the story's `onLeave` runs after the leaving step's.
 
 A story that hands on through `next` ends that way: the step's `onLeave` gets
 `undefined`, the story's `onLeave` gets the story it hands on to, and that
-story's `onEnter` runs in the same call.
+story's `onEnter` runs in the same call. A `stop()` from inside that ending —
+the step's `onLeave`, the story's, or the report — ends the tour there, and the
+story `next` named is never entered. A story `onLeave` that runs after such a
+`stop()` gets `undefined`.
 
 A throw from an `onEnter` ends the tour where it stands, and the `onLeave`
 that pairs with it still runs. The reason is thrown again once the ending has
@@ -568,7 +571,8 @@ From inside `onEnter` or `onLeave`, `start` and `pickUp` are refused and a
 `reached()` that matches the step being entered is dropped. `stop()` is the one
 call that goes through. Once it has returned, a `start` or `pickUp` after it
 goes through, because the tour it was refused for is gone. From an ending's own
-`onLeave`, `stop()` ends nothing and the refusal stands —
+`onLeave` the refusal stands, and `stop()` does no more than keep the story a
+`next` named from going up —
 [`Leko`](../leko/) and
 [One gate, and what it refuses](https://github.com/annetaan/leko/blob/main/DESIGN.md#one-gate-and-what-it-refuses).
 

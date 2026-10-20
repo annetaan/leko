@@ -172,7 +172,9 @@ createLeko({ onStep: (step) => setTourRunning(step !== undefined) })
 A `start()` from inside a report naming a step is `tour-running`, and from
 inside a report of an ending it is `call-refused`. A `stop()` from inside this
 handler is never turned down, and a `start()` after it goes through on a step's
-report but not on an ending's, where there is nothing left to stop —
+report but not on an ending's, where the tour has already ended. On the report
+of an ending that hands on through `next`, that `stop()` keeps the story `next`
+named from going up —
 [Saying where the tour got to](https://github.com/annetaan/leko/blob/main/DESIGN.md#saying-where-the-tour-got-to)
 and
 [There is nothing to subscribe to](https://github.com/annetaan/leko/blob/main/DESIGN.md#there-is-nothing-to-subscribe-to).
