@@ -265,7 +265,7 @@ disagreeing about where the tour was.
 | Field | Holds |
 | --- | --- |
 | `position` | `{ story, index }` together, because they are one fact. `undefined` means idle |
-| `phase` | Which window the machine is in. `before`, `step`, `ending` or `ready` |
+| `phase` | Which window the machine is in. `before`, `step`, `ending`, `chaining` or `ready` |
 
 Both are `Core` in `plan.ts`, replaced together rather than written one at a
 time, and `dispatch` in `machine.ts` is the only thing that writes one. There is
@@ -274,7 +274,7 @@ is nothing to look up and nothing to keep between runs. There is nothing a hook
 reads either, and nothing about what is on screen: the words of a failed attempt
 live where they are drawn.
 
-These two and the four values of `phase` are written down again, as a state
+These two and the five values of `phase` are written down again, as a state
 machine a search can walk, in
 [`packages/machine/model/machine.qnt`](packages/machine/model/machine.qnt).
 `pnpm model` hunts it for a state that breaks an invariant, and the traces it
