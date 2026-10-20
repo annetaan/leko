@@ -17,6 +17,10 @@ updates:
       # Its major follows the override in pnpm-workspace.yaml.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeScript 7 is the Go port; the move to it is not urgent and is
+      # made by hand.
+      - dependency-name: 'typescript'
+        versions: ['>= 7']
   - package-ecosystem: github-actions
     directories: ['/', '/.github/actions/smoke']
     schedule:
