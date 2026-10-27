@@ -79,7 +79,7 @@ describe('scan, over every way of spelling reached', () => {
     expect(spelled.unread.map((site) => site.file)).toEqual(
       Array.from({ length: 7 }, () => expect.stringMatching(/spellings\.ts$/)),
     )
-    expect(spelled.unread.map((site) => site.line)).toEqual([7, 12, 14, 15, 16, 18, 21])
+    expect(spelled.unread.map((site) => site.line)).toEqual([7, 9, 10, 11, 12, 14, 17])
     expect(spelled.signals.filter((signal) => signal.name.startsWith('by-'))).toEqual([])
   })
 
