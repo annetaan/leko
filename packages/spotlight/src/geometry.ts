@@ -262,8 +262,8 @@ const clearance = (
  * Each side is measured from where the room begins rather than from the hole's
  * edge, so the margin is `gap`, and more where that edge is under the host's
  * chrome. What fits is judged against {@link roomRect} of `room` rather than
- * the bare viewport, and where nothing fits the box runs out of the room rather
- * than onto the hole. DESIGN.md argues all three under **The message**.
+ * the bare viewport, and no side it answers lays the box onto the hole.
+ * DESIGN.md argues all three under **The message**.
  *
  * The sides are tried in `order`, which is how a caller keeps a side: by
  * putting it first. Where nothing fits, the answer is the first side of
@@ -584,10 +584,10 @@ export function cornerRect(
  * than an inset arrive under **A host's own chrome is named once, and every
  * reader takes the boxes**.
  *
- * **Where every corner is covered the least covered one wins.** A step that
- * cuts a full-width header and a full-width footer leaves no corner free, and
- * something still has to be pressable. Ties go to the earlier corner, so the
- * answer is the same every time it is asked.
+ * **Where every corner is covered the least covered one wins**, over a hole
+ * the step opened too: DESIGN.md, **The way out**. A step that cuts a
+ * full-width header and a full-width footer leaves no corner free. Ties go to
+ * the earlier corner, so the answer is the same every time it is asked.
  */
 export function freeCorner(
   width: number,

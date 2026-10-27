@@ -31,7 +31,10 @@ DESIGN.md.
    transparent one. Only one story is ever visible, and this is why. A step's
    first region declares `interactive` to open itself — the type refuses the
    flag on any later region; every other hole is shown and blocked, and
-   DESIGN.md argues that under **A hole, and whether it is open**.
+   DESIGN.md argues that under **A hole, and whether it is open**. The way
+   out is the one exception: where every corner is covered it takes the least
+   covered one, even over an opened target, and DESIGN.md argues it under
+   **The way out**.
 2. **Steps advance on application state, never on DOM events.** A call site
    names what happened (`leko.reached('order-saved')`) and a step names what it
    waits for (`awaits`). Never add a click or input listener that advances a

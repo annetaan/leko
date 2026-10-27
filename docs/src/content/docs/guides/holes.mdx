@@ -16,6 +16,10 @@ transparent layer, so clicks, focus, the keyboard and the wheel reach the real
 element. An overlay with a transparent patch over a button is still an overlay
 over the button, and the browser knows it even when the person does not —
 [Three constraints that must not be broken](https://github.com/annetaan/leko/blob/main/DESIGN.md#three-constraints-that-must-not-be-broken).
+The control that ends the tour is the one exception. Where every corner of the
+screen is covered, it takes the least covered one, even over an open hole.
+[The way out](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-way-out)
+argues it.
 
 A target named alone, such as `'#plan'`, is shown. A region with
 `interactive: true` is open.
@@ -93,6 +97,27 @@ const steps: LekoStep[] = [
 
 Every shape `target` takes is under
 [target](../../reference/story-and-step/#target).
+
+## A hole that fills the screen
+
+The message sits beside the hole, on the first side with room for it. A target
+that fills the screen leaves no side with room, such as a map under an app bar
+on a phone, or a drawer the height of the screen. What happens then depends on
+whether the hole is open.
+
+- **A shown hole sends the message to the foot of the screen,** where it sits
+  on a step with no target. Its Next control stays on screen to be pressed.
+- **An open hole keeps the message beside it, off the screen.** The message
+  never goes over a target the step opened, and on a hole that fills the
+  screen every spot is over it. On a step with no `awaits`, Next goes off
+  screen with the message, and the control that ends the tour is the only
+  control left.
+- **Write such a step as a shown hole, or point it at less.** Leave
+  `interactive` off where the step only explains the area. Or name the part
+  the user works, such as the map's search field rather than the map.
+
+[The message](https://github.com/annetaan/leko/blob/main/DESIGN.md#the-message)
+argues both.
 
 ## See it run
 

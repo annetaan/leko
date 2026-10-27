@@ -235,7 +235,10 @@ interface LekoStepBase {
    */
   id: string
 
-  /** Message shown alongside the cutout. */
+  /**
+   * Message shown alongside the cutout. Where the cutout leaves it no room,
+   * https://annetaan.github.io/leko/guides/holes/#a-hole-that-fills-the-screen says where it goes.
+   */
   message?: string
 
   /** Space between the target's border box and the cutout edge, in px. */
