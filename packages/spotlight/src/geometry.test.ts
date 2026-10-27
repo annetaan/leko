@@ -21,6 +21,7 @@ import {
   heldAgainst,
   overlaps,
   holeImage,
+  placement,
   lerpCutouts,
   maskLayers,
   outset,
@@ -738,8 +739,9 @@ test('a side is chosen from the room, not the viewport', () => {
   expect(sideWithRoom(row, note, bare(rect(0, 0, 1280, 800)), 16)).toEqual({
     side: 'bottom',
     margin: 16,
+    fits: true,
   })
-  expect(sideWithRoom(row, note, room, 16)).toEqual({ side: 'top', margin: 16 })
+  expect(sideWithRoom(row, note, room, 16)).toEqual({ side: 'top', margin: 16, fits: true })
 })
 
 test('a taller message beside a lower row goes the same way', () => {
@@ -748,17 +750,17 @@ test('a taller message beside a lower row goes the same way', () => {
   const row = rect(560, 471, 160, 38)
   const note = { width: 320, height: 236 }
 
-  expect(sideWithRoom(row, note, room, 16)).toEqual({ side: 'top', margin: 16 })
+  expect(sideWithRoom(row, note, room, 16)).toEqual({ side: 'top', margin: 16, fits: true })
 })
 
-test('no side has room, and bottom is still the answer', () => {
-  // The box is then held off the hole and runs off the screen — DESIGN.md,
-  // **The message**.
+test('no side has room, and bottom comes back marked as not fitting', () => {
+  // What that means is `placement`'s to decide — DESIGN.md, **The message**.
   const wide = rect(0, 0, 1280, 621)
 
   expect(sideWithRoom(wide, { width: 320, height: 194 }, room, 16)).toEqual({
     side: 'bottom',
     margin: 16,
+    fits: false,
   })
 })
 
@@ -771,8 +773,9 @@ test('sideWithRoom tries the sides in the order it is given', () => {
   expect(sideWithRoom(row, note, viewport, 16, ['top', ...SIDES])).toEqual({
     side: 'top',
     margin: 16,
+    fits: true,
   })
-  expect(sideWithRoom(row, note, viewport, 16)).toEqual({ side: 'bottom', margin: 16 })
+  expect(sideWithRoom(row, note, viewport, 16)).toEqual({ side: 'bottom', margin: 16, fits: true })
 })
 
 test('sideWithRoom falls back to the first side it is given', () => {
@@ -781,6 +784,7 @@ test('sideWithRoom falls back to the first side it is given', () => {
   expect(sideWithRoom(wide, { width: 320, height: 194 }, room, 16, ['left', ...SIDES])).toEqual({
     side: 'left',
     margin: 16,
+    fits: false,
   })
 })
 
@@ -810,6 +814,7 @@ test('a hole under the footer holds its message clear of the footer', () => {
   expect(sideWithRoom(hole, note, phone(667, { bottom: 84 }), 8)).toEqual({
     side: 'top',
     margin: 54,
+    fits: true,
   })
 })
 
@@ -820,6 +825,7 @@ test('a hole under a top bar holds its message below the bar', () => {
   expect(sideWithRoom(hole, note, phone(667, { top: 60 }), 8)).toEqual({
     side: 'bottom',
     margin: 38,
+    fits: true,
   })
 })
 
@@ -829,8 +835,16 @@ test('the margin grows from the gap as the hole goes under the footer', () => {
   const note = { width: 343, height: 88 }
   const footed = phone(667, { bottom: 84 })
 
-  expect(sideWithRoom(rect(0, 583, 375, 40), note, footed, 8)).toEqual({ side: 'top', margin: 8 })
-  expect(sideWithRoom(rect(0, 584, 375, 40), note, footed, 8)).toEqual({ side: 'top', margin: 9 })
+  expect(sideWithRoom(rect(0, 583, 375, 40), note, footed, 8)).toEqual({
+    side: 'top',
+    margin: 8,
+    fits: true,
+  })
+  expect(sideWithRoom(rect(0, 584, 375, 40), note, footed, 8)).toEqual({
+    side: 'top',
+    margin: 9,
+    fits: true,
+  })
 })
 
 test('a hole under a left rail holds its message right of the rail', () => {
@@ -840,6 +854,7 @@ test('a hole under a left rail holds its message right of the rail', () => {
   expect(sideWithRoom(hole, note, phone(667, { left: 60 }), 8, ['right'])).toEqual({
     side: 'right',
     margin: 38,
+    fits: true,
   })
 })
 
@@ -851,6 +866,7 @@ test('a hole under a right rail holds its message left of the rail', () => {
   expect(sideWithRoom(hole, note, phone(667, { right: 40 }), 8, ['left'])).toEqual({
     side: 'left',
     margin: 18,
+    fits: true,
   })
 })
 
@@ -862,6 +878,7 @@ test('a hole past the fold keeps its message beside it', () => {
   expect(sideWithRoom(hole, note, phone(667, { bottom: 84 }), 8)).toEqual({
     side: 'top',
     margin: 8,
+    fits: true,
   })
 })
 
@@ -872,6 +889,7 @@ test('a message straddling the fold under the footer is still held clear of it',
   expect(sideWithRoom(hole, note, phone(667, { bottom: 84 }), 8)).toEqual({
     side: 'top',
     margin: 125,
+    fits: true,
   })
 })
 
@@ -884,6 +902,7 @@ test('a side whose message would reach into the chrome has no room', () => {
   expect(sideWithRoom(hole, note, phone(300, { bottom: 84 }), 8)).toEqual({
     side: 'bottom',
     margin: 8,
+    fits: false,
   })
 })
 
@@ -894,7 +913,37 @@ test('the fallback side carries its own margin', () => {
   expect(sideWithRoom(hole, note, phone(300, { bottom: 84 }), 8, ['top', ...SIDES])).toEqual({
     side: 'top',
     margin: 42,
+    fits: false,
   })
+})
+
+// Where the message goes when no side has room. #108 is the case: a 390x844
+// phone with a 56px bar across the top, and a map filling the rest of it.
+
+const mapped: Room = {
+  viewport: rect(0, 0, 390, 844),
+  chrome: { top: 56, right: 0, bottom: 0, left: 0 },
+}
+const map = rect(0, 56, 390, 788)
+const card = { width: 358, height: 120 }
+
+test('a shown hole with no side that has room docks the message', () => {
+  expect(placement(sideWithRoom(map, card, mapped, 8), false)).toBe('dock')
+})
+
+test('an open hole with no side that has room keeps the first side', () => {
+  expect(placement(sideWithRoom(map, card, mapped, 8), true)).toEqual({ side: 'bottom', margin: 8 })
+})
+
+test('a side that fits is kept whether the hole is open or not', () => {
+  // The search field in the bar, with the map below it to hold the message.
+  const search = rect(16, 8, 358, 40)
+  const fitted = sideWithRoom(search, card, mapped, 8)
+  expect(fitted.fits).toBe(true)
+
+  const beside = { side: fitted.side, margin: fitted.margin }
+  expect(placement(fitted, false)).toEqual(beside)
+  expect(placement(fitted, true)).toEqual(beside)
 })
 
 test('a corner rect sits inside the viewport, gap in from both edges', () => {

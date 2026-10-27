@@ -1,5 +1,7 @@
 import {
-  type Rect,
+  type Cutout,
+  type Placement,
+  placement,
   type Room,
   roomRect,
   type Side,
@@ -63,6 +65,10 @@ const canAnchor = (): boolean =>
   CSS.supports('top: anchor(bottom)') &&
   CSS.supports('justify-self: anchor-center')
 
+/** Whether the step opened any of `cutouts`, which is what keeps a box with no room from docking. */
+const opened = (cutouts: readonly Cutout[]): boolean =>
+  cutouts.some(({ interactive }) => interactive)
+
 /**
  * The step's message, placed beside its cutout.
  *
@@ -91,14 +97,14 @@ export class Message {
   private shown = false
   private pressed = false
   /**
-   * What the box was placed beside a hole with, kept so {@link keep} can judge
-   * the side and the margin again without reading layout, or `undefined` while it is docked,
-   * hidden or not yet placed.
+   * Where the box was placed for a hole, and what with, kept so {@link keep}
+   * can judge the placement again without reading layout; `where` is `'dock'`
+   * while no side had room. `undefined` while hidden, not yet placed, or docked
+   * for a reason {@link keep} cannot undo — see {@link dock}.
    */
   private placed:
     | {
-        side: Side
-        margin: number
+        where: Placement
         gap: number
         room: Room
         size: { width: number; height: number }
@@ -214,7 +220,8 @@ export class Message {
    * anchor: every region the step named, each already unioned into a hole. The
    * gap between the two is turned into a margin here, once, and stays right for
    * as long as the two move together — which they do, being cut from the same
-   * scrim.
+   * scrim. Whether the step opened any of them decides whether a box with no
+   * side that has room may dock — {@link dock}.
    *
    * `room` is the layout viewport and the bands the host's chrome claims of
    * it, in the same coordinates as the cutouts; the box may go in what the
@@ -222,7 +229,7 @@ export class Message {
    */
   show(
     content: MessageContent,
-    cutouts: Rect[],
+    cutouts: readonly Cutout[],
     gap: number,
     room: Room,
     at?: (side: Side) => void,
@@ -312,23 +319,33 @@ export class Message {
 
   /**
    * Called on a frame of a sticky target's follow that moved the holes, with
-   * where they are now on screen. The side, and how far off the hole the box is
-   * held, are judged again: the box keeps its side while that side has room,
-   * and otherwise takes the first side that has. Reads no layout: the
-   * size is the one the words last left and the room is the draw's. DESIGN.md,
-   * **A sticky target's hole is corrected on a frame loop, and that is the only
+   * where they are now on screen. The placement is judged again: the box keeps
+   * its side while that side has room, and otherwise takes the first side that
+   * has; where none has and the step opened no hole, it docks, and comes back
+   * beside the hole once a side has room again. Reads no layout: the size is
+   * the one the words last left and the room is the draw's. DESIGN.md, **A
+   * sticky target's hole is corrected on a frame loop, and that is the only
    * exception to the ban**.
    */
-  keep(onScreen: readonly Rect[]): void {
+  keep(onScreen: readonly Cutout[]): void {
     const placed = this.placed
     const box = union(onScreen)
     if (!placed || !box) return
-    const next = sideWithRoom(box, placed.size, placed.room, placed.gap, [placed.side, ...SIDES])
-    if (next.side === placed.side && next.margin === placed.margin) return
-    if (next.side !== placed.side) placed.at(next.side)
-    placed.side = next.side
-    placed.margin = next.margin
-    this.hold(next.side, next.margin)
+    const { where } = placed
+    const order = where === 'dock' ? SIDES : ([where.side, ...SIDES] as const)
+    const next = placement(
+      sideWithRoom(box, placed.size, placed.room, placed.gap, order),
+      opened(onScreen),
+    )
+    if (
+      next === where ||
+      (next !== 'dock' &&
+        where !== 'dock' &&
+        next.side === where.side &&
+        next.margin === where.margin)
+    )
+      return
+    this.move(placed, next, where)
   }
 
   /**
@@ -351,7 +368,7 @@ export class Message {
   }
 
   private place(
-    cutouts: Rect[],
+    cutouts: readonly Cutout[],
     gap: number,
     room: Room,
     at: ((side: Side) => void) | undefined,
@@ -368,10 +385,29 @@ export class Message {
     // and more only where that edge is under the host's chrome — DESIGN.md,
     // **The message**.
     const size = { width: this.element.offsetWidth, height: this.element.offsetHeight }
-    const { side, margin } = sideWithRoom(box, size, room, gap)
-    at(side)
-    this.hold(side, margin)
-    this.placed = { side, margin, gap, room, size, at }
+    const where = placement(sideWithRoom(box, size, room, gap), opened(cutouts))
+    const placed = { where, gap, room, size, at }
+    this.placed = placed
+    this.move(placed, where, undefined)
+  }
+
+  /**
+   * Put the box where `next` says, from where it was, `undefined` on a fresh
+   * show. The one way the box moves for a hole: {@link hold} and {@link dock}
+   * each overwrite everything the other wrote, so either may follow either.
+   * The marker is moved only where the side it is on changes, or where a
+   * docked box had left it unread.
+   */
+  private move(
+    placed: NonNullable<Message['placed']>,
+    next: Placement,
+    previous: Placement | undefined,
+  ): void {
+    placed.where = next
+    if (next === 'dock') return this.dock(placed.room)
+    if (previous === undefined || previous === 'dock' || previous.side !== next.side)
+      placed.at(next.side)
+    this.hold(next.side, next.margin)
   }
 
   /**
@@ -414,12 +450,15 @@ export class Message {
   }
 
   /**
-   * Where the browser cannot track an anchor, the message goes to the foot of
-   * the room and stays there.
+   * Put the message at the foot of the room. Three things send it there: a
+   * browser that cannot track an anchor, a step with no hole to sit beside, and
+   * a hole the step only shows with no side that has room for the box. Only the
+   * last is ever left again, by {@link keep} — DESIGN.md, **The message**.
    *
-   * The alternative — placing it beside the cutout from measurements, and
-   * leaving it — would be a message that points at the right place until the
-   * first scroll and at the wrong one forever after. Anchor positioning is
+   * Where the browser cannot track an anchor, the alternative — placing it
+   * beside the cutout from measurements, and leaving it — would be a message
+   * that points at the right place until the first scroll and at the wrong one
+   * forever after. Anchor positioning is
    * allowed to degrade; being wrong is not the same as being plain.
    *
    * Written as the foot of the room less the dock rather than as `bottom`,
@@ -428,7 +467,6 @@ export class Message {
    * on that line is its lower edge.
    */
   private dock(room: Room): void {
-    this.placed = undefined
     const space = roomRect(room)
     const style = this.element.style
     for (const margin of MARGINS) style[margin] = '0px'
@@ -439,6 +477,7 @@ export class Message {
     style.right = 'auto'
     style.bottom = 'auto'
     style.translate = '-50% -100%'
+    style.removeProperty('position-anchor')
   }
 
   destroy(): void {

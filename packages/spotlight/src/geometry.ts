@@ -27,8 +27,9 @@ export interface Point {
  * because the two can then never be given in different orders or different
  * lengths, and {@link padCutouts} has to carry it either way.
  *
- * Only {@link complementRects} reads it. {@link maskLayers} does not, because
- * what is drawn is the same hole whichever this says.
+ * {@link complementRects} reads it, and so does `Message`, to decide whether a
+ * box with no room beside the holes may dock. {@link maskLayers} does not,
+ * because what is drawn is the same hole whichever this says.
  */
 export interface Cutout extends Rect {
   radius: number
@@ -196,6 +197,14 @@ export interface Beside {
   margin: number
 }
 
+/** A side of the hole, how far off it, and whether a box of that size fits there. */
+export interface Fitted extends Beside {
+  fits: boolean
+}
+
+/** Where the message is held: beside one side of the hole, or docked at the foot of the room. */
+export type Placement = Beside | 'dock'
+
 /**
  * How far off `box`'s edge on `side` something of `size` is laid: `gap` off the
  * room's edge where the hole's edge is past it, under the chrome band on the
@@ -256,9 +265,10 @@ const clearance = (
  * the bare viewport, and where nothing fits the box runs out of the room rather
  * than onto the hole. DESIGN.md argues all three under **The message**.
  *
- * The sides are tried in `order`, and its first is also the answer when nothing
- * fits, which is how a caller keeps a side: by putting it first. `place` passes
- * nothing, so the fallback there stays `bottom`, with the margin of its own.
+ * The sides are tried in `order`, which is how a caller keeps a side: by
+ * putting it first. Where nothing fits, the answer is the first side of
+ * `order` with the margin of its own, marked as not fitting, and
+ * {@link placement} decides what that means — DESIGN.md, **The message**.
  */
 export function sideWithRoom(
   box: Rect,
@@ -266,7 +276,7 @@ export function sideWithRoom(
   room: Room,
   gap: number,
   order: readonly [Side, ...Side[]] = SIDES,
-): Beside {
+): Fitted {
   const space = roomRect(room)
   const fits: Record<Side, (margin: number) => boolean> = {
     bottom: (m) => box.y + box.height + m + size.height <= space.y + space.height,
@@ -278,11 +288,16 @@ export function sideWithRoom(
     side,
     margin: clearance(box, side, size, room, gap),
   })
-  const fallback = beside(order[0])
-  return (
-    [fallback, ...order.slice(1).map(beside)].find(({ side, margin }) => fits[side](margin)) ??
-    fallback
-  )
+  const found = order.map(beside).find(({ side, margin }) => fits[side](margin))
+  return found ? { ...found, fits: true } : { ...beside(order[0]), fits: false }
+}
+
+/**
+ * Beside the hole where the side fits, and beside it anyway where the hole is
+ * one the step opened; otherwise docked.
+ */
+export function placement(fitted: Fitted, open: boolean): Placement {
+  return fitted.fits || open ? { side: fitted.side, margin: fitted.margin } : 'dock'
 }
 
 /**

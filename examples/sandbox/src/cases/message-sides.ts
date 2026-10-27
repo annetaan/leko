@@ -38,7 +38,7 @@ const story = {
         'Above and below this rail there is almost no viewport, so the ' +
         'box takes the first side with room — the right, on a screen wide ' +
         'enough to hold it there. On a narrower one no side has room, and ' +
-        'the box falls back to below.',
+        'the box docks at the foot of the screen.',
     },
     {
       id: 'beside-left',
@@ -47,7 +47,7 @@ const story = {
         'The same choice from the other edge. The right side is off the ' +
         'screen this time, so the box takes the left, the last side tried ' +
         '— on a screen wide enough to hold it there. On a narrower one no ' +
-        'side has room, and the box falls back to below.',
+        'side has room, and the box docks at the foot of the screen.',
     },
     {
       // A step that points at nothing cuts nothing, so there is no hole
@@ -110,8 +110,8 @@ export const messageSides: Case = {
           <h2>Release notes</h2>
           <p class="hint">
             A document between two rails. The tour visits each edge of the
-            viewport, and the message takes a side with room, or falls back to
-            below where none has any.
+            viewport, and the message takes a side with room, or docks at the
+            foot of the screen where none has any.
           </p>
         </div>
         <div class="scroll-room">

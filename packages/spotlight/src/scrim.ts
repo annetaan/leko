@@ -172,7 +172,7 @@ export class Scrim {
    * Told where the holes are on screen on each frame of a follow that moved
    * them.
    */
-  private moved: ((onScreen: readonly Rect[]) => void) | undefined
+  private moved: ((onScreen: readonly Cutout[]) => void) | undefined
   /**
    * The loop itself while it is armed, held beside {@link frame} because it is
    * the same kind of thing: a handle on frames this layer has running, in the
@@ -555,7 +555,7 @@ export class Scrim {
   follow(
     read: (() => Reading | undefined) | undefined,
     ports: readonly EventTarget[] = [],
-    moved?: (onScreen: readonly Rect[]) => void,
+    moved?: (onScreen: readonly Cutout[]) => void,
   ): void {
     this.following?.stop()
     this.following = undefined
