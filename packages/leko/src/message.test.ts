@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest'
 import {
   begin,
   box,
+  centre,
   clocked,
   control,
   frame,
@@ -199,7 +200,7 @@ test.runIf(anchors)(
   },
 )
 
-test.runIf(anchors)('the message stays off a hole where no side has room', async () => {
+test.runIf(anchors)('an opened hole where no side has room keeps the message off it', async () => {
   // Every engine shifts a box held inside an area onto the hole at the draw,
   // where the document cannot scroll. Held with an inset, it runs off the
   // screen instead — DESIGN.md, **The message**.
@@ -216,6 +217,34 @@ test.runIf(anchors)('the message stays off a hole where no side has room', async
   await appears()
 
   expect(overlaps(rect(message()!), rect(target))).toBe(false)
+})
+
+test('a shown hole where no side has room docks the message, and its control can be pressed', async () => {
+  // A map filling a phone screen under its bar, which #108 reported: the box
+  // goes where a step with no target puts it, and its control stays on screen
+  // — DESIGN.md, **The message**. Not under `anchors`: where the browser
+  // cannot anchor, the box docks there anyway.
+  const root = document.documentElement
+  const target = box('target', {
+    left: '8px',
+    top: '40px',
+    width: 'calc(100vw - 16px)',
+    height: 'calc(100vh - 80px)',
+  })
+  const leko = start([
+    { id: 'one', target: () => target, message: 'This is the map.' },
+    { id: 'two', target: () => target, message: 'Still the map.' },
+  ])
+  await framed()
+  await appears()
+
+  const note = rect(message()!)
+  expect(Math.abs(note.left + note.width / 2 - root.clientWidth / 2)).toBeLessThan(1)
+  expect(Math.abs(note.bottom - (root.clientHeight - 24))).toBeLessThan(1)
+  expect(centre(control()!)).toBe(control())
+
+  press()
+  expect(leko.step?.id).toBe('two')
 })
 
 test.runIf(anchors)('the message sits beside a target inside a shadow root', async () => {

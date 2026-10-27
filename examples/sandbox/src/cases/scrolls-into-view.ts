@@ -21,12 +21,13 @@ import { type Case, html } from '../case.js'
 // set**.
 //
 // A step that does not scroll is `message-sides.ts` and not here. Off is the
-// default, and the pathology it leaves is the one that opened this issue: the
-// hole is cut below the screen and the message rides it there, next control and
-// all, so a step like that in this case would be indistinguishable from a tour
-// that had stopped working. That the message goes off screen instead of docking,
-// whenever no side of the hole has room on screen, is a gap of Leko's own rather
-// than something a case should be built around — annetaan/leko-archive#140.
+// default, and the pathology it leaves is the one that opened
+// annetaan/leko-archive#140: the hole is cut below the screen and the message
+// rides it there, next control and all, so a step like that in this case would
+// be indistinguishable from a tour that had stopped working. Nor does the box
+// dock there: the fit check looks one way from the hole, so a hole below the
+// screen "has room" above it, and that room is below the screen too. The box is
+// placed there rather than docked — DESIGN.md, **The message**.
 
 // #region The story
 const story = {

@@ -604,3 +604,47 @@
 .case-root .palette-panel {
   border-width: 2px;
 }
+
+/*
+ * `screen-filling-hole.ts`. An app bar and a map pinned to the viewport, the
+ * map filling everything under the bar, so no side of it has room for the
+ * message.
+ */
+.case-root .map-bar {
+  position: fixed;
+  top: var(--case-inset-top);
+  left: var(--case-inset-left);
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--case-line);
+  background: var(--case-surface);
+}
+
+.case-root .map-bar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.case-root .map {
+  position: fixed;
+  top: calc(var(--case-inset-top) + 56px);
+  left: var(--case-inset-left);
+  right: 0;
+  bottom: 0;
+  background:
+    linear-gradient(var(--case-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, var(--case-line) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--case-bg);
+}
+
+.case-root .map-pin {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50% 50% 50% 0;
+  background: var(--case-accent);
+  transform: translate(-50%, -100%) rotate(-45deg);
+}

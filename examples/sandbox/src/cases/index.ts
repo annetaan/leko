@@ -19,6 +19,7 @@ import { movedByTheUpdate } from './moved-by-the-update.js'
 import { nestedScroller } from './nested-scroller.js'
 import { nextControl } from './next-control.js'
 import { scrollableTarget } from './scrollable-target.js'
+import { screenFillingHole } from './screen-filling-hole.js'
 import { scrollsIntoView } from './scrolls-into-view.js'
 import { stagedScroll } from './staged-scroll.js'
 import { stepMotion } from './step-motion.js'
@@ -63,6 +64,7 @@ export const cases: Case[] = [
   fixedChrome,
   stickyHeader,
   messageSides,
+  screenFillingHole,
   hostChrome,
   closeThroughAPortal,
   wayOutOnTop,

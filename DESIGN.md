@@ -20,7 +20,7 @@ file. How the code got here is in the commits.
 
 These are why Leko exists. Everything else is negotiable. These are not.
 
-**1. Never place an element over a target the step opened.** The highlight is a real hole, masked out of the scrim and left unblocked. Layering anything over it — transparent or not — blocks pointer events and focus, destroying Leko's core purpose. A hole the step did not open is different: blocking it is the step's own instruction carried out.
+**1. Never place an element over a target the step opened.** The highlight is a real hole, masked out of the scrim and left unblocked. Layering anything over it — transparent or not — blocks pointer events and focus, destroying Leko's core purpose. A hole the step did not open is different: blocking it is the step's own instruction carried out. The way out is the one exception Leko makes on purpose, and **The way out** argues it.
 
 **2. Steps advance on application state, never on DOM events.** The host calls `leko.reached('action-name')` when it knows the thing happened — after its API call resolved, not when the button was clicked.
 
@@ -236,9 +236,11 @@ the right way round for the person the step is asking something of.
 Without a built-in close control, host applications risk trapping users under the scrim overlay. To ensure a guaranteed escape path, this control:
 
 - **Cannot be disabled:** Hosts may customize its appearance via `renderClose`, but cannot remove it or assign it any action other than ending the tour.
-- **Is positioned automatically:** Leko places the control in a screen corner that avoids overlapping active targets or target holes — and whatever chrome the host named as its own, which arrives in the same list of boxes. It is placed at the size it has now, and placed again whenever that size changes: what `renderClose` draws may arrive after the call returns, and a label may change width mid-step. What is read on a change of its size is Leko's own box and the viewport's size, never the page's content or its targets, and never on a scroll.
-- **Paints above the message:** both are popovers in the top layer, where `z-index` has no effect and the one shown later paints on top ([`spike/paint-order-in-the-top-layer/`](spike/paint-order-in-the-top-layer/)). So the message goes into the top layer, still hidden, before the way out, the first time anything is drawn, and neither leaves it until the tour ends. Where the two meet, the way out covers the message. That also puts the message before the way out in document order, the order **The ring focus cannot leave** takes. The corner does not dodge the message: the message is anchored and the browser carries it on every scroll, so a corner chosen against where it was is wrong after the first scroll, and choosing again would be reading layout while the user scrolls.
+- **Is positioned automatically:** Leko places the control in a screen corner that no hole covers, and no chrome the host named as its own either, which arrives in the same list of boxes. Where every corner is covered, it takes the least covered one, even over a target the step opened. It is placed at the size it has now, and placed again whenever that size changes: what `renderClose` draws may arrive after the call returns, and a label may change width mid-step. What is read on a change of its size is Leko's own box and the viewport's size, never the page's content or its targets, and never on a scroll.
+- **Paints above the message:** both are popovers in the top layer, where `z-index` has no effect and the one shown later paints on top ([`spike/paint-order-in-the-top-layer/`](spike/paint-order-in-the-top-layer/)). So the message goes into the top layer, still hidden, before the way out, the first time anything is drawn, and neither leaves it until the tour ends. Where the two meet, the way out covers the message. That also puts the message before the way out in document order, the order **The ring focus cannot leave** takes. The corner does not dodge the message: the message is anchored and the browser carries it on every scroll, so a corner chosen against where it was is wrong after the first scroll, and choosing again would be reading layout while the user scrolls. A docked message does not ride a scroll, but the corner is chosen without it all the same: `DomPresenter.say` places the way out before it shows the message, and `freeCorner` takes only the holes and the chrome.
 - **Is the only global control:** Unlike "Next" (which is step-specific and derived from `awaits`), ending the tour is always permitted and available unconditionally.
+
+**The way out is the one exception to the first constraint that Leko makes on purpose.** It has to be pressable on every step. A tour that can neither move on nor be left traps the user under the scrim, and that is worse than covering a corner of a target the step opened. The message gets no such exception. While the way out is on screen the tour can still be left, so a message off screen beside an opened hole costs the step and nothing more. **The message** says where that happens.
 
 ## A target is a question
 
@@ -1727,9 +1729,23 @@ only at the draw. Fallbacks cannot help: the marker sits on the edge of the
 side the box took, so every flip crosses that edge onto the hole too, and the
 message sets no `position-try-fallbacks`.
 
-The price is plain: where its side has no room, the box runs out of the room,
-off the screen or over the host's chrome, rather than onto the hole. A pinned
-target's is moved to a side that has room, under the sticky follow. The `auto`s
+Where no side has room beside a hole the step only shows, the box docks at the
+foot of the room, where it docks on a step with no target, and its next control
+stays on screen. That hole is blocked already, so covering it costs nothing.
+The fit looks one way from the hole, so a hole below the screen has room above
+it, and that room is below the screen too. The box is placed there and never
+docked.
+
+A hole the step opened cannot have that. On a hole that fills the screen, every
+spot on the screen is over the target. So the box is held off the first side
+anyway and runs out of the room, off the screen or over the host's chrome. On a
+step with no `awaits` the next control goes with it, and the way out is what is
+left, which is why **The way out** takes a corner even over an opened target.
+Under the sticky follow, a pinned target's box moves to a side that has
+room, docks while none has and the hole is only shown, and goes back beside the
+hole once a side has room again.
+
+The `auto`s
 are part of the spelling. A popover's UA style is `inset: 0`, and with only
 `bottom: anchor(top)` written the `top: 0` still holds, so a box above its hole
 is laid against the top of the viewport rather than against the marker — in
@@ -1803,8 +1819,9 @@ and one equidistant on both axes claims nothing at all. There is no band that
 describes something floating clear of every edge: a band deep enough to hold it
 reaches from an edge across half the screen, and the two of them meet and leave
 a room of no height. That is the worse of the two ways to be wrong, and it is
-not a hypothetical — it makes every side fail at once, `sideWithRoom` falls back
-to `bottom`, and the box is docked onto the very element that was named.
+not a hypothetical. Every side fails at once, and the box lands on the very
+element that was named. That holds for a dock at the foot of a room with no
+height, and for a box held off a hole the step opened.
 Claiming nothing leaves the placement exactly where it would have been had the
 host said nothing, which is no worse than not naming it, and the way out is
 unaffected either way because `freeCorner` takes the boxes themselves rather
@@ -1974,7 +1991,8 @@ than fails: without it the message docks to the foot of the viewport, which is
 plainer than being beside the hole and never points at the wrong place.
 The message uses neither `@position-try` nor `position-try-fallbacks`, and
 **The message** says why. What it asks for is `anchor()` in an inset and
-`anchor-center`, and where either is missing it docks.
+`anchor-center`, and where either is missing it docks. Where the browser cannot
+anchor, the message docks on every step, a step that opened its hole included.
 
 The Navigation API a URL-waiting step's fallback exists for is present on the
 top of Chrome, Firefox and Safari alike — `'navigation' in window` was `true`

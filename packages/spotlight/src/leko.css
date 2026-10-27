@@ -65,8 +65,9 @@
   /*
    * How far above the foot of the room the message docks — the viewport, less
    * whatever the host named as its own chrome. The message docks where it has
-   * no cutout to sit beside: on a step with no target, and on every step where
-   * the browser cannot do anchor positioning.
+   * no place beside a cutout: on a step with no target, beside a shown hole
+   * that leaves it no room, and on every step where the browser cannot do
+   * anchor positioning.
    */
   --leko-message-dock: 24px;
 
