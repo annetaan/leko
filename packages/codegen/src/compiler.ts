@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
 
 import { classic } from './classic.js'
+import { native } from './native.js'
 import type { ScanResult } from './scan.js'
 
 export interface Changes {
@@ -36,7 +38,7 @@ export interface Compiler {
 }
 
 /** The peer range in packages/codegen/package.json, word for word. */
-export const SUPPORTED = '>=5.5.0 <7.0.0'
+export const SUPPORTED = '>=5.5.0 <7.0.0 || ~7.0.2'
 
 /** Which backend reads this TypeScript version, or `undefined` outside SUPPORTED. */
 export function backendFor(version: string): 'classic' | 'native' | undefined {
@@ -44,12 +46,23 @@ export function backendFor(version: string): 'classic' | 'native' | undefined {
   if (!match) return undefined
   const major = Number(match[1])
   const minor = Number(match[2])
-  return (major === 5 && minor >= 5) || major === 6 ? 'classic' : undefined
+  const patch = Number(match[3])
+  if ((major === 5 && minor >= 5) || major === 6) return 'classic'
+  return major === 7 && minor === 0 && patch >= 2 ? 'native' : undefined
 }
 
 /** The backend for the `typescript` this package resolves. Throws, naming SUPPORTED and the version found, outside it. */
 export function load(): Compiler {
-  if (backendFor(ts.version) === 'classic') return classic(ts)
+  const backend = backendFor(ts.version)
+  if (backend === 'classic') return classic(ts)
+  if (backend === 'native') {
+    // TypeScript 6 has no such subpath, so a static import would fail there.
+    const require = createRequire(import.meta.url)
+    return native({
+      sync: require('typescript/unstable/sync'),
+      is: require('typescript/unstable/ast/is'),
+    })
+  }
   throw new Error(`leko-signals reads TypeScript ${SUPPORTED}, and this project has ${ts.version}.`)
 }
 

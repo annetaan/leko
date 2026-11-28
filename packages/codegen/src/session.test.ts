@@ -1,12 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
+import * as is from 'typescript-7/unstable/ast/is'
+import * as sync from 'typescript-7/unstable/sync'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { classic } from './classic.js'
-import type { Compiler, Session } from './compiler.js'
+import { classify, type Compiler, type Session } from './compiler.js'
+import { native } from './native.js'
 
 const fixture = (name: string): string =>
   fileURLToPath(new URL(`../fixtures/${name}/tsconfig.json`, import.meta.url))
@@ -61,7 +64,10 @@ const reporting = (...names: readonly string[]): string =>
 
 const named = (session: Session): string[] => session.scan().signals.map((signal) => signal.name)
 
-describe.each<[string, Compiler]>([['classic', classic(ts)]])('a %s session', (_, compiler) => {
+describe.each<[string, Compiler]>([
+  ['classic', classic(ts)],
+  ['native', native({ sync, is })],
+])('a %s session', (_, compiler) => {
   const sessions: Session[] = []
   const open = (config: string): Session => {
     const session = compiler.open(config)
@@ -168,5 +174,127 @@ describe.each<[string, Compiler]>([['classic', classic(ts)]])('a %s session', (_
       expect(session.files()).toContain(late)
       expect(named(session)).toContain('late')
     })
+  })
+
+  it('survives its tsconfig deleted and restored', () => {
+    const root = tempProject()
+    const config = join(root, 'tsconfig.json')
+    const main = join(root, 'src', 'main.ts')
+    const session = open(config)
+    const saved = readFileSync(config, 'utf8')
+    rmSync(config)
+    session.update({ changed: [], created: [], deleted: [config] })
+    expect(named(session)).toEqual(['first'])
+    writeFileSync(config, saved, 'utf8')
+    session.update({ changed: [], created: [config], deleted: [] })
+    writeFileSync(main, reporting('restored'), 'utf8')
+    session.update({ changed: [main], created: [], deleted: [] })
+    expect(named(session)).toEqual(['restored'])
+  })
+
+  it('reads a widened include from a saved tsconfig, reported as created the way classify does', () => {
+    const root = tempProject()
+    const config = join(root, 'tsconfig.json')
+    const session = open(config)
+    mkdirSync(join(root, 'extra'))
+    writeFileSync(join(root, 'extra', 'more.ts'), reporting('extra'), 'utf8')
+    const { compilerOptions } = JSON.parse(readFileSync(config, 'utf8'))
+    writeFileSync(config, JSON.stringify({ compilerOptions, include: ['src', 'extra'] }), 'utf8')
+    session.update({ changed: [], created: [config], deleted: [] })
+    expect(named(session)).toEqual(['extra', 'first'])
+  })
+
+  it('reads edits in one project while another it references has lost its tsconfig', () => {
+    const root = tempProject()
+    const config = join(root, 'tsconfig.json')
+    const other = join(root, 'b', 'tsconfig.json')
+    const main = join(root, 'src', 'main.ts')
+    const { compilerOptions } = JSON.parse(readFileSync(config, 'utf8'))
+    mkdirSync(join(root, 'b', 'src'), { recursive: true })
+    writeFileSync(other, JSON.stringify({ compilerOptions, include: ['src'] }), 'utf8')
+    writeFileSync(join(root, 'b', 'src', 'main.ts'), reporting('b-first'), 'utf8')
+    writeFileSync(
+      config,
+      JSON.stringify({ compilerOptions, include: ['src'], references: [{ path: './b' }] }),
+      'utf8',
+    )
+    const session = open(config)
+    expect(named(session)).toEqual(['b-first', 'first'])
+    rmSync(other)
+    session.update({ changed: [], created: [], deleted: [other] })
+    writeFileSync(main, reporting('second'), 'utf8')
+    session.update({ changed: [main], created: [], deleted: [] })
+    expect(named(session)).toEqual(['b-first', 'second'])
+  })
+})
+
+const written = (file: string, text: string): string => {
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, text, 'utf8')
+  return file
+}
+
+const removed = (target: string): string => {
+  rmSync(target, { recursive: true })
+  return target
+}
+
+describe('a native session fed the way watch feeds it', () => {
+  it('gathers what a classic session gathers after every step', () => {
+    const root = tempProject()
+    const path = (...parts: readonly string[]): string => join(root, ...parts)
+    const { compilerOptions } = JSON.parse(readFileSync(path('tsconfig.json'), 'utf8'))
+    const base = (include: readonly string[]): string =>
+      JSON.stringify({ compilerOptions, include })
+    const config = JSON.stringify({
+      extends: './tsconfig.base.json',
+      references: [{ path: './b' }],
+    })
+    written(path('tsconfig.base.json'), base(['src']))
+    written(path('tsconfig.json'), config)
+    written(path('b', 'tsconfig.json'), base(['src']))
+    written(path('b', 'src', 'main.ts'), reporting('b-first'))
+    const sessions = [classic(ts), native({ sync, is })].map((compiler) =>
+      compiler.open(path('tsconfig.json')),
+    )
+    const steps: readonly (readonly [string, () => readonly string[]])[] = [
+      ['edit', () => [written(path('src', 'main.ts'), reporting('second'))]],
+      ['new file', () => [written(path('src', 'added.ts'), reporting('added'))]],
+      [
+        'new folder',
+        () => [path('src', 'deep'), written(path('src', 'deep', 'a.ts'), reporting('deep'))],
+      ],
+      ['file outside include', () => [written(path('extra', 'more.ts'), reporting('extra'))]],
+      ['base widened', () => [written(path('tsconfig.base.json'), base(['src', 'extra']))]],
+      ['referenced directory removed', () => [removed(path('b'))]],
+      ['edit while it is gone', () => [written(path('src', 'main.ts'), reporting('third'))]],
+      [
+        'referenced directory back',
+        () => [
+          written(path('b', 'tsconfig.json'), base(['src'])),
+          written(path('b', 'src', 'main.ts'), reporting('b-back')),
+        ],
+      ],
+      ['tsconfig deleted', () => [removed(path('tsconfig.json'))]],
+      ['tsconfig back', () => [written(path('tsconfig.json'), config)]],
+      ['edit after', () => [written(path('src', 'main.ts'), reporting('fourth'))]],
+    ]
+    try {
+      for (const [step, act] of steps) {
+        const paths = act()
+        for (const session of sessions) {
+          for (const changed of paths) {
+            session.update(classify(changed, existsSync(changed), new Set(session.files())))
+          }
+        }
+        const [expected, actual] = sessions.map(named)
+        expect(actual, step).toEqual(expected)
+      }
+      expect(sessions.map(named)).toEqual(
+        Array.from({ length: 2 }, () => ['added', 'b-back', 'deep', 'extra', 'fourth']),
+      )
+    } finally {
+      for (const session of sessions) session.close()
+    }
   })
 })

@@ -178,8 +178,9 @@ New behaviour that a user would notice wants a case in
 browser does wants a page in `spike/`.
 
 `packages/codegen` is the same split: `scan.ts` and `emit.ts` are functions a
-test drives. `classic.ts` is the compiler they read through, and `compiler.ts`
-says what a compiler owes and picks one. `generate.ts` and `watcher.ts` are the
+test drives. `classic.ts` and `native.ts` are the compilers they read through,
+TypeScript 5.5 to 6 and TypeScript 7, and `compiler.ts` says what a compiler
+owes and picks one. `generate.ts` and `watcher.ts` are the
 parts that touch tsconfig and disk. It runs in Node as its own Vitest project. Behaviour of the public types wants a
 program under `packages/leko/type-tests/`, one per vocabulary state, because an
 augmentation applies to a whole compilation.

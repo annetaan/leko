@@ -68,6 +68,7 @@
     "@annetaan/leko-scroll": "workspace:*",
     "@annetaan/leko-spotlight": "workspace:*",
     "@annetaan/leko-types": "workspace:*",
-    "tsdown": "^0.23.2"
+    "tsdown": "^0.23.2",
+    "typescript": "^6.0.3"
   }
 }
