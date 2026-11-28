@@ -3,6 +3,8 @@ import { dirname, isAbsolute, resolve } from 'node:path'
 import ts from 'typescript'
 
 import { emit } from './emit.js'
+import { classicProgram } from './classic.js'
+import { packages } from './package.js'
 import { scan, type ScanResult } from './scan.js'
 
 export interface Options {
@@ -131,7 +133,15 @@ export function inspect(options: Options = {}): Report {
   const included = existsSync(out)
     ? read.some(({ parsed }) => reads(parsed.fileNames, out))
     : undefined
-  return report(out, scan(programs, ts), options.strict ?? true, included)
+  return report(
+    out,
+    scan(
+      programs.map((program) => classicProgram(ts, program)),
+      packages(),
+    ),
+    options.strict ?? true,
+    included,
+  )
 }
 
 /**
@@ -170,6 +180,7 @@ export function watch(options: Options = {}, onReport?: (report: Report) => void
   const { config, out } = locate(options)
   const strict = options.strict ?? true
   const read = projects(config)
+  const packageOf = packages()
   const latest = new Map<string, ts.Program>()
   let ready = false
   const settle = (): void => {
@@ -177,7 +188,15 @@ export function watch(options: Options = {}, onReport?: (report: Report) => void
     // A program that writes nothing was built with the file already on disk, so
     // its root names can be trusted without parsing the tsconfig on every save.
     const included = programs.some((program) => reads(program.getRootFileNames(), out))
-    const answer = report(out, scan(programs, ts), strict, included)
+    const answer = report(
+      out,
+      scan(
+        programs.map((program) => classicProgram(ts, program)),
+        packageOf,
+      ),
+      strict,
+      included,
+    )
     if (!answer.stale) {
       onReport?.(answer)
       return

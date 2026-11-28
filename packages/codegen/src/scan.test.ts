@@ -2,23 +2,29 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { classicProgram } from './classic.js'
+import { packages } from './package.js'
 import { scan, type ScanResult } from './scan.js'
 
 const FIXTURE = fileURLToPath(new URL('../fixtures/app/tsconfig.json', import.meta.url))
 const SPELLINGS = fileURLToPath(new URL('../fixtures/spellings/tsconfig.json', import.meta.url))
 
 const fixtureProgram = (tsconfig = FIXTURE): ts.Program => {
-  const parsed = ts.getParsedCommandLineOfConfigFile(tsconfig, {}, {
-    ...ts.sys,
-    onUnRecoverableConfigFileDiagnostic: (d) => {
-      throw new Error(ts.flattenDiagnosticMessageText(d.messageText, '\n'))
+  const parsed = ts.getParsedCommandLineOfConfigFile(
+    tsconfig,
+    {},
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: (d) => {
+        throw new Error(ts.flattenDiagnosticMessageText(d.messageText, '\n'))
+      },
     },
-  } as ts.ParseConfigFileHost)
+  )
   if (!parsed) throw new Error(`could not read ${tsconfig}`)
   return ts.createProgram(parsed.fileNames, parsed.options)
 }
 
-const result: ScanResult = scan([fixtureProgram()], ts)
+const result: ScanResult = scan([classicProgram(ts, fixtureProgram())], packages())
 const names = result.signals.map((signal) => signal.name)
 
 describe('scan', () => {
@@ -27,8 +33,6 @@ describe('scan', () => {
   })
 
   it('finds a name kept in a constant', () => {
-    // The point of asking the checker instead of the syntax. `reached()` is
-    // handed an identifier here and the name is a file away.
     expect(names).toContain('report-exported')
   })
 
@@ -38,9 +42,16 @@ describe('scan', () => {
   })
 
   it('ignores a reached method that belongs to somebody else', () => {
-    // `fixtures/app/src/impostor.ts` has its own class called Leko. Matching on
-    // the name alone would put this string in the vocabulary.
+    // `fixtures/app/src/impostor.ts` has its own class called Leko.
     expect(names).not.toContain('not-a-signal')
+  })
+
+  it('counts a Leko by the package that declares it', () => {
+    const lookup = packages()
+    const packageOf = (file: string): string | undefined =>
+      file.endsWith('impostor.ts') ? '@annetaan/leko' : lookup(file)
+    const counted = scan([classicProgram(ts, fixtureProgram())], packageOf)
+    expect(counted.signals.map((signal) => signal.name)).toContain('not-a-signal')
   })
 
   it('reports a call whose name it cannot read rather than dropping it', () => {
@@ -60,9 +71,10 @@ describe('scan', () => {
   })
 
   it('walks a file two programs both hold only once', () => {
-    // A file can belong to more than one project, and a second walk would
-    // report every call in it twice.
-    const twice = scan([fixtureProgram(), fixtureProgram()], ts)
+    const twice = scan(
+      [classicProgram(ts, fixtureProgram()), classicProgram(ts, fixtureProgram())],
+      packages(),
+    )
     expect(twice).toEqual(result)
     expect(twice.unread).toHaveLength(1)
     expect(twice.signals.find((signal) => signal.name === 'order-saved')?.sites).toHaveLength(1)
@@ -71,7 +83,7 @@ describe('scan', () => {
 
 describe('scan, over every way of spelling reached', () => {
   const program = fixtureProgram(SPELLINGS)
-  const spelled = scan([program], ts)
+  const spelled = scan([classicProgram(ts, program)], packages())
 
   it('reports reached through brackets, parentheses, call, apply, bind or destructuring as unread, and gathers none of their names', () => {
     // A fixture that does not compile would prove nothing about the spellings.
