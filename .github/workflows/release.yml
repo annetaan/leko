@@ -84,9 +84,14 @@ jobs:
           done
 
   smoke:
+    name: smoke (TypeScript ${{ matrix.typescript || 'as pinned' }})
     needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        typescript: ['', '7']
     steps:
       - uses: actions/checkout@v7
         with:
@@ -110,3 +115,4 @@ jobs:
       - uses: ./.github/actions/smoke
         with:
           specs: '@annetaan/leko@${{ steps.registry.outputs.version }} @annetaan/leko-codegen@${{ steps.registry.outputs.version }}'
+          typescript: ${{ matrix.typescript }}
