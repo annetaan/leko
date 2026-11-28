@@ -1,6 +1,7 @@
 import { relative } from 'node:path'
 import { parseArgs } from 'node:util'
 
+import { SUPPORTED } from './compiler.js'
 import { generate, inspect, type Options, type Report, watch } from './generate.js'
 import { say, type Told, untold } from './unread.js'
 
@@ -20,7 +21,8 @@ leko-signals — gather the signal names a project reports and write them out.
   -h, --help         this
 
 Exits 1 when --check finds the file out of date, and 2 when it cannot run: an
-option it does not know, or a tsconfig it cannot read.
+option it does not know, a tsconfig it cannot read, or a TypeScript outside
+${SUPPORTED}.
 `.trim()
 
 interface Parsed extends Options {
