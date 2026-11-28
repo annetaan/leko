@@ -9,6 +9,14 @@ inputs:
       What `npm install --no-save` installs into `smoke/`: the two tarball
       paths relative to `smoke/`, or two registry specs.
     required: true
+  typescript:
+    description: >-
+      Empty keeps the TypeScript `smoke/package.json` pins. `7` installs the
+      TypeScript 7 that `@annetaan/leko-codegen` runs its own tests on, the
+      spec of its `typescript-7` devDependency, in the same install as the
+      packages.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -22,14 +30,25 @@ runs:
       shell: bash
       working-directory: smoke
       run: npm ci
-    - name: Install both packages
+    - name: Install both packages, and TypeScript when asked
       shell: bash
       working-directory: smoke
       env:
         SPECS: ${{ inputs.specs }}
-      # After `npm ci`, never before: CONTRIBUTING.md, **The smoke project**.
-      # Unquoted so the shell splits two specs and expands a glob.
-      run: npm install --no-save $SPECS
+        TYPESCRIPT: ${{ inputs.typescript }}
+      # After `npm ci`, never before, and in one install: CONTRIBUTING.md,
+      # **The smoke project**. Unquoted so the shell splits the specs and
+      # expands a glob.
+      run: |
+        case $TYPESCRIPT in
+          '') extra= ;;
+          7) extra=$(node -p "require('../packages/codegen/package.json').devDependencies['typescript-7'].replace(/^npm:/, '')") ;;
+          *)
+            echo "typescript is '$TYPESCRIPT'; it takes '' or '7'."
+            exit 1
+            ;;
+        esac
+        npm install --no-save $SPECS $extra
     - name: Install Chromium
       shell: bash
       working-directory: smoke

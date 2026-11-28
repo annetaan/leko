@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { run } from './command.js'
+import { SUPPORTED } from './compiler.js'
 import { generate } from './generate.js'
 
 const project = fileURLToPath(new URL('../fixtures/app', import.meta.url))
@@ -35,6 +36,12 @@ describe('run', () => {
     expect(run(['--project', empty], got.io)).toBe(2)
     expect(got.error.join('\n')).toContain('tsconfig.json')
     expect(got.error.join('\n')).not.toMatch(/^\s+at /m)
+  })
+
+  it('names the TypeScript range it reads among the reasons --help gives for exit 2', () => {
+    const got = io()
+    expect(run(['--help'], got.io)).toBe(0)
+    expect(got.log.join('\n')).toContain(`or a TypeScript outside\n${SUPPORTED}.`)
   })
 
   it('says the file is up to date, not wrote, when nothing was written', () => {

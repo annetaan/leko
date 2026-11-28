@@ -378,9 +378,19 @@ tarballs its `pack` job wrote with the first two lines.
 [`release.yml`](.github/workflows/release.yml) runs the same action against the
 registry after it publishes.
 
-Both tarballs go in one `npm install`. Neither is in `smoke/package.json`, and
-a second `--no-save` install removes the package the first one added as
-extraneous. `npm ci` removes them too, so install them again after it.
+CI runs the project twice: once on the TypeScript `smoke/package.json` pins,
+and once with TypeScript 7 installed beside the tarballs, at the spec of
+codegen's `typescript-7` devDependency. `leko-signals` picks its compiler from
+the TypeScript the project installed, and the workspace is on 6, so this is the
+only place the published codegen meets a 7 it did not bring. On that run `tsc`
+is TypeScript 7's, so it also checks that the augmentation applies under 7.
+Locally, its install line is
+`npm install --no-save ../tarballs/*.tgz typescript@~7.0.2`.
+
+Both tarballs go in one `npm install`, and so does TypeScript when it is asked
+for. Neither tarball is in `smoke/package.json`, and a second `--no-save`
+install removes the package the first one added as extraneous. `npm ci`
+removes them too, so install them again after it.
 
 ### The release
 

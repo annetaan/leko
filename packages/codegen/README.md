@@ -23,6 +23,10 @@ and a name nothing reports stops compiling.
 npm install -D @annetaan/leko-codegen
 ```
 
+It reads the project with the TypeScript the project installed, 5.5 to 6 or
+7.0, and refuses any other version, naming the range it reads
+(`>=5.5.0 <7.0.0 || ~7.0.2`).
+
 With Vite, add the plugin and forget about it. It writes the file before a
 build, and keeps writing it while the dev server runs.
 
@@ -51,8 +55,8 @@ leko-signals --out src/leko-signals.d.ts --check    # in CI
 | `--check` | write nothing, exit 1 if the file on disk has fallen behind |
 | `--watch` | keep writing while the project is edited |
 
-It exits 2 when it cannot run at all: an option it does not know, or a tsconfig
-it cannot read.
+It exits 2 when it cannot run at all: an option it does not know, a tsconfig it
+cannot read, or a TypeScript outside the range above.
 
 **Put the output where your tsconfig reads from.** A declaration file outside
 the project's `include` is compiled by nobody, so the augmentation never applies

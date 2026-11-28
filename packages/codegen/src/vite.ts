@@ -12,8 +12,8 @@ import { say, untold } from './unread.js'
  * the story they write next. That is the whole point of the generator, and a
  * command somebody has to remember to run is not it.
  *
- * The watch is the TypeScript compiler's own, so an edit costs the files that
- * changed rather than the project. Vite is not asked to reload anything: the
+ * The watch hands the compiler only the files that changed, so an edit costs
+ * those rather than the project. Vite is not asked to reload anything: the
  * file that changed is a declaration file, which no bundle contains and no
  * browser ever sees.
  *
