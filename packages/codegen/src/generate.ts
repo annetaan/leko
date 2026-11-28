@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, resolve } from 'node:path'
-import ts from 'typescript'
+import { fileURLToPath } from 'node:url'
 
+import { classify, load, type Session } from './compiler.js'
 import { emit } from './emit.js'
-import { classicProgram } from './classic.js'
-import { packages } from './package.js'
-import { scan, type ScanResult } from './scan.js'
+import type { ScanResult } from './scan.js'
+import { rootsOf, watchTree } from './watcher.js'
 
 export interface Options {
   /**
@@ -59,36 +59,15 @@ const locate = (options: Options): Resolved => {
   return { config, out }
 }
 
-const parse = (config: string): ts.ParsedCommandLine => {
-  const parsed = ts.getParsedCommandLineOfConfigFile(config, {}, {
-    ...ts.sys,
-    onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
-      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
-    },
-  } as ts.ParseConfigFileHost)
-  if (!parsed) throw new Error(`Could not read ${config}`)
-  return parsed
-}
+// TypeScript's `sys` decides case sensitivity the same way: by whether this
+// module's own path, with its letter case swapped, exists.
+const here = fileURLToPath(import.meta.url)
+const swapped = here.replace(/\w/g, (c) =>
+  c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase(),
+)
+const caseSensitive = here === swapped || !existsSync(swapped)
 
-/** The tsconfig and every project it references, depth-first, each read once. */
-const projects = (config: string): { config: string; parsed: ts.ParsedCommandLine }[] => {
-  const visited = new Set<string>()
-  const read: { config: string; parsed: ts.ParsedCommandLine }[] = []
-  const walk = (path: string): void => {
-    if (visited.has(path)) return
-    visited.add(path)
-    const parsed = parse(path)
-    read.push({ config: path, parsed })
-    for (const reference of parsed.projectReferences ?? []) {
-      walk(resolve(ts.resolveProjectReferencePath(reference)))
-    }
-  }
-  walk(config)
-  return read
-}
-
-const fold = (path: string): string =>
-  ts.sys.useCaseSensitiveFileNames ? path : path.toLowerCase()
+const fold = (path: string): string => (caseSensitive ? path : path.toLowerCase())
 
 // A project whose only file is the declaration file compiles it for nobody.
 const reads = (fileNames: readonly string[], out: string): boolean =>
@@ -103,23 +82,22 @@ const compare = (out: string, content: string): boolean => {
   }
 }
 
-/** Whether a project the tsconfig reaches, read again from disk, now takes in `out`. */
-const covers = (config: string, out: string): boolean => {
-  try {
-    return projects(config).some(({ parsed }) => reads(parsed.fileNames, out))
-  } catch {
-    return false
-  }
+const included = (session: Session, out: string): boolean =>
+  session.projects().some(({ roots }) => reads(roots, out))
+
+const write = (answer: Report): void => {
+  mkdirSync(dirname(answer.out), { recursive: true })
+  writeFileSync(answer.out, answer.content, 'utf8')
 }
 
 const report = (
   out: string,
   result: ScanResult,
   strict: boolean,
-  included: boolean | undefined,
+  inside: boolean | undefined,
 ): Report => {
   const content = emit(result, { strict })
-  return { out, content, stale: compare(out, content), included, result }
+  return { out, content, stale: compare(out, content), included: inside, result }
 }
 
 /**
@@ -128,20 +106,17 @@ const report = (
  */
 export function inspect(options: Options = {}): Report {
   const { config, out } = locate(options)
-  const read = projects(config)
-  const programs = read.map(({ parsed }) => ts.createProgram(parsed.fileNames, parsed.options))
-  const included = existsSync(out)
-    ? read.some(({ parsed }) => reads(parsed.fileNames, out))
-    : undefined
-  return report(
-    out,
-    scan(
-      programs.map((program) => classicProgram(ts, program)),
-      packages(),
-    ),
-    options.strict ?? true,
-    included,
-  )
+  const session = load().open(config)
+  try {
+    return report(
+      out,
+      session.scan(),
+      options.strict ?? true,
+      existsSync(out) ? included(session, out) : undefined,
+    )
+  } finally {
+    session.close()
+  }
 }
 
 /**
@@ -152,90 +127,82 @@ export function inspect(options: Options = {}): Report {
  * never stops.
  */
 export function generate(options: Options = {}): Report {
-  const answer = inspect(options)
-  if (!answer.stale) return answer
-  mkdirSync(dirname(answer.out), { recursive: true })
-  writeFileSync(answer.out, answer.content, 'utf8')
-  // Asked again now the file exists. A first run always writes something the
-  // earlier parse could not have seen.
-  const { config } = locate(options)
-  return { ...answer, included: covers(config, answer.out) }
+  const { config, out } = locate(options)
+  const session = load().open(config)
+  try {
+    const answer = report(
+      out,
+      session.scan(),
+      options.strict ?? true,
+      existsSync(out) ? included(session, out) : undefined,
+    )
+    if (!answer.stale) return answer
+    write(answer)
+    // Asked again now the file exists. A first run always writes something the
+    // first program could not have seen.
+    session.update(classify(out, true, new Set(session.files())))
+    return { ...answer, included: included(session, out) }
+  } finally {
+    session.close()
+  }
 }
 
 /**
  * Keep the declaration file up to date while the project is being edited.
  *
- * `onReport` runs after every program, whether or not it wrote, and `stale`
- * says which. `ts.createWatchProgram` reuses the program between edits, so a
- * keystroke costs the files that changed rather than the whole project. Returns
- * the function that stops it.
+ * `onReport` runs after every scan, whether or not it wrote, and `stale` says
+ * which. Edits reach the compiler as the files that changed, so a keystroke
+ * costs those rather than the whole project. Returns the function that stops
+ * it.
  *
  * The set of projects is read once at start, so a change to `references` wants
- * a restart. TypeScript's solution builder walks references itself and is not
- * used: it emits and writes `.tsbuildinfo` into the user's project, and it
- * creates no program for a project it judges up to date, so nothing would be
- * scanned there at start.
+ * a restart.
  */
 export function watch(options: Options = {}, onReport?: (report: Report) => void): () => void {
   const { config, out } = locate(options)
   const strict = options.strict ?? true
-  const read = projects(config)
-  const packageOf = packages()
-  const latest = new Map<string, ts.Program>()
-  let ready = false
+  const session = load().open(config)
+  const configs = session.projects().map((project) => project.config)
+  let known: ReadonlySet<string> = new Set(session.files())
+  let targeted = ''
+
   const settle = (): void => {
-    const programs = read.flatMap(({ config: c }) => latest.get(c) ?? [])
-    // A program that writes nothing was built with the file already on disk, so
-    // its root names can be trusted without parsing the tsconfig on every save.
-    const included = programs.some((program) => reads(program.getRootFileNames(), out))
-    const answer = report(
-      out,
-      scan(
-        programs.map((program) => classicProgram(ts, program)),
-        packageOf,
-      ),
-      strict,
-      included,
-    )
+    const answer = report(out, session.scan(), strict, included(session, out))
     if (!answer.stale) {
       onReport?.(answer)
       return
     }
-    mkdirSync(dirname(answer.out), { recursive: true })
-    writeFileSync(answer.out, answer.content, 'utf8')
-    // Asked once the file is on disk. The first program of a run was built
-    // before there was anything to take in, and reporting from that one calls
-    // every first run a mistake.
-    onReport?.({ ...answer, included: covers(config, out) })
+    write(answer)
+    session.update(classify(out, true, known))
+    known = new Set(session.files())
+    onReport?.({ ...answer, included: included(session, out) })
   }
-  const watching: ts.WatchOfConfigFile<ts.SemanticDiagnosticsBuilderProgram>[] = []
-  for (const entry of read) {
-    const host = ts.createWatchCompilerHost(
-      entry.config,
-      { noEmit: true },
-      ts.sys,
-      ts.createSemanticDiagnosticsBuilderProgram,
-      // Diagnostics belong to whatever is already compiling this project. A
-      // generator that reprints its errors is noise in two places.
-      () => {},
-      () => {},
-    )
-    // A watch program reads a referenced project through its output `.d.ts`,
-    // which a project that emits nothing never has, so every import across a
-    // reference would resolve to nothing. `createProgram` in `inspect` is given
-    // no references and reads the sources already.
-    host.useSourceOfProjectReferenceRedirect = () => true
-    host.afterProgramCreate = (builder) => {
-      latest.set(entry.config, builder.getProgram())
-      if (ready) settle()
-    }
-    // The first program arrives inside this call, so settling waits for the
-    // last watcher and a run reports once at start.
-    watching.push(ts.createWatchProgram(host))
+
+  const retarget = (): void => {
+    const dirs = rootsOf([...configs, ...known])
+    const key = dirs.join('\n')
+    if (key === targeted) return
+    targeted = key
+    watcher.watch(dirs)
   }
-  ready = true
-  settle()
+
+  const watcher = watchTree((path) => {
+    session.update(classify(path, existsSync(path), known))
+    known = new Set(session.files())
+    retarget()
+    settle()
+  })
+
+  try {
+    retarget()
+    settle()
+  } catch (error) {
+    watcher.close()
+    session.close()
+    throw error
+  }
   return () => {
-    for (const w of watching) w.close()
+    watcher.close()
+    session.close()
   }
 }

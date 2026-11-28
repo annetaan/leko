@@ -23,6 +23,9 @@ and a name nothing reports stops compiling.
 npm install -D @annetaan/leko-codegen
 ```
 
+It reads the project with the TypeScript the project installed, 5.5 to 6, and
+refuses any other version, naming the range it reads (`>=5.5.0 <7.0.0`).
+
 With Vite, add the plugin and forget about it. It writes the file before a
 build, and keeps writing it while the dev server runs.
 

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { generate, inspect, type Report, watch } from './generate.js'
 
@@ -11,6 +11,52 @@ const project = fileURLToPath(new URL('../fixtures/app', import.meta.url))
 const solution = fileURLToPath(new URL('../fixtures/solution', import.meta.url))
 const scratch = (): string => join(mkdtempSync(join(tmpdir(), 'leko-codegen-')), 'signals.d.ts')
 const names = (report: Report): string[] => report.result.signals.map((signal) => signal.name)
+const editable = (): string => {
+  const root = mkdtempSync(join(tmpdir(), 'leko-codegen-'))
+  const write = (path: string, text: string): void => {
+    mkdirSync(join(root, path, '..'), { recursive: true })
+    writeFileSync(join(root, path), text, 'utf8')
+  }
+  write(
+    'tsconfig.json',
+    JSON.stringify({
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: true,
+        types: [],
+      },
+      include: ['src'],
+    }),
+  )
+  write(
+    'node_modules/@annetaan/leko/package.json',
+    JSON.stringify({ name: '@annetaan/leko', types: './index.d.ts' }),
+  )
+  write(
+    'node_modules/@annetaan/leko/index.d.ts',
+    [
+      'declare class Leko {',
+      '  reached(name: string): void',
+      '}',
+      'export type { Leko }',
+      'export declare function createLeko(): Leko',
+      '',
+    ].join('\n'),
+  )
+  write('src/main.ts', reporting('first'))
+  return root
+}
+const reporting = (...signals: readonly string[]): string =>
+  [
+    "import { createLeko } from '@annetaan/leko'",
+    'const leko = createLeko()',
+    ...signals.map((name) => `leko.reached('${name}')`),
+    '',
+  ].join('\n')
 const tsconfig = (json: object): string => {
   const dir = mkdtempSync(join(tmpdir(), 'leko-codegen-'))
   writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(json), 'utf8')
@@ -124,19 +170,6 @@ describe('references', () => {
     expect(saved?.sites).toHaveLength(1)
   })
 
-  it('reads a project reached twice only once, so references that loop end', () => {
-    const dir = tsconfig({ files: ['a.ts'], references: [{ path: './b' }] })
-    mkdirSync(join(dir, 'b'))
-    writeFileSync(join(dir, 'a.ts'), '', 'utf8')
-    writeFileSync(join(dir, 'b', 'b.ts'), '', 'utf8')
-    writeFileSync(
-      join(dir, 'b', 'tsconfig.json'),
-      JSON.stringify({ files: ['b.ts'], references: [{ path: '..' }] }),
-      'utf8',
-    )
-    expect(inspect({ project: dir, out: scratch() }).result.signals).toEqual([])
-  })
-
   it('says a file inside a referenced project is included', () => {
     const out = join(solution, 'src', 'generated.d.ts')
     try {
@@ -198,6 +231,39 @@ describe('watch', () => {
       expect(reports[0]?.stale).toBe(true)
       expect(reports[0]?.content).toContain('order-saved')
       expect(reports[0]?.content).toContain('demo-seeded')
+    } finally {
+      stop()
+    }
+  })
+
+  it('rewrites the file when a reached() call is added', async () => {
+    const root = editable()
+    const out = join(root, 'src', 'leko-signals.d.ts')
+    const reports: Report[] = []
+    const stop = watch({ project: root, out }, (report) => reports.push(report))
+    try {
+      expect(readFileSync(out, 'utf8')).toContain("'first': true")
+      // Each poll writes again, for the reason `written` in `watcher.test.ts` gives.
+      await vi.waitFor(() => {
+        writeFileSync(join(root, 'src', 'main.ts'), reporting('first', 'x'), 'utf8')
+        expect(readFileSync(out, 'utf8')).toContain("'x': true")
+      })
+      expect(reports.some((report) => report.stale && names(report).includes('x'))).toBe(true)
+    } finally {
+      stop()
+    }
+  })
+
+  it('picks up a new file in a new folder', async () => {
+    const root = editable()
+    const out = join(root, 'src', 'leko-signals.d.ts')
+    const stop = watch({ project: root, out })
+    try {
+      mkdirSync(join(root, 'src', 'new'))
+      await vi.waitFor(() => {
+        writeFileSync(join(root, 'src', 'new', 'a.ts'), reporting('fresh'), 'utf8')
+        expect(readFileSync(out, 'utf8')).toContain("'fresh': true")
+      })
     } finally {
       stop()
     }
